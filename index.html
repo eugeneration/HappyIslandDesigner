@@ -6,13 +6,14 @@
     <script type="text/javascript" src="paper-full.js"></script>
     <script type="text/javascript" src="jquery-3.4.1.min.js"></script>
     <script type="text/javascript" src="jquery.mousewheel.min.js"></script>
-    <script type="text/javascript" src="paper-zoom.js"></script>
     <script type="text/paperscript" canvas="canvas" src="drawer.js"></script>
+    <script type="text/paperscript" canvas="canvas" src="paper-zoom.js"></script>
     <style>
         html,
         body {
             margin: 0;
             height: 100%;
+            overscroll-behavior: none;
         }
 
         /* Scale canvas with resize attribute to full size */
