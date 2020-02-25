@@ -25,7 +25,6 @@ function onMouseDown(event) {
     mouseNativeStart = new Point(ev.event.offsetX, ev.event.offsetY);
 }
 
-tool.minDistance = 10;
 function onMouseDrag(event) {
     if(viewCenterStart) {   
         var nativeDelta = new Point(
