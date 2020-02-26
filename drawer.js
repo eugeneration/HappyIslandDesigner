@@ -108,6 +108,18 @@ $(document).keydown(function(event) {
             cycleBrushHead();
             updateBrush();
             break;
+        case 'm':
+            var o = objectMap(drawing, function(pathItem){
+              var p;
+              if (pathItem._children) {
+                p = pathItem._children.map(function(path) {return path._segments.map(function(s) {return {x: s._point.x, y: s._point.y};})});
+              } else {
+                p = pathItem._segments.map(function(s) {return {x: s._point.x, y: s._point.y};});
+              }
+              return p;
+            });
+            console.log(JSON.stringify(o));
+            break;
 
     }
     onUpdateColor();
@@ -409,7 +421,7 @@ function transformSegments(segments, coordinate) {
 // ===============================================
 // DRAWING METHODS
 
-var drawing = {};
+var drawing = loadTemplate();
 
 var drawPoints = [];
 
@@ -532,3 +544,34 @@ Array.prototype.equals = function (array) {
     }       
     return true;
 }
+
+function objectMap(object, mapFn) {
+  return Object.keys(object).reduce(function(result, key) {
+    result[key] = mapFn(object[key], key)
+    return result
+  }, {})
+}
+
+// ==== TEMPLATES
+
+function loadTemplate() {
+  return objectMap(template, function(colorData, color) {
+    // if array of arrays, make compound path
+    var p;
+    if (colorData[0].x) {
+      // normal path
+      p = new Path(colorData);
+    }
+    else {
+      p = new CompoundPath({
+        children: colorData.map(function (pathData) {
+          return new Path(pathData);
+        }),
+      });
+    }
+    p.fillColor = color;
+    return p;
+  })
+}
+
+
