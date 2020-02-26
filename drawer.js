@@ -96,6 +96,14 @@ $(document).keydown(function(event) {
         case 'e':
             updatePaintTool(paintTools.freeform);
             break;
+        case '[':
+            brushSize = Math.max(brushSize - 1, 0);
+            updateBrush();
+            break;
+        case ']':
+            brushSize = Math.max(brushSize + 1, 0);
+            updateBrush();
+            break;
     }
     onUpdateColor();
 });
@@ -132,7 +140,38 @@ var paintTool = paintTools.grid;
 
 // Create a new path once, when the script is executed:
 var myPath;
-function startDraw() {
+function startDraw(event) {
+    switch (paintTool) {
+        case paintTools.grid:
+            startDrawGrid(event.point);
+            break;
+        case paintTools.diagonals:
+            break;
+        case paintTools.freeform:
+            myPath = new Path();
+            myPath.strokeColor = paintColor;
+            myPath.strokeWidth = 10;
+            break;
+    }
+}
+function draw(event) {
+    switch (paintTool) {
+        case paintTools.grid:
+            drawGrid(event.point);
+            break;
+        case paintTools.diagonals:
+            break;
+        case paintTools.freeform:
+            // Add a segment to the path at the position of the mouse:
+            myPath.add(event.point);
+            myPath.smooth({type: 'catmull-rom'});
+            break;
+    }
+}
+function endDraw(event) {
+
+}
+function changePaintTool(newPaintTool) {
     switch (paintTool) {
         case paintTools.grid:
             break;
@@ -141,22 +180,10 @@ function startDraw() {
         case paintTools.freeform:
             break;
     }
-    myPath = new Path();
-    myPath.strokeColor = paintColor;
-    myPath.strokeWidth = 10;
-}
-function draw(event) {
-    // Add a segment to the path at the position of the mouse:
-    myPath.add(event.point);
-    myPath.smooth({type: 'catmull-rom'});
-}
-function endDraw() {
-
-}
-function changePaintTool(newPaintTool) {
     endDraw();
     paintTool = newPaintTool;
 }
+
 
 // ===============================================
 // PIXEL FITTING
@@ -183,18 +210,21 @@ var horizontalDivisions = 16;
 var verticalDivisions = 16;
 var verticalRatio = 1;//0.767;
 
+var cellWidth = 0;
+var cellHeight = 0;
+
 var remapX = function (i) {return i};
 var remapY = function (i) {return i};
 var remapInvX = function (i) {return i};
 var remapInvY = function (i) {return i};
-
+resizeCoordinates();
 function resizeCoordinates() {
     var margin = view.size.width * 0.1;
 
     var width = view.size.width - margin * 2;
     var blockWidth = width / horizontalBlocks;
-    var cellWidth = blockWidth / horizontalDivisions;
-    var cellHeight = cellWidth * verticalRatio;
+    cellWidth = blockWidth / horizontalDivisions;
+    cellHeight = cellWidth * verticalRatio;
     var blockHeight = cellHeight * verticalDivisions;
     var height = blockHeight * verticalBlocks;
     
@@ -203,6 +233,7 @@ function resizeCoordinates() {
     var yView = height + margin;
     var yCoord = verticalBlocks * verticalDivisions;
     console.log(margin, xView, 0, xCoord);
+
     remapX = createRemap(margin, xView, 0, xCoord);
     remapY = createRemap(margin, yView, 0, yCoord);
     remapInvX = createRemap(0, xCoord, margin, xView);
@@ -260,10 +291,10 @@ function createGrid() {
 function createGridLine(segment, blockEdge) {
     line = new Path(segment);
     line.strokeColor = '#ffffff';
-    line.strokeWidth = blockEdge ? 2 : 1;
+    line.strokeWidth = blockEdge ? 1 : 0.5;
     line.strokeCap = 'round';
     line.dashArray = blockEdge ? [10, 12] : null;
-    line.opacity = blockEdge ? 0.5 : 0.2;
+    line.opacity = blockEdge ? 0.5 : 0.3;
     return line;
 }
 function getSegment(i, horizontal) {
@@ -286,34 +317,121 @@ function getSegment(i, horizontal) {
 
 // ===============================================
 // COORDINATE LABEL
-var coordinateLabel = new PointText([0, 0]);
+var coordinateLabel = new PointText(new Point(0, 0));
 
+function centerBrushOffset(width, height) {
+    return new Point(width * 0.5 * cellWidth, height * 0.5 * cellHeight);
+}
+
+
+var brushSize = 1;
+var brushSegments;
 var brush = new Path();
+var brushOutline = new Path();
+updateBrush();
+
+function updateBrush() {
+  brushSegments = getBrushSegments(brushSize);
+
+  var prevPos = brush.position;
+
+  brush.segments = brushSegments;
+  brush.pivot = new Point(0, 0);
+  brush.position = prevPos;
+  brush.opacity = 0.5;
+  brush.closed = true;
+  brush.fillColor = paintColor;
+
+  brushOutline.segments = brushSegments;
+  brushOutline.position = prevPos;
+  brushOutline.closed = true;
+  brushOutline.strokeColor = '#fff';
+  brushOutline.strokeWidth = 0.5;
+}
 function updateCoordinateLabel(event) {
-    var coordinate = viewToMap(event.point).floor();
+    var rawCoordinate = viewToMap(event.point);
+    var coordinate = rawCoordinate.floor();
+    var globalCoordinate = mapToView(coordinate);
     coordinateLabel.content = '' + event.point + '\n' + coordinate.toString();
     coordinateLabel.position = event.point;
 
-    brush.segments = getBrushSegments(coordinate);
-    brush.closed = true;
-    brush.fillColor = paintColor;
+    brushOutline.position = event.point;
+
+    brush.position = globalCoordinate;
 }
-function getBrushSegments(coordinate) {
+function getBrushSegments(size, centered) {
     // square
+    var sizeX = size * cellWidth;
+    var sizeY = size * cellHeight;
+    var offset = centered
+      ? new Point(sizeX * -0.5, sizeY * -0.5)
+      : new Point(0, 0);
     return [
-        mapToView(coordinate), 
-        mapToView(coordinate.add([0, 1])), 
-        mapToView(coordinate.add([1, 1])), 
-        mapToView(coordinate.add([1, 0])), 
+        offset, 
+        offset.add([0, sizeY]), 
+        offset.add([sizeX, sizeY]), 
+        offset.add([sizeX, 0]), 
     ]
+}
+function transformSegments(segments, coordinate) {
+  var p = mapToView(coordinate);
+  return segments.map(function(s) {return s + p});
+}
+
+
+// ===============================================
+// DRAWING METHODS
+
+var drawing = {};
+
+var drawPoints = [];
+
+var prevGridCoordinate;
+function startDrawGrid(viewPosition) {
+    var coordinate = viewToMap(viewPosition);
+    drawGridCoordinate(coordinate.floor());
+    prevGridCoordinate = coordinate;
+}
+
+function drawGrid(viewPosition, brushShape) {
+    var coordinate = viewToMap(viewPosition);
+    
+    doForCellsOnLine(
+        prevGridCoordinate.x, prevGridCoordinate.y,
+        coordinate.x, coordinate.y,
+        function(x, y) {
+            drawGridCoordinate(new Coordinate(x, y).floor(), brushShape)
+        });
+    prevGridCoordinate = coordinate;
+}
+
+function drawGridCoordinate(coordinate /*, brushShape*/) {
+    var newDrawPoints = transformSegments(brushSegments, coordinate);
+
+    if (!newDrawPoints.equals(drawPoints)) {
+        drawPoints = newDrawPoints;
+        addDrawPoints(drawPoints, paintColor);
+    }
+}
+
+function addDrawPoints(points, color) {
+    var tempPath = new Path(points);
+    if (!drawing.hasOwnProperty(color)) {
+        drawing[color] = new Path();
+    }
+    var unite = drawing[color].unite(tempPath);
+    drawing[color].remove();
+    tempPath.remove();
+    drawing[color] = unite;
+    unite.fillColor = color;
 }
 
 // ===============================================
 // HELPERS
 function createRemap(inMin, inMax, outMin, outMax) {
-    return function remap(x) {
-        return (x - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
-    };
+  return function remap(x) {
+    return (x - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+  };
 }
 
 function ES3Class(obj) {
@@ -332,4 +450,58 @@ function ES3Class(obj) {
   }
   // return what will be used to create new Instances
   return constructor;
+}
+
+function doForCellsOnLine(x0, y0, x1, y1, setPixel) {
+  var interval = 0.2;
+
+  if (Math.abs(x0 - x1) + Math.abs(y0 - y1) < 0.2) setPixel(x0, y0);
+
+  var p0 = new Point(x0, y0);
+  var p1 = new Point(x1, y1);
+  var delta = p1 - p0;
+  var slope = delta.normalize() * interval;
+
+  var prevCellPoint = null;
+  var totalLength = delta.length;
+  var length = 0;
+
+  do {
+    var cellPoint = p0.floor();
+    if (prevCellPoint != cellPoint) {
+      setPixel(cellPoint.x, cellPoint.y);
+      prevCellPoint = cellPoint;
+    }
+    p0 += slope;
+    length += interval;
+  } while (length < totalLength)
+}
+
+function clamp(num, min, max) {
+  return num <= min ? min : num >= max ? max : num;
+}
+
+// https://stackoverflow.com/questions/7837456/how-to-compare-arrays-in-javascript
+Array.prototype.equals = function (array) {
+    // if the other array is a falsy value, return
+    if (!array)
+        return false;
+
+    // compare lengths - can save a lot of time 
+    if (this.length != array.length)
+        return false;
+
+    for (var i = 0, l=this.length; i < l; i++) {
+        // Check if we have nested arrays
+        if (this[i] instanceof Array && array[i] instanceof Array) {
+            // recurse into the nested arrays
+            if (!this[i].equals(array[i]))
+                return false;       
+        }           
+        else if (this[i] != array[i]) { 
+            // Warning - two different object instances will never be equal: {x:20} != {x:20}
+            return false;   
+        }           
+    }       
+    return true;
 }
