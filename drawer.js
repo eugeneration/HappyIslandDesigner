@@ -104,6 +104,11 @@ $(document).keydown(function(event) {
             brushSize = Math.max(brushSize + 1, 0);
             updateBrush();
             break;
+        case 'p':
+            cycleBrushHead();
+            updateBrush();
+            break;
+
     }
     onUpdateColor();
 });
@@ -328,7 +333,19 @@ var brushSize = 1;
 var brushSegments;
 var brush = new Path();
 var brushOutline = new Path();
+
+var brushTypes = {
+  square: 'square',
+  diamond: 'diamond',
+};
+var brushType = brushTypes.square;
 updateBrush();
+
+function cycleBrushHead() {
+  var heads = Object.keys(brushTypes).sort(function(a,b){return a == b ? 0 : a < b ? -1 : 1;});
+  var index = heads.indexOf(brushType);
+  brushType = heads[(index + 1) % heads.length];
+}
 
 function updateBrush() {
   brushSegments = getBrushSegments(brushSize);
@@ -366,12 +383,22 @@ function getBrushSegments(size, centered) {
     var offset = centered
       ? new Point(sizeX * -0.5, sizeY * -0.5)
       : new Point(0, 0);
-    return [
-        offset, 
-        offset.add([0, sizeY]), 
-        offset.add([sizeX, sizeY]), 
-        offset.add([sizeX, 0]), 
-    ]
+    switch (brushType) {
+      case brushTypes.square:
+        return [
+            offset, 
+            offset.add([0, sizeY]), 
+            offset.add([sizeX, sizeY]), 
+            offset.add([sizeX, 0]), 
+        ];
+      case brushTypes.diamond:
+        return [
+            offset.add([sizeX * 0.5, sizeY]), 
+            offset.add([sizeX, sizeY * 0.5]), 
+            offset.add([sizeX * 0.5, 0]), 
+            offset.add([0, sizeY * 0.5]), 
+        ];
+    }
 }
 function transformSegments(segments, coordinate) {
   var p = mapToView(coordinate);
