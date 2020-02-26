@@ -112,9 +112,9 @@ $(document).keydown(function(event) {
             var o = objectMap(drawing, function(pathItem){
               var p;
               if (pathItem._children) {
-                p = pathItem._children.map(function(path) {return path._segments.map(function(s) {return {x: s._point.x, y: s._point.y};})});
+                p = pathItem._children.map(function(path) {return path._segments.map(function(s) {var c = viewToMap(s._point); return {x: Math.round(c.x), y: Math.round(c.y)};})});
               } else {
-                p = pathItem._segments.map(function(s) {return {x: s._point.x, y: s._point.y};});
+                p = pathItem._segments.map(function(s) {var c = viewToMap(s._point); return {x: Math.round(c.x), y: Math.round(c.y)};});
               }
               return p;
             });
@@ -310,7 +310,7 @@ function createGridLine(segment, blockEdge) {
     line.strokeColor = '#ffffff';
     line.strokeWidth = blockEdge ? 1 : 0.5;
     line.strokeCap = 'round';
-    line.dashArray = blockEdge ? [10, 12] : null;
+    //line.dashArray = blockEdge ? [4, 6] : null;
     line.opacity = blockEdge ? 0.5 : 0.3;
     return line;
 }
@@ -560,12 +560,12 @@ function loadTemplate() {
     var p;
     if (colorData[0].x) {
       // normal path
-      p = new Path(colorData);
+      p = new Path(colorData.map(function(p) {return mapToView(p)}));
     }
     else {
       p = new CompoundPath({
         children: colorData.map(function (pathData) {
-          return new Path(pathData);
+          return new Path(pathData.map(function(p) {return mapToView(p);}));
         }),
       });
     }
