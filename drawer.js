@@ -1,10 +1,10 @@
 var colors = {
-    water: '#7cd5c4',
-    sand: '#f0e5a6',
-    level1: '#42753e',
-    level2: '#4ca14e',
-    level3: '#62c360',
-    rock: '#717488',
+  water: '#7cd5c4',
+  sand: '#f0e5a6',
+  level1: '#42753e',
+  level2: '#4ca14e',
+  level3: '#62c360',
+  rock: '#717488',
 }
 
 // ===============================================
@@ -18,6 +18,7 @@ function onResize(event) {
 }
 
 tool.minDistance = 1;
+
 function onMouseMove(event) {
   updateCoordinateLabel(event);
 }
@@ -41,17 +42,18 @@ function onMouseUp(event) {
 // BACKGROUND
 
 var backgroundRect = new Path();
+
 function drawBackground() {
-    defaultLayer.activate();
-    // background color
-    backgroundRect.remove();
-    backgroundRect = new Path.Rectangle({
-        point: [0, 0],
-        size: [view.size.width, view.size.height],
-    });
-    backgroundRect.sendToBack();
-    backgroundRect.fillColor = colors.water;
-    mapLayer.activate();
+  defaultLayer.activate();
+  // background color
+  backgroundRect.remove();
+  backgroundRect = new Path.Rectangle({
+    point: [0, 0],
+    size: [view.size.width, view.size.height],
+  });
+  backgroundRect.sendToBack();
+  backgroundRect.fillColor = colors.water;
+  mapLayer.activate();
 }
 
 // ===============================================
@@ -61,70 +63,88 @@ var activeColor = Path.Circle([0, 0], 30);
 activeColor.fillColor = paintColor;
 
 function updateColorTools() {
-    activeColor
+  activeColor
 }
+
 function onUpdateColor() {
-    activeColor.fillColor = paintColor;
+  activeColor.fillColor = paintColor;
 }
 
 var paintColor = colors.level1;
-$(document).keydown(function(event) {
-    switch(event.key) {
-        case '1':
-            paintColor = colors.water;    
-            break;
-        case '2':
-            paintColor = colors.sand;    
-            break;
-        case '3':
-            paintColor = colors.level1;    
-            break;
-        case '4':
-            paintColor = colors.level2;    
-            break;
-        case '5':
-            paintColor = colors.level3;    
-            break;
-        case '6':
-            paintColor = colors.rock;    
-            break;
-        case 'q':
-            updatePaintTool(paintTools.grid);
-            break;
-        case 'w':
-            updatePaintTool(paintTools.diagonals);
-            break;
-        case 'e':
-            updatePaintTool(paintTools.freeform);
-            break;
-        case '[':
-            brushSize = Math.max(brushSize - 1, 0);
-            updateBrush();
-            break;
-        case ']':
-            brushSize = Math.max(brushSize + 1, 0);
-            updateBrush();
-            break;
-        case 'p':
-            cycleBrushHead();
-            updateBrush();
-            break;
-        case 'm':
-            var o = objectMap(drawing, function(pathItem){
-              var p;
-              if (pathItem._children) {
-                p = pathItem._children.map(function(path) {return path._segments.map(function(s) {var c = s._point; return {x: Math.round(c.x), y: Math.round(c.y)};})});
-              } else {
-                p = pathItem._segments.map(function(s) {var c = s._point; return {x: Math.round(c.x), y: Math.round(c.y)};});
-              }
-              return p;
-            });
-            console.log(JSON.stringify(o));
-            break;
 
-    }
-    onUpdateColor();
-});
+function onKeyDown(event) {
+  switch (event.key) {
+    case '1':
+      paintColor = colors.water;
+      break;
+    case '2':
+      paintColor = colors.sand;
+      break;
+    case '3':
+      paintColor = colors.level1;
+      break;
+    case '4':
+      paintColor = colors.level2;
+      break;
+    case '5':
+      paintColor = colors.level3;
+      break;
+    case '6':
+      paintColor = colors.rock;
+      break;
+    case 'q':
+      updatePaintTool(paintTools.grid);
+      break;
+    case 'w':
+      updatePaintTool(paintTools.diagonals);
+      break;
+    case 'e':
+      updatePaintTool(paintTools.freeform);
+      break;
+    case '[':
+      brushSize = Math.max(brushSize - 1, 0);
+      updateBrush();
+      break;
+    case ']':
+      brushSize = Math.max(brushSize + 1, 0);
+      updateBrush();
+      break;
+    case 'p':
+      cycleBrushHead();
+      updateBrush();
+      break;
+    case 'm':
+      var o = objectMap(drawing, function(pathItem) {
+        var p;
+        if (pathItem._children) {
+          p = pathItem._children.map(function(path) {
+            return path._segments.map(function(s) {
+              var c = s._point;
+              return {
+                x: Math.round(c.x),
+                y: Math.round(c.y)
+              };
+            })
+          });
+        } else {
+          p = pathItem._segments.map(function(s) {
+            var c = s._point;
+            return {
+              x: Math.round(c.x),
+              y: Math.round(c.y)
+            };
+          });
+        }
+        return p;
+      });
+      console.log(JSON.stringify(o));
+      break;
+    case 'z':
+
+
+  }
+  onUpdateColor();
+};
 
 var defaultLayer = project.activeLayer;
 var mapLayer = new Layer();
@@ -144,16 +164,21 @@ mapOverlayLayer.pivot = new Point(0, 0);
 
 // Create a new path once, when the script is executed:
 var myPath;
+
 function startDraw() {
-    myPath = new Path();
-    myPath.strokeColor = paintColor;
-    myPath.strokeWidth = 10;
+  myPath = new Path();
+  myPath.strokeColor = paintColor;
+  myPath.strokeWidth = 10;
 }
+
 function draw(event) {
-    // Add a segment to the path at the position of the mouse:
-    myPath.add(event.point);
-    myPath.smooth({type: 'catmull-rom'});
+  // Add a segment to the path at the position of the mouse:
+  myPath.add(event.point);
+  myPath.smooth({
+    type: 'catmull-rom'
+  });
 }
+
 function endDraw() {
 
 }
@@ -162,56 +187,62 @@ function endDraw() {
 // PATH DRAWING
 
 var paintTools = {
-    grid: 'grid',
-    diagonals: 'diagonals',
-    freeform: 'freeform',
+  grid: 'grid',
+  diagonals: 'diagonals',
+  freeform: 'freeform',
 };
 var paintTool = paintTools.grid;
 
 // Create a new path once, when the script is executed:
 var myPath;
+
 function startDraw(event) {
-    switch (paintTool) {
-        case paintTools.grid:
-            startDrawGrid(event.point);
-            break;
-        case paintTools.diagonals:
-            break;
-        case paintTools.freeform:
-            myPath = new Path();
-            myPath.strokeColor = paintColor;
-            myPath.strokeWidth = 10;
-            break;
-    }
+  switch (paintTool) {
+    case paintTools.grid:
+      startDrawGrid(event.point);
+      break;
+    case paintTools.diagonals:
+      break;
+    case paintTools.freeform:
+      myPath = new Path();
+      myPath.strokeColor = paintColor;
+      myPath.strokeWidth = 10;
+      break;
+  }
 }
+
 function draw(event) {
-    switch (paintTool) {
-        case paintTools.grid:
-            drawGrid(event.point);
-            break;
-        case paintTools.diagonals:
-            break;
-        case paintTools.freeform:
-            // Add a segment to the path at the position of the mouse:
-            myPath.add(event.point);
-            myPath.smooth({type: 'catmull-rom'});
-            break;
-    }
+  switch (paintTool) {
+    case paintTools.grid:
+      drawGrid(event.point);
+      break;
+    case paintTools.diagonals:
+      break;
+    case paintTools.freeform:
+      // Add a segment to the path at the position of the mouse:
+      myPath.add(event.point);
+      myPath.smooth({
+        type: 'catmull-rom'
+      });
+      break;
+  }
 }
+
 function endDraw(event) {
 
 }
+
 function changePaintTool(newPaintTool) {
-    switch (paintTool) {
-        case paintTools.grid:
-            break;
-        case paintTools.diagonals:
-            break;
-        case paintTools.freeform:
-            break;
-    }
-    endDraw();
-    paintTool = newPaintTool;
+  switch (paintTool) {
+    case paintTools.grid:
+      break;
+    case paintTools.diagonals:
+      break;
+    case paintTools.freeform:
+      break;
+  }
+  endDraw();
+  paintTool = newPaintTool;
 }
 
 
@@ -238,73 +269,83 @@ var horizontalBlocks = 7;
 var verticalBlocks = 6;
 var horizontalDivisions = 16;
 var verticalDivisions = 16;
-var verticalRatio = 1;//0.767;
+var verticalRatio = 1; //0.767;
 
 var cellWidth = 0;
 var cellHeight = 0;
 
-var remapX = function (i) {return i};
-var remapY = function (i) {return i};
-var remapInvX = function (i) {return i};
-var remapInvY = function (i) {return i};
+var remapX = function(i) {
+  return i
+};
+var remapY = function(i) {
+  return i
+};
+var remapInvX = function(i) {
+  return i
+};
+var remapInvY = function(i) {
+  return i
+};
 resizeCoordinates();
+
 function resizeCoordinates() {
-    var marginX = view.size.width * 0.1;
+  var marginX = view.size.width * 0.1;
 
-    var width = view.size.width - marginX * 2;
-    var blockWidth = width / horizontalBlocks;
-    cellWidth = blockWidth / horizontalDivisions;
-    cellHeight = cellWidth * verticalRatio;
-    var blockHeight = cellHeight * verticalDivisions;
-    var height = blockHeight * verticalBlocks;
-    
-    var xView = view.size.width - marginX;
-    var xCoord = horizontalBlocks * horizontalDivisions;
+  var width = view.size.width - marginX * 2;
+  var blockWidth = width / horizontalBlocks;
+  cellWidth = blockWidth / horizontalDivisions;
+  cellHeight = cellWidth * verticalRatio;
+  var blockHeight = cellHeight * verticalDivisions;
+  var height = blockHeight * verticalBlocks;
 
-    var marginY = (view.size.height - height) / 2;
-    var yView = height + marginX;
-    var yCoord = verticalBlocks * verticalDivisions;
+  var xView = view.size.width - marginX;
+  var xCoord = horizontalBlocks * horizontalDivisions;
 
-    remapX = createRemap(marginX, xView, 0, xCoord);
-    remapY = createRemap(marginY, yView, 0, yCoord);
-    remapInvX = createRemap(0, xCoord, marginX, xView);
-    remapInvY = createRemap(0, yCoord, marginY, yView);
+  var marginY = (view.size.height - height) / 2;
+  var yView = height + marginX;
+  var yCoord = verticalBlocks * verticalDivisions;
 
-    mapLayer.position = new Point(marginX, marginY);
-    mapLayer.scaling = new Point(cellWidth, cellHeight);
+  remapX = createRemap(marginX, xView, 0, xCoord);
+  remapY = createRemap(marginY, yView, 0, yCoord);
+  remapInvX = createRemap(0, xCoord, marginX, xView);
+  remapInvY = createRemap(0, yCoord, marginY, yView);
 
-    mapOverlayLayer.position = new Point(marginX, marginY);
-    mapOverlayLayer.scaling = new Point(cellWidth, cellHeight);
+  mapLayer.position = new Point(marginX, marginY);
+  mapLayer.scaling = new Point(cellWidth, cellHeight);
+
+  mapOverlayLayer.position = new Point(marginX, marginY);
+  mapOverlayLayer.scaling = new Point(cellWidth, cellHeight);
 }
+
 function viewToMap(viewCoordinate) {
-    return new Coordinate(
-        remapX(viewCoordinate.x),
-        remapY(viewCoordinate.y)); 
+  return new Coordinate(
+    remapX(viewCoordinate.x),
+    remapY(viewCoordinate.y));
 }
 
 function mapToView(canvasCoordinate) {
-    return new Point(
-        remapInvX(canvasCoordinate.x),
-        remapInvY(canvasCoordinate.y));
+  return new Point(
+    remapInvX(canvasCoordinate.x),
+    remapInvY(canvasCoordinate.y));
 }
 
 var Coordinate = ES3Class({
-    constructor: function (_x, _y) {
-        this.x = _x;
-        this.y = _y;
-    },
-    area: function () {
-        return this.x * this.y;
-    },
-    toString: function() {
-        return '' + this.x + ' ' + this.y;
-    },
-    floor: function() {
-        return new Coordinate(Math.floor(this.x), Math.floor(this.y));
-    },
-    add: function(arr) {
-        return new Coordinate(this.x + arr[0], this.y + arr[1]);
-    }
+  constructor: function(_x, _y) {
+    this.x = _x;
+    this.y = _y;
+  },
+  area: function() {
+    return this.x * this.y;
+  },
+  toString: function() {
+    return '' + this.x + ' ' + this.y;
+  },
+  floor: function() {
+    return new Coordinate(Math.floor(this.x), Math.floor(this.y));
+  },
+  add: function(arr) {
+    return new Coordinate(this.x + arr[0], this.y + arr[1]);
+  }
 });
 
 // ===============================================
@@ -313,36 +354,37 @@ var Coordinate = ES3Class({
 mapOverlayLayer.activate();
 var gridRaster;
 createGrid();
+
 function createGrid() {
-    mapOverlayLayer.activate();
-    if (gridRaster) gridRaster.remove();
-    var grid = [];
-    for (var i = 0; i < horizontalBlocks * horizontalDivisions; i++) {
-        var line = createGridLine(getSegment(i, true), i % horizontalDivisions == 0);
-        grid.push(line);
-    }
-    for (var i = 0; i < verticalBlocks * verticalDivisions; i++) {
-        var line = createGridLine(getSegment(i, false), i % verticalDivisions == 0);
-        grid.push(line);
-    }
-    var gridGroup = new Group(grid);
-    gridRaster = gridGroup.rasterize(view.resolution * 10);
-    gridGroup.remove();
-    mapLayer.activate();
+  mapOverlayLayer.activate();
+  if (gridRaster) gridRaster.remove();
+  var grid = [];
+  for (var i = 0; i < horizontalBlocks * horizontalDivisions; i++) {
+    var line = createGridLine(getSegment(i, true), i % horizontalDivisions == 0);
+    grid.push(line);
+  }
+  for (var i = 0; i < verticalBlocks * verticalDivisions; i++) {
+    var line = createGridLine(getSegment(i, false), i % verticalDivisions == 0);
+    grid.push(line);
+  }
+  var gridGroup = new Group(grid);
+  gridRaster = gridGroup.rasterize(view.resolution * 10);
+  gridGroup.remove();
+  mapLayer.activate();
 }
+
 function createGridLine(segment, blockEdge) {
-    line = new Path(segment);
-    line.strokeColor = '#ffffff';
-    line.strokeWidth = blockEdge ? .2 : 0.1;
-    line.strokeCap = 'round';
-    //line.dashArray = blockEdge ? [4, 6] : null;
-    line.opacity = blockEdge ? 0.5 : 0.3;
-    return line;
+  line = new Path(segment);
+  line.strokeColor = '#ffffff';
+  line.strokeWidth = blockEdge ? .2 : 0.1;
+  line.strokeCap = 'round';
+  //line.dashArray = blockEdge ? [4, 6] : null;
+  line.opacity = blockEdge ? 0.5 : 0.3;
+  return line;
 }
+
 function getSegment(i, horizontal) {
-    return horizontal
-        ? [new Point(i, 0), new Point(i, verticalBlocks * verticalDivisions)]
-        : [new Point(0, i), new Point(horizontalBlocks * horizontalDivisions, i)];
+  return horizontal ? [new Point(i, 0), new Point(i, verticalBlocks * verticalDivisions)] : [new Point(0, i), new Point(horizontalBlocks * horizontalDivisions, i)];
 }
 /*function updateSegments() {
     for (var i = 0; i < horizontalBlocks * horizontalDivisions; i++) {
@@ -365,7 +407,7 @@ var coordinateLabel = new PointText(new Point(0, 0));
 coordinateLabel.fontSize = 3;
 
 function centerBrushOffset(width, height) {
-    return new Point(width * 0.5 * cellWidth, height * 0.5 * cellHeight);
+  return new Point(width * 0.5 * cellWidth, height * 0.5 * cellHeight);
 }
 
 
@@ -382,7 +424,9 @@ var brushType = brushTypes.square;
 updateBrush();
 
 function cycleBrushHead() {
-  var heads = Object.keys(brushTypes).sort(function(a,b){return a == b ? 0 : a < b ? -1 : 1;});
+  var heads = Object.keys(brushTypes).sort(function(a, b) {
+    return a == b ? 0 : a < b ? -1 : 1;
+  });
   var index = heads.indexOf(brushType);
   brushType = heads[(index + 1) % heads.length];
 }
@@ -406,6 +450,7 @@ function updateBrush() {
   brushOutline.strokeColor = '#fff';
   brushOutline.strokeWidth = 0.1;
 }
+
 function updateCoordinateLabel(event) {
   var rawCoordinate = mapOverlayLayer.globalToLocal(event.point);
   var coordinate = rawCoordinate.floor();
@@ -416,33 +461,37 @@ function updateCoordinateLabel(event) {
 
   brush.position = coordinate;
 }
+
 function getBrushSegments(size, centered) {
-    // square
-    var sizeX = size;
-    var sizeY = size;
-    var offset = centered
-      ? new Point(sizeX * -0.5, sizeY * -0.5)
-      : new Point(0, 0);
-    switch (brushType) {
-      case brushTypes.square:
-        return [
-            offset, 
-            offset.add([0, sizeY]), 
-            offset.add([sizeX, sizeY]), 
-            offset.add([sizeX, 0]), 
-        ];
-      case brushTypes.diamond:
-        return [
-            offset.add([sizeX * 0.5, sizeY]), 
-            offset.add([sizeX, sizeY * 0.5]), 
-            offset.add([sizeX * 0.5, 0]), 
-            offset.add([0, sizeY * 0.5]), 
-        ];
-    }
+  // square
+  var sizeX = size;
+  var sizeY = size;
+  var offset = centered ?
+    new Point(sizeX * -0.5, sizeY * -0.5) :
+    new Point(0, 0);
+  switch (brushType) {
+    case brushTypes.square:
+      return [
+        offset,
+        offset.add([0, sizeY]),
+        offset.add([sizeX, sizeY]),
+        offset.add([sizeX, 0]),
+      ];
+    case brushTypes.diamond:
+      return [
+        offset.add([sizeX * 0.5, sizeY]),
+        offset.add([sizeX, sizeY * 0.5]),
+        offset.add([sizeX * 0.5, 0]),
+        offset.add([0, sizeY * 0.5]),
+      ];
+  }
 }
+
 function transformSegments(segments, coordinate) {
   var p = coordinate;
-  return segments.map(function(s) {return s + p});
+  return segments.map(function(s) {
+    return s + p
+  });
 }
 
 // ===============================================
@@ -454,45 +503,46 @@ var drawing = loadTemplate();
 var drawPoints = [];
 
 var prevGridCoordinate;
+
 function startDrawGrid(viewPosition) {
-    var coordinate = mapLayer.globalToLocal(viewPosition);
-    drawGridCoordinate(coordinate.floor());
-    prevGridCoordinate = coordinate;
+  var coordinate = mapLayer.globalToLocal(viewPosition);
+  drawGridCoordinate(coordinate.floor());
+  prevGridCoordinate = coordinate;
 }
 
 function drawGrid(viewPosition, brushShape) {
-    var coordinate = mapLayer.globalToLocal(viewPosition);
-    
-    doForCellsOnLine(
-        prevGridCoordinate.x, prevGridCoordinate.y,
-        coordinate.x, coordinate.y,
-        function(x, y) {
-            drawGridCoordinate(new Coordinate(x, y).floor(), brushShape)
-        });
-    prevGridCoordinate = coordinate;
+  var coordinate = mapLayer.globalToLocal(viewPosition);
+
+  doForCellsOnLine(
+    prevGridCoordinate.x, prevGridCoordinate.y,
+    coordinate.x, coordinate.y,
+    function(x, y) {
+      drawGridCoordinate(new Coordinate(x, y).floor(), brushShape)
+    });
+  prevGridCoordinate = coordinate;
 }
 
-function drawGridCoordinate(coordinate /*, brushShape*/) {
-    var newDrawPoints = transformSegments(brushSegments, coordinate);
+function drawGridCoordinate(coordinate /*, brushShape*/ ) {
+  var newDrawPoints = transformSegments(brushSegments, coordinate);
 
-    if (!newDrawPoints.equals(drawPoints)) {
-        drawPoints = newDrawPoints;
-        addDrawPoints(drawPoints, paintColor);
-    }
+  if (!newDrawPoints.equals(drawPoints)) {
+    drawPoints = newDrawPoints;
+    addDrawPoints(drawPoints, paintColor);
+  }
 }
 
 function addDrawPoints(points, color) {
-    mapLayer.activate();
-    var tempPath = new Path(points);
-    if (!drawing.hasOwnProperty(color)) {
-        drawing[color] = new Path();
-    }
-    var unite = drawing[color].unite(tempPath);
-    unite.fillColor = color;
-    unite.insertAbove(drawing[color]);
-    drawing[color].remove();
-    tempPath.remove();
-    drawing[color] = unite;
+  mapLayer.activate();
+  var tempPath = new Path(points);
+  if (!drawing.hasOwnProperty(color)) {
+    drawing[color] = new Path();
+  }
+  var unite = drawing[color].unite(tempPath);
+  unite.fillColor = color;
+  unite.insertAbove(drawing[color]);
+  drawing[color].remove();
+  tempPath.remove();
+  drawing[color] = unite;
 }
 
 // ===============================================
@@ -507,9 +557,8 @@ function ES3Class(obj) {
   var
     // if there isn't a constructor, create one
     constructor = obj.hasOwnProperty('constructor') ?
-      obj.constructor : function () {},
-    key
-  ;
+    obj.constructor : function() {},
+    key;
   for (key in obj) {
     // per each own property in the received object
     if (obj.hasOwnProperty(key) && key !== 'constructor') {
@@ -551,28 +600,27 @@ function clamp(num, min, max) {
 }
 
 // https://stackoverflow.com/questions/7837456/how-to-compare-arrays-in-javascript
-Array.prototype.equals = function (array) {
-    // if the other array is a falsy value, return
-    if (!array)
-        return false;
+Array.prototype.equals = function(array) {
+  // if the other array is a falsy value, return
+  if (!array)
+    return false;
 
-    // compare lengths - can save a lot of time 
-    if (this.length != array.length)
-        return false;
+  // compare lengths - can save a lot of time 
+  if (this.length != array.length)
+    return false;
 
-    for (var i = 0, l=this.length; i < l; i++) {
-        // Check if we have nested arrays
-        if (this[i] instanceof Array && array[i] instanceof Array) {
-            // recurse into the nested arrays
-            if (!this[i].equals(array[i]))
-                return false;       
-        }           
-        else if (this[i] != array[i]) { 
-            // Warning - two different object instances will never be equal: {x:20} != {x:20}
-            return false;   
-        }           
-    }       
-    return true;
+  for (var i = 0, l = this.length; i < l; i++) {
+    // Check if we have nested arrays
+    if (this[i] instanceof Array && array[i] instanceof Array) {
+      // recurse into the nested arrays
+      if (!this[i].equals(array[i]))
+        return false;
+    } else if (this[i] != array[i]) {
+      // Warning - two different object instances will never be equal: {x:20} != {x:20}
+      return false;
+    }
+  }
+  return true;
 }
 
 function objectMap(object, mapFn) {
@@ -591,10 +639,9 @@ function loadTemplate() {
     if (colorData[0].x) {
       // normal path
       p = new Path(colorData);
-    }
-    else {
+    } else {
       p = new CompoundPath({
-        children: colorData.map(function (pathData) {
+        children: colorData.map(function(pathData) {
           return new Path(pathData);
         }),
       });
@@ -603,4 +650,3 @@ function loadTemplate() {
     return p;
   })
 }
-
