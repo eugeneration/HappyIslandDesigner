@@ -11,38 +11,38 @@ var colors = {
 // GLOBAL FUNCTIONS
 
 function onResize(event) {
-    // Whenever the window is resized, recenter the path:
-    resizeCoordinates();
-    drawBackground();
-    createGrid();//updateSegments();
-    updateColorTools();
+  // Whenever the window is resized, recenter the path:
+  resizeCoordinates();
+  drawBackground();
+  updateColorTools();
 }
 
 tool.minDistance = 1;
 function onMouseMove(event) {
-    updateCoordinateLabel(event);
+  updateCoordinateLabel(event);
 }
 
 // This function is called whenever the user
 // clicks the mouse in the view:
 function onMouseDown(event) {
-    startDraw(event);
+  startDraw(event);
 }
 
 function onMouseDrag(event) {
-    draw(event);
+  updateCoordinateLabel(event)
+  draw(event);
 }
 
 function onMouseUp(event) {
-    endDraw(event);
+  endDraw(event);
 }
 
 // ===============================================
 // BACKGROUND
 
 var backgroundRect = new Path();
-drawBackground();
 function drawBackground() {
+    defaultLayer.activate();
     // background color
     backgroundRect.remove();
     backgroundRect = new Path.Rectangle({
@@ -51,6 +51,7 @@ function drawBackground() {
     });
     backgroundRect.sendToBack();
     backgroundRect.fillColor = colors.water;
+    mapLayer.activate();
 }
 
 // ===============================================
@@ -112,9 +113,9 @@ $(document).keydown(function(event) {
             var o = objectMap(drawing, function(pathItem){
               var p;
               if (pathItem._children) {
-                p = pathItem._children.map(function(path) {return path._segments.map(function(s) {var c = viewToMap(s._point); return {x: Math.round(c.x), y: Math.round(c.y)};})});
+                p = pathItem._children.map(function(path) {return path._segments.map(function(s) {var c = s._point; return {x: Math.round(c.x), y: Math.round(c.y)};})});
               } else {
-                p = pathItem._segments.map(function(s) {var c = viewToMap(s._point); return {x: Math.round(c.x), y: Math.round(c.y)};});
+                p = pathItem._segments.map(function(s) {var c = s._point; return {x: Math.round(c.x), y: Math.round(c.y)};});
               }
               return p;
             });
@@ -125,6 +126,18 @@ $(document).keydown(function(event) {
     onUpdateColor();
 });
 
+var defaultLayer = project.activeLayer;
+var mapLayer = new Layer();
+var mapOverlayLayer = new Layer();
+var uiLayer = new Layer();
+var viewLayer = new Layer();
+
+mapLayer.activate();
+
+mapLayer.applyMatrix = false;
+mapLayer.pivot = new Point(0, 0);
+mapOverlayLayer.applyMatrix = false;
+mapOverlayLayer.pivot = new Point(0, 0);
 
 // ===============================================
 // PATH DRAWING
@@ -236,25 +249,32 @@ var remapInvX = function (i) {return i};
 var remapInvY = function (i) {return i};
 resizeCoordinates();
 function resizeCoordinates() {
-    var margin = view.size.width * 0.1;
+    var marginX = view.size.width * 0.1;
 
-    var width = view.size.width - margin * 2;
+    var width = view.size.width - marginX * 2;
     var blockWidth = width / horizontalBlocks;
     cellWidth = blockWidth / horizontalDivisions;
     cellHeight = cellWidth * verticalRatio;
     var blockHeight = cellHeight * verticalDivisions;
     var height = blockHeight * verticalBlocks;
     
-    var xView = view.size.width - margin;
+    var xView = view.size.width - marginX;
     var xCoord = horizontalBlocks * horizontalDivisions;
-    var yView = height + margin;
-    var yCoord = verticalBlocks * verticalDivisions;
-    console.log(margin, xView, 0, xCoord);
 
-    remapX = createRemap(margin, xView, 0, xCoord);
-    remapY = createRemap(margin, yView, 0, yCoord);
-    remapInvX = createRemap(0, xCoord, margin, xView);
-    remapInvY = createRemap(0, yCoord, margin, yView);
+    var marginY = (view.size.height - height) / 2;
+    var yView = height + marginX;
+    var yCoord = verticalBlocks * verticalDivisions;
+
+    remapX = createRemap(marginX, xView, 0, xCoord);
+    remapY = createRemap(marginY, yView, 0, yCoord);
+    remapInvX = createRemap(0, xCoord, marginX, xView);
+    remapInvY = createRemap(0, yCoord, marginY, yView);
+
+    mapLayer.position = new Point(marginX, marginY);
+    mapLayer.scaling = new Point(cellWidth, cellHeight);
+
+    mapOverlayLayer.position = new Point(marginX, marginY);
+    mapOverlayLayer.scaling = new Point(cellWidth, cellHeight);
 }
 function viewToMap(viewCoordinate) {
     return new Coordinate(
@@ -289,8 +309,12 @@ var Coordinate = ES3Class({
 
 // ===============================================
 // GRID overlay
+
+mapOverlayLayer.activate();
 var gridRaster;
+createGrid();
 function createGrid() {
+    mapOverlayLayer.activate();
     if (gridRaster) gridRaster.remove();
     var grid = [];
     for (var i = 0; i < horizontalBlocks * horizontalDivisions; i++) {
@@ -302,13 +326,14 @@ function createGrid() {
         grid.push(line);
     }
     var gridGroup = new Group(grid);
-    gridRaster = gridGroup.rasterize(view.resolution * 2);
+    gridRaster = gridGroup.rasterize(view.resolution * 10);
     gridGroup.remove();
+    mapLayer.activate();
 }
 function createGridLine(segment, blockEdge) {
     line = new Path(segment);
     line.strokeColor = '#ffffff';
-    line.strokeWidth = blockEdge ? 1 : 0.5;
+    line.strokeWidth = blockEdge ? .2 : 0.1;
     line.strokeCap = 'round';
     //line.dashArray = blockEdge ? [4, 6] : null;
     line.opacity = blockEdge ? 0.5 : 0.3;
@@ -316,8 +341,8 @@ function createGridLine(segment, blockEdge) {
 }
 function getSegment(i, horizontal) {
     return horizontal
-        ? [mapToView(new Point(i, 0)), mapToView(new Point(i, verticalBlocks * verticalDivisions))]
-        : [mapToView(new Point(0, i)), mapToView(new Point(horizontalBlocks * horizontalDivisions, i))];
+        ? [new Point(i, 0), new Point(i, verticalBlocks * verticalDivisions)]
+        : [new Point(0, i), new Point(horizontalBlocks * horizontalDivisions, i)];
 }
 /*function updateSegments() {
     for (var i = 0; i < horizontalBlocks * horizontalDivisions; i++) {
@@ -334,7 +359,10 @@ function getSegment(i, horizontal) {
 
 // ===============================================
 // COORDINATE LABEL
+
+mapOverlayLayer.activate();
 var coordinateLabel = new PointText(new Point(0, 0));
+coordinateLabel.fontSize = 3;
 
 function centerBrushOffset(width, height) {
     return new Point(width * 0.5 * cellWidth, height * 0.5 * cellHeight);
@@ -364,6 +392,7 @@ function updateBrush() {
 
   var prevPos = brush.position;
 
+  brush.layer = uiLayer;
   brush.segments = brushSegments;
   brush.pivot = new Point(0, 0);
   brush.position = prevPos;
@@ -375,23 +404,22 @@ function updateBrush() {
   brushOutline.position = prevPos;
   brushOutline.closed = true;
   brushOutline.strokeColor = '#fff';
-  brushOutline.strokeWidth = 0.5;
+  brushOutline.strokeWidth = 0.1;
 }
 function updateCoordinateLabel(event) {
-    var rawCoordinate = viewToMap(event.point);
-    var coordinate = rawCoordinate.floor();
-    var globalCoordinate = mapToView(coordinate);
-    coordinateLabel.content = '' + event.point + '\n' + coordinate.toString();
-    coordinateLabel.position = event.point;
+  var rawCoordinate = mapOverlayLayer.globalToLocal(event.point);
+  var coordinate = rawCoordinate.floor();
+  coordinateLabel.content = '' + event.point + '\n' + coordinate.toString();
+  coordinateLabel.position = rawCoordinate;
 
-    brushOutline.position = event.point;
+  brushOutline.position = rawCoordinate;
 
-    brush.position = globalCoordinate;
+  brush.position = coordinate;
 }
 function getBrushSegments(size, centered) {
     // square
-    var sizeX = size * cellWidth;
-    var sizeY = size * cellHeight;
+    var sizeX = size;
+    var sizeY = size;
     var offset = centered
       ? new Point(sizeX * -0.5, sizeY * -0.5)
       : new Point(0, 0);
@@ -413,27 +441,27 @@ function getBrushSegments(size, centered) {
     }
 }
 function transformSegments(segments, coordinate) {
-  var p = mapToView(coordinate);
+  var p = coordinate;
   return segments.map(function(s) {return s + p});
 }
-
 
 // ===============================================
 // DRAWING METHODS
 
+mapLayer.activate();
 var drawing = loadTemplate();
 
 var drawPoints = [];
 
 var prevGridCoordinate;
 function startDrawGrid(viewPosition) {
-    var coordinate = viewToMap(viewPosition);
+    var coordinate = mapLayer.globalToLocal(viewPosition);
     drawGridCoordinate(coordinate.floor());
     prevGridCoordinate = coordinate;
 }
 
 function drawGrid(viewPosition, brushShape) {
-    var coordinate = viewToMap(viewPosition);
+    var coordinate = mapLayer.globalToLocal(viewPosition);
     
     doForCellsOnLine(
         prevGridCoordinate.x, prevGridCoordinate.y,
@@ -454,15 +482,17 @@ function drawGridCoordinate(coordinate /*, brushShape*/) {
 }
 
 function addDrawPoints(points, color) {
+    mapLayer.activate();
     var tempPath = new Path(points);
     if (!drawing.hasOwnProperty(color)) {
         drawing[color] = new Path();
     }
     var unite = drawing[color].unite(tempPath);
+    unite.fillColor = color;
+    unite.insertAbove(drawing[color]);
     drawing[color].remove();
     tempPath.remove();
     drawing[color] = unite;
-    unite.fillColor = color;
 }
 
 // ===============================================
@@ -560,12 +590,12 @@ function loadTemplate() {
     var p;
     if (colorData[0].x) {
       // normal path
-      p = new Path(colorData.map(function(p) {return mapToView(p)}));
+      p = new Path(colorData);
     }
     else {
       p = new CompoundPath({
         children: colorData.map(function (pathData) {
-          return new Path(pathData.map(function(p) {return mapToView(p);}));
+          return new Path(pathData);
         }),
       });
     }
@@ -573,5 +603,4 @@ function loadTemplate() {
     return p;
   })
 }
-
 

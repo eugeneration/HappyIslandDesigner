@@ -12,9 +12,9 @@ $(view.element).mousewheel(function(event) {
     changeZoomCentered(event.deltaY, mousePosition);
 });
 
-function onResize(event) {
+//function onResize(event) {
     // Whenever the window is resized, recenter the path:
-}
+//}
 
 // This function is called whenever the user
 // clicks the mouse in the view:
