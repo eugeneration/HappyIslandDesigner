@@ -143,10 +143,10 @@ function onKeyDown(event) {
       break;
     case 'z':
       if (control && shift) {
-        console.log('redo');  
+        redo();
       }
       else if (control) {
-        console.log('undo');
+        undo();
       }
       break;
   }
@@ -165,30 +165,6 @@ mapLayer.applyMatrix = false;
 mapLayer.pivot = new Point(0, 0);
 mapOverlayLayer.applyMatrix = false;
 mapOverlayLayer.pivot = new Point(0, 0);
-
-// ===============================================
-// PATH DRAWING
-
-// Create a new path once, when the script is executed:
-var myPath;
-
-function startDraw() {
-  myPath = new Path();
-  myPath.strokeColor = paintColor;
-  myPath.strokeWidth = 10;
-}
-
-function draw(event) {
-  // Add a segment to the path at the position of the mouse:
-  myPath.add(event.point);
-  myPath.smooth({
-    type: 'catmull-rom'
-  });
-}
-
-function endDraw() {
-
-}
 
 // ===============================================
 // PATH DRAWING
@@ -236,19 +212,18 @@ function draw(event) {
 }
 
 function endDraw(event) {
-
-}
-
-function changePaintTool(newPaintTool) {
   switch (paintTool) {
     case paintTools.grid:
+      endDrawGrid(event.point);
       break;
     case paintTools.diagonals:
       break;
     case paintTools.freeform:
       break;
   }
-  endDraw();
+}
+
+function changePaintTool(newPaintTool) {
   paintTool = newPaintTool;
 }
 
@@ -512,12 +487,38 @@ function transformSegments(segments, coordinate) {
 
 mapLayer.activate();
 var state = {
+  index: -1,
+  // TODO: max history
   history: [],
   drawing: loadTemplate(),
 };
 
-function doCommand(command) {
+function addToHistory(command) {
+  state.index += 1;
+  if (state.index < state.history.length) {
+    var removeNum = state.history.length - state.index;
+    state.history.splice(-removeNum, removeNum);
+  }
+  state.history[state.index] = command;
+}
 
+function undo() {
+  if (state.index >= 0) {
+    applyCommand(false, state.history[state.index]);
+    state.index -= 1;
+  }
+}
+
+function redo(command) {
+  if (state.index < state.history.length - 1) {
+    state.index += 1;
+    applyCommand(true, state.history[state.index]);
+  }
+}
+
+function applyCommand(isApply, command) {
+  // if (draw command)
+  applyDiff(isApply, command);
 }
 
 function drawCommand() {
@@ -537,6 +538,8 @@ function drawCommand() {
 
 var prevGridCoordinate;
 var prevDrawCoordinate;
+
+var diffCollection = {};
 
 function startDrawGrid(viewPosition) {
   mapLayer.activate();
@@ -566,9 +569,30 @@ function drawGrid(viewPosition) {
     var compound = new CompoundPath({children: drawPaths});
     path = uniteCompoundPath(compound);
   }
-  if (path) addDrawPath(path, paintColor);
+  if (path) {
+    var diff = getDiff(path, paintColor);
+
+    Object.keys(diff).forEach(function(c) {
+      if (!diffCollection.hasOwnProperty(c)) {
+        diffCollection[c] = [];
+      }
+      diffCollection[c].push(diff[c]);
+    });
+    applyDiff(true, diff);
+  }
 
   prevGridCoordinate = coordinate;
+}
+
+function endDrawGrid(viewPosition) {
+  var mergedDiff = {};
+  Object.keys(diffCollection).forEach(function(k) {
+    mergedDiff[k] = uniteCompoundPath(
+      new CompoundPath({children: diffCollection[k]})
+    );
+  });
+  diffCollection = {};
+  addToHistory(mergedDiff);
 }
 
 function uniteCompoundPath(compound) {
@@ -598,21 +622,50 @@ function drawGridCoordinate(coordinate) {
   }
 }*/
 
-function addDrawPath(path, color) {
+function getDiff(path, color) {
   mapLayer.activate();
   if (!state.drawing.hasOwnProperty(color)) {
     state.drawing[color] = new Path();
   }
-  var unite = state.drawing[color].unite(path);
-  unite.fillColor = color;
-  unite.insertAbove(state.drawing[color]);
+  
+  var diff = {};
+  diff[color] = path.subtract(state.drawing[color]);
+  return diff;
+}
+
+function applyDiff(isApply, diff) {
+  Object.keys(diff).forEach(function(color) {
+    applyPath(isApply, diff[color], color);
+  })
+}
+
+
+function applyPath(isApply, path, color) {
+  if (!state.drawing.hasOwnProperty(color)) {
+    state.drawing[color] = new Path();
+  }
+  var combined = isApply
+    ? state.drawing[color].unite(path)
+    : state.drawing[color].subtract(path);
+  combined.fillColor = color;
+  combined.insertAbove(state.drawing[color]);
+
   state.drawing[color].remove();
   path.remove();
-  state.drawing[color] = unite;
+
+  state.drawing[color] = combined;
 }
 
 // ===============================================
 // HELPERS
+
+function addObjectArray(object, key, value) {
+  if (!object.hasOwnProperty(key)) {
+    object[key] = [];
+  }
+  object[key].push(value);
+}
+
 function createRemap(inMin, inMax, outMin, outMax) {
   return function remap(x) {
     return (x - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
