@@ -1,3 +1,18 @@
+
+var defaultLayer = project.activeLayer;
+var mapLayer = new Layer();
+var mapIconLayer = new Layer();
+var mapOverlayLayer = new Layer();
+var uiLayer = new Layer();
+var viewLayer = new Layer();
+
+mapLayer.applyMatrix = false;
+mapLayer.pivot = new Point(0, 0);
+mapIconLayer.applyMatrix = false;
+mapIconLayer.pivot = new Point(0, 0);
+mapOverlayLayer.applyMatrix = false;
+mapOverlayLayer.pivot = new Point(0, 0);
+
 var colors = {
   water: '#7cd5c4',
   sand: '#f0e5a6',
@@ -6,6 +21,88 @@ var colors = {
   level3: '#62c360',
   rock: '#717488',
 }
+
+// load assets
+var svgPath = 'svg/'
+var structurePrefix = 'structure-';
+var treePrefix = 'tree-';
+var numSvgToLoad = 0;
+var numSvgLoaded = 0;
+function OnLoaded() {
+  numSvgLoaded++;
+  if (numSvgToLoad == numSvgLoaded) {
+    // all done loading
+    initializeSvg();
+  }
+}
+var loadSvg = function(filename, itemCallback) {
+  numSvgToLoad++;
+  project.importSVG(svgPath + filename + '.svg', 
+    {
+      onLoad: function(item, svg) {
+        item.scaling = new Point(.03, .03);
+        item.pivot = item.bounds.bottomCenter;
+        item.position = new Point(0, 0);
+        itemCallback(item);
+        OnLoaded();
+      },
+      insert: true,
+    });
+};
+var structure = {
+  base: null,
+  building: null,
+  house: null,
+  hut: null,
+  lighthouse: null,
+  store: null,
+  tent: null,
+};
+Object.keys(structure).forEach(function(name) {
+  loadSvg(structurePrefix + name, function(item) {
+    item.data = getItemData(item, 'structure', [4,4]);
+    item.pivot += new Point(-2, -0.6);
+    structure[name] = item;
+  });
+})
+
+var tree = {
+  bush: null,
+  fruit: null,
+  palm: null,
+  pine: null,
+};
+Object.keys(tree).forEach(function(name) {
+  loadSvg(treePrefix + name, function(item) {
+    item.data = getItemData(item, 'tree', [2, 1]);
+    item.pivot += new Point(-1, -0.75);
+    tree[name] = item;
+  });
+})
+function getItemData(item, type, size) {
+  var data = {
+    type: type,
+    size: new Size(size),
+  };
+  data.bound = function() {return new Rectangle(item.position - new Point(0, item.data.size.height - 1), item.data.size)};
+  return data;
+}
+
+function initializeSvg() {
+  structure.base.fillColor = colors.rock;
+  structure.base.position = new Point(5, 5);
+  structure.building.position = new Point(15, 15);
+  var buildingbounds = new Path.Rectangle(structure.building.data.bound());
+  buildingbounds.strokeColor = '#ff0000';
+  buildingbounds.strokeWidth = 0.05;
+
+  tree.palm.position = new Point(32, 32);
+  var treebounds = new Path.Rectangle(tree.palm.data.bound());
+  treebounds.strokeColor = '#ff0000';
+  treebounds.strokeWidth = 0.05;
+}
+
+mapLayer.activate();
 
 // ===============================================
 // GLOBAL FUNCTIONS
@@ -153,19 +250,6 @@ function onKeyDown(event) {
   onUpdateColor();
 };
 
-var defaultLayer = project.activeLayer;
-var mapLayer = new Layer();
-var mapOverlayLayer = new Layer();
-var uiLayer = new Layer();
-var viewLayer = new Layer();
-
-mapLayer.activate();
-
-mapLayer.applyMatrix = false;
-mapLayer.pivot = new Point(0, 0);
-mapOverlayLayer.applyMatrix = false;
-mapOverlayLayer.pivot = new Point(0, 0);
-
 // ===============================================
 // PATH DRAWING
 
@@ -297,6 +381,9 @@ function resizeCoordinates() {
 
   mapOverlayLayer.position = new Point(marginX, marginY);
   mapOverlayLayer.scaling = new Point(cellWidth, cellHeight);
+
+  mapIconLayer.position = new Point(marginX, marginY);
+  mapIconLayer.scaling = new Point(cellWidth, cellHeight);
 }
 
 function viewToMap(viewCoordinate) {
