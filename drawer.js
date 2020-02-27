@@ -563,12 +563,19 @@ function drawGrid(viewPosition) {
     path = drawPaths[0];
   }
   else if (drawPaths.length > 1) {
-    path = new CompoundPath({children: drawPaths});
-    path.closed = true;
+    var compound = new CompoundPath({children: drawPaths});
+    path = uniteCompoundPath(compound);
   }
   if (path) addDrawPath(path, paintColor);
 
   prevGridCoordinate = coordinate;
+}
+
+function uniteCompoundPath(compound) {
+  var p = new Path();
+  compound.children.forEach(function(c) {var u = p.unite(c); p.remove(); p = u});
+  compound.remove();
+  return p;
 }
 
 function getDrawPath(coordinate, drawPath) {
@@ -576,7 +583,6 @@ function getDrawPath(coordinate, drawPath) {
     prevDrawCoordinate = coordinate;
     var drawPoints = transformSegments(brushSegments, coordinate);
     var p = new Path(drawPoints);
-    p.closed = true;
     return p;
   }
 }
