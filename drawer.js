@@ -73,6 +73,8 @@ function onUpdateColor() {
 var paintColor = colors.level1;
 
 function onKeyDown(event) {
+  var shift = Key.isDown('shift');
+  var control = Key.isDown('control') || Key.isDown('meta');
   switch (event.key) {
     case '1':
       paintColor = colors.water;
@@ -114,7 +116,7 @@ function onKeyDown(event) {
       updateBrush();
       break;
     case 'm':
-      var o = objectMap(drawing, function(pathItem) {
+      var o = objectMap(state.drawing, function(pathItem) {
         var p;
         if (pathItem._children) {
           p = pathItem._children.map(function(path) {
@@ -140,8 +142,13 @@ function onKeyDown(event) {
       console.log(JSON.stringify(o));
       break;
     case 'z':
-
-
+      if (control && shift) {
+        console.log('redo');  
+      }
+      else if (control) {
+        console.log('undo');
+      }
+      break;
   }
   onUpdateColor();
 };
@@ -403,8 +410,8 @@ function getSegment(i, horizontal) {
 // COORDINATE LABEL
 
 mapOverlayLayer.activate();
-var coordinateLabel = new PointText(new Point(0, 0));
-coordinateLabel.fontSize = 3;
+//var coordinateLabel = new PointText(new Point(0, 0));
+//coordinateLabel.fontSize = 3;
 
 function centerBrushOffset(width, height) {
   return new Point(width * 0.5 * cellWidth, height * 0.5 * cellHeight);
@@ -454,8 +461,8 @@ function updateBrush() {
 function updateCoordinateLabel(event) {
   var rawCoordinate = mapOverlayLayer.globalToLocal(event.point);
   var coordinate = rawCoordinate.floor();
-  coordinateLabel.content = '' + event.point + '\n' + coordinate.toString();
-  coordinateLabel.position = rawCoordinate;
+  //coordinateLabel.content = '' + event.point + '\n' + coordinate.toString();
+  //coordinateLabel.position = rawCoordinate;
 
   brushOutline.position = rawCoordinate;
 
@@ -495,54 +502,107 @@ function transformSegments(segments, coordinate) {
 }
 
 // ===============================================
-// DRAWING METHODS
+// STATE AND HISTORY
+
+// command pattern
+// draw {
+//   contains delta segments for each affected layer
+// }
+// 
 
 mapLayer.activate();
-var drawing = loadTemplate();
+var state = {
+  history: [],
+  drawing: loadTemplate(),
+};
 
-var drawPoints = [];
+function doCommand(command) {
 
-var prevGridCoordinate;
-
-function startDrawGrid(viewPosition) {
-  var coordinate = mapLayer.globalToLocal(viewPosition);
-  drawGridCoordinate(coordinate.floor());
-  prevGridCoordinate = coordinate;
 }
 
-function drawGrid(viewPosition, brushShape) {
-  var coordinate = mapLayer.globalToLocal(viewPosition);
+function drawCommand() {
+  return {
+    command: 'draw',
+    data: {
 
+    }
+  }
+}
+
+// ===============================================
+// DRAWING METHODS
+
+
+//var drawPoints = [];
+
+var prevGridCoordinate;
+var prevDrawCoordinate;
+
+function startDrawGrid(viewPosition) {
+  mapLayer.activate();
+  var coordinate = mapLayer.globalToLocal(viewPosition);
+  prevGridCoordinate = coordinate;
+  drawGrid(viewPosition);
+}
+
+function drawGrid(viewPosition) {
+  mapLayer.activate();
+  var coordinate = new Point(mapLayer.globalToLocal(viewPosition));
+
+  var drawPaths = [];
   doForCellsOnLine(
     prevGridCoordinate.x, prevGridCoordinate.y,
     coordinate.x, coordinate.y,
     function(x, y) {
-      drawGridCoordinate(new Coordinate(x, y).floor(), brushShape)
+      var p = getDrawPath(new Point(x, y).floor());
+      if (p) drawPaths.push(p);
     });
+
+  var path; 
+  if (drawPaths.length == 1) {
+    path = drawPaths[0];
+  }
+  else if (drawPaths.length > 1) {
+    path = new CompoundPath({children: drawPaths});
+    path.closed = true;
+  }
+  if (path) addDrawPath(path, paintColor);
+
   prevGridCoordinate = coordinate;
 }
 
-function drawGridCoordinate(coordinate /*, brushShape*/ ) {
+function getDrawPath(coordinate, drawPath) {
+  if (coordinate != prevDrawCoordinate) {
+    prevDrawCoordinate = coordinate;
+    var drawPoints = transformSegments(brushSegments, coordinate);
+    var p = new Path(drawPoints);
+    p.closed = true;
+    return p;
+  }
+}
+
+// use for the vertex based drawing method for later
+/*
+function drawGridCoordinate(coordinate) {
   var newDrawPoints = transformSegments(brushSegments, coordinate);
 
   if (!newDrawPoints.equals(drawPoints)) {
     drawPoints = newDrawPoints;
     addDrawPoints(drawPoints, paintColor);
   }
-}
+}*/
 
-function addDrawPoints(points, color) {
+function addDrawPath(path, color) {
   mapLayer.activate();
-  var tempPath = new Path(points);
-  if (!drawing.hasOwnProperty(color)) {
-    drawing[color] = new Path();
+  if (!state.drawing.hasOwnProperty(color)) {
+    state.drawing[color] = new Path();
   }
-  var unite = drawing[color].unite(tempPath);
+  var unite = state.drawing[color].unite(path);
   unite.fillColor = color;
-  unite.insertAbove(drawing[color]);
-  drawing[color].remove();
-  tempPath.remove();
-  drawing[color] = unite;
+  unite.insertAbove(state.drawing[color]);
+  state.drawing[color].remove();
+  path.remove();
+  state.drawing[color] = unite;
 }
 
 // ===============================================
@@ -573,7 +633,10 @@ function ES3Class(obj) {
 function doForCellsOnLine(x0, y0, x1, y1, setPixel) {
   var interval = 0.2;
 
-  if (Math.abs(x0 - x1) + Math.abs(y0 - y1) < 0.2) setPixel(x0, y0);
+  if (Math.abs(x0 - x1) + Math.abs(y0 - y1) < 0.2) {
+    setPixel(x0, y0);
+    return;
+  }
 
   var p0 = new Point(x0, y0);
   var p1 = new Point(x1, y1);
