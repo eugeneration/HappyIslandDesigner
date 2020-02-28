@@ -1,4 +1,3 @@
-
 var defaultLayer = project.activeLayer;
 var mapLayer = new Layer();
 var mapIconLayer = new Layer();
@@ -20,6 +19,10 @@ var colors = {
   level2: '#4ca14e',
   level3: '#62c360',
   rock: '#717488',
+  human: '#F078B0',
+  npc: '#FABD25',
+  selected: '#EA822F',
+  pin: '#E85A31',
 }
 
 // load assets
@@ -40,6 +43,7 @@ var loadSvg = function(filename, itemCallback) {
   project.importSVG(svgPath + filename + '.svg', 
     {
       onLoad: function(item, svg) {
+        mapIconLayer.activate();
         item.scaling = new Point(.03, .03);
         item.pivot = item.bounds.bottomCenter;
         item.position = new Point(0, 0);
@@ -50,19 +54,19 @@ var loadSvg = function(filename, itemCallback) {
     });
 };
 var structure = {
-  base: null,
-  building: null,
-  house: null,
+  tentRound: null,
+  tentTriangle: null,
+  tentTrapezoid: null,
   hut: null,
+  house: null,
+  building: null,
   lighthouse: null,
-  store: null,
-  tent: null,
 };
 Object.keys(structure).forEach(function(name) {
   loadSvg(structurePrefix + name, function(item) {
-    item.data = getItemData(item, 'structure', [4,4]);
-    item.pivot += new Point(-2, -3.6);
-    structure[name] = item;
+    var obj = createObject(item, 'structure', name, [4,4], new Point(-2, -3.6));
+    //item.pivot += new Point(-2, -3.6);
+    structure[name] = obj;
   });
 })
 
@@ -74,32 +78,70 @@ var tree = {
 };
 Object.keys(tree).forEach(function(name) {
   loadSvg(treePrefix + name, function(item) {
-    item.data = getItemData(item, 'tree', [2, 1]);
-    item.pivot += new Point(-1, -.75);
-    tree[name] = item;
+    var isBush = name == 'bush';
+    var size = [isBush ? 1 : 2, 1];
+    var offset = isBush ? new Point( -0.5, -1) : new Point(-1, -.75);
+    var obj = createObject(item, 'tree', name, size, offset);
+    tree[name] = obj;
   });
-})
-function getItemData(item, type, size) {
-  var data = {
+});
+
+function createObject(item, type, name, size, offset) {
+  mapIconLayer.activate();
+  item.data = {
     type: type,
+    name: name,
     size: new Size(size),
   };
-  data.bound = function() {return new Rectangle(item.position, item.data.size)};
-  return data;
+  var group = new Group();
+  item.pivot += offset;
+  item.position = new Point(0, 0);
+  var bound = new Path.Rectangle(new Rectangle(item.position, item.data.size), .15);
+  bound.strokeColor = colors.selected;
+  bound.strokeColor.alpha = 0;
+  bound.strokeWidth = 0.3;
+  bound.fillColor = colors.selected;
+  bound.fillColor.alpha = 0.0001;
+  group.addChildren([item, bound]);
+  group.pivot = bound.bounds.topLeft;
+
+  group.onMouseEnter = function(event) {
+    bound.strokeColor.alpha = 1;
+  }
+  group.onMouseLeave = function(event) {
+    bound.strokeColor.alpha = 0;
+  }
+  group.onMouseDown = function(event) {
+    var coordinate = mapOverlayLayer.globalToLocal(event.point);
+    group.data.clickPivot = coordinate - group.pivot;
+  }
+  group.onMouseDrag = function(event) {
+    var coordinate = mapOverlayLayer.globalToLocal(event.point);
+    group.position = (coordinate - group.data.clickPivot).round();
+  }
+  group.onMouseUp = function(event) {
+    var coordinate = mapOverlayLayer.globalToLocal(event.point);
+    delete group.data.clickPivot;
+  }
+
+  return group;
 }
 
-function initializeSvg() {
-  structure.base.fillColor = colors.rock;
-  structure.base.position = new Point(5, 5);
-  structure.building.position = new Point(15, 15);
-  var buildingbounds = new Path.Rectangle(structure.building.data.bound());
-  buildingbounds.strokeColor = '#ff0000';
-  buildingbounds.strokeWidth = 0.05;
 
-  tree.palm.position = new Point(32, 32);
-  var treebounds = new Path.Rectangle(tree.palm.data.bound());
-  treebounds.strokeColor = '#ff0000';
-  treebounds.strokeWidth = 0.05;
+function initializeSvg() {
+
+  var i = 0;
+  Object.keys(structure).forEach(function(name) {
+    var s = structure[name];
+    s.position = new Point(5, 5 + 5 * i);
+    i++;
+  });
+
+  Object.keys(tree).forEach(function(name) {
+    var s = tree[name];
+    s.position = new Point(5, 20 + 5 * i);
+    i++;
+  });
 }
 
 mapLayer.activate();
@@ -450,25 +492,6 @@ function mapToView(canvasCoordinate) {
     remapInvY(canvasCoordinate.y));
 }
 
-var Coordinate = ES3Class({
-  constructor: function(_x, _y) {
-    this.x = _x;
-    this.y = _y;
-  },
-  area: function() {
-    return this.x * this.y;
-  },
-  toString: function() {
-    return '' + this.x + ' ' + this.y;
-  },
-  floor: function() {
-    return new Coordinate(Math.floor(this.x), Math.floor(this.y));
-  },
-  add: function(arr) {
-    return new Coordinate(this.x + arr[0], this.y + arr[1]);
-  }
-});
-
 // ===============================================
 // GRID overlay
 
@@ -492,6 +515,7 @@ function createGrid() {
   gridRaster = gridGroup.rasterize(view.resolution * 10);
   gridGroup.remove();
   mapLayer.activate();
+  gridRaster.locked = true;
 }
 
 function createGridLine(segment, blockEdge) {
@@ -563,12 +587,14 @@ function updateBrush() {
   brush.opacity = 0.5;
   brush.closed = true;
   brush.fillColor = paintColor;
+  brush.locked = true;
 
   brushOutline.segments = brushSegments;
   brushOutline.position = prevPos;
   brushOutline.closed = true;
   brushOutline.strokeColor = '#fff';
   brushOutline.strokeWidth = 0.1;
+  brushOutline.locked = true;
 }
 
 function updateCoordinateLabel(event) {
@@ -808,23 +834,6 @@ function createRemap(inMin, inMax, outMin, outMax) {
   return function remap(x) {
     return (x - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
   };
-}
-
-function ES3Class(obj) {
-  var
-    // if there isn't a constructor, create one
-    constructor = obj.hasOwnProperty('constructor') ?
-    obj.constructor : function() {},
-    key;
-  for (key in obj) {
-    // per each own property in the received object
-    if (obj.hasOwnProperty(key) && key !== 'constructor') {
-      // copy such property to the constructor prototype
-      constructor.prototype[key] = obj[key];
-    }
-  }
-  // return what will be used to create new Instances
-  return constructor;
 }
 
 function doForCellsOnLine(x0, y0, x1, y1, setPixel) {
