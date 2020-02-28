@@ -700,12 +700,21 @@ var state = {
   history: [],
   drawing: loadTemplate(),
 };
+var maxHistoryIndex = 99; // max length is one greater than this
 
 function addToHistory(command) {
   state.index += 1;
+  // remove future history if went back in time and made an edit
   if (state.index < state.history.length) {
     var removeNum = state.history.length - state.index;
     state.history.splice(-removeNum, removeNum);
+  }
+
+  // limit the amount of saved history to reduce memory
+  if (state.index > maxHistoryIndex) {
+    var removeNum = state.index - maxHistoryIndex;
+    state.history.splice(0, removeNum); 
+    state.index -= removeNum;
   }
   state.history[state.index] = command;
 }
@@ -714,6 +723,8 @@ function undo() {
   if (state.index >= 0) {
     applyCommand(false, state.history[state.index]);
     state.index -= 1;
+  } else {
+    console.log('Nothing to undo');
   }
 }
 
@@ -721,6 +732,8 @@ function redo(command) {
   if (state.index < state.history.length - 1) {
     state.index += 1;
     applyCommand(true, state.history[state.index]);
+  } else {
+    console.log('Nothing to redo');
   }
 }
 
