@@ -1,7 +1,7 @@
 // ===============================================
 // GLOBAL FUNCTIONS
 
-var factor = 1.03;
+var factor = 1.01;
 var _minZoom;
 var _maxZoom;
 var mouseNativeStart;
@@ -10,7 +10,7 @@ var viewCenterStart;
 $(view.element).mousewheel(function(event) {
   var mousePosition = new Point(event.offsetX, event.offsetY);
   if (event.shiftKey) {
-    changeZoomCentered(event.deltaY, mousePosition);
+    changeZoomCentered(event.deltaY * event.deltaFactor, mousePosition);
   } else {
     changeCenterPosition(event.deltaX, event.deltaY, event.deltaFactor);
   }
@@ -108,6 +108,7 @@ function changeZoomCentered(delta, mousePos) {
     var oldCenter = view.center;
     var viewPos = view.viewToProject(mousePos);
     
+    var factor = 1 + Math.abs(delta) / 500;
     var newZoom = delta > 0
         ? view.zoom * factor
         : view.zoom / factor;
