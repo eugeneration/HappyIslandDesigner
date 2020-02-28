@@ -61,7 +61,7 @@ var structure = {
 Object.keys(structure).forEach(function(name) {
   loadSvg(structurePrefix + name, function(item) {
     item.data = getItemData(item, 'structure', [4,4]);
-    item.pivot += new Point(-2, -0.6);
+    item.pivot += new Point(-2, -3.6);
     structure[name] = item;
   });
 })
@@ -75,7 +75,7 @@ var tree = {
 Object.keys(tree).forEach(function(name) {
   loadSvg(treePrefix + name, function(item) {
     item.data = getItemData(item, 'tree', [2, 1]);
-    item.pivot += new Point(-1, -0.75);
+    item.pivot += new Point(-1, -.75);
     tree[name] = item;
   });
 })
@@ -84,7 +84,7 @@ function getItemData(item, type, size) {
     type: type,
     size: new Size(size),
   };
-  data.bound = function() {return new Rectangle(item.position - new Point(0, item.data.size.height - 1), item.data.size)};
+  data.bound = function() {return new Rectangle(item.position, item.data.size)};
   return data;
 }
 
@@ -154,7 +154,35 @@ function drawBackground() {
 }
 
 // ===============================================
-// COLOR CONTROL
+// TOOLS
+
+var toolDefinition = {
+  pointer: {
+    name: 'pointer',
+    targetLayers: [mapIconLayer],
+  },
+  terrain: {
+    name: 'terrain',
+    targetLayers: [mapLayer],
+  },
+  structure: {
+    name: 'structure',
+    targetLayers: [mapIconLayer],
+  },
+  sprite: {
+    name: 'sprite',
+    targetLayers: [mapIconLayer],
+  },
+};
+
+var toolState = {
+  tool: null,
+};
+switchTool(toolDefinition.terrain);
+function switchTool(newTool) {
+  toolState.tool = newTool;
+}
+
 
 var activeColor = Path.Circle([0, 0], 30);
 activeColor.fillColor = paintColor;
@@ -172,6 +200,18 @@ var paintColor = colors.level1;
 function onKeyDown(event) {
   var shift = Key.isDown('shift');
   var control = Key.isDown('control') || Key.isDown('meta');
+
+  switch (toolState.tool) {
+    case toolDefinition.pointer:x
+      break;
+    case toolDefinition.terrain:
+      break;
+    case toolDefinition.structures:
+      break;
+    case toolDefinition.sprites:
+      break;
+  }
+
   switch (event.key) {
     case '1':
       paintColor = colors.water;
@@ -191,15 +231,15 @@ function onKeyDown(event) {
     case '6':
       paintColor = colors.rock;
       break;
-    case 'q':
-      updatePaintTool(paintTools.grid);
+/*    case 'q':
+      changePaintTool(paintTools.grid);
       break;
     case 'w':
-      updatePaintTool(paintTools.diagonals);
+      changePaintTool(paintTools.diagonals);
       break;
     case 'e':
-      updatePaintTool(paintTools.freeform);
-      break;
+      changePaintTool(paintTools.freeform);
+      break;*/
     case '[':
       brushSize = Math.max(brushSize - 1, 0);
       updateBrush();
@@ -212,7 +252,19 @@ function onKeyDown(event) {
       cycleBrushHead();
       updateBrush();
       break;
+    case 'v':
+      switchTool(toolDefinition.pointer);
+      break;
+    case 'b':
+      switchTool(toolDefinition.terrain);
+      break;
+    case 'n':
+      switchTool(toolDefinition.structures);
+      break;
     case 'm':
+      switchTool(toolDefinition.sprites);
+      break;
+    case '/':
       var o = objectMap(state.drawing, function(pathItem) {
         var p;
         if (pathItem._children) {
@@ -478,7 +530,6 @@ mapOverlayLayer.activate();
 function centerBrushOffset(width, height) {
   return new Point(width * 0.5 * cellWidth, height * 0.5 * cellHeight);
 }
-
 
 var brushSize = 1;
 var brushSegments;
