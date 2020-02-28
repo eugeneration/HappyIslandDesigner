@@ -23,7 +23,7 @@ var colors = {
 }
 
 // load assets
-var svgPath = '../svg/'
+var svgPath = 'svg/'
 var structurePrefix = 'structure-';
 var treePrefix = 'tree-';
 var numSvgToLoad = 0;
