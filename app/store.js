@@ -25,6 +25,25 @@ var Listener = ES3Class({
 // ===============================================
 // HELPERS
 
+var isDirty = function() { 
+    // todo: implement this
+    return true;
+}
+
+window.onload = function() {
+    window.addEventListener("beforeunload", function (e) {
+        if (!isDirty()) {
+            return undefined;
+        }
+
+        var confirmationMessage = 'It looks like you have been editing something. '
+                                + 'If you leave before saving, your changes will be lost.';
+
+        (e || window.event).returnValue = confirmationMessage; //Gecko + IE
+        return confirmationMessage; //Gecko + Webkit, Safari, Chrome etc.
+    });
+};
+
 function ES3Class(obj) {
   var
     // if there isn't a constructor, create one

@@ -455,42 +455,64 @@ var verticalRatio = 1; //0.767;
 
 var cellWidth = 0;
 var cellHeight = 0;
+var marginX = 0;
+var marginY = 0;
 
-var remapX = function(i) {
-  return i
-};
-var remapY = function(i) {
-  return i
-};
-var remapInvX = function(i) {
-  return i
-};
-var remapInvY = function(i) {
-  return i
-};
+//var remapX = function(i) {
+//  return i
+//};
+//var remapY = function(i) {
+//  return i
+//};
+//var remapInvX = function(i) {
+//  return i
+//};
+//var remapInvY = function(i) {
+//  return i
+//};
 resizeCoordinates();
 
+var mapRatio = ((horizontalBlocks * horizontalDivisions) / (verticalBlocks * verticalDivisions)) / verticalRatio;
 function resizeCoordinates() {
-  var marginX = view.size.width * 0.1;
+  var screenRatio = view.size.width / view.size.height;
+  var horizontallyContrained = (screenRatio <= mapRatio);
 
-  var width = view.size.width - marginX * 2;
-  var blockWidth = width / horizontalBlocks;
-  cellWidth = blockWidth / horizontalDivisions;
-  cellHeight = cellWidth * verticalRatio;
-  var blockHeight = cellHeight * verticalDivisions;
-  var height = blockHeight * verticalBlocks;
+  // todo - clean this up with less code duplication
+  if (horizontallyContrained) {
+    marginX = view.size.width * 0.1;
 
-  var xView = view.size.width - marginX;
-  var xCoord = horizontalBlocks * horizontalDivisions;
+    var width = view.size.width - marginX * 2;
+    var blockWidth = width / horizontalBlocks;
+    cellWidth = blockWidth / horizontalDivisions;
+    cellHeight = cellWidth * verticalRatio;
+    var blockHeight = cellHeight * verticalDivisions;
+    var height = blockHeight * verticalBlocks;
 
-  var marginY = (view.size.height - height) / 2;
-  var yView = height + marginX;
-  var yCoord = verticalBlocks * verticalDivisions;
+    marginY = (view.size.height - height) / 2;
 
-  remapX = createRemap(marginX, xView, 0, xCoord);
-  remapY = createRemap(marginY, yView, 0, yCoord);
-  remapInvX = createRemap(0, xCoord, marginX, xView);
-  remapInvY = createRemap(0, yCoord, marginY, yView);
+    //var xView = view.size.width - marginX;
+    //var xCoord = horizontalBlocks * horizontalDivisions;
+
+    //var yView = height + marginX;
+    //var yCoord = verticalBlocks * verticalDivisions;
+
+    //remapX = createRemap(marginX, xView, 0, xCoord);
+    //remapY = createRemap(marginY, yView, 0, yCoord);
+    //remapInvX = createRemap(0, xCoord, marginX, xView);
+    //remapInvY = createRemap(0, yCoord, marginY, yView);
+  } else {
+    marginY = view.size.height * 0.1;
+
+    var height = view.size.height - marginY * 2;
+    var blockHeight = height / verticalBlocks;
+    cellHeight = blockHeight / verticalDivisions;
+    cellWidth = cellHeight / verticalRatio;
+    var blockWidth = cellWidth * horizontalDivisions;
+    var width = blockWidth * horizontalBlocks;
+
+    marginX = (view.size.width - width) / 2;
+  }
+  
 
   mapLayer.position = new Point(marginX, marginY);
   mapLayer.scaling = new Point(cellWidth, cellHeight);
