@@ -728,7 +728,7 @@ function undo() {
   }
 }
 
-function redo(command) {
+function redo() {
   if (state.index < state.history.length - 1) {
     state.index += 1;
     applyCommand(true, state.history[state.index]);
@@ -739,15 +739,27 @@ function redo(command) {
 
 function applyCommand(isApply, command) {
   // if (draw command)
-  applyDiff(isApply, command);
+  switch(command.type) {
+    case 'draw':
+      applyDiff(isApply, command.data);
+      break;
+    case 'object':
+
+      break;
+  }
 }
 
-function drawCommand() {
+function drawCommand(drawData) {
   return {
-    command: 'draw',
-    data: {
+    type: 'draw',
+    data: drawData,
+  }
+}
 
-    }
+function objectCommand(objectData) {
+  return {
+    type: 'object',
+    data: objectData,
   }
 }
 
@@ -814,7 +826,7 @@ function endDrawGrid(viewPosition) {
   });
   diffCollection = {};
   if (Object.keys(mergedDiff).length > 0) {
-    addToHistory(mergedDiff);
+    addToHistory(drawCommand(mergedDiff));
   }
 }
 
