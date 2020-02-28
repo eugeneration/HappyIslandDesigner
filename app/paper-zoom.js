@@ -1,15 +1,19 @@
 // ===============================================
 // GLOBAL FUNCTIONS
 
-var factor = 1.05;
+var factor = 1.03;
 var _minZoom;
 var _maxZoom;
 var mouseNativeStart;
 var viewCenterStart;
 
 $(view.element).mousewheel(function(event) {
-    var mousePosition = new Point(event.offsetX, event.offsetY);
+  var mousePosition = new Point(event.offsetX, event.offsetY);
+  if (event.shiftKey) {
     changeZoomCentered(event.deltaY, mousePosition);
+  } else {
+    changeCenterPosition(event.deltaX, event.deltaY, event.deltaFactor);
+  }
 });
 
 //function onResize(event) {
@@ -51,6 +55,10 @@ function onMouseUp(event) {
 // PUBLIC FUNCTIONS
 
 setZoomRange([view.size, new Size(100, 100)]);
+
+function changeCenterPosition(deltaX, deltaY, factor) {
+  view.center += new Point(deltaX, -deltaY) * factor / view.zoom;
+}
 
 function setZoomRange(range /*paper.Size[]*/) /* number[] */ {
     var view = project.view;
