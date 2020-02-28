@@ -1,9 +1,10 @@
-var defaultLayer = project.activeLayer;
+var backgroundLayer = project.activeLayer;
 var mapLayer = new Layer();
 var mapIconLayer = new Layer();
 var mapOverlayLayer = new Layer();
 var uiLayer = new Layer();
 var fixedLayer = new Layer();
+backgroundLayer.applyMatrix = false;
 fixedLayer.applyMatrix = false;
 
 mapLayer.applyMatrix = false;
@@ -159,32 +160,13 @@ function onResize(event) {
 
 tool.minDistance = 1;
 
-function onMouseMove(event) {
-  updateCoordinateLabel(event);
-}
-
-// This function is called whenever the user
-// clicks the mouse in the view:
-function onMouseDown(event) {
-  startDraw(event);
-}
-
-function onMouseDrag(event) {
-  updateCoordinateLabel(event)
-  draw(event);
-}
-
-function onMouseUp(event) {
-  endDraw(event);
-}
-
 var prevViewMatrix = view.matrix.clone();
 fixedLayer.activate();
-var r = new Path.Rectangle(0, 0, 30, 30);
-r.strokeColor = colors.human;
 function onFrame() {
   if (!view.matrix.equals(prevViewMatrix)) {
-    fixedLayer.matrix = view.matrix.inverted();
+    var inverted = view.matrix.inverted();
+    backgroundLayer.matrix = inverted;
+    fixedLayer.matrix = inverted;
     prevViewMatrix = view.matrix.clone();
   }
   //fixedLayer.pivot = new Point(0, 0);
@@ -198,18 +180,30 @@ mapLayer.activate();
 // ===============================================
 // BACKGROUND
 
+ backgroundLayer.activate();
 var backgroundRect = new Path();
+backgroundRect.fillColor = colors.water;
+backgroundRect.onMouseDown = function onMouseDown(event) {
+  startDraw(event);
+}
+backgroundRect.onMouseMove = function onMouseMove(event) {
+  updateCoordinateLabel(event);
+}
+backgroundRect.onMouseDrag = function onMouseDrag(event) {
+  updateCoordinateLabel(event)
+  draw(event);
+}
+backgroundRect.onMouseUp = function onMouseUp(event) {
+  endDraw(event);
+}
 
 function drawBackground() {
-  defaultLayer.activate();
-  // background color
-  backgroundRect.remove();
-  backgroundRect = new Path.Rectangle({
-    point: [0, 0],
-    size: [view.size.width, view.size.height],
-  });
-  backgroundRect.sendToBack();
-  backgroundRect.fillColor = colors.water;
+  backgroundRect.segments = [
+    new Point(0, 0),
+    new Point(view.size.width, 0),
+    new Point(view.size.width, view.size.height),
+    new Point(0, view.size.height),
+  ];
   mapLayer.activate();
 }
 
@@ -243,10 +237,6 @@ function switchTool(newTool) {
   toolState.tool = newTool;
 }
 
-
-var activeColor = Path.Circle([0, 0], 30);
-activeColor.fillColor = paintColor;
-
 function updateColorTools() {
   activeColor
 }
@@ -256,6 +246,16 @@ function onUpdateColor() {
 }
 
 var paintColor = colors.level1;
+
+fixedLayer.activate();
+//var activeToolIndicator = new Path.Rectangle(0, 50, 5, 60);
+//activeToolIndicator.fillColor = colors.selected;
+
+var toolsPosition = new Point(40, 80);
+
+//var pointerToolButton = new Raster('../img/pointer.png');
+//pointerToolButton.position = toolsPosition + new Point(0, 0);
+//pointerToolButton.scaling = new Point(0.2, 0.2);
 
 function onKeyDown(event) {
   var shift = Key.isDown('shift');
@@ -364,6 +364,10 @@ function onKeyDown(event) {
 
 // ===============================================
 // PATH DRAWING
+
+fixedLayer.activate();
+var activeColor = new Path.Circle([20, 20], 10);
+activeColor.fillColor = paintColor;
 
 var paintTools = {
   grid: 'grid',
@@ -774,7 +778,9 @@ function endDrawGrid(viewPosition) {
     );
   });
   diffCollection = {};
-  addToHistory(mergedDiff);
+  if (Object.keys(mergedDiff).length > 0) {
+    addToHistory(mergedDiff);
+  }
 }
 
 function uniteCompoundPath(compound) {
@@ -808,10 +814,15 @@ function getDiff(path, color) {
   mapLayer.activate();
   if (!state.drawing.hasOwnProperty(color)) {
     state.drawing[color] = new Path();
+    state.drawing[color].locked = true;
   }
   
   var diff = {};
-  diff[color] = path.subtract(state.drawing[color]);
+  var delta = path.subtract(state.drawing[color]);
+  if (delta.children || (delta.segments && delta.segments.length > 0)) {
+    diff[color] = delta;
+  }
+  delta.remove();
   return diff;
 }
 
@@ -825,10 +836,12 @@ function applyDiff(isApply, diff) {
 function applyPath(isApply, path, color) {
   if (!state.drawing.hasOwnProperty(color)) {
     state.drawing[color] = new Path();
+    state.drawing[color].locked = true;
   }
   var combined = isApply
     ? state.drawing[color].unite(path)
     : state.drawing[color].subtract(path);
+  combined.locked = true;
   combined.fillColor = color;
   combined.insertAbove(state.drawing[color]);
 
@@ -933,6 +946,7 @@ function loadTemplate() {
         }),
       });
     }
+    p.locked = true;
     p.fillColor = color;
     return p;
   })
