@@ -208,6 +208,61 @@ function drawBackground() {
 }
 
 // ===============================================
+// MAIN UI
+
+function downloadText(filename, text) {
+  downloadDataURL(filename, 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+}
+
+function downloadDataURL(filename, data) {
+  var element = document.createElement('a');
+  element.setAttribute('href', data);
+  element.setAttribute('download', filename);
+
+  element.style.display = 'none';
+  document.body.appendChild(element);
+
+  element.click();
+
+  document.body.removeChild(element);
+}
+
+function saveMapToFile() {
+  var mapJson = encodeMap();
+
+  var mapRaster = mapLayer.rasterize();
+  mapRaster.remove();
+  var mapRasterSize = mapRaster.size;
+  var mapRasterData = mapRaster.toDataURL();
+
+  var shadowCanvas = document.createElement('canvas'),
+    shadowCtx = shadowCanvas.getContext('2d');
+  shadowCanvas.style.display = 'none';
+  var image = new Image();
+  image.src = mapRasterData;
+  image.addEventListener('load',
+    function() {
+      shadowCanvas.width = mapRasterSize.width;
+      shadowCanvas.height = mapRasterSize.height;
+      shadowCtx.drawImage(image, 0, 0, mapRasterSize.width, mapRasterSize.height );
+
+      mapRasterData = steg.encode(mapJson, mapRasterData, {
+        height: mapRasterSize.height,
+        width: mapRasterSize.width,
+      });
+
+      var filename = "HappyIslandDesigner_" + Date.now() + ".png";
+      downloadDataURL(filename, mapRasterData);
+
+      mapRaster.remove();
+    }
+    , false);
+  return;
+}
+
+
+
+// ===============================================
 // TOOLS
 
 var toolDefinition = {
@@ -300,6 +355,11 @@ function onKeyDown(event) {
     case 'e':
       changePaintTool(paintTools.freeform);
       break;*/
+    case 's':
+      if (control) {
+        saveMapToFile();
+        event.preventDefault();
+      }
     case '[':
       brushSize = Math.max(brushSize - 1, 1);
       updateBrush();
@@ -325,30 +385,7 @@ function onKeyDown(event) {
       switchTool(toolDefinition.sprites);
       break;
     case '/':
-      var o = objectMap(state.drawing, function(pathItem) {
-        var p;
-        if (pathItem._children) {
-          p = pathItem._children.map(function(path) {
-            return path._segments.map(function(s) {
-              var c = s._point;
-              return {
-                x: Math.round(c.x),
-                y: Math.round(c.y)
-              };
-            })
-          });
-        } else {
-          p = pathItem._segments.map(function(s) {
-            var c = s._point;
-            return {
-              x: Math.round(c.x),
-              y: Math.round(c.y)
-            };
-          });
-        }
-        return p;
-      });
-      console.log(JSON.stringify(o));
+      console.log(encodeMap());
       break;
     case 'z':
       if (control && shift) {
@@ -361,6 +398,33 @@ function onKeyDown(event) {
   }
   onUpdateColor();
 };
+
+function encodeMap() {
+    var o = objectMap(state.drawing, function(pathItem) {
+    var p;
+    if (pathItem._children) {
+      p = pathItem._children.map(function(path) {
+        return path._segments.map(function(s) {
+          var c = s._point;
+          return {
+            x: Math.round(c.x),
+            y: Math.round(c.y)
+          };
+        })
+      });
+    } else {
+      p = pathItem._segments.map(function(s) {
+        var c = s._point;
+        return {
+          x: Math.round(c.x),
+          y: Math.round(c.y)
+        };
+      });
+    }
+    return p;
+  });
+  return JSON.stringify(o);
+}
 
 // ===============================================
 // PATH DRAWING
