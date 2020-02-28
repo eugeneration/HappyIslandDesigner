@@ -283,11 +283,11 @@ function onKeyDown(event) {
       changePaintTool(paintTools.freeform);
       break;*/
     case '[':
-      brushSize = Math.max(brushSize - 1, 0);
+      brushSize = Math.max(brushSize - 1, 1);
       updateBrush();
       break;
     case ']':
-      brushSize = Math.max(brushSize + 1, 0);
+      brushSize = Math.max(brushSize + 1, 1);
       updateBrush();
       break;
     case 'p':
@@ -578,11 +578,11 @@ function cycleBrushHead() {
 function updateBrush() {
   brushSegments = getBrushSegments(brushSize);
 
-  var prevPos = brush.position;
+  var prevPos = brushOutline.position;
 
   brush.layer = uiLayer;
   brush.segments = brushSegments;
-  brush.pivot = new Point(0, 0);
+  brush.pivot = new Point(brushSize / 2 - 0.5, brushSize / 2 - 0.5);
   brush.position = prevPos;
   brush.opacity = 0.5;
   brush.closed = true;
