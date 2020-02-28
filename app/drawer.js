@@ -3,7 +3,8 @@ var mapLayer = new Layer();
 var mapIconLayer = new Layer();
 var mapOverlayLayer = new Layer();
 var uiLayer = new Layer();
-var viewLayer = new Layer();
+var fixedLayer = new Layer();
+fixedLayer.applyMatrix = false;
 
 mapLayer.applyMatrix = false;
 mapLayer.pivot = new Point(0, 0);
@@ -176,6 +177,23 @@ function onMouseDrag(event) {
 function onMouseUp(event) {
   endDraw(event);
 }
+
+var prevViewMatrix = view.matrix.clone();
+fixedLayer.activate();
+var r = new Path.Rectangle(0, 0, 30, 30);
+r.strokeColor = colors.human;
+function onFrame() {
+  if (!view.matrix.equals(prevViewMatrix)) {
+    fixedLayer.matrix = view.matrix.inverted();
+    prevViewMatrix = view.matrix.clone();
+  }
+  //fixedLayer.pivot = new Point(0, 0);
+ // fixedLayer.position = view.viewSize.topLeft;
+  //var inverseZoom = 1 / view.zoom;
+  
+  //fixedLayer.scaling = new Point(inverseZoom, inverseZoom);
+}
+mapLayer.activate();
 
 // ===============================================
 // BACKGROUND
