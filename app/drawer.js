@@ -229,17 +229,30 @@ mapLayer.activate();
  backgroundLayer.activate();
 var backgroundRect = new Path();
 backgroundRect.fillColor = colors.water;
-backgroundRect.onMouseDown = function onMouseDown(event) {
-  toolState.activeTool.definition.onMouseDown(event);
+backgroundRect.onMouseEnter = function(event) {
+  toolState.focusOnCanvas(true);
 }
-backgroundRect.onMouseMove = function onMouseMove(event) {
-  toolState.activeTool.definition.onMouseMove(event);
+backgroundRect.onMouseLeave = function(event) {
+  toolState.focusOnCanvas(false);
 }
-backgroundRect.onMouseDrag = function onMouseDrag(event) {
-  toolState.activeTool.definition.onMouseDrag(event);
+
+onMouseDown = function onMouseDown(event) {
+  toolState.onDown(true);
+  if (toolState.toolIsActive)
+    toolState.activeTool.definition.onMouseDown(event);
 }
-backgroundRect.onMouseUp = function onMouseUp(event) {
-  toolState.activeTool.definition.onMouseUp(event);
+onMouseMove = function onMouseMove(event) {
+  if (toolState.toolIsActive)
+    toolState.activeTool.definition.onMouseMove(event);
+}
+onMouseDrag = function onMouseDrag(event) {
+  if (toolState.toolIsActive)
+    toolState.activeTool.definition.onMouseDrag(event);
+}
+onMouseUp = function onMouseUp(event) {
+  toolState.onDown(false);
+  if (toolState.toolIsActive)
+    toolState.activeTool.definition.onMouseUp(event);
 }
 
 function drawBackground() {
@@ -707,9 +720,14 @@ Object.keys(toolCategoryDefinition).forEach(function(toolType) {
   };
 });
 
+// Todo: make state use a Listener paradigm rather than triggering method calls
 var toolState = {
   activeTool: null,
   toolMap: {},
+  
+  isCanvasFocused: false,
+  toolIsActive: false,
+  isDown: false,
   toolMapValue: function(definition, tool, modifiers) {
     return {
       type: definition.type,
@@ -736,6 +754,18 @@ var toolState = {
     if (prevTool) prevTool.definition.updateTool(prevTool, toolData);
     else if (toolData) toolData.definition.updateTool(prevTool, toolData);
   },
+  onDown: function(isDown) {
+    this.isDown = isDown;
+    if (!this.isDown) {
+      this.toolIsActive = this.isCanvasFocused;
+    }
+  },
+  focusOnCanvas: function(isFocused) {
+    this.isCanvasFocused = isFocused;
+    if (!this.isDown) {
+      this.toolIsActive = this.isCanvasFocused;
+    }
+  }
 };
 
 //function squircle (size){ // squircle=square+circle
@@ -809,11 +839,7 @@ var toolsPosition = new Point(40, 80);
 function initializeApp() {
   toolState.switchToolType(toolCategoryDefinition.structures.type);
 }
-
-// initialize after loading all assets
-asyncStructureDefinition.getAsyncValue(function() {
-  initializeApp();
-});
+initializeApp();
 
 //var pointerToolButton = new Raster('../img/pointer.png');
 //pointerToolButton.position = toolsPosition + new Point(0, 0);
