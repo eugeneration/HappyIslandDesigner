@@ -39,7 +39,6 @@ function OnLoaded() {
   numSvgLoaded++;
   if (numSvgToLoad == numSvgLoaded) {
     // all done loading
-    initializeSvg();
   }
 }
 
@@ -97,28 +96,6 @@ function createIconMenu(categoryDefinition, definitions) {
   return iconMenu;
 }
 
-var structure = {
-  tentRound: {},
-  tentTriangle: {},
-  tentTrapezoid: {},
-  hut: {},
-  house: {},
-  building: {},
-  lighthouse: {},
-};
-Object.keys(structure).forEach(function(name) {
-  var structureDefinition = structure[name];
-  structureDefinition.name = name;
-  structureDefinition.icon = name; // for now these are the same
-  structureDefinition.size = new Point(4, 4);
-  structureDefinition.offset = new Point(-2, -3.6);
-
-  loadSvg('structure-' + name, function(item) {
-    //item.pivot += new Point(-2, -3.6);
-    structureDefinition.icon = item;
-  });
-})
-
 //var tree = {
 //  bush: null,
 //  fruit: null,
@@ -173,23 +150,6 @@ function createObject(item, type, name, size, offset) {
   }
 
   return group;
-}
-
-
-function initializeSvg() {
-  var i = 0;
-  Object.keys(structure).forEach(function(name) {
-    var s = structure[name];
-    var mapIcon = createMapSprite(s);
-    mapIcon.position = new Point(5, 5 + 5 * i);
-    i++;
-  });
-
-//  Object.keys(tree).forEach(function(name) {
-//    var s = tree[name];
-//    s.position = new Point(5, 20 + 5 * i);
-//    i++;
-//  });
 }
 
 mapLayer.activate();
@@ -649,6 +609,7 @@ var toolCategoryDefinition = {
       this.base.onMouseMove(this, event);
     },
     onMouseDown: function(event) {
+      placeStructure(event);
       this.base.onMouseMove(this, event);
     },
     onMouseDrag: function(event) {
@@ -1041,6 +1002,15 @@ function changePaintTool(newPaintTool) {
   paintTool = newPaintTool;
 }
 
+function placeStructure(event) {
+  var rawCoordinate = mapOverlayLayer.globalToLocal(event.point);
+  var coordinate = rawCoordinate.floor();
+  if (toolState.activeTool && toolState.activeTool.tool) {
+    var structure = createMapSprite(toolState.activeTool.tool);
+    structure.position = coordinate;
+    // immediately grab the structure
+  }
+}
 
 // ===============================================
 // PIXEL FITTING
