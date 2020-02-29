@@ -69,7 +69,7 @@ function createMenuSprite(def) {
   var item = def.icon.clone();
   item.scaling = new Point(.3, .3);
   return createButton(def, item, 20, function(button) {
-    toolState.switchTool(toolState.toolMapValue(toolDefinition.structures, def.type, {}));
+    toolState.switchTool(toolState.toolMapValue(toolCategoryDefinition.structures, def.type, {}));
   });
 }
 
@@ -497,7 +497,7 @@ Object.keys(asyncStructureDefinition.value).forEach(function(structureType) {
 // =======================================
 // BASE LEVEL TOOLS
 
-var baseToolDefinition = {
+var baseToolCategoryDefinition = {
   onSelect: function(subclass, isSelected) {
     subclass.icon.data.select(isSelected);
     this.openMenu(subclass, isSelected);
@@ -539,9 +539,9 @@ var baseToolDefinition = {
     }
   },
 }
-var toolDefinition = {
+var toolCategoryDefinition = {
   pointer: {
-    base: baseToolDefinition,
+    base: baseToolCategoryDefinition,
     type: 'pointer',
     layer: mapIconLayer,
     icon: "pointer",
@@ -569,7 +569,7 @@ var toolDefinition = {
     onKeyDown: function(event) {console.log('pointer onKeyDown')},
   },
   terrain: {
-    base: baseToolDefinition,
+    base: baseToolCategoryDefinition,
     type: 'terrain',
     layer: mapLayer,
     icon: "color",
@@ -600,7 +600,7 @@ var toolDefinition = {
     onKeyDown: function(event) {console.log('terrain onKeyDown')},
   },
   structures: {
-    base: baseToolDefinition,
+    base: baseToolCategoryDefinition,
     type: 'structures',
     layer: mapIconLayer,
     icon: "structure",
@@ -639,7 +639,7 @@ var toolDefinition = {
     }
   },
   path: {
-    base: baseToolDefinition,
+    base: baseToolCategoryDefinition,
     type: 'path',
     layer: mapLayer,
     icon: "path",
@@ -676,8 +676,8 @@ var toolDefinition = {
 //  },
 };
 // add additional sub functions to all definitions
-Object.keys(toolDefinition).forEach(function(toolType) {
-  var def = toolDefinition[toolType];
+Object.keys(toolCategoryDefinition).forEach(function(toolType) {
+  var def = toolCategoryDefinition[toolType];
   def.updateTool = def.base.updateTool;
 });
 
@@ -693,7 +693,7 @@ var toolState = {
     };
   },
   defaultToolMapValue: function(toolType) {
-    var def = toolDefinition[toolType];
+    var def = toolCategoryDefinition[toolType];
     return this.toolMapValue(def, def.defaultTool, def.defaultModifiers);
   },
   switchToolType: function(toolType) {
@@ -705,7 +705,7 @@ var toolState = {
   },
 
   switchTool: function(toolData) {
-    baseToolDefinition.updateTool(this.activeTool, toolData);
+    baseToolCategoryDefinition.updateTool(this.activeTool, toolData);
 
     this.activeTool = toolData;
     this.toolMap[toolData.type] = toolData;
@@ -741,8 +741,8 @@ var toolState = {
 //var activeToolIndicator = new Path.Circle(30, 120, 20);
 //activeToolIndicator.fillColor = colors.npc;
 
-Object.keys(toolDefinition).forEach(function(toolType) {
-  var def = toolDefinition[toolType];
+Object.keys(toolCategoryDefinition).forEach(function(toolType) {
+  var def = toolCategoryDefinition[toolType];
   var tool = new Raster(imgPath + toolPrefix + def.icon + '.png');
 
   var button = createButton(def, tool, 20, function() {toolState.switchToolType(toolType)});
@@ -781,7 +781,7 @@ var toolsPosition = new Point(40, 80);
 
 
 function initializeApp() {
-  toolState.switchToolType(toolDefinition.structures.type);
+  toolState.switchToolType(toolCategoryDefinition.structures.type);
 }
 initializeApp();
 
@@ -847,16 +847,16 @@ function onKeyDown(event) {
       updateBrush();
       break;
     case 'v':
-      toolState.switchToolType(toolDefinition.pointer.type);
+      toolState.switchToolType(toolCategoryDefinition.pointer.type);
       break;
     case 'b':
-      toolState.switchToolType(toolDefinition.terrain.type);
+      toolState.switchToolType(toolCategoryDefinition.terrain.type);
       break;
     case 'n':
-      toolState.switchToolType(toolDefinition.structures.type);
+      toolState.switchToolType(toolCategoryDefinition.structures.type);
       break;
     case 'm':
-      toolState.switchToolType(toolDefinition.path.type);
+      toolState.switchToolType(toolCategoryDefinition.path.type);
       break;
     case '/':
       console.log(encodeMap());
