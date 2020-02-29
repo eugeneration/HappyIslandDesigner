@@ -281,10 +281,6 @@ function saveMapToFile() {
   image.src = mapRasterData;
   image.addEventListener('load',
     function() {
-      shadowCanvas.width = mapRasterSize.width;
-      shadowCanvas.height = mapRasterSize.height;
-      shadowCtx.drawImage(image, 0, 0, mapRasterSize.width, mapRasterSize.height );
-
       mapRasterData = steg.encode(mapJson, mapRasterData, {
         height: mapRasterSize.height,
         width: mapRasterSize.width,
@@ -297,6 +293,43 @@ function saveMapToFile() {
   return;
 }
 
+function loadMapFromFile() {
+  readFile = function(e) {
+    var file = e.target.files[0];
+    if (!file) {
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var dataURL = e.target.result;
+
+      var image = new Image();
+      image.src = dataURL;
+      image.addEventListener('load',
+        function() {
+          var mapJSONString = steg.decode(dataURL, {
+            height: image.height,
+            width: image.width,
+          });
+          var map = decodeMap(JSON.parse(mapJSONString));
+          setNewMapData(map);
+        }, false);
+    }
+    reader.readAsDataURL(file);
+  }
+  fileInput = document.createElement("input");
+  fileInput.type='file';
+  fileInput.style.display='none';
+  fileInput.onchange=readFile;
+  clickElem(fileInput);
+}
+
+function clickElem(elem) {
+  // Thx user1601638 on Stack Overflow (6/6/2018 - https://stackoverflow.com/questions/13405129/javascript-create-and-save-file )
+  var eventMouse = document.createEvent("MouseEvents")
+  eventMouse.initMouseEvent("click", true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null)
+  elem.dispatchEvent(eventMouse)
+}
 
 
 // ===============================================
@@ -397,6 +430,13 @@ function onKeyDown(event) {
         saveMapToFile();
         event.preventDefault();
       }
+      break;
+    case 'o':
+      if (control) {
+        loadMapFromFile();
+        event.preventDefault();
+      }
+      break;
     case '[':
       brushSize = Math.max(brushSize - 1, 1);
       updateBrush();
@@ -461,6 +501,27 @@ function encodeMap() {
     return p;
   });
   return JSON.stringify(o);
+}
+
+function decodeMap(json) {
+  mapLayer.activate();
+  return objectMap(json, function(colorData, color) {
+    // if array of arrays, make compound path
+    var p;
+    if (colorData[0].x) {
+      // normal path
+      p = new Path(colorData);
+    } else {
+      p = new CompoundPath({
+        children: colorData.map(function(pathData) {
+          return new Path(pathData);
+        }),
+      });
+    }
+    p.locked = true;
+    p.fillColor = color;
+    return p;
+  })
 }
 
 // ===============================================
@@ -794,6 +855,10 @@ function transformSegments(segments, coordinate) {
 // }
 // 
 
+function loadTemplate() {
+  return decodeMap(template);
+}
+
 mapLayer.activate();
 var state = {
   index: -1,
@@ -818,6 +883,13 @@ function addToHistory(command) {
     state.index -= removeNum;
   }
   state.history[state.index] = command;
+}
+
+function setNewMapData(pathObject) {
+  Object.keys(state.drawing).forEach(function(p){
+    state.drawing[p].remove();
+  });
+  state.drawing = pathObject;
 }
 
 function undo() {
@@ -1076,26 +1148,4 @@ function objectMap(object, mapFn) {
     result[key] = mapFn(object[key], key)
     return result
   }, {})
-}
-
-// ==== TEMPLATES
-
-function loadTemplate() {
-  return objectMap(template, function(colorData, color) {
-    // if array of arrays, make compound path
-    var p;
-    if (colorData[0].x) {
-      // normal path
-      p = new Path(colorData);
-    } else {
-      p = new CompoundPath({
-        children: colorData.map(function(pathData) {
-          return new Path(pathData);
-        }),
-      });
-    }
-    p.locked = true;
-    p.fillColor = color;
-    return p;
-  })
 }
