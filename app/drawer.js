@@ -84,7 +84,6 @@ function createIconMenu(definitions) {
     var def = definitions[name];
     var item = createMenuSprite(def);
     item.position = new Point(80, 20 + 50 * i);
-    console.log(item);
     iconMenu.addChild(item);
     i++;
   });
@@ -511,6 +510,31 @@ function switchTool(newTool) {
   });
 
 }
+
+
+//function squircle (size){ // squircle=square+circle
+//  var hsize = size / 2; // half size
+//  
+//  var squircle = new Path();
+//
+//  squircle.add(
+//    new Segment(new Point(0,0), new Point(0,0), new Point(0,hsize)),
+//    new Segment(new Point(0,size), new Point(0,size), new Point(hsize,size)),
+//    new Segment(new Point(size,size), new Point(size,size), new Point(size,hsize)),
+//    new Segment(new Point(size,0), new Point(size,0), new Point(hsize,0))
+//  );
+//  squircle.closed = true;
+//
+//  return squircle;
+//}
+//fixedLayer.activate();
+//var box = squircle(100);
+//box.fillColor = colors.npc;
+//box.position = new Point(300, 300);
+//box.selected = true;
+//
+//var d = new Path.Rectangle(300, 300, 10, 10);
+//d.fillColor = colors.npc;
 
 function updateColorTools() {
   activeColor
