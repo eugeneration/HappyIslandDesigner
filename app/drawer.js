@@ -25,12 +25,15 @@ var colors = {
   npc: '#FABD25',
   selected: '#EA822F',
   pin: '#E85A31',
+  paper: '#fefae4',
 }
 
 // load assets
 var svgPath = 'svg/'
+var imgPath = 'img/'
 var structurePrefix = 'structure-';
 var treePrefix = 'tree-';
+var toolPrefix = 'tool-';
 var numSvgToLoad = 0;
 var numSvgLoaded = 0;
 function OnLoaded() {
@@ -131,7 +134,6 @@ function createObject(item, type, name, size, offset) {
 
 
 function initializeSvg() {
-
   var i = 0;
   Object.keys(structure).forEach(function(name) {
     var s = structure[name];
@@ -335,24 +337,124 @@ function clickElem(elem) {
 // ===============================================
 // TOOLS
 
+fixedLayer.activate();
+
+//var menuButton = new Path();
+//menuButton.strokeColor = colors.selected;
+////menuButton.strokeColor *= 0.9;
+//menuButton.strokeWidth = 120;
+//menuButton.strokeCap = 'round';
+//menuButton.segments = [
+//  new Point(-20, 0),
+//  new Point(0, 0),
+//];
+
+var leftToolMenu = new Path();
+leftToolMenu.strokeColor = colors.paper;
+leftToolMenu.strokeWidth = 120;
+leftToolMenu.strokeCap = 'round';
+leftToolMenu.segments = [
+  new Point(0, 120),
+  new Point(0, 400),
+];
+
+var leftToolMenuPosition = new Point(30, 120);
+var leftToolMenuIconHeight = 50;
+
+function addToLeftToolMenu(icon) {
+  icon.position = leftToolMenuPosition;
+  leftToolMenuPosition.y += leftToolMenuIconHeight;
+}
+
+
 var toolDefinition = {
   pointer: {
     name: 'pointer',
     targetLayers: [mapIconLayer],
+    icon: "pointer",
   },
   terrain: {
     name: 'terrain',
     targetLayers: [mapLayer],
+    icon: "color",
   },
-  structure: {
-    name: 'structure',
+  structures: {
+    name: 'structures',
     targetLayers: [mapIconLayer],
+    icon: "structure",
   },
-  sprite: {
-    name: 'sprite',
+  path: {
+    name: 'path',
     targetLayers: [mapIconLayer],
+    icon: "path",
   },
+//  shovel: {
+
+//},
+//  sprite: {
+//    name: 'sprite',
+//    targetLayers: [mapIconLayer],
+//  },
 };
+
+//var activeToolIndicator = new Path.Rectangle(0, 100, 5, 40);
+//var activeToolIndicator = new Path.Circle(30, 120, 20);
+//activeToolIndicator.fillColor = colors.npc;
+
+Object.keys(toolDefinition).forEach(function(name) {
+  var def = toolDefinition[name];
+  var tool = new Raster(imgPath + toolPrefix + def.icon + '.png');
+
+  tool.scaling = new Point(.4, .4);
+  var group = new Group();
+
+  var button = new Path.Circle(0, 0, 20);
+  button.fillColor = colors.sand;
+  button.fillColor.alpha = 0;
+
+  group.applyMatrix = false;
+  group.addChildren([button, tool]);
+  switch (name) {
+    case 'color':
+      tool.position = new Point(-8, 0);
+      break;
+  }
+
+
+  group.data = {
+    definition: def,
+    selected: false,
+    hovered: false,
+    select: function(isSelected) {
+      group.data.selected = isSelected;
+      button.fillColor = isSelected ? colors.npc : colors.sand;
+      button.fillColor.alpha = isSelected ? 1 : 0;
+    },
+    hover: function(isHover) {
+      group.data.hovered = isHover;
+      button.fillColor.alpha = isHover || group.data.selected ? 1 : 0;
+    }
+  }
+  group.onMouseEnter = function(event) {
+    group.data.hover(true);
+  }
+  group.onMouseLeave = function(event) {
+    group.data.hover(false);
+  }
+  group.onMouseDown = function(event) {
+    switchTool(def);
+  }
+
+  addToLeftToolMenu(group);
+  def.icon = group;
+});
+
+// add gap
+leftToolMenuPosition.y += 60;
+
+var activeColor = new Path.Circle([20, 20], 16);
+activeColor.fillColor = paintColor;
+addToLeftToolMenu(activeColor);
 
 var toolState = {
   tool: null,
@@ -360,6 +462,11 @@ var toolState = {
 switchTool(toolDefinition.terrain);
 function switchTool(newTool) {
   toolState.tool = newTool;
+  Object.keys(toolDefinition).forEach(function(name) {
+    var def = toolDefinition[name];
+    def.icon.data.select(def == newTool);
+  });
+
 }
 
 function updateColorTools() {
@@ -373,8 +480,6 @@ function onUpdateColor() {
 var paintColor = colors.level1;
 
 fixedLayer.activate();
-//var activeToolIndicator = new Path.Rectangle(0, 50, 5, 60);
-//activeToolIndicator.fillColor = colors.selected;
 
 var toolsPosition = new Point(40, 80);
 
@@ -387,13 +492,13 @@ function onKeyDown(event) {
   var control = Key.isDown('control') || Key.isDown('meta');
 
   switch (toolState.tool) {
-    case toolDefinition.pointer:x
+    case toolDefinition.pointer:
       break;
     case toolDefinition.terrain:
       break;
     case toolDefinition.structures:
       break;
-    case toolDefinition.sprites:
+    case toolDefinition.path:
       break;
   }
 
@@ -459,7 +564,7 @@ function onKeyDown(event) {
       switchTool(toolDefinition.structures);
       break;
     case 'm':
-      switchTool(toolDefinition.sprites);
+      switchTool(toolDefinition.path);
       break;
     case '/':
       console.log(encodeMap());
@@ -526,10 +631,6 @@ function decodeMap(json) {
 
 // ===============================================
 // PATH DRAWING
-
-fixedLayer.activate();
-var activeColor = new Path.Circle([20, 20], 10);
-activeColor.fillColor = paintColor;
 
 var paintTools = {
   grid: 'grid',
