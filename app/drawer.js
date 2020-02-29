@@ -456,7 +456,6 @@ function addToLeftToolMenu(icon) {
 // STRUCTURE TOOL
 var baseStructureDefinition = {
   onSelect: function(subclass, isSelected) {
-    console.log(subclass.type);
   },
 };
 var asyncStructureDefinition = {
@@ -541,10 +540,11 @@ var baseToolCategoryDefinition = {
         prevToolData.definition.onSelect(false);
       }
       nextToolData.definition.onSelect(true);
-    } else {
+    }
+    {
       var prevTool = (prevToolData && prevToolData.tool) ? prevToolData.tool.type : null;
       var nextTool = (nextToolData && nextToolData.tool) ? nextToolData.tool.type : null;
-      var sameTool = prevTool === nextTool;
+      var sameTool = sameToolType && prevTool === nextTool;
       if (!sameTool) {
         if (prevToolData && prevToolData.tool && prevToolData.tool.onSelect)
           prevToolData.tool.onSelect(false);
@@ -651,11 +651,16 @@ var toolCategoryDefinition = {
           this.iconMenu.remove();
       }
       else {
-        asyncStructureDefinition.getAsyncValue(function(definitions) {
+        this.tools.getAsyncValue(function(definitions) {
           this.iconMenu = createIconMenu(this, definitions);
+
+          // this is a little messy
+          if (toolState.activeTool && toolState.activeTool.tool) {
+            this.iconMenu.data.update(toolState.activeTool.tool.type);
+          }
         }.bind(this));
       }
-    }
+    },
   },
   path: {
     base: baseToolCategoryDefinition,
@@ -725,11 +730,11 @@ var toolState = {
     }
   },
   switchTool: function(toolData) {
-    if (this.activeTool) this.activeTool.definition.updateTool(this.activeTool, toolData);
-    else if (toolData) toolData.definition.updateTool(this.activeTool, toolData);
-
+    var prevTool = this.activeTool;
     this.activeTool = toolData;
     this.toolMap[toolData.type] = toolData;
+    if (prevTool) prevTool.definition.updateTool(prevTool, toolData);
+    else if (toolData) toolData.definition.updateTool(prevTool, toolData);
   },
 };
 
@@ -804,7 +809,11 @@ var toolsPosition = new Point(40, 80);
 function initializeApp() {
   toolState.switchToolType(toolCategoryDefinition.structures.type);
 }
-initializeApp();
+
+// initialize after loading all assets
+asyncStructureDefinition.getAsyncValue(function() {
+  initializeApp();
+});
 
 //var pointerToolButton = new Raster('../img/pointer.png');
 //pointerToolButton.position = toolsPosition + new Point(0, 0);
