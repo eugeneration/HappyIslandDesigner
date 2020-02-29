@@ -43,14 +43,14 @@ function OnLoaded() {
     initializeSvg();
   }
 }
+
+var domParser = new DOMParser;
 var loadSvg = function(filename, itemCallback) {
   numSvgToLoad++;
   project.importSVG(svgPath + filename + '.svg', 
     {
       onLoad: function(item, svg) {
-        mapIconLayer.activate();
-        item.scaling = new Point(.03, .03);
-        item.pivot = item.bounds.bottomCenter;
+        item.remove();
         item.position = new Point(0, 0);
         itemCallback(item);
         OnLoaded();
@@ -58,41 +58,78 @@ var loadSvg = function(filename, itemCallback) {
       insert: true,
     });
 };
+
+function createMapSprite(iconData) {
+  mapIconLayer.activate();
+  var item = iconData.icon.clone();
+  item.scaling = new Point(.03, .03);
+  item.pivot = item.bounds.bottomCenter;
+  return createObject(item, 'structure', iconData.name, iconData.size, iconData.offset);
+}
+
+function createMenuSprite(def) {
+  var item = def.icon.clone();
+  item.scaling = new Point(.3, .3);
+  return createButton(def, item, 20, function(button) {
+    button.data.select(true);
+    //switchTool(button.data.definition);
+  });
+}
+
+function createIconMenu(definitions) {
+  fixedLayer.activate();
+  var i = 0;
+  var iconMenu = new Group();
+  Object.keys(definitions).forEach(function(name) {
+    var def = definitions[name];
+    var item = createMenuSprite(def);
+    item.position = new Point(80, 20 + 50 * i);
+    console.log(item);
+    iconMenu.addChild(item);
+    i++;
+  });
+  return iconMenu;
+}
+
 var structure = {
-  tentRound: null,
-  tentTriangle: null,
-  tentTrapezoid: null,
-  hut: null,
-  house: null,
-  building: null,
-  lighthouse: null,
+  tentRound: {},
+  tentTriangle: {},
+  tentTrapezoid: {},
+  hut: {},
+  house: {},
+  building: {},
+  lighthouse: {},
 };
 Object.keys(structure).forEach(function(name) {
+  var structureDefinition = structure[name];
+  structureDefinition.name = name;
+  structureDefinition.icon = name; // for now these are the same
+  structureDefinition.size = new Point(4, 4);
+  structureDefinition.offset = new Point(-2, -3.6);
+
   loadSvg(structurePrefix + name, function(item) {
-    var obj = createObject(item, 'structure', name, [4,4], new Point(-2, -3.6));
     //item.pivot += new Point(-2, -3.6);
-    structure[name] = obj;
+    structureDefinition.icon = item;
   });
 })
 
-var tree = {
-  bush: null,
-  fruit: null,
-  palm: null,
-  pine: null,
-};
-Object.keys(tree).forEach(function(name) {
-  loadSvg(treePrefix + name, function(item) {
-    var isBush = name == 'bush';
-    var size = [isBush ? 1 : 2, 1];
-    var offset = isBush ? new Point( -0.5, -1) : new Point(-1, -.75);
-    var obj = createObject(item, 'tree', name, size, offset);
-    tree[name] = obj;
-  });
-});
+//var tree = {
+//  bush: null,
+//  fruit: null,
+//  palm: null,
+//  pine: null,
+//};
+//Object.keys(tree).forEach(function(name) {
+//  loadSvg(treePrefix + name, function(item) {
+//    var isBush = name == 'bush';
+//    var size = [isBush ? 1 : 2, 1];
+//    var offset = isBush ? new Point( -0.5, -1) : new Point(-1, -.75);
+//    var obj = createObject(item, 'tree', name, size, offset);
+//    tree[name] = obj;
+//  });
+//});
 
 function createObject(item, type, name, size, offset) {
-  mapIconLayer.activate();
   item.data = {
     type: type,
     name: name,
@@ -137,15 +174,17 @@ function initializeSvg() {
   var i = 0;
   Object.keys(structure).forEach(function(name) {
     var s = structure[name];
-    s.position = new Point(5, 5 + 5 * i);
+    var mapIcon = createMapSprite(s);
+    mapIcon.position = new Point(5, 5 + 5 * i);
     i++;
   });
+  createIconMenu(structure);
 
-  Object.keys(tree).forEach(function(name) {
-    var s = tree[name];
-    s.position = new Point(5, 20 + 5 * i);
-    i++;
-  });
+//  Object.keys(tree).forEach(function(name) {
+//    var s = tree[name];
+//    s.position = new Point(5, 20 + 5 * i);
+//    i++;
+//  });
 }
 
 mapLayer.activate();
@@ -401,25 +440,15 @@ var toolDefinition = {
 //var activeToolIndicator = new Path.Circle(30, 120, 20);
 //activeToolIndicator.fillColor = colors.npc;
 
-Object.keys(toolDefinition).forEach(function(name) {
-  var def = toolDefinition[name];
-  var tool = new Raster(imgPath + toolPrefix + def.icon + '.png');
-
-  tool.scaling = new Point(.4, .4);
+function createButton(def, item, buttonSize, onClick) {
   var group = new Group();
 
-  var button = new Path.Circle(0, 0, 20);
+  var button = new Path.Circle(0, 0, buttonSize);
   button.fillColor = colors.sand;
-  button.fillColor.alpha = 0;
+  button.fillColor.alpha = 0.0001;
 
   group.applyMatrix = false;
-  group.addChildren([button, tool]);
-  switch (name) {
-    case 'color':
-      tool.position = new Point(-8, 0);
-      break;
-  }
-
+  group.addChildren([button, item]);
 
   group.data = {
     definition: def,
@@ -428,11 +457,11 @@ Object.keys(toolDefinition).forEach(function(name) {
     select: function(isSelected) {
       group.data.selected = isSelected;
       button.fillColor = isSelected ? colors.npc : colors.sand;
-      button.fillColor.alpha = isSelected ? 1 : 0;
+      button.fillColor.alpha = isSelected ? 1 : 0.0001;
     },
     hover: function(isHover) {
       group.data.hovered = isHover;
-      button.fillColor.alpha = isHover || group.data.selected ? 1 : 0;
+      button.fillColor.alpha = isHover || group.data.selected ? 1 : 0.0001;
     }
   }
   group.onMouseEnter = function(event) {
@@ -442,11 +471,25 @@ Object.keys(toolDefinition).forEach(function(name) {
     group.data.hover(false);
   }
   group.onMouseDown = function(event) {
-    switchTool(def);
+    onClick(group);
   }
+  return group;
+}
 
-  addToLeftToolMenu(group);
-  def.icon = group;
+Object.keys(toolDefinition).forEach(function(name) {
+  var def = toolDefinition[name];
+  var tool = new Raster(imgPath + toolPrefix + def.icon + '.png');
+
+  var button = createButton(def, tool, 20, function() {switchTool(def)});
+  switch (name) {
+    case 'color':
+      tool.position = new Point(-8, 0);
+      break;
+  }
+  tool.scaling = new Point(.4, .4);
+  
+  addToLeftToolMenu(button);
+  def.icon = button;
 });
 
 // add gap
