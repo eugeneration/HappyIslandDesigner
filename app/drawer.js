@@ -31,7 +31,6 @@ var colors = {
 // load assets
 var svgPath = 'svg/'
 var imgPath = 'img/'
-var structurePrefix = 'structure-';
 var treePrefix = 'tree-';
 var toolPrefix = 'tool-';
 var numSvgToLoad = 0;
@@ -54,8 +53,7 @@ var loadSvg = function(filename, itemCallback) {
         item.position = new Point(0, 0);
         itemCallback(item);
         OnLoaded();
-      },
-      insert: true,
+      }
     });
 };
 
@@ -72,7 +70,7 @@ function createMenuSprite(def) {
   item.scaling = new Point(.3, .3);
   return createButton(def, item, 20, function(button) {
     button.data.select(true);
-    //switchTool(button.data.definition);
+    toolState.switchTool(toolState.toolMapValue(toolDefinition.structures, def.type, {}));
   });
 }
 
@@ -106,7 +104,7 @@ Object.keys(structure).forEach(function(name) {
   structureDefinition.size = new Point(4, 4);
   structureDefinition.offset = new Point(-2, -3.6);
 
-  loadSvg(structurePrefix + name, function(item) {
+  loadSvg('structure-' + name, function(item) {
     //item.pivot += new Point(-2, -3.6);
     structureDefinition.icon = item;
   });
@@ -177,7 +175,6 @@ function initializeSvg() {
     mapIcon.position = new Point(5, 5 + 5 * i);
     i++;
   });
-  createIconMenu(structure);
 
 //  Object.keys(tree).forEach(function(name) {
 //    var s = tree[name];
@@ -224,17 +221,16 @@ mapLayer.activate();
 var backgroundRect = new Path();
 backgroundRect.fillColor = colors.water;
 backgroundRect.onMouseDown = function onMouseDown(event) {
-  startDraw(event);
+  toolState.activeTool.definition.onMouseDown(event);
 }
 backgroundRect.onMouseMove = function onMouseMove(event) {
-  updateCoordinateLabel(event);
+  toolState.activeTool.definition.onMouseMove(event);
 }
 backgroundRect.onMouseDrag = function onMouseDrag(event) {
-  updateCoordinateLabel(event)
-  draw(event);
+  toolState.activeTool.definition.onMouseDrag(event);
 }
 backgroundRect.onMouseUp = function onMouseUp(event) {
-  endDraw(event);
+  toolState.activeTool.definition.onMouseUp(event);
 }
 
 function drawBackground() {
@@ -443,21 +439,95 @@ function addToLeftToolMenu(icon) {
   leftToolMenuPosition.y += leftToolMenuIconHeight;
 }
 
-var baseToolDefinition = {
+
+// =======================================
+// STRUCTURE TOOL
+var baseStructureDefinition = {
   onSelect: function(subclass, isSelected) {
     subclass.icon.data.select(isSelected);
   },
-  onMouseMove: function(event) {console.log('pointer onMouseMove')},
-  onMouseDown: function(event) {console.log('pointer onMouseDown')},
-  onMouseDrag: function(event) {console.log('pointer onMouseDrag')},
-  onMouseUp: function(event) {console.log('pointer onMouseUp')},
-  onKeyDown: function() {console.log('pointer onKeyDown')},
+};
+var asyncStructureDefinition = {
+  loadedCount: 0,
+  targetCount: function() {return Object.keys(this.value).length;},
+  onLoad: function() {
+    this.loadedCount++;
+    if (this.loadedCount == this.targetCount()) {
+      this.loadingCallbacks.forEach(
+        function(callback) { callback(this.value); }.bind(this));
+      this.loadingCallbacks = [];
+    }
+  },
+  loadingCallbacks: [],
+  getAsyncValue: function(callback) {
+    if (this.loadedCount == this.targetCount()) {
+      callback(this.value);
+      return true; // returns whether the value was returned immediately
+    } else {
+      this.loadingCallbacks.push(callback);
+      return false;
+    }
+  },
+  value: {
+    tentRound: {},
+    tentTriangle: {},
+    tentTrapezoid: {},
+    hut: {},
+    house: {},
+    building: {},
+    lighthouse: {},
+  }
+};
+// set up the definitions programatically because they are all the same
+Object.keys(asyncStructureDefinition.value).forEach(function(structureType) {
+  var def = asyncStructureDefinition.value[structureType];
+  def.type = structureType;
+  def.size = new Point(4, 4);
+  def.offset = new Point(-2, -3.6);
+  def.onSelect = function(isSelected) {
+    baseStructureDefinition.onSelect(def, isSelected);
+  };
+  // imnmediately load the assets
+  loadSvg('structure-' + structureType, function(item) {
+    //item.pivot += new Point(-2, -3.6);
+    def.icon = item;
+    asyncStructureDefinition.onLoad();
+  });
+})
+
+// =======================================
+// BASE LEVEL TOOLS
+
+var baseToolDefinition = {
+  onSelect: function(subclass, isSelected) {
+    subclass.icon.data.select(isSelected);
+    this.openMenu(subclass, isSelected);
+  },
+  onMouseMove: function(subclass, event) {
+    updateCoordinateLabel(event);
+  },
+  onMouseDown: function(subclass, event) {
+    updateCoordinateLabel(event);
+  },
+  onMouseDrag: function(subclass, event) {
+    updateCoordinateLabel(event);
+  },
+  onMouseUp: function(subclass, event) {
+  },
+  onKeyDown: function(subclass, event) {
+    console.log('base onKeyDown');
+  },
+  openMenu: function(subclass, isSelected) {
+    if (subclass.openMenu) {
+      subclass.openMenu(isSelected);
+    }
+  }
 }
 var toolDefinition = {
   pointer: {
     base: baseToolDefinition,
     type: 'pointer',
-    targetLayers: [mapIconLayer],
+    layer: mapIconLayer,
     icon: "pointer",
     tools: {},
     defaultTool: null,
@@ -468,16 +538,24 @@ var toolDefinition = {
     onSelect: function(isSelected) {
       this.base.onSelect(this, isSelected);
     },
-    onMouseMove: function(event) {console.log('pointer onMouseMove')},
-    onMouseDown: function(event) {console.log('pointer onMouseDown')},
-    onMouseDrag: function(event) {console.log('pointer onMouseDrag')},
-    onMouseUp: function(event) {console.log('pointer onMouseUp')},
-    onKeyDown: function() {console.log('pointer onKeyDown')},
+    onMouseMove: function(event) {
+      this.base.onMouseMove(this, event);
+    },
+    onMouseDown: function(event) {
+      this.base.onMouseMove(this, event);
+    },
+    onMouseDrag: function(event) {
+      this.base.onMouseMove(this, event);
+    },
+    onMouseUp: function(event) {
+      this.base.onMouseMove(this, event);
+    },
+    onKeyDown: function(event) {console.log('pointer onKeyDown')},
   },
   terrain: {
     base: baseToolDefinition,
     type: 'terrain',
-    targetLayers: [mapLayer],
+    layer: mapLayer,
     icon: "color",
     tools: {},
     defaultTool: null,
@@ -488,18 +566,29 @@ var toolDefinition = {
     onSelect: function(isSelected) {
       this.base.onSelect(this, isSelected);
     },
-    onMouseMove: function(event) {console.log('terrain onMouseMove')},
-    onMouseDown: function(event) {console.log('terrain onMouseDown')},
-    onMouseDrag: function(event) {console.log('terrain onMouseDrag')},
-    onMouseUp: function(event) {console.log('terrain onMouseUp')},
-    onKeyDown: function() {console.log('terrain onKeyDown')},
+    onMouseMove: function(event) {
+      this.base.onMouseMove(this, event);
+    },
+    onMouseDown: function(event) {
+      this.base.onMouseMove(this, event);
+      startDraw(event);
+    },
+    onMouseDrag: function(event) {
+      this.base.onMouseMove(this, event);
+      draw(event);
+    },
+    onMouseUp: function(event) {
+      this.base.onMouseMove(this, event);
+      endDraw(event);
+    },
+    onKeyDown: function(event) {console.log('terrain onKeyDown')},
   },
   structures: {
     base: baseToolDefinition,
     type: 'structures',
-    targetLayers: [mapIconLayer],
+    layer: mapIconLayer,
     icon: "structure",
-    tools: {},
+    tools: asyncStructureDefinition,
     defaultTool: null,
     modifiers: {},
     defaultModifiers: {
@@ -508,16 +597,35 @@ var toolDefinition = {
     onSelect: function(isSelected) {
       this.base.onSelect(this, isSelected);
     },
-    onMouseMove: function(event) {console.log('structures onMouseMove')},
-    onMouseDown: function(event) {console.log('structures onMouseDown')},
-    onMouseDrag: function(event) {console.log('structures onMouseDrag')},
-    onMouseUp: function(event) {console.log('structures onMouseUp')},
-    onKeyDown: function() {console.log('structures onKeyDown')},
+    onMouseMove: function(event) {
+      this.base.onMouseMove(this, event);
+    },
+    onMouseDown: function(event) {
+      this.base.onMouseMove(this, event);
+    },
+    onMouseDrag: function(event) {
+      this.base.onMouseMove(this, event);
+    },
+    onMouseUp: function(event) {
+      this.base.onMouseMove(this, event);
+    },
+    onKeyDown: function(event) {console.log('structures onKeyDown')},
+    openMenu: function(isSelected) {
+      if (!isSelected) {
+        if (this.iconMenu)
+          this.iconMenu.remove();
+      }
+      else {
+        asyncStructureDefinition.getAsyncValue(function(definitions) {
+          this.iconMenu = createIconMenu(definitions);
+        }.bind(this));
+      }
+    }
   },
   path: {
     base: baseToolDefinition,
     type: 'path',
-    targetLayers: [mapIconLayer],
+    layer: mapLayer,
     icon: "path",
     tools: {},
     defaultTool: null,
@@ -528,11 +636,20 @@ var toolDefinition = {
     onSelect: function(isSelected) {
       this.base.onSelect(this, isSelected);
     },
-    onMouseMove: function(event) {console.log('path onMouseMove')},
-    onMouseDown: function(event) {console.log('path onMouseDown')},
-    onMouseDrag: function(event) {console.log('path onMouseDrag')},
-    onMouseUp: function(event) {console.log('path onMouseUp')},
-    onKeyDown: function() {console.log('path onKeyDown')},
+    onMouseMove: function(event) {
+      this.base.onMouseMove(this, event);
+    },
+    onMouseDown: function(event) {
+      this.base.onMouseMove(this, event);
+    },
+    onMouseDrag: function(event) {
+      this.base.onMouseMove(this, event);
+    },
+    onMouseUp: function(event) {
+      this.base.onMouseMove(this, event);
+    },
+    onKeyDown: function(event) {
+    },
   },
 //  shovel: {
 
@@ -546,15 +663,17 @@ var toolDefinition = {
 var toolState = {
   activeTool: null,
   toolMap: {},
-
-  defaultToolMapValue: function(toolType) {
-  var def = toolDefinition[toolType];
-  return {
-      type: toolType,
-      definition: def,
-      tool: def.defaultTool,
-      modifiers: def.defaultModifiers,
+  toolMapValue: function(definition, tool, modifiers) {
+    return {
+      type: definition.toolType,
+      definition: definition,
+      tool: tool,
+      modifiers: modifiers,
     };
+  },
+  defaultToolMapValue: function(toolType) {
+    var def = toolDefinition[toolType];
+    return this.toolMapValue(def, def.defaultTool, def.defaultModifiers);
   },
   switchToolType: function(toolType) {
     if (!this.toolMap.hasOwnProperty(toolType)) {
@@ -564,12 +683,18 @@ var toolState = {
     }
   },
   switchTool: function(toolData) {
-    if (this.activeTool) {
-      this.activeTool.definition.onSelect(false);
+    var sameToolType = this.activeTool && (this.activeTool.definition.type === toolData.definition.type);
+    if (!sameToolType) {
+      if (this.activeTool) {
+        this.activeTool.definition.onSelect(false);
+      }
     }
     this.toolMap[toolData.type] = toolData;
-    this.activeTool = toolData;
-    toolData.definition.onSelect(true);
+
+    if (!sameToolType) {
+      this.activeTool = toolData;
+      this.activeTool.definition.onSelect(true);
+    }
   },
 };
 
@@ -642,7 +767,7 @@ var toolsPosition = new Point(40, 80);
 
 
 function initializeApp() {
-  toolState.switchToolType(toolDefinition.terrain.type);
+  toolState.switchToolType(toolDefinition.structures.type);
 }
 initializeApp();
 
@@ -654,17 +779,7 @@ function onKeyDown(event) {
   var shift = Key.isDown('shift');
   var control = Key.isDown('control') || Key.isDown('meta');
 
-  switch (toolState.activeTool) {
-    case toolDefinition.pointer.type:
-      break;
-    case toolDefinition.terrain:
-      break;
-    case toolDefinition.structures:
-      break;
-    case toolDefinition.path:
-      break;
-  }
-
+  var prevActiveTool = toolState.activeTool;
   switch (event.key) {
     case '1':
       paintColor = colors.water;
@@ -740,6 +855,9 @@ function onKeyDown(event) {
         undo();
       }
       break;
+  }
+  if (prevActiveTool == toolState.activeTool) {
+    toolState.activeTool.definition.onKeyDown(event);
   }
   onUpdateColor();
 };
