@@ -371,73 +371,8 @@ function clickElem(elem) {
   elem.dispatchEvent(eventMouse)
 }
 
-
 // ===============================================
-// TOOLS
-
-fixedLayer.activate();
-
-//var menuButton = new Path();
-//menuButton.strokeColor = colors.selected;
-////menuButton.strokeColor *= 0.9;
-//menuButton.strokeWidth = 120;
-//menuButton.strokeCap = 'round';
-//menuButton.segments = [
-//  new Point(-20, 0),
-//  new Point(0, 0),
-//];
-
-var leftToolMenu = new Path();
-leftToolMenu.strokeColor = colors.paper;
-leftToolMenu.strokeWidth = 120;
-leftToolMenu.strokeCap = 'round';
-leftToolMenu.segments = [
-  new Point(0, 120),
-  new Point(0, 400),
-];
-
-var leftToolMenuPosition = new Point(30, 120);
-var leftToolMenuIconHeight = 50;
-
-function addToLeftToolMenu(icon) {
-  icon.position = leftToolMenuPosition;
-  leftToolMenuPosition.y += leftToolMenuIconHeight;
-}
-
-
-var toolDefinition = {
-  pointer: {
-    name: 'pointer',
-    targetLayers: [mapIconLayer],
-    icon: "pointer",
-  },
-  terrain: {
-    name: 'terrain',
-    targetLayers: [mapLayer],
-    icon: "color",
-  },
-  structures: {
-    name: 'structures',
-    targetLayers: [mapIconLayer],
-    icon: "structure",
-  },
-  path: {
-    name: 'path',
-    targetLayers: [mapIconLayer],
-    icon: "path",
-  },
-//  shovel: {
-
-//},
-//  sprite: {
-//    name: 'sprite',
-//    targetLayers: [mapIconLayer],
-//  },
-};
-
-//var activeToolIndicator = new Path.Rectangle(0, 100, 5, 40);
-//var activeToolIndicator = new Path.Circle(30, 120, 20);
-//activeToolIndicator.fillColor = colors.npc;
+// UI ELEMENTS
 
 function createButton(def, item, buttonSize, onClick) {
   var group = new Group();
@@ -475,42 +410,168 @@ function createButton(def, item, buttonSize, onClick) {
   return group;
 }
 
-Object.keys(toolDefinition).forEach(function(name) {
-  var def = toolDefinition[name];
-  var tool = new Raster(imgPath + toolPrefix + def.icon + '.png');
 
-  var button = createButton(def, tool, 20, function() {switchTool(def)});
-  switch (name) {
-    case 'color':
-      tool.position = new Point(-8, 0);
-      break;
-  }
-  tool.scaling = new Point(.4, .4);
-  
-  addToLeftToolMenu(button);
-  def.icon = button;
-});
+// ===============================================
+// TOOLS
 
-// add gap
-leftToolMenuPosition.y += 60;
+fixedLayer.activate();
 
-var activeColor = new Path.Circle([20, 20], 16);
-activeColor.fillColor = paintColor;
-addToLeftToolMenu(activeColor);
+//var menuButton = new Path();
+//menuButton.strokeColor = colors.selected;
+////menuButton.strokeColor *= 0.9;
+//menuButton.strokeWidth = 120;
+//menuButton.strokeCap = 'round';
+//menuButton.segments = [
+//  new Point(-20, 0),
+//  new Point(0, 0),
+//];
 
-var toolState = {
-  tool: null,
-};
-switchTool(toolDefinition.terrain);
-function switchTool(newTool) {
-  toolState.tool = newTool;
-  Object.keys(toolDefinition).forEach(function(name) {
-    var def = toolDefinition[name];
-    def.icon.data.select(def == newTool);
-  });
+var leftToolMenu = new Path();
+leftToolMenu.strokeColor = colors.paper;
+leftToolMenu.strokeWidth = 120;
+leftToolMenu.strokeCap = 'round';
+leftToolMenu.segments = [
+  new Point(0, 120),
+  new Point(0, 400),
+];
 
+var leftToolMenuPosition = new Point(30, 120);
+var leftToolMenuIconHeight = 50;
+
+function addToLeftToolMenu(icon) {
+  icon.position = leftToolMenuPosition;
+  leftToolMenuPosition.y += leftToolMenuIconHeight;
 }
 
+var baseToolDefinition = {
+  onSelect: function(subclass, isSelected) {
+    subclass.icon.data.select(isSelected);
+  },
+  onMouseMove: function(event) {console.log('pointer onMouseMove')},
+  onMouseDown: function(event) {console.log('pointer onMouseDown')},
+  onMouseDrag: function(event) {console.log('pointer onMouseDrag')},
+  onMouseUp: function(event) {console.log('pointer onMouseUp')},
+  onKeyDown: function() {console.log('pointer onKeyDown')},
+}
+var toolDefinition = {
+  pointer: {
+    base: baseToolDefinition,
+    type: 'pointer',
+    targetLayers: [mapIconLayer],
+    icon: "pointer",
+    tools: {},
+    defaultTool: null,
+    modifiers: {},
+    defaultModifiers: {
+
+    },
+    onSelect: function(isSelected) {
+      this.base.onSelect(this, isSelected);
+    },
+    onMouseMove: function(event) {console.log('pointer onMouseMove')},
+    onMouseDown: function(event) {console.log('pointer onMouseDown')},
+    onMouseDrag: function(event) {console.log('pointer onMouseDrag')},
+    onMouseUp: function(event) {console.log('pointer onMouseUp')},
+    onKeyDown: function() {console.log('pointer onKeyDown')},
+  },
+  terrain: {
+    base: baseToolDefinition,
+    type: 'terrain',
+    targetLayers: [mapLayer],
+    icon: "color",
+    tools: {},
+    defaultTool: null,
+    modifiers: {},
+    defaultModifiers: {
+
+    },
+    onSelect: function(isSelected) {
+      this.base.onSelect(this, isSelected);
+    },
+    onMouseMove: function(event) {console.log('terrain onMouseMove')},
+    onMouseDown: function(event) {console.log('terrain onMouseDown')},
+    onMouseDrag: function(event) {console.log('terrain onMouseDrag')},
+    onMouseUp: function(event) {console.log('terrain onMouseUp')},
+    onKeyDown: function() {console.log('terrain onKeyDown')},
+  },
+  structures: {
+    base: baseToolDefinition,
+    type: 'structures',
+    targetLayers: [mapIconLayer],
+    icon: "structure",
+    tools: {},
+    defaultTool: null,
+    modifiers: {},
+    defaultModifiers: {
+
+    },
+    onSelect: function(isSelected) {
+      this.base.onSelect(this, isSelected);
+    },
+    onMouseMove: function(event) {console.log('structures onMouseMove')},
+    onMouseDown: function(event) {console.log('structures onMouseDown')},
+    onMouseDrag: function(event) {console.log('structures onMouseDrag')},
+    onMouseUp: function(event) {console.log('structures onMouseUp')},
+    onKeyDown: function() {console.log('structures onKeyDown')},
+  },
+  path: {
+    base: baseToolDefinition,
+    type: 'path',
+    targetLayers: [mapIconLayer],
+    icon: "path",
+    tools: {},
+    defaultTool: null,
+    modifiers: {},
+    defaultModifiers: {
+
+    },
+    onSelect: function(isSelected) {
+      this.base.onSelect(this, isSelected);
+    },
+    onMouseMove: function(event) {console.log('path onMouseMove')},
+    onMouseDown: function(event) {console.log('path onMouseDown')},
+    onMouseDrag: function(event) {console.log('path onMouseDrag')},
+    onMouseUp: function(event) {console.log('path onMouseUp')},
+    onKeyDown: function() {console.log('path onKeyDown')},
+  },
+//  shovel: {
+
+//},
+//  sprite: {
+//    type: 'sprite',
+//    targetLayers: [mapIconLayer],
+//  },
+};
+
+var toolState = {
+  activeTool: null,
+  toolMap: {},
+
+  defaultToolMapValue: function(toolType) {
+  var def = toolDefinition[toolType];
+  return {
+      type: toolType,
+      definition: def,
+      tool: def.defaultTool,
+      modifiers: def.defaultModifiers,
+    };
+  },
+  switchToolType: function(toolType) {
+    if (!this.toolMap.hasOwnProperty(toolType)) {
+      this.switchTool(this.defaultToolMapValue(toolType));
+    } else {
+      this.switchTool(this.toolMap[toolType]);
+    }
+  },
+  switchTool: function(toolData) {
+    if (this.activeTool) {
+      this.activeTool.definition.onSelect(false);
+    }
+    this.toolMap[toolData.type] = toolData;
+    this.activeTool = toolData;
+    toolData.definition.onSelect(true);
+  },
+};
 
 //function squircle (size){ // squircle=square+circle
 //  var hsize = size / 2; // half size
@@ -536,6 +597,35 @@ function switchTool(newTool) {
 //var d = new Path.Rectangle(300, 300, 10, 10);
 //d.fillColor = colors.npc;
 
+
+//var activeToolIndicator = new Path.Rectangle(0, 100, 5, 40);
+//var activeToolIndicator = new Path.Circle(30, 120, 20);
+//activeToolIndicator.fillColor = colors.npc;
+
+Object.keys(toolDefinition).forEach(function(toolType) {
+  var def = toolDefinition[toolType];
+  var tool = new Raster(imgPath + toolPrefix + def.icon + '.png');
+
+  var button = createButton(def, tool, 20, function() {toolState.switchToolType(toolType)});
+  switch (def.icon) {
+    case 'color':
+      tool.position = new Point(-8, 0);
+      break;
+  }
+  tool.scaling = new Point(.4, .4);
+  
+  addToLeftToolMenu(button);
+  def.icon = button;
+});
+
+// add gap
+leftToolMenuPosition.y += 60;
+
+var activeColor = new Path.Circle([20, 20], 16);
+activeColor.fillColor = paintColor;
+addToLeftToolMenu(activeColor);
+
+
 function updateColorTools() {
   activeColor
 }
@@ -550,6 +640,12 @@ fixedLayer.activate();
 
 var toolsPosition = new Point(40, 80);
 
+
+function initializeApp() {
+  toolState.switchToolType(toolDefinition.terrain.type);
+}
+initializeApp();
+
 //var pointerToolButton = new Raster('../img/pointer.png');
 //pointerToolButton.position = toolsPosition + new Point(0, 0);
 //pointerToolButton.scaling = new Point(0.2, 0.2);
@@ -558,8 +654,8 @@ function onKeyDown(event) {
   var shift = Key.isDown('shift');
   var control = Key.isDown('control') || Key.isDown('meta');
 
-  switch (toolState.tool) {
-    case toolDefinition.pointer:
+  switch (toolState.activeTool) {
+    case toolDefinition.pointer.type:
       break;
     case toolDefinition.terrain:
       break;
@@ -622,16 +718,16 @@ function onKeyDown(event) {
       updateBrush();
       break;
     case 'v':
-      switchTool(toolDefinition.pointer);
+      toolState.switchToolType(toolDefinition.pointer.type);
       break;
     case 'b':
-      switchTool(toolDefinition.terrain);
+      toolState.switchToolType(toolDefinition.terrain.type);
       break;
     case 'n':
-      switchTool(toolDefinition.structures);
+      toolState.switchToolType(toolDefinition.structures.type);
       break;
     case 'm':
-      switchTool(toolDefinition.path);
+      toolState.switchToolType(toolDefinition.path.type);
       break;
     case '/':
       console.log(encodeMap());
@@ -1182,6 +1278,7 @@ function getDrawPath(coordinate, drawPath) {
   if (coordinate != prevDrawCoordinate) {
     prevDrawCoordinate = coordinate;
     var drawPoints = transformSegments(brushSegments, coordinate);
+    
     var p = new Path(drawPoints);
     return p;
   }
