@@ -65,25 +65,35 @@ function createMapSprite(iconData) {
   return createObject(item, 'structure', iconData.name, iconData.size, iconData.offset);
 }
 
-function createMenuSprite(def) {
+function createMenuSprite(def, onClick) {
   var item = def.icon.clone();
   item.scaling = new Point(.3, .3);
-  return createButton(def, item, 20, function(button) {
-    toolState.switchTool(toolState.toolMapValue(toolCategoryDefinition.structures, def.type, {}));
-  });
+  return createButton(def, item, 20, onClick);
 }
 
-function createIconMenu(definitions) {
+function createIconMenu(categoryDefinition, definitions) {
   fixedLayer.activate();
   var i = 0;
   var iconMenu = new Group();
+  var buttonMap = {};
   Object.keys(definitions).forEach(function(name) {
     var def = definitions[name];
-    var item = createMenuSprite(def);
+    var item = createMenuSprite(def, function(button) {
+      toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
+    });
     item.position = new Point(80, 20 + 50 * i);
     iconMenu.addChild(item);
+    buttonMap[name] = item;
     i++;
   });
+  iconMenu.data = {
+    buttonMap: buttonMap,
+    update: function(selectedType) {
+      Object.keys(buttonMap).forEach(function(toolType) {
+        buttonMap[toolType].data.select(toolType == selectedType);
+      });
+    },
+  };
   return iconMenu;
 }
 
@@ -440,10 +450,13 @@ function addToLeftToolMenu(icon) {
 
 
 // =======================================
+// TOOLS
+
+// =======================================
 // STRUCTURE TOOL
 var baseStructureDefinition = {
   onSelect: function(subclass, isSelected) {
-    subclass.icon.data.select(isSelected);
+    console.log(subclass.type);
   },
 };
 var asyncStructureDefinition = {
@@ -521,8 +534,7 @@ var baseToolCategoryDefinition = {
       subclass.openMenu(isSelected);
     }
   },
-  updateTool: function(prevToolData, nextToolData) {
-    console.log('updateTool', prevToolData, nextToolData);
+  updateTool: function(subclass, prevToolData, nextToolData) {
     var sameToolType = prevToolData && (prevToolData.definition.type === nextToolData.definition.type);
     if (!sameToolType) {
       if (prevToolData) {
@@ -532,9 +544,16 @@ var baseToolCategoryDefinition = {
     } else {
       var prevTool = (prevToolData && prevToolData.tool) ? prevToolData.tool.type : null;
       var nextTool = (nextToolData && nextToolData.tool) ? nextToolData.tool.type : null;
-      var sameTool = prevTool == nextTool;
+      var sameTool = prevTool === nextTool;
       if (!sameTool) {
-        console.log('new tool');
+        if (prevToolData && prevToolData.tool && prevToolData.tool.onSelect)
+          prevToolData.tool.onSelect(false);
+        if (nextToolData && nextToolData.tool && nextToolData.tool.onSelect)
+          nextToolData.tool.onSelect(true);
+        // todo: decouple view from logic
+        if (subclass.iconMenu) {
+          subclass.iconMenu.data.update(nextTool);
+        }
       }
     }
   },
@@ -633,7 +652,7 @@ var toolCategoryDefinition = {
       }
       else {
         asyncStructureDefinition.getAsyncValue(function(definitions) {
-          this.iconMenu = createIconMenu(definitions);
+          this.iconMenu = createIconMenu(this, definitions);
         }.bind(this));
       }
     }
@@ -678,7 +697,9 @@ var toolCategoryDefinition = {
 // add additional sub functions to all definitions
 Object.keys(toolCategoryDefinition).forEach(function(toolType) {
   var def = toolCategoryDefinition[toolType];
-  def.updateTool = def.base.updateTool;
+  def.updateTool = function(prevToolData, nextToolData) {
+    def.base.updateTool(def, prevToolData, nextToolData);
+  };
 });
 
 var toolState = {
@@ -703,9 +724,9 @@ var toolState = {
       this.switchTool(this.toolMap[toolType]);
     }
   },
-
   switchTool: function(toolData) {
-    baseToolCategoryDefinition.updateTool(this.activeTool, toolData);
+    if (this.activeTool) this.activeTool.definition.updateTool(this.activeTool, toolData);
+    else if (toolData) toolData.definition.updateTool(this.activeTool, toolData);
 
     this.activeTool = toolData;
     this.toolMap[toolData.type] = toolData;
