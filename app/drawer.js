@@ -230,10 +230,49 @@ function downloadDataURL(filename, data) {
 function saveMapToFile() {
   var mapJson = encodeMap();
 
+  var saveMargins = new Point(8, 8);
+
+  uiLayer.activate();
   var mapRaster = mapLayer.rasterize();
-  mapRaster.remove();
-  var mapRasterSize = mapRaster.size;
-  var mapRasterData = mapRaster.toDataURL();
+  var mapPositionDelta = mapLayer.globalToLocal(mapLayer.bounds.topLeft);
+
+  var gridClone = gridRaster.clone();
+
+  var mapBounds = gridRaster.bounds.clone();
+  mapBounds.size += saveMargins;
+  mapBounds.point -= saveMargins / 2;
+  var mapBoundsClippingMask = new Path.Rectangle(mapBounds);
+
+  var background = mapBoundsClippingMask.clone();
+  background.fillColor = colors.water;
+
+  mapBoundsClippingMask.clipMask = true;
+
+  var text = new PointText(mapBounds.bottomRight - new Point(2, 2));
+  text.justification = 'right';
+  text.content = "made at eugeneration.github.io/HappyIslandDesigner";
+  text.fontFamily = 'Fredoka One';
+  text.fillColor = '#c3f6fb'
+  text.strokeWidth = 0;
+  text.fontSize = 2;
+  text.selected = true;
+
+  var group = new Group();
+  group.clipped = true;
+
+  group.addChildren([mapBoundsClippingMask, background, mapRaster, gridClone, text]);
+
+  // the raster doesn't scale for some reason, so manually scale it;
+  mapRaster.scaling /= mapLayer.scaling;
+  mapRaster.bounds.topLeft = mapPositionDelta;
+
+  var combinedImage = group.rasterize(708.5);
+  combinedImage.position.x += 200;
+  combinedImage.remove();
+  group.remove();
+
+  var mapRasterSize = combinedImage.size;
+  var mapRasterData = combinedImage.toDataURL();
 
   var shadowCanvas = document.createElement('canvas'),
     shadowCtx = shadowCanvas.getContext('2d');
@@ -253,8 +292,6 @@ function saveMapToFile() {
 
       var filename = "HappyIslandDesigner_" + Date.now() + ".png";
       downloadDataURL(filename, mapRasterData);
-
-      mapRaster.remove();
     }
     , false);
   return;
