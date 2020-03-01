@@ -1569,6 +1569,43 @@ function getDiff(path, paintColor) {
     var delta = isAdd
       ? path.subtract(state.drawing[color])
       : path.intersect(state.drawing[color]);
+    
+    // search for invalid points caused by overlapping diagonals
+    // todo: for free drawing, remove this check
+    var deltaSubPaths = delta.children ? delta.children : [delta];
+    deltaSubPaths.forEach(function(p) {
+      p.curves.forEach(function(curve) {
+        if (curve.length < 1) {
+          var isSegment1Invalid = (curve.segment1.x % 1 > 0.1) || (curve.segment1.y % 1 > 0.1);
+          var isSegment2Invalid = (curve.segment2.x % 1 > 0.1) || (curve.segment2.y % 1 > 0.1);
+          if (!isSegment1Invalid && !isSegment2Invalid) {
+            return;
+          }
+          var invalidSegment = isSegment1Invalid ? curve.segment1 : curve.segment2;
+          var goodSegment = isSegment1Invalid ? curve.segment2 : curve.segment1;
+          
+          // move the invalid point to the good point rotated clockwise/counterclockwise
+          var iP = invalidSegment.point;
+          var gP = goodSegment.point;
+
+          // flip the x/y axis depending on the direction of the segment
+          var xGreater = iP.x < gP.x;
+          var yGreater = iP.y < gP.y;
+          var axis = xGreater ^ yGreater;
+
+          var newPoint = axis
+            ? new Point(gP.x + (xGreater ? 1 : -1), gP.y)
+            : new Point(gP.x, gP.y + (yGreater ? 1 : -1));
+
+          invalidSegment.point = newPoint;
+          // fix by adding a point that removes the diagonal
+          //console.log(curve.segment1.index, curve.segment1.point + (p.clockwise
+          //  ? new Point(curve.segment1.x, curve.segment2.y)
+          //  : new Point(curve.segment2.x, curve.segment1.y)));
+        }
+      });
+    });
+
     if (delta.children || (delta.segments && delta.segments.length > 0)) {
       diff[color] = {
         isAdd: isAdd,
@@ -1606,6 +1643,7 @@ function addPath(isAdd, path, color) {
   path.remove();
 
   state.drawing[color] = combined;
+  state.drawing[color].selected = true;
 }
 
 // ===============================================
