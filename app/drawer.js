@@ -29,6 +29,44 @@ var colors = {
   paper: '#fefae4',
 }
 
+var layerDefinition = {};
+layerDefinition[colors.eraser] = {
+  elevation: 0,
+  addLayers: [],
+  cutLayers: [colors.sand, colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
+}
+layerDefinition[colors.sand] = {
+  elevation: 10,
+  addLayers: [colors.sand],
+  cutLayers: [colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
+};
+layerDefinition[colors.rock] = {
+  elevation: 5,
+  addLayers: [colors.rock, colors.sand],
+  cutLayers: [colors.level1, colors.level2, colors.level3, colors.water],
+};
+layerDefinition[colors.level1] = {
+  elevation: 20,
+  addLayers: [colors.sand, colors.level1],
+  cutLayers: [colors.level2, colors.level3, colors.water],
+};
+layerDefinition[colors.level2] = {
+  elevation: 30,
+  addLayers: [colors.sand, colors.level1, colors.level2],
+  cutLayers: [colors.level3, colors.water],
+};
+layerDefinition[colors.level3] = {
+  elevation: 40,
+  addLayers: [colors.sand, colors.level1, colors.level2, colors.level3],
+  cutLayers: [colors.water],
+};
+layerDefinition[colors.water] = {
+  elevation: -5,
+  addLayers: [colors.water],
+  cutLayers: [colors.rock],
+  limit: true,
+};
+
 // load assets
 var svgPath = 'svg/'
 var imgPath = 'img/'
@@ -311,6 +349,7 @@ function clearAutosave() {
     localStorage.removeItem("autosave");
   }
 }
+editor.clearAutosave = clearAutosave;
 
 function saveMapToFile() {
   var mapJson = encodeMap();
@@ -722,6 +761,23 @@ var toolCategoryDefinition = {
       endDraw(event);
     },
     onKeyDown: function(event) {console.log('terrain onKeyDown')},
+    openMenu: function(isSelected) {
+      fixedLayer.activate();
+      this.base.iconMenu = createMenu(
+        objectMap(layerDefinition, function(definition, color) {
+          var paintCircle = new Path.Circle(new Point(0, 0), 18);
+          paintCircle.fillColor = color;
+          paintCircle.locked = true;
+          return createButton(paintCircle, 20, function(button) {
+            updatePaintColor(color);
+          });
+        })
+      );
+      // this is a little messy
+      if (toolState.activeTool && toolState.activeTool.tool) {
+        this.base.iconMenu.data.update(toolState.activeTool.tool.type);
+      }
+    },
   },
   structures: {
     base: baseToolCategoryDefinition,
@@ -788,22 +844,6 @@ var toolCategoryDefinition = {
       this.base.onMouseMove(this, event);
     },
     onKeyDown: function(event) {
-    },
-    openMenu: function(isSelected) {
-      if (!isSelected) {
-        if (this.iconMenu)
-          this.iconMenu.remove();
-      }
-      else {
-        this.tools.getAsyncValue(function(definitions) {
-          this.iconMenu = createIconMenu(this, definitions);
-
-          // this is a little messy
-          if (toolState.activeTool && toolState.activeTool.tool) {
-            this.iconMenu.data.update(toolState.activeTool.tool.type);
-          }
-        }.bind(this));
-      }
     },
   },
 //  shovel: {
@@ -927,11 +967,18 @@ function updateColorTools() {
   activeColor
 }
 
-function onUpdateColor() {
-  activeColor.fillColor = paintColor;
-}
-
 var paintColor = colors.level1;
+function updatePaintColor(color) {
+  paintColor = color;
+  activeColor.fillColor = paintColor;
+
+  // todo: separate viewfrom logic
+  if (toolState.activeTool && toolState.activeTool.type == toolCategoryDefinition.terrain.type) {
+    if (toolState.activeTool.definition.base.iconMenu) {
+      toolState.activeTool.definition.base.iconMenu.data.update(color);
+    }
+  }
+}
 
 fixedLayer.activate();
 
@@ -940,6 +987,7 @@ var toolsPosition = new Point(40, 80);
 
 function initializeApp() {
   toolState.switchToolType(toolCategoryDefinition.terrain.type);
+  updatePaintColor(colors.level1);
 }
 initializeApp();
 
@@ -954,25 +1002,25 @@ function onKeyDown(event) {
   var prevActiveTool = toolState.activeTool;
   switch (event.key) {
     case '0':
-      paintColor = colors.eraser;
+      updatePaintColor(colors.eraser);
       break;
     case '1':
-      paintColor = colors.water;
+      updatePaintColor(colors.water);
       break;
     case '2':
-      paintColor = colors.sand;
+      updatePaintColor(colors.sand);
       break;
     case '3':
-      paintColor = colors.level1;
+      updatePaintColor(colors.level1);
       break;
     case '4':
-      paintColor = colors.level2;
+      updatePaintColor(colors.level2);
       break;
     case '5':
-      paintColor = colors.level3;
+      updatePaintColor(colors.level3);
       break;
     case '6':
-      paintColor = colors.rock;
+      updatePaintColor(colors.rock);
       break;
 /*    case 'q':
       changePaintTool(paintTools.grid);
@@ -1043,7 +1091,6 @@ function onKeyDown(event) {
   if (prevActiveTool == toolState.activeTool) {
     toolState.activeTool.definition.onKeyDown(event);
   }
-  onUpdateColor();
 };
 
 function removeFloatingPointError(f) {
@@ -1656,45 +1703,6 @@ function objectColorCommand(objectId, prevColor, color) {
 
 // ===============================================
 // DRAWING METHODS
-
-var layerDefinition = {};
-layerDefinition[colors.eraser] = {
-  elevation: 0,
-  addLayers: [],
-  cutLayers: [colors.sand, colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
-}
-layerDefinition[colors.sand] = {
-  elevation: 10,
-  addLayers: [colors.sand],
-  cutLayers: [colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
-};
-layerDefinition[colors.rock] = {
-  elevation: 5,
-  addLayers: [colors.rock, colors.sand],
-  cutLayers: [colors.level1, colors.level2, colors.level3, colors.water],
-};
-layerDefinition[colors.level1] = {
-  elevation: 20,
-  addLayers: [colors.sand, colors.level1],
-  cutLayers: [colors.level2, colors.level3, colors.water],
-};
-layerDefinition[colors.level2] = {
-  elevation: 30,
-  addLayers: [colors.sand, colors.level1, colors.level2],
-  cutLayers: [colors.level3, colors.water],
-};
-layerDefinition[colors.level3] = {
-  elevation: 40,
-  addLayers: [colors.sand, colors.level1, colors.level2, colors.level3],
-  cutLayers: [colors.water],
-};
-layerDefinition[colors.water] = {
-  elevation: -5,
-  addLayers: [colors.water],
-  cutLayers: [colors.rock],
-  limit: true,
-};
-
 
 //var drawPoints = [];
 
