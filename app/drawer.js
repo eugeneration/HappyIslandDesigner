@@ -105,31 +105,56 @@ function createIconMenu(categoryDefinition, definitions) {
 //  });
 //});
 
+function encodeObject(object) {
+  return {
+    position: [object.position.x, object.position.y],
+    id: object.data.id,
+    category: object.data.category,
+    type: object.data.type,
+    color: object.data.color,
+  };
+}
+
+function decodeObject(encodedData) {
+  var position = new Point(encodedData.position);
+  var objectData = {
+    id: encodedData.id,
+    category: encodedData.category,
+    type: encodedData.type,
+    color: encodedData.color,
+  };
+  applyCommand(objectCreateCommand(objectData, position), true);
+}
+
 function getObjectData(objectDefinition) {
   return {
     id: Date.now(),
     category: objectDefinition.category,
     type: objectDefinition.type,
     color: objectDefinition.color,
-    scaling: objectDefinition.scaling,
-    size: objectDefinition.size,
-    offset: objectDefinition.offset,
   };
 }
 
-function createObject(icon, itemData) {
-  mapIconLayer.activate();
-  var item = icon.clone();
+function createObjectAsync(objectData, callback) {
+  toolCategoryDefinition[objectData.category].tools.getAsyncValue(
+    function(tools) {
+      callback(createObject(tools[objectData.type], objectData));
+    });
+}
 
-  item.scaling = itemData.scaling;
+function createObject(objectDefinition, itemData) {
+  mapIconLayer.activate();
+  var item = objectDefinition.icon.clone({insert: false});
+
+  item.scaling = objectDefinition.scaling;
   item.pivot = item.bounds.bottomCenter;
-  item.pivot += itemData.offset;
+  item.pivot += objectDefinition.offset;
   item.position = new Point(0, 0);
   item.fillColor = itemData.color;
 
   var group = new Group();
 
-  var bound = new Path.Rectangle(new Rectangle(item.position, itemData.size), .15);
+  var bound = new Path.Rectangle(new Rectangle(item.position, objectDefinition.size), .15);
   bound.strokeColor = 'white';
   bound.strokeColor.alpha = 0;
   bound.strokeWidth = 0.15;
@@ -273,6 +298,9 @@ function saveMapToFile() {
   var mapRaster = mapLayer.rasterize();
   var mapPositionDelta = mapLayer.globalToLocal(mapLayer.bounds.topLeft);
 
+  var iconsRaster = mapIconLayer.rasterize();
+  var iconsPositionDelta = mapIconLayer.globalToLocal(mapIconLayer.bounds.topLeft);
+
   var gridClone = gridRaster.clone();
 
   var mapBounds = gridRaster.bounds.clone();
@@ -297,11 +325,14 @@ function saveMapToFile() {
   var group = new Group();
   group.clipped = true;
 
-  group.addChildren([mapBoundsClippingMask, background, mapRaster, gridClone, text]);
+  group.addChildren([mapBoundsClippingMask, background, mapRaster, iconsRaster, gridClone, text]);
 
   // the raster doesn't scale for some reason, so manually scale it;
   mapRaster.scaling /= mapLayer.scaling;
   mapRaster.bounds.topLeft = mapPositionDelta;
+
+  iconsRaster.scaling /= mapLayer.scaling;
+  iconsRaster.bounds.topLeft = iconsPositionDelta;
 
   var combinedImage = group.rasterize(708.5);
   combinedImage.position.x += 200;
@@ -348,6 +379,7 @@ function loadMapFromFile() {
             height: image.height,
             width: image.width,
           });
+          clearMap();
           var map = decodeMap(JSON.parse(mapJSONString));
           setNewMapData(map);
         }, false);
@@ -900,6 +932,9 @@ function onKeyDown(event) {
     case 'm':
       toolState.switchToolType(toolCategoryDefinition.path.type);
       break;
+    case '\\':
+      toggleGrid();
+      break;
     case '/':
       console.log(encodeMap());
       break;
@@ -933,7 +968,9 @@ function encodePoint(p) {
 
 function encodeMap() {
   var o = {
-    objects: {},
+    objects: objectMap(state.objects, function(object) {
+      return encodeObject(object);
+    }),
     drawing: objectMap(state.drawing, function(pathItem) {
       var p;
       if (pathItem.children) {
@@ -956,7 +993,6 @@ function encodeMap() {
 function decodeMap(json) {
   mapLayer.activate();
   return {
-    objects: {},
     drawing: objectMap(json.drawing, function(colorData, color) {
       // if array of arrays, make compound path
       var p;
@@ -973,6 +1009,9 @@ function decodeMap(json) {
       p.locked = true;
       p.fillColor = color;
       return p;
+    }),
+    objects: objectMap(json.objects, function(encodedData) {
+      return decodeObject(encodedData);
     }),
   };
 }
@@ -1057,15 +1096,11 @@ function deleteObject(event, object) {
 
 function applyCreateObject(isCreate, createCommand) {
   if (isCreate) {
-    var icon = toolCategoryDefinition[createCommand.data.category].tools.getAsyncValue(
-      function(tools) {
-        var icon = tools[createCommand.data.type].icon;
-        var object = createObject(icon, createCommand.data);
-        object.position = createCommand.position;
-
-        // immediately grab the structure
-        state.objects[object.data.id] = object;
-      });
+    createObjectAsync(createCommand.data, function(object) {
+      object.position = createCommand.position;
+      // immediately grab the structure with the start position of creation
+      state.objects[object.data.id] = object;
+    });
   } else {
     var id = createCommand.data.id;
     var object = state.objects[id];
@@ -1207,6 +1242,10 @@ function mapToView(canvasCoordinate) {
 mapOverlayLayer.activate();
 var gridRaster;
 createGrid();
+
+function toggleGrid() {
+  gridRaster.visible = !gridRaster.visible;
+}
 
 function createGrid() {
   mapOverlayLayer.activate();
@@ -1398,14 +1437,19 @@ function addToHistory(command) {
   state.history[state.index] = command;
 }
 
-function setNewMapData(mapData) {
+function clearMap() {
   Object.keys(state.drawing).forEach(function(p){
     state.drawing[p].remove();
   });
+  state.drawing = {};
   Object.keys(state.objects).forEach(function(p){
     state.objects[p].remove();
   });
-  state.objects = mapData.objects;
+  state.objects = {};
+}
+
+function setNewMapData(mapData) {
+  // state.objects = mapData.objects; // objects are loaded asynchronously
   state.drawing = mapData.drawing;
 }
 
@@ -1428,6 +1472,9 @@ function redo() {
 }
 
 function applyCommand(command, isApply) {
+  if (isApply == null) {
+    console.logError('applyCommand called without an apply direction');
+  }
   // if (draw command)
   switch(command.type) {
     case 'draw':
@@ -1717,6 +1764,7 @@ function applyDiff(isApply, diff) {
 }
 
 function addPath(isAdd, path, color) {
+  mapLayer.activate();
   if (!state.drawing.hasOwnProperty(color)) {
     state.drawing[color] = new Path();
     state.drawing[color].locked = true;

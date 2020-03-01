@@ -1,6 +1,6 @@
 var template =
 {
-  icons: {},
+  objects: {},
   drawing: {
     "#f0e5a6": [
       [
