@@ -99,7 +99,7 @@ function createMenu(items) {
   var i = 0;
   var iconMenu = new Group();
   var buttonMap = objectMap(items, function(item, name) {
-    item.position = new Point(80, 20 + 50 * i);
+    item.position = new Point(0, 50 * i);
     iconMenu.addChild(item);
     i++;
     return item;
@@ -113,19 +113,6 @@ function createMenu(items) {
     },
   };
   return iconMenu;
-}
-
-function createIconMenu(categoryDefinition, definitions) {
-  fixedLayer.activate();
-  return createMenu(
-    objectMap(definitions, function(def, name) {
-      var icon = def.icon.clone();
-      icon.scaling = def.menuScaling;
-      return createButton(icon, 20, function(button) {
-        toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
-      });
-    })
-  );
 }
 
 function encodeObject(object) {
@@ -240,6 +227,7 @@ function onFrame() {
     var inverted = view.matrix.inverted();
     backgroundLayer.matrix = inverted;
     fixedLayer.matrix = inverted;
+    fixedLayer.scale(window.devicePixelRatio / 2, view.projectToView(new Point(0, 0)));
     prevViewMatrix = view.matrix.clone();
   }
   //fixedLayer.pivot = new Point(0, 0);
@@ -695,7 +683,7 @@ var baseToolCategoryDefinition = {
         if (nextToolData && nextToolData.tool && nextToolData.tool.onSelect)
           nextToolData.tool.onSelect(true);
         // todo: decouple view from logic
-        if (this.iconMenu) {
+        if (this.iconMenu && nextToolData.type == 'structures') {
           this.iconMenu.data.update(nextTool);
         }
       }
@@ -773,10 +761,10 @@ var toolCategoryDefinition = {
           });
         })
       );
+      this.base.iconMenu.pivot = new Point(0, 0);
+      this.base.iconMenu.position = new Point(100, 120);
       // this is a little messy
-      if (toolState.activeTool && toolState.activeTool.tool) {
-        this.base.iconMenu.data.update(toolState.activeTool.tool.type);
-      }
+      this.base.iconMenu.data.update(paintColor);
     },
   },
   structures: {
@@ -809,7 +797,19 @@ var toolCategoryDefinition = {
     onKeyDown: function(event) {console.log('structures onKeyDown')},
     openMenu: function(isSelected) {
       this.tools.getAsyncValue(function(definitions) {
-        this.base.iconMenu = createIconMenu(this, definitions);
+        fixedLayer.activate();
+        var categoryDefinition = this;
+        this.base.iconMenu = createMenu(
+          objectMap(definitions, function(def, name) {
+            var icon = def.icon.clone();
+            icon.scaling = def.menuScaling;
+            return createButton(icon, 20, function(button) {
+              toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
+            });
+          })
+        );
+        this.base.iconMenu.pivot = new Point(0, 0);
+        this.base.iconMenu.position = new Point(100, 120);
         // this is a little messy
         if (toolState.activeTool && toolState.activeTool.tool) {
           this.base.iconMenu.data.update(toolState.activeTool.tool.type);
