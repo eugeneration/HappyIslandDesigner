@@ -57,36 +57,37 @@ var loadSvg = function(filename, itemCallback) {
     });
 };
 
-function createMenuSprite(def, onClick) {
-  var item = def.icon.clone();
-  item.scaling = def.menuScaling;
-  return createButton(def, item, 20, onClick);
-}
-
-function createIconMenu(categoryDefinition, definitions) {
-  fixedLayer.activate();
+function createMenu(items) {
   var i = 0;
   var iconMenu = new Group();
-  var buttonMap = {};
-  Object.keys(definitions).forEach(function(name) {
-    var def = definitions[name];
-    var item = createMenuSprite(def, function(button) {
-      toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
-    });
+  var buttonMap = objectMap(items, function(item, name) {
     item.position = new Point(80, 20 + 50 * i);
     iconMenu.addChild(item);
-    buttonMap[name] = item;
     i++;
+    return item;
   });
   iconMenu.data = {
     buttonMap: buttonMap,
-    update: function(selectedType) {
-      Object.keys(buttonMap).forEach(function(toolType) {
-        buttonMap[toolType].data.select(toolType == selectedType);
+    update: function(selectedButton) {
+      Object.keys(buttonMap).forEach(function(name) {
+        buttonMap[name].data.select(name == selectedButton);
       });
     },
   };
   return iconMenu;
+}
+
+function createIconMenu(categoryDefinition, definitions) {
+  fixedLayer.activate();
+  return createMenu(
+    objectMap(definitions, function(def, name) {
+      var icon = def.icon.clone();
+      icon.scaling = def.menuScaling;
+      return createButton(icon, 20, function(button) {
+        toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
+      });
+    })
+  );
 }
 
 function encodeObject(object) {
@@ -427,7 +428,7 @@ function clickElem(elem) {
 // ===============================================
 // UI ELEMENTS
 
-function createButton(def, item, buttonSize, onClick) {
+function createButton(item, buttonSize, onClick) {
   var group = new Group();
 
   var button = new Path.Circle(0, 0, buttonSize);
@@ -438,7 +439,6 @@ function createButton(def, item, buttonSize, onClick) {
   group.addChildren([button, item]);
 
   group.data = {
-    definition: def,
     selected: false,
     hovered: false,
     select: function(isSelected) {
@@ -629,7 +629,13 @@ var baseToolCategoryDefinition = {
   },
   openMenu: function(subclass, isSelected) {
     if (subclass.openMenu) {
-      subclass.openMenu(isSelected);
+      if (!isSelected) {
+        if (this.iconMenu)
+          this.iconMenu.remove();
+      }
+      else {
+        subclass.openMenu(isSelected);
+      }
     }
   },
   updateTool: function(subclass, prevToolData, nextToolData) {
@@ -650,8 +656,8 @@ var baseToolCategoryDefinition = {
         if (nextToolData && nextToolData.tool && nextToolData.tool.onSelect)
           nextToolData.tool.onSelect(true);
         // todo: decouple view from logic
-        if (subclass.iconMenu) {
-          subclass.iconMenu.data.update(nextTool);
+        if (this.iconMenu) {
+          this.iconMenu.data.update(nextTool);
         }
       }
     }
@@ -746,20 +752,13 @@ var toolCategoryDefinition = {
     },
     onKeyDown: function(event) {console.log('structures onKeyDown')},
     openMenu: function(isSelected) {
-      if (!isSelected) {
-        if (this.iconMenu)
-          this.iconMenu.remove();
-      }
-      else {
-        this.tools.getAsyncValue(function(definitions) {
-          this.iconMenu = createIconMenu(this, definitions);
-
-          // this is a little messy
-          if (toolState.activeTool && toolState.activeTool.tool) {
-            this.iconMenu.data.update(toolState.activeTool.tool.type);
-          }
-        }.bind(this));
-      }
+      this.tools.getAsyncValue(function(definitions) {
+        this.base.iconMenu = createIconMenu(this, definitions);
+        // this is a little messy
+        if (toolState.activeTool && toolState.activeTool.tool) {
+          this.base.iconMenu.data.update(toolState.activeTool.tool.type);
+        }
+      }.bind(this));
     },
   },
   path: {
@@ -789,6 +788,22 @@ var toolCategoryDefinition = {
       this.base.onMouseMove(this, event);
     },
     onKeyDown: function(event) {
+    },
+    openMenu: function(isSelected) {
+      if (!isSelected) {
+        if (this.iconMenu)
+          this.iconMenu.remove();
+      }
+      else {
+        this.tools.getAsyncValue(function(definitions) {
+          this.iconMenu = createIconMenu(this, definitions);
+
+          // this is a little messy
+          if (toolState.activeTool && toolState.activeTool.tool) {
+            this.iconMenu.data.update(toolState.activeTool.tool.type);
+          }
+        }.bind(this));
+      }
     },
   },
 //  shovel: {
@@ -888,7 +903,7 @@ Object.keys(toolCategoryDefinition).forEach(function(toolType) {
   var def = toolCategoryDefinition[toolType];
   var tool = new Raster(imgPath + toolPrefix + def.icon + '.png');
 
-  var button = createButton(def, tool, 20, function() {toolState.switchToolType(toolType)});
+  var button = createButton(tool, 20, function() {toolState.switchToolType(toolType)});
   switch (def.icon) {
     case 'color':
       tool.position = new Point(-8, 0);
