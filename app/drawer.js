@@ -800,7 +800,7 @@ var toolsPosition = new Point(40, 80);
 
 
 function initializeApp() {
-  toolState.switchToolType(toolCategoryDefinition.structures.type);
+  toolState.switchToolType(toolCategoryDefinition.terrain.type);
 }
 initializeApp();
 
@@ -886,6 +886,12 @@ function onKeyDown(event) {
       }
       else if (control) {
         undo();
+      }
+      break;
+    case 'y':
+      if (control) {
+        redo();
+        event.preventDefault();
       }
       break;
   }
@@ -1398,6 +1404,39 @@ function objectUpdateCommand(objectData, prevPosition, prevColor) {
 // ===============================================
 // DRAWING METHODS
 
+var layerDefinition = {};
+layerDefinition[colors.sand] = {
+  elevation: 10,
+  addLayers: [],
+  cutLayers: [colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
+};
+layerDefinition[colors.rock] = {
+  elevation: 5,
+  addLayers: [colors.sand],
+  cutLayers: [colors.level1, colors.level2, colors.level3, colors.water],
+};
+layerDefinition[colors.level1] = {
+  elevation: 20,
+  addLayers: [colors.sand],
+  cutLayers: [colors.level2, colors.level3, colors.water],
+};
+layerDefinition[colors.level2] = {
+  elevation: 30,
+  addLayers: [colors.sand, colors.level1],
+  cutLayers: [colors.level3, colors.water],
+};
+layerDefinition[colors.level3] = {
+  elevation: 40,
+  addLayers: [colors.sand, colors.level1, colors.level2],
+  cutLayers: [colors.water],
+};
+layerDefinition[colors.water] = {
+  elevation: -5,
+  addLayers: [],
+  cutLayers: [colors.rock],
+  limit: true,
+};
+
 
 //var drawPoints = [];
 
@@ -1414,6 +1453,7 @@ function startDrawGrid(viewPosition) {
 }
 
 function drawGrid(viewPosition) {
+  console.log(paintColor);
   mapLayer.activate();
   var coordinate = new Point(mapLayer.globalToLocal(viewPosition));
 
@@ -1437,11 +1477,15 @@ function drawGrid(viewPosition) {
   if (path) {
     var diff = getDiff(path, paintColor);
 
-    Object.keys(diff).forEach(function(c) {
-      if (!diffCollection.hasOwnProperty(c)) {
-        diffCollection[c] = [];
+    Object.keys(diff).forEach(function(color) {
+      var colorDiff = diff[color];
+      if (!diffCollection.hasOwnProperty(color)) {
+        diffCollection[color] = {isAdd: colorDiff.isAdd, path: []};
       }
-      diffCollection[c].push(diff[c]);
+      diffCollection[color].path.push(colorDiff.path);
+      if (diffCollection[color].isAdd != colorDiff.isAdd) {
+        console.logError('Simultaneous add and remove for ' + color);
+      }
     });
     applyDiff(true, diff);
   }
@@ -1452,9 +1496,12 @@ function drawGrid(viewPosition) {
 function endDrawGrid(viewPosition) {
   var mergedDiff = {};
   Object.keys(diffCollection).forEach(function(k) {
-    mergedDiff[k] = uniteCompoundPath(
-      new CompoundPath({children: diffCollection[k]})
-    );
+    mergedDiff[k] = {
+      isAdd: diffCollection[k].isAdd,
+      path: uniteCompoundPath(
+        new CompoundPath({children: diffCollection[k].path})
+      ),
+    }
   });
   diffCollection = {};
   if (Object.keys(mergedDiff).length > 0) {
@@ -1490,35 +1537,55 @@ function drawGridCoordinate(coordinate) {
   }
 }*/
 
-function getDiff(path, color) {
+function getDiff(path, paintColor) {
   mapLayer.activate();
-  if (!state.drawing.hasOwnProperty(color)) {
-    state.drawing[color] = new Path();
-    state.drawing[color].locked = true;
+  if (!state.drawing.hasOwnProperty(paintColor)) {
+    state.drawing[paintColor] = new Path();
+    state.drawing[paintColor].locked = true;
   }
-  
+
+  // figure out which layers to add and subtract from
+  var editLayers = {};
+  editLayers[paintColor] = true;
+  var definition = layerDefinition[paintColor];
+  definition.addLayers.forEach(function(color) { editLayers[color] = true;});
+  definition.cutLayers.forEach(function(color) { editLayers[color] = false;});
+
   var diff = {};
-  var delta = path.subtract(state.drawing[color]);
-  if (delta.children || (delta.segments && delta.segments.length > 0)) {
-    diff[color] = delta;
-  }
-  delta.remove();
+  Object.keys(editLayers).forEach(function(color) {
+    var isAdd = editLayers[color];
+
+    var delta = isAdd
+      ? path.subtract(state.drawing[color])
+      : path.intersect(state.drawing[color]);
+    if (delta.children || (delta.segments && delta.segments.length > 0)) {
+      console.log(paintColor, editLayers, color, delta);
+      diff[color] = {
+        isAdd: isAdd,
+        path: delta,
+      };
+    }
+    delta.remove();
+  });
+
   return diff;
 }
 
 function applyDiff(isApply, diff) {
   Object.keys(diff).forEach(function(color) {
-    applyPath(isApply, diff[color], color);
+    var colorDiff = diff[color]
+    var isAdd = colorDiff.isAdd;
+    if (!isApply) isAdd = !isAdd; // do the reverse operation
+    addPath(isAdd, colorDiff.path, color);
   })
 }
 
-
-function applyPath(isApply, path, color) {
+function addPath(isAdd, path, color) {
   if (!state.drawing.hasOwnProperty(color)) {
     state.drawing[color] = new Path();
     state.drawing[color].locked = true;
   }
-  var combined = isApply
+  var combined = isAdd
     ? state.drawing[color].unite(path)
     : state.drawing[color].subtract(path);
   combined.locked = true;
