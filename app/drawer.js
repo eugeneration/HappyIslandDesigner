@@ -56,15 +56,6 @@ var loadSvg = function(filename, itemCallback) {
     });
 };
 
-function createMapSprite(iconData) {
-  mapIconLayer.activate();
-  var item = iconData.icon.clone();
-  item.scaling = new Point(.03, .03);
-  item.pivot = item.bounds.bottomCenter;
-  item.fillColor = iconData.color;
-  return createObject(item, 'structure', iconData.name, iconData.size, iconData.offset);
-}
-
 function createMenuSprite(def, onClick) {
   var item = def.icon.clone();
   item.scaling = new Point(.3, .3);
@@ -113,15 +104,30 @@ function createIconMenu(categoryDefinition, definitions) {
 //  });
 //});
 
-function createObject(item, type, name, size, offset) {
-  item.data = {
-    type: type,
-    name: name,
-    size: new Size(size),
+function getObjectData(objectDefinition) {
+  return {
+    id: Date.now(),
+    category: objectDefinition.category,
+    type: objectDefinition.type,
+    color: objectDefinition.color,
+    scaling: objectDefinition.scaling,
+    size: objectDefinition.size,
+    offset: objectDefinition.offset,
   };
-  var group = new Group();
-  item.pivot += offset;
+}
+
+function createObject(icon, itemData) {
+  mapIconLayer.activate();
+  var item = icon.clone();
+
+  item.scaling = itemData.scaling;
+  item.pivot = item.bounds.bottomCenter;
+  item.pivot += itemData.offset;
   item.position = new Point(0, 0);
+  item.fillColor = itemData.color;
+
+  var group = new Group();
+
   var bound = new Path.Rectangle(new Rectangle(item.position, item.data.size), .15);
   bound.strokeColor = colors.selected;
   bound.strokeColor.alpha = 0;
@@ -130,6 +136,8 @@ function createObject(item, type, name, size, offset) {
   bound.fillColor.alpha = 0.0001;
   group.addChildren([item, bound]);
   group.pivot = bound.bounds.topLeft;
+
+  group.data = itemData;
 
   group.onMouseEnter = function(event) {
     bound.strokeColor.alpha = 1;
@@ -466,10 +474,12 @@ var asyncStructureDefinition = {
 // set up the definitions programatically because they are all the same
 Object.keys(asyncStructureDefinition.value).forEach(function(structureType) {
   var def = asyncStructureDefinition.value[structureType];
+  def.category = 'structures';
   def.type = structureType;
-  def.size = new Point(4, 4);
-  def.offset = new Point(-2, -3.6);
   def.color = colors.human;
+  def.scaling = new Point(.03, .03);
+  def.size = new Size(4, 4);
+  def.offset = new Point(-2, -3.6);
   def.onSelect = function(isSelected) {
     baseStructureDefinition.onSelect(def, isSelected);
   };
@@ -611,7 +621,7 @@ var toolCategoryDefinition = {
       this.base.onMouseMove(this, event);
     },
     onMouseDown: function(event) {
-      placeStructure(event);
+      placeObject(event);
       this.base.onMouseMove(this, event);
     },
     onMouseDrag: function(event) {
@@ -1015,14 +1025,56 @@ function changePaintTool(newPaintTool) {
   paintTool = newPaintTool;
 }
 
-function placeStructure(event) {
+function placeObject(event) {
   var rawCoordinate = mapOverlayLayer.globalToLocal(event.point);
   var coordinate = rawCoordinate.floor();
   if (toolState.activeTool && toolState.activeTool.tool) {
-    var structure = createMapSprite(toolState.activeTool.tool);
-    structure.position = coordinate;
-    // immediately grab the structure
+    var objectData = getObjectData(toolState.activeTool.tool);
+    var command = objectCreateCommand(objectData, coordinate);
+    applyCommand(command, true);
+    addToHistory(command);
   }
+}
+
+function deleteObject(event, object) {
+  var command = objectDeleteCommand(object.data, object.position);
+  applyCommand(command, true);
+  addToHistory(command);
+}
+
+function applyCreateObject(isCreate, createCommand) {
+  if (isCreate) {
+    var icon = toolCategoryDefinition[createCommand.data.category].tools.getAsyncValue(
+      function(tools) {
+        var icon = tools[createCommand.data.type].icon;
+        var object = createObject(icon, createCommand.data);
+        object.position = createCommand.position;
+
+        // immediately grab the structure
+        state.objects[object.data.id] = object;
+      });
+  } else {
+    var id = createCommand.data.id;
+    var object = state.objects[id];
+    object.remove();
+    delete state.objects[id];
+  }
+}
+
+function updateObjectColor(object, color) {
+
+}
+
+function grabObject(event, object) {
+
+}
+
+function dragObject(event, object) {
+
+}
+
+function dropObject(event, object) {
+
 }
 
 // ===============================================
@@ -1343,7 +1395,7 @@ function setNewMapData(mapData) {
 
 function undo() {
   if (state.index >= 0) {
-    applyCommand(false, state.history[state.index]);
+    applyCommand(state.history[state.index], false);
     state.index -= 1;
   } else {
     console.log('Nothing to undo');
@@ -1353,13 +1405,13 @@ function undo() {
 function redo() {
   if (state.index < state.history.length - 1) {
     state.index += 1;
-    applyCommand(true, state.history[state.index]);
+    applyCommand(state.history[state.index], true);
   } else {
     console.log('Nothing to redo');
   }
 }
 
-function applyCommand(isApply, command) {
+function applyCommand(command, isApply) {
   // if (draw command)
   switch(command.type) {
     case 'draw':
@@ -1367,8 +1419,16 @@ function applyCommand(isApply, command) {
       break;
     case 'object':
       switch(command.action) {
-        case '':
-        case 'update':
+        case 'create':
+          applyCreateObject(isApply, command);
+          break;
+        case 'delete':
+          applyCreateObject(!isApply, command);
+          break;
+        case 'position':
+          break;
+        case 'color':
+          break;
       }
       break;
   }
@@ -1381,40 +1441,32 @@ function drawCommand(drawData) {
   }
 }
 
-
-// objectData 
-// {
-//   id: '',
-//   objectCategory: '',
-//   objectType: '',
-//   position: Point,
-//   color: Color,
-// }
-function objectCommand(objectData, action) {
+function objectCommand(action, position, objectData) {
   return {
     type: 'object',
     action: action,
+    data: objectData,
+    position: position,
   };
 }
 
-function objectCreateCommand(objectData, isCreate) {
-  return Object.create(objectCommand(objectData, 'create'), {
-    data: {
-      isCreate: true,
-      position: position,
-    },
-  });
+function objectCreateCommand(objectData, position) {
+  return Object.create(objectCommand('create', position, objectData));
 }
 
-function objectDeleteCommand(objectData, isCreate) {
-  return Object.create(objectCommand(objectData, 'create'), {
-    isCreate: false,
-  });
+function objectDeleteCommand(objectData, position) {
+  return Object.create(objectCommand('delete', position, objectData));
 }
 
-function objectUpdateCommand(objectData, prevPosition, prevColor) {
-  return Object.create(objectCommand(objectData, 'update'), {
+// todo: can simply store the object id
+function objectPositionCommand(objectData, prevPosition, prevColor) {
+  return Object.create(objectCommand(objectData, 'position'), {
     prevPosition: position,
+  });
+}
+
+function objectColorCommand(objectData, prevPosition, prevColor) {
+  return Object.create(objectCommand(objectData, 'color'), {
     prevColor: prevColor,
   });
 }
