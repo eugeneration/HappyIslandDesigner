@@ -901,52 +901,57 @@ function onKeyDown(event) {
   onUpdateColor();
 };
 
+function removeFloatingPointError(f) {
+  return (Math.abs(f - Math.round(f)) < 0.00001) ? Math.round(f) : f;
+}
+function encodePoint(p) {
+  return [removeFloatingPointError(p.x), removeFloatingPointError(p.y)];
+}
+
 function encodeMap() {
-    var o = objectMap(state.drawing, function(pathItem) {
-    var p;
-    if (pathItem._children) {
-      p = pathItem._children.map(function(path) {
-        return path._segments.map(function(s) {
-          var c = s._point;
-          return {
-            x: Math.round(c.x),
-            y: Math.round(c.y)
-          };
-        })
-      });
-    } else {
-      p = pathItem._segments.map(function(s) {
-        var c = s._point;
-        return {
-          x: Math.round(c.x),
-          y: Math.round(c.y)
-        };
-      });
-    }
-    return p;
-  });
+  var o = {
+    objects: {},
+    drawing: objectMap(state.drawing, function(pathItem) {
+      var p;
+      if (pathItem.children) {
+        p = pathItem.children.map(function(path) {
+          return path._segments.map(function(s) {
+            return encodePoint(s._point);
+          })
+        });
+      } else {
+        p = pathItem.segments.map(function(s) {
+          return encodePoint(s._point);
+        });
+      }
+      return p;
+    }),
+  }
   return JSON.stringify(o);
 }
 
 function decodeMap(json) {
   mapLayer.activate();
-  return objectMap(json, function(colorData, color) {
-    // if array of arrays, make compound path
-    var p;
-    if (colorData[0].x) {
-      // normal path
-      p = new Path(colorData);
-    } else {
-      p = new CompoundPath({
-        children: colorData.map(function(pathData) {
-          return new Path(pathData);
-        }),
-      });
-    }
-    p.locked = true;
-    p.fillColor = color;
-    return p;
-  })
+  return {
+    objects: {},
+    drawing: objectMap(json.drawing, function(colorData, color) {
+      // if array of arrays, make compound path
+      var p;
+      if (typeof colorData[0][0] == 'number') {
+        // normal path
+        p = new Path(colorData.map(function(p) {return new Point(p);}));
+      } else {
+        p = new CompoundPath({
+          children: colorData.map(function(pathData) {
+            return new Path(pathData.map(function(p) {return new Point(p);}));
+          }),
+        });
+      }
+      p.locked = true;
+      p.fillColor = color;
+      return p;
+    }),
+  };
 }
 
 // ===============================================
@@ -1296,18 +1301,16 @@ function transformSegments(segments, coordinate) {
 // }
 // 
 
-function loadTemplate() {
-  return decodeMap(template);
-}
-
 mapLayer.activate();
 var state = {
   index: -1,
   // TODO: max history
   history: [],
-  drawing: loadTemplate(),
-  icons: {},
+  drawing: {},
+  objects: {},
 };
+setNewMapData(decodeMap(template));
+
 var maxHistoryIndex = 99; // max length is one greater than this
 
 function addToHistory(command) {
@@ -1327,11 +1330,15 @@ function addToHistory(command) {
   state.history[state.index] = command;
 }
 
-function setNewMapData(pathObject) {
+function setNewMapData(mapData) {
   Object.keys(state.drawing).forEach(function(p){
     state.drawing[p].remove();
   });
-  state.drawing = pathObject;
+  Object.keys(state.objects).forEach(function(p){
+    state.objects[p].remove();
+  });
+  state.objects = mapData.objects;
+  state.drawing = mapData.drawing;
 }
 
 function undo() {
