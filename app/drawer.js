@@ -59,7 +59,7 @@ var loadSvg = function(filename, itemCallback) {
 
 function createMenuSprite(def, onClick) {
   var item = def.icon.clone();
-  item.scaling = new Point(.3, .3);
+  item.scaling = def.menuScaling;
   return createButton(def, item, 20, onClick);
 }
 
@@ -88,22 +88,6 @@ function createIconMenu(categoryDefinition, definitions) {
   };
   return iconMenu;
 }
-
-//var tree = {
-//  bush: null,
-//  fruit: null,
-//  palm: null,
-//  pine: null,
-//};
-//Object.keys(tree).forEach(function(name) {
-//  loadSvg(treePrefix + name, function(item) {
-//    var isBush = name == 'bush';
-//    var size = [isBush ? 1 : 2, 1];
-//    var offset = isBush ? new Point( -0.5, -1) : new Point(-1, -.75);
-//    var obj = createObject(item, 'tree', name, size, offset);
-//    tree[name] = obj;
-//  });
-//});
 
 function encodeObject(object) {
   return {
@@ -541,11 +525,7 @@ function addToLeftToolMenu(icon) {
 
 // =======================================
 // STRUCTURE TOOL
-var baseStructureDefinition = {
-  onSelect: function(subclass, isSelected) {
-  },
-};
-var asyncStructureDefinition = {
+var asyncObjectDefinition = {
   loadedCount: 0,
   targetCount: function() {return Object.keys(this.value).length;},
   onLoad: function() {
@@ -566,35 +546,64 @@ var asyncStructureDefinition = {
       return false;
     }
   },
-  value: {
-    tentRound: {},
-    tentTriangle: {},
-    tentTrapezoid: {},
-    hut: {},
-    house: {},
-    building: {},
-    lighthouse: {},
-  }
 };
+var asyncStructureDefinition = Object.create(asyncObjectDefinition);
+asyncStructureDefinition.value = {
+  tentRound: {},
+  tentTriangle: {},
+  tentTrapezoid: {},
+  hut: {},
+  house: {},
+  building: {},
+  lighthouse: {},
+  bush: {},
+  fruit: {},
+  palm: {},
+  pine: {},
+}
 // set up the definitions programatically because they are all the same
 Object.keys(asyncStructureDefinition.value).forEach(function(structureType) {
   var def = asyncStructureDefinition.value[structureType];
   def.category = 'structures';
   def.type = structureType;
-  def.color = colors.human;
-  def.scaling = new Point(.03, .03);
-  def.size = new Size(4, 4);
-  def.offset = new Point(-2, -3.6);
-  def.onSelect = function(isSelected) {
-    baseStructureDefinition.onSelect(def, isSelected);
-  };
-  // imnmediately load the assets
-  loadSvg('structure-' + structureType, function(item) {
-    //item.pivot += new Point(-2, -3.6);
-    def.icon = item;
-    asyncStructureDefinition.onLoad();
-  });
-})
+
+  if (structureType == 'bush'
+    || structureType == 'fruit'
+    || structureType == 'palm'
+    || structureType == 'pine') {
+    var isBush = structureType == 'bush';
+    def.color = colors.level3;
+    def.scaling = new Point(.03, .03);
+    def.menuScaling = new Point(.6, .6);
+    def.size = new Size([isBush ? 1 : 2, 1]);
+    def.offset = isBush ? new Point( -0.5, -1) : new Point(-1, -.75);
+    def.onSelect = function(isSelected) {};
+    // imnmediately load the assets
+    loadSvg('tree-' + structureType, function(item) {
+      //item.pivot += new Point(-2, -3.6);
+      def.icon = item;
+      asyncStructureDefinition.onLoad();
+    });
+  } else {
+    def.color = colors.human;
+    def.scaling = new Point(.03, .03);
+    def.menuScaling = new Point(.3, .3);
+    def.size = new Size(4, 4);
+    def.offset = new Point(-2, -3.6);
+    def.onSelect = function(isSelected) {};
+    // imnmediately load the assets
+    loadSvg('structure-' + structureType, function(item) {
+      //item.pivot += new Point(-2, -3.6);
+      def.icon = item;
+      asyncStructureDefinition.onLoad();
+    });
+  }
+});
+
+var asyncTreeDefinition = Object.create(asyncObjectDefinition);
+asyncTreeDefinition.value = {
+  
+}
 
 // =======================================
 // BASE LEVEL TOOLS
