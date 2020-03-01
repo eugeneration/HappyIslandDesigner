@@ -15,6 +15,7 @@ mapOverlayLayer.applyMatrix = false;
 mapOverlayLayer.pivot = new Point(0, 0);
 
 var colors = {
+  eraser: '#f1b2c1', // this is not actually drawn - just erases
   water: '#7cd5c4',
   sand: '#f0e5a6',
   level1: '#42753e',
@@ -833,6 +834,9 @@ function onKeyDown(event) {
 
   var prevActiveTool = toolState.activeTool;
   switch (event.key) {
+    case '0':
+      paintColor = colors.eraser;
+      break;
     case '1':
       paintColor = colors.water;
       break;
@@ -1495,34 +1499,39 @@ function objectColorCommand(objectId, prevColor, color) {
 // DRAWING METHODS
 
 var layerDefinition = {};
+layerDefinition[colors.eraser] = {
+  elevation: 0,
+  addLayers: [],
+  cutLayers: [colors.sand, colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
+}
 layerDefinition[colors.sand] = {
   elevation: 10,
-  addLayers: [],
+  addLayers: [colors.sand],
   cutLayers: [colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
 };
 layerDefinition[colors.rock] = {
   elevation: 5,
-  addLayers: [colors.sand],
+  addLayers: [colors.rock, colors.sand],
   cutLayers: [colors.level1, colors.level2, colors.level3, colors.water],
 };
 layerDefinition[colors.level1] = {
   elevation: 20,
-  addLayers: [colors.sand],
+  addLayers: [colors.sand, colors.level1],
   cutLayers: [colors.level2, colors.level3, colors.water],
 };
 layerDefinition[colors.level2] = {
   elevation: 30,
-  addLayers: [colors.sand, colors.level1],
+  addLayers: [colors.sand, colors.level1, colors.level2],
   cutLayers: [colors.level3, colors.water],
 };
 layerDefinition[colors.level3] = {
   elevation: 40,
-  addLayers: [colors.sand, colors.level1, colors.level2],
+  addLayers: [colors.sand, colors.level1, colors.level2, colors.level3],
   cutLayers: [colors.water],
 };
 layerDefinition[colors.water] = {
   elevation: -5,
-  addLayers: [],
+  addLayers: [colors.water],
   cutLayers: [colors.rock],
   limit: true,
 };
@@ -1640,7 +1649,6 @@ function getDiff(path, paintColor) {
 
   // figure out which layers to add and subtract from
   var editLayers = {};
-  editLayers[paintColor] = true;
   var definition = layerDefinition[paintColor];
   definition.addLayers.forEach(function(color) { editLayers[color] = true;});
   definition.cutLayers.forEach(function(color) { editLayers[color] = false;});
