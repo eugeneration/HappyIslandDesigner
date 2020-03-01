@@ -1191,16 +1191,16 @@ function centerBrushOffset(width, height) {
   return new Point(width * 0.5 * cellWidth, height * 0.5 * cellHeight);
 }
 
-var brushSize = 1;
+var brushSize = 3;
 var brushSegments;
 var brush = new Path();
 var brushOutline = new Path();
 
 var brushTypes = {
+  rounded: 'rounded',
   square: 'square',
-  diamond: 'diamond',
 };
-var brushType = brushTypes.square;
+var brushType = brushTypes.rounded;
 updateBrush();
 
 function cycleBrushHead() {
@@ -1258,7 +1258,7 @@ function getBrushSegments(size) {
         offset.add([sizeX, sizeY]),
         offset.add([sizeX, 0]),
       ];
-    case brushTypes.diamond:
+    case brushTypes.rounded:
       // add straight edges if odd number
       var ratio = .67;
       var diagonalSize = Math.floor((size / 2) * ratio);
@@ -1593,7 +1593,7 @@ function getDiff(path, paintColor) {
           var yGreater = iP.y < gP.y;
           var axis = xGreater ^ yGreater;
 
-          var newPoint = axis
+          var newPoint = axis // todo: do I need to check for clockwise?
             ? new Point(gP.x + (xGreater ? 1 : -1), gP.y)
             : new Point(gP.x, gP.y + (yGreater ? 1 : -1));
 
@@ -1643,7 +1643,6 @@ function addPath(isAdd, path, color) {
   path.remove();
 
   state.drawing[color] = combined;
-  state.drawing[color].selected = true;
 }
 
 // ===============================================
