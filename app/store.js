@@ -21,6 +21,8 @@ var Listener = ES3Class({
   },
 });
 
+// global scope used for exporting map editor functions
+var editor = { };
 
 // ===============================================
 // HELPERS

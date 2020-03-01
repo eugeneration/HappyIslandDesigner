@@ -272,7 +272,6 @@ function drawBackground() {
 // ===============================================
 // MAIN UI
 window.addEventListener("beforeunload", function (e) {
-  console.log('beforeunload', actionsSinceSave);
   if (actionsSinceSave == 0) {
       return undefined;
   }
@@ -303,6 +302,7 @@ function downloadDataURL(filename, data) {
 function autosaveMap() {
   if(localStorage) {
     localStorage.setItem("autosave", encodeMap());
+    actionsSinceSave = 0;
     return true;
   } else {
     console.log("Cannot autosave: your browser does not support local storage.");
@@ -396,6 +396,8 @@ function saveMapToFile() {
       downloadDataURL(filename, mapRasterData);
     }
     , false);
+
+  autosaveMap();
   return;
 }
 
@@ -492,6 +494,29 @@ fixedLayer.activate();
 //  new Point(-20, 0),
 //  new Point(0, 0),
 //];
+
+
+var mainMenu = new Path();
+var saveButton = new Path.Circle(120, 50, 30);
+saveButton.fillColor = colors.paper;
+saveButton.onMouseDown = function() {
+  saveMapToFile();
+};
+
+var loadButton = new Path.Circle(200, 50, 30);
+loadButton.fillColor = colors.paper;
+loadButton.onMouseDown = function() {
+  loadMapFromFile();
+};
+
+var newButton = new Path.Circle(280, 50, 30);
+newButton.fillColor = colors.paper;
+newButton.onMouseDown = function() {
+  var r = confirm("Clear your map? You will lose all unsaved changes.");
+  if (r == true) {
+    loadTemplate();
+  } else { }
+};
 
 var leftToolMenu = new Path();
 leftToolMenu.strokeColor = colors.paper;
@@ -1486,10 +1511,10 @@ function addToHistory(command) {
   actionsSinceSave++;
   clearTimeout(autosaveTimeout);
   if (actionsCount % autosaveActionsInterval == 0) { // every few actions
-    if (autosaveMap()) actionsSinceSave = 0;
+    autosaveMap();
   } else { // or if a new action hasn't been made in a while
     autosaveTimeout = setTimeout(function() {
-      if (autosaveMap()) actionsSinceSave = 0;
+      autosaveMap();
     }, autosaveInactivityTimer);
   }
 }
@@ -1513,7 +1538,7 @@ function clearMap() {
 function setNewMapData(mapData) {
   // state.objects = mapData.objects; // objects are loaded asynchronously
   state.drawing = mapData.drawing;
-  if (autosaveMap()) actionsSinceSave = 0; // automatically save when opening a new map
+  autosaveMap(); // automatically save when opening a new map
 }
 
 function undo() {
