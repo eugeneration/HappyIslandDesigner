@@ -128,10 +128,10 @@ function createObject(icon, itemData) {
 
   var group = new Group();
 
-  var bound = new Path.Rectangle(new Rectangle(item.position, item.data.size), .15);
-  bound.strokeColor = colors.selected;
+  var bound = new Path.Rectangle(new Rectangle(item.position, itemData.size), .15);
+  bound.strokeColor = 'white';
   bound.strokeColor.alpha = 0;
-  bound.strokeWidth = 0.3;
+  bound.strokeWidth = 0.15;
   bound.fillColor = colors.selected;
   bound.fillColor.alpha = 0.0001;
   group.addChildren([item, bound]);
@@ -147,15 +147,24 @@ function createObject(icon, itemData) {
   }
   group.onMouseDown = function(event) {
     var coordinate = mapOverlayLayer.globalToLocal(event.point);
+    group.data.prevPosition = group.position;
     group.data.clickPivot = coordinate - group.pivot;
+    grabObject(coordinate, group);
   }
   group.onMouseDrag = function(event) {
     var coordinate = mapOverlayLayer.globalToLocal(event.point);
     group.position = (coordinate - group.data.clickPivot).round();
+    dragObject(coordinate, group);
   }
   group.onMouseUp = function(event) {
+    var prevPosition = group.data.prevPosition;
+    if (!prevPosition) return;
+
     var coordinate = mapOverlayLayer.globalToLocal(event.point);
+    delete group.data.prevPosition;
     delete group.data.clickPivot;
+    if (prevPosition == coordinate.position);
+    dropObject(coordinate, group, prevPosition);
   }
 
   return group;
@@ -1065,16 +1074,19 @@ function updateObjectColor(object, color) {
 
 }
 
-function grabObject(event, object) {
-
+function grabObject(coordinate, object) {
+  
 }
 
-function dragObject(event, object) {
-
+function dragObject(coordinate, object) {
 }
 
-function dropObject(event, object) {
+function dropObject(coordinate, object, prevPos) {
+  addToHistory(objectPositionCommand(object.data.id, prevPos, object.position));
+}
 
+function applyMoveCommand(isApply, moveCommand) {
+  state.objects[moveCommand.id].position = isApply ? moveCommand.position : moveCommand.prevPosition;
 }
 
 // ===============================================
@@ -1426,6 +1438,7 @@ function applyCommand(command, isApply) {
           applyCreateObject(!isApply, command);
           break;
         case 'position':
+          applyMoveCommand(isApply, command);
           break;
         case 'color':
           break;
@@ -1451,24 +1464,31 @@ function objectCommand(action, position, objectData) {
 }
 
 function objectCreateCommand(objectData, position) {
-  return Object.create(objectCommand('create', position, objectData));
+  return objectCommand('create', position.clone(), objectData);
 }
 
 function objectDeleteCommand(objectData, position) {
-  return Object.create(objectCommand('delete', position, objectData));
+  return objectCommand('delete', position.clone(), objectData);
 }
 
-// todo: can simply store the object id
-function objectPositionCommand(objectData, prevPosition, prevColor) {
-  return Object.create(objectCommand(objectData, 'position'), {
-    prevPosition: position,
-  });
+function objectPositionCommand(objectId, prevPosition, position) {
+  return {
+    type: 'object',
+    action: 'position',
+    id: objectId,
+    position: position.clone(),
+    prevPosition: prevPosition.clone(),
+  };
 }
 
-function objectColorCommand(objectData, prevPosition, prevColor) {
-  return Object.create(objectCommand(objectData, 'color'), {
+function objectColorCommand(objectId, prevColor, color) {
+  return {
+    type: 'object',
+    action: 'color',
+    id: objectId,
+    color: color,
     prevColor: prevColor,
-  });
+  };
 }
 
 // ===============================================
