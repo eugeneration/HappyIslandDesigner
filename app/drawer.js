@@ -271,6 +271,17 @@ function drawBackground() {
 
 // ===============================================
 // MAIN UI
+window.addEventListener("beforeunload", function (e) {
+  console.log('beforeunload', actionsSinceSave);
+  if (actionsSinceSave == 0) {
+      return undefined;
+  }
+
+  var confirmationMessage = 'It looks like you have been editing something. '
+                          + 'If you leave before saving, your changes will be lost.';
+  (e || window.event).returnValue = confirmationMessage; //Gecko + IE
+  return confirmationMessage; //Gecko + Webkit, Safari, Chrome etc.
+});
 
 function downloadText(filename, text) {
   downloadDataURL(filename, 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
@@ -292,9 +303,10 @@ function downloadDataURL(filename, data) {
 function autosaveMap() {
   if(localStorage) {
     localStorage.setItem("autosave", encodeMap());
-    console.log('autosave');
+    return true;
   } else {
-      alert("Sorry, your browser do not support local storage.");
+    console.log("Cannot autosave: your browser does not support local storage.");
+    return false;
   }
 }
 function tryLoadAutosaveMap() {
@@ -306,8 +318,8 @@ function tryLoadAutosaveMap() {
       setNewMapData(decodeMap(JSON.parse(autosave)));
       return true;
     }
-    return false;
   }
+  return false;
 }
 function clearAutosave() {
   if(localStorage) {
@@ -1443,6 +1455,11 @@ var state = {
   objects: {},
 };
 if (!tryLoadAutosaveMap()) {
+  loadTemplate();
+}
+
+function loadTemplate() {
+  clearMap();
   setNewMapData(decodeMap(template));
 }
 
@@ -1466,15 +1483,17 @@ function addToHistory(command) {
 
   // autosave
   actionsCount++;
+  actionsSinceSave++;
   clearTimeout(autosaveTimeout);
   if (actionsCount % autosaveActionsInterval == 0) { // every few actions
-    autosaveMap();
+    if (autosaveMap()) actionsSinceSave = 0;
   } else { // or if a new action hasn't been made in a while
     autosaveTimeout = setTimeout(function() {
-      autosaveMap();
+      if (autosaveMap()) actionsSinceSave = 0;
     }, autosaveInactivityTimer);
   }
 }
+var actionsSinceSave = 0;
 var actionsCount = 0;
 var autosaveActionsInterval = 20;
 var autosaveInactivityTimer = 10000;
@@ -1494,6 +1513,7 @@ function clearMap() {
 function setNewMapData(mapData) {
   // state.objects = mapData.objects; // objects are loaded asynchronously
   state.drawing = mapData.drawing;
+  if (autosaveMap()) actionsSinceSave = 0; // automatically save when opening a new map
 }
 
 function undo() {
