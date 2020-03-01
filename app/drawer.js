@@ -289,6 +289,32 @@ function downloadDataURL(filename, data) {
   document.body.removeChild(element);
 }
 
+function autosaveMap() {
+  if(localStorage) {
+    localStorage.setItem("autosave", encodeMap());
+    console.log('autosave');
+  } else {
+      alert("Sorry, your browser do not support local storage.");
+  }
+}
+function tryLoadAutosaveMap() {
+  document.cookie = '';
+  if(localStorage) {
+    var autosave = localStorage.getItem("autosave");
+    if (autosave != null) {
+      clearMap();
+      setNewMapData(decodeMap(JSON.parse(autosave)));
+      return true;
+    }
+    return false;
+  }
+}
+function clearAutosave() {
+  if(localStorage) {
+    localStorage.removeItem("autosave");
+  }
+}
+
 function saveMapToFile() {
   var mapJson = encodeMap();
 
@@ -1416,7 +1442,9 @@ var state = {
   drawing: {},
   objects: {},
 };
-setNewMapData(decodeMap(template));
+if (!tryLoadAutosaveMap()) {
+  setNewMapData(decodeMap(template));
+}
 
 var maxHistoryIndex = 99; // max length is one greater than this
 
@@ -1435,7 +1463,22 @@ function addToHistory(command) {
     state.index -= removeNum;
   }
   state.history[state.index] = command;
+
+  // autosave
+  actionsCount++;
+  clearTimeout(autosaveTimeout);
+  if (actionsCount % autosaveActionsInterval == 0) { // every few actions
+    autosaveMap();
+  } else { // or if a new action hasn't been made in a while
+    autosaveTimeout = setTimeout(function() {
+      autosaveMap();
+    }, autosaveInactivityTimer);
+  }
 }
+var actionsCount = 0;
+var autosaveActionsInterval = 20;
+var autosaveInactivityTimer = 10000;
+var autosaveTimeout;
 
 function clearMap() {
   Object.keys(state.drawing).forEach(function(p){
