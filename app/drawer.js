@@ -98,12 +98,31 @@ var loadSvg = function(filename, itemCallback) {
 function createMenu(items) {
   var i = 0;
   var iconMenu = new Group();
+
+  var backing = new Path();
+  backing.strokeColor = colors.paper;
+  backing.strokeWidth = 60;
+  backing.strokeCap = 'round';
+  backing.segments = [
+    new Point(0, 0),
+    new Point(0, 50 * (Object.keys(items).length - 1)),
+  ];
+
+  var triangle = new Path.RegularPolygon(new Point(0, 0), 3, 20);
+  triangle.fillColor = colors.paper;
+  triangle.rotate(-90);
+  triangle.scale(0.5, 1)
+  triangle.position -= new Point(30 + 5, 0);
+
+  iconMenu.addChildren([backing, triangle]);
+
   var buttonMap = objectMap(items, function(item, name) {
     item.position = new Point(0, 50 * i);
     iconMenu.addChild(item);
     i++;
     return item;
   });
+
   iconMenu.data = {
     buttonMap: buttonMap,
     update: function(selectedButton) {
@@ -111,7 +130,11 @@ function createMenu(items) {
         buttonMap[name].data.select(name == selectedButton);
       });
     },
+    setPointer: function(distance) {
+      triangle.position += new Point(0, distance);
+    }
   };
+
   return iconMenu;
 }
 
@@ -215,7 +238,6 @@ function onResize(event) {
   // Whenever the window is resized, recenter the path:
   resizeCoordinates();
   drawBackground();
-  updateColorTools();
 }
 
 tool.minDistance = 1;
@@ -761,6 +783,7 @@ var toolCategoryDefinition = {
           });
         })
       );
+      this.base.iconMenu.data.setPointer(55);
       this.base.iconMenu.pivot = new Point(0, 0);
       this.base.iconMenu.position = new Point(100, 120);
       // this is a little messy
@@ -803,11 +826,13 @@ var toolCategoryDefinition = {
           objectMap(definitions, function(def, name) {
             var icon = def.icon.clone();
             icon.scaling = def.menuScaling;
+            icon.fillColor = def.color;
             return createButton(icon, 20, function(button) {
               toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
             });
           })
         );
+        this.base.iconMenu.data.setPointer(105);
         this.base.iconMenu.pivot = new Point(0, 0);
         this.base.iconMenu.position = new Point(100, 120);
         // this is a little messy
@@ -958,19 +983,19 @@ Object.keys(toolCategoryDefinition).forEach(function(toolType) {
 // add gap
 leftToolMenuPosition.y += 60;
 
-var activeColor = new Path.Circle([20, 20], 16);
-activeColor.fillColor = paintColor;
-addToLeftToolMenu(activeColor);
+//var activeColor = new Path.Circle([20, 20], 16);
+//activeColor.fillColor = paintColor;
+//addToLeftToolMenu(activeColor);
 
 
-function updateColorTools() {
-  activeColor
-}
+//function updateColorTools() {
+//  activeColor
+//}
 
 var paintColor = colors.level1;
 function updatePaintColor(color) {
   paintColor = color;
-  activeColor.fillColor = paintColor;
+  //activeColor.fillColor = paintColor;
 
   // todo: separate viewfrom logic
   if (toolState.activeTool && toolState.activeTool.type == toolCategoryDefinition.terrain.type) {
