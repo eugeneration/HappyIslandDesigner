@@ -1218,7 +1218,7 @@ function updateBrush() {
 
   brush.layer = uiLayer;
   brush.segments = brushSegments;
-  brush.pivot = new Point(brushSize / 2 - 0.5, brushSize / 2 - 0.5);
+  brush.pivot = new Point(brushSize / 2 - 0.5, brushSize / 2 - 0.5).floor;
   brush.position = prevPos;
   brush.opacity = 0.5;
   brush.closed = true;
@@ -1244,27 +1244,38 @@ function updateCoordinateLabel(event) {
   brush.position = coordinate;
 }
 
-function getBrushSegments(size, centered) {
+function getBrushSegments(size) {
   // square
   var sizeX = size;
   var sizeY = size;
-  var offset = centered ?
-    new Point(sizeX * -0.5, sizeY * -0.5) :
-    new Point(0, 0);
+  var offset = new Point(0, 0);
   switch (brushType) {
+    default:
     case brushTypes.square:
       return [
-        offset,
+        offset.add([0, 0]),
         offset.add([0, sizeY]),
         offset.add([sizeX, sizeY]),
         offset.add([sizeX, 0]),
       ];
     case brushTypes.diamond:
+      // add straight edges if odd number
+      var ratio = .67;
+      var diagonalSize = Math.floor((size / 2) * ratio);
+      var straightSize = size - (2 * diagonalSize);
+
+      var minPoint = diagonalSize;
+      var maxPoint = diagonalSize + straightSize;
+
       return [
-        offset.add([sizeX * 0.5, sizeY]),
-        offset.add([sizeX, sizeY * 0.5]),
-        offset.add([sizeX * 0.5, 0]),
-        offset.add([0, sizeY * 0.5]),
+        offset.add([minPoint, 0]),
+        offset.add([maxPoint, 0]),
+        offset.add([size, minPoint]),
+        offset.add([size, maxPoint]),
+        offset.add([maxPoint, size]),
+        offset.add([minPoint, size]),
+        offset.add([0, maxPoint]),
+        offset.add([0, minPoint]),
       ];
   }
 }
@@ -1453,7 +1464,6 @@ function startDrawGrid(viewPosition) {
 }
 
 function drawGrid(viewPosition) {
-  console.log(paintColor);
   mapLayer.activate();
   var coordinate = new Point(mapLayer.globalToLocal(viewPosition));
 
@@ -1543,6 +1553,7 @@ function getDiff(path, paintColor) {
     state.drawing[paintColor] = new Path();
     state.drawing[paintColor].locked = true;
   }
+  if (!path.children && path.segments.length < 3) return {};
 
   // figure out which layers to add and subtract from
   var editLayers = {};
@@ -1559,7 +1570,6 @@ function getDiff(path, paintColor) {
       ? path.subtract(state.drawing[color])
       : path.intersect(state.drawing[color]);
     if (delta.children || (delta.segments && delta.segments.length > 0)) {
-      console.log(paintColor, editLayers, color, delta);
       diff[color] = {
         isAdd: isAdd,
         path: delta,
