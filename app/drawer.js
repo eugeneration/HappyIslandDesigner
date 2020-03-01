@@ -61,6 +61,7 @@ function createMapSprite(iconData) {
   var item = iconData.icon.clone();
   item.scaling = new Point(.03, .03);
   item.pivot = item.bounds.bottomCenter;
+  item.fillColor = iconData.color;
   return createObject(item, 'structure', iconData.name, iconData.size, iconData.offset);
 }
 
@@ -468,6 +469,7 @@ Object.keys(asyncStructureDefinition.value).forEach(function(structureType) {
   def.type = structureType;
   def.size = new Point(4, 4);
   def.offset = new Point(-2, -3.6);
+  def.color = colors.human;
   def.onSelect = function(isSelected) {
     baseStructureDefinition.onSelect(def, isSelected);
   };
@@ -1287,6 +1289,7 @@ var state = {
   // TODO: max history
   history: [],
   drawing: loadTemplate(),
+  icons: {},
 };
 var maxHistoryIndex = 99; // max length is one greater than this
 
@@ -1339,7 +1342,10 @@ function applyCommand(isApply, command) {
       applyDiff(isApply, command.data);
       break;
     case 'object':
-
+      switch(command.action) {
+        case '':
+        case 'update':
+      }
       break;
   }
 }
@@ -1351,11 +1357,42 @@ function drawCommand(drawData) {
   }
 }
 
-function objectCommand(objectData) {
+
+// objectData 
+// {
+//   id: '',
+//   objectCategory: '',
+//   objectType: '',
+//   position: Point,
+//   color: Color,
+// }
+function objectCommand(objectData, action) {
   return {
     type: 'object',
-    data: objectData,
-  }
+    action: action,
+  };
+}
+
+function objectCreateCommand(objectData, isCreate) {
+  return Object.create(objectCommand(objectData, 'create'), {
+    data: {
+      isCreate: true,
+      position: position,
+    },
+  });
+}
+
+function objectDeleteCommand(objectData, isCreate) {
+  return Object.create(objectCommand(objectData, 'create'), {
+    isCreate: false,
+  });
+}
+
+function objectUpdateCommand(objectData, prevPosition, prevColor) {
+  return Object.create(objectCommand(objectData, 'update'), {
+    prevPosition: position,
+    prevColor: prevColor,
+  });
 }
 
 // ===============================================
