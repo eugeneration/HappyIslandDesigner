@@ -1554,6 +1554,10 @@ function drawGridCoordinate(coordinate) {
   }
 }*/
 
+function getDistanceFromWholeNumber(f) {
+  return Math.abs(f - Math.round(f));
+}
+
 function getDiff(path, paintColor) {
   mapLayer.activate();
   if (!state.drawing.hasOwnProperty(paintColor)) {
@@ -1582,9 +1586,11 @@ function getDiff(path, paintColor) {
     var deltaSubPaths = delta.children ? delta.children : [delta];
     deltaSubPaths.forEach(function(p) {
       p.curves.forEach(function(curve) {
-        if (curve.length < 1) {
-          var isSegment1Invalid = (curve.segment1.x % 1 > 0.1) || (curve.segment1.y % 1 > 0.1);
-          var isSegment2Invalid = (curve.segment2.x % 1 > 0.1) || (curve.segment2.y % 1 > 0.1);
+        var p1 = curve.segment1.point;
+        var p2 = curve.segment2.point;
+        if (p1.getDistance(p2, true) < 1) { // use squared distance for speed
+          var isSegment1Invalid = (getDistanceFromWholeNumber(p1.x) > 0.1) || (getDistanceFromWholeNumber(p1.y) > 0.1);
+          var isSegment2Invalid = (getDistanceFromWholeNumber(p2.x) > 0.1) || (getDistanceFromWholeNumber(p2.y) > 0.1);
           if (!isSegment1Invalid && !isSegment2Invalid) {
             return;
           }
@@ -1601,14 +1607,10 @@ function getDiff(path, paintColor) {
           var axis = xGreater ^ yGreater;
 
           var newPoint = axis // todo: do I need to check for clockwise?
-            ? new Point(gP.x + (xGreater ? 1 : -1), gP.y)
-            : new Point(gP.x, gP.y + (yGreater ? 1 : -1));
+            ? new Point(gP.x - (xGreater ? 1 : -1), gP.y)
+            : new Point(gP.x, gP.y - (yGreater ? 1 : -1));
 
           invalidSegment.point = newPoint;
-          // fix by adding a point that removes the diagonal
-          //console.log(curve.segment1.index, curve.segment1.point + (p.clockwise
-          //  ? new Point(curve.segment1.x, curve.segment2.y)
-          //  : new Point(curve.segment2.x, curve.segment1.y)));
         }
       });
     });
