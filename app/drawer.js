@@ -1510,6 +1510,14 @@ function cycleBrushHead() {
   brushType = heads[(index + 1) % heads.length];
 }
 
+function getBrushCenteredCoordinate(rawCoordinate){
+  // hack for even sized brushes
+  if (brushSize % 2 == 0)
+    return (rawCoordinate + new Point(0.5, 0.5)).floor() - new Point(0.5, 0.5);
+  else
+    return rawCoordinate.floor();
+}
+
 function updateBrush() {
   brushSegments = getBrushSegments(brushSize);
 
@@ -1517,8 +1525,8 @@ function updateBrush() {
 
   brush.layer = uiLayer;
   brush.segments = brushSegments;
-  brush.pivot = new Point(brushSize / 2 - 0.5, brushSize / 2 - 0.5).floor;
-  brush.position = prevPos;
+  brush.pivot = new Point(brushSize / 2 - 0.5, brushSize / 2 - 0.5);
+  brush.position = getBrushCenteredCoordinate(prevPos);
   brush.opacity = 0.5;
   brush.closed = true;
   brush.fillColor = paintColor;
@@ -1533,14 +1541,12 @@ function updateBrush() {
 }
 
 function updateCoordinateLabel(event) {
-  var rawCoordinate = mapOverlayLayer.globalToLocal(event.point);
-  var coordinate = rawCoordinate.floor();
+  var coordinate = mapOverlayLayer.globalToLocal(event.point);
   //coordinateLabel.content = '' + event.point + '\n' + coordinate.toString();
   //coordinateLabel.position = rawCoordinate;
 
-  brushOutline.position = rawCoordinate;
-
-  brush.position = coordinate;
+  brushOutline.position = coordinate;
+  brush.position = getBrushCenteredCoordinate(coordinate);
 }
 
 function getBrushSegments(size) {
@@ -1577,13 +1583,6 @@ function getBrushSegments(size) {
         offset.add([0, minPoint]),
       ];
   }
-}
-
-function transformSegments(segments, coordinate) {
-  var p = coordinate;
-  return segments.map(function(s) {
-    return s + p
-  });
 }
 
 // ===============================================
@@ -1837,9 +1836,8 @@ function uniteCompoundPath(compound) {
 function getDrawPath(coordinate, drawPath) {
   if (coordinate != prevDrawCoordinate) {
     prevDrawCoordinate = coordinate;
-    var drawPoints = transformSegments(brushSegments, coordinate);
-    
-    var p = new Path(drawPoints);
+
+    var p = new Path(brush.segments);
     return p;
   }
 }
@@ -1923,6 +1921,8 @@ function getDiff(path, paintColor) {
 }
 
 function applyDiff(isApply, diff) {
+  // todo: weird location
+  if (isApply) prevDrawCoordinate = null;
   Object.keys(diff).forEach(function(color) {
     var colorDiff = diff[color]
     var isAdd = colorDiff.isAdd;
