@@ -30,11 +30,6 @@ var colors = {
 }
 
 var layerDefinition = {};
-layerDefinition[colors.eraser] = {
-  elevation: 0,
-  addLayers: [],
-  cutLayers: [colors.sand, colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
-}
 layerDefinition[colors.sand] = {
   elevation: 10,
   addLayers: [colors.sand],
@@ -66,6 +61,11 @@ layerDefinition[colors.water] = {
   cutLayers: [colors.rock],
   limit: true,
 };
+layerDefinition[colors.eraser] = {
+  elevation: 0,
+  addLayers: [],
+  cutLayers: [colors.sand, colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
+}
 
 // load assets
 var svgPath = 'svg/'
@@ -1030,10 +1030,10 @@ function onKeyDown(event) {
       updatePaintColor(colors.eraser);
       break;
     case '1':
-      updatePaintColor(colors.water);
+      updatePaintColor(colors.sand);
       break;
     case '2':
-      updatePaintColor(colors.sand);
+      updatePaintColor(colors.rock);
       break;
     case '3':
       updatePaintColor(colors.level1);
@@ -1045,7 +1045,7 @@ function onKeyDown(event) {
       updatePaintColor(colors.level3);
       break;
     case '6':
-      updatePaintColor(colors.rock);
+      updatePaintColor(colors.water);
       break;
 /*    case 'q':
       changePaintTool(paintTools.grid);
@@ -1112,11 +1112,34 @@ function onKeyDown(event) {
         event.preventDefault();
       }
       break;
+
+      // temp
+    case 'u':
+      tracemap.opacity = Math.min(1, tracemap.opacity + 0.2);
+      break;
+    case 'h':
+      tracemap.visible = !tracemap.visible;
+      break;
+    case 'j':
+      tracemap.opacity = Math.max(0, tracemap.opacity -0.2);
+      break;
+    case 'k':
+      Object.keys(state.drawing).forEach(function(color) {
+        var path = state.drawing[color];
+        path.selected = !path.selected;
+      });
+      break;
   }
   if (prevActiveTool == toolState.activeTool) {
     toolState.activeTool.definition.onKeyDown(event);
   }
 };
+
+mapOverlayLayer.activate();
+var tracemap = new Raster('../img/tracemap.png');
+tracemap.position = new Point(55.85, 52.2);
+tracemap.scaling = new Point(0.082, .082);
+tracemap.opacity = 0.3;
 
 function removeFloatingPointError(f) {
   return (Math.abs(f - Math.round(f)) < 0.00001) ? Math.round(f) : f;
