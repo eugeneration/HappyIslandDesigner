@@ -1138,6 +1138,7 @@ function onKeyDown(event) {
 
 mapOverlayLayer.activate();
 var tracemap = new Raster('img/tracemap.png');
+tracemap.locked = true;
 tracemap.position = new Point(55.85, 52.2);
 tracemap.scaling = new Point(0.082, .082);
 tracemap.opacity = 0.3;
@@ -1179,8 +1180,10 @@ function decodeMap(json) {
     drawing: objectMap(json.drawing, function(colorData, color) {
       // if array of arrays, make compound path
       var p;
-      // todo: when using the eraser tool, it creates a new diff and new color
-      if (typeof colorData[0][0] == 'number') {
+      if (colorData.length == 0) {
+        p = new Path();
+      }
+      else if (typeof colorData[0][0] == 'number') {
         // normal path
         p = new Path(colorData.map(function(p) {return new Point(p);}));
       } else {
@@ -1857,16 +1860,11 @@ function getDistanceFromWholeNumber(f) {
 }
 
 function getDiff(path, paintColor) {
-  mapLayer.activate();
-  if (!state.drawing.hasOwnProperty(paintColor)) {
-    state.drawing[paintColor] = new Path();
-    state.drawing[paintColor].locked = true;
-  }
   if (!path.children && path.segments.length < 3) return {};
 
   // figure out which layers to add and subtract from
-  var editLayers = {};
   var definition = layerDefinition[paintColor];
+  var editLayers = {};
   definition.addLayers.forEach(function(color) { editLayers[color] = true;});
   definition.cutLayers.forEach(function(color) { editLayers[color] = false;});
 
