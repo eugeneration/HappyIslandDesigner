@@ -1564,6 +1564,17 @@ function getBrushSegments(size) {
         offset.add([sizeX, 0]),
       ];
     case brushTypes.rounded:
+
+      // return diamond if 2
+      if (size == 2) {
+        return [
+          new Point(1, 0),
+          new Point(2, 1),
+          new Point(1, 2),
+          new Point(0, 1),
+        ]
+      }
+
       // add straight edges if odd number
       var ratio = .67;
       var diagonalSize = Math.floor((size / 2) * ratio);
@@ -1857,6 +1868,10 @@ function getDistanceFromWholeNumber(f) {
   return Math.abs(f - Math.round(f));
 }
 
+function pointApproximates(p0, p1) {
+  return Math.abs(p0.x - p1.x) < 0.001 && Math.abs(p0.y - p1.y) < 0.001;
+}
+
 function getDiff(path, paintColor) {
   if (!path.children && path.segments.length < 3) return {};
 
@@ -1873,38 +1888,27 @@ function getDiff(path, paintColor) {
     var delta = isAdd
       ? path.subtract(state.drawing[color])
       : path.intersect(state.drawing[color]);
-    
+
     // search for invalid points caused by overlapping diagonals
     // todo: for free drawing, remove this check
     var deltaSubPaths = delta.children ? delta.children : [delta];
     deltaSubPaths.forEach(function(p) {
-      p.curves.forEach(function(curve) {
-        var p1 = curve.segment1.point;
-        var p2 = curve.segment2.point;
-        if (p1.getDistance(p2, true) < 1) { // use squared distance for speed
-          var isSegment1Invalid = (getDistanceFromWholeNumber(p1.x) > 0.1) || (getDistanceFromWholeNumber(p1.y) > 0.1);
-          var isSegment2Invalid = (getDistanceFromWholeNumber(p2.x) > 0.1) || (getDistanceFromWholeNumber(p2.y) > 0.1);
-          if (!isSegment1Invalid && !isSegment2Invalid) {
-            return;
-          }
-          var invalidSegment = isSegment1Invalid ? curve.segment1 : curve.segment2;
-          var goodSegment = isSegment1Invalid ? curve.segment2 : curve.segment1;
-          
-          // move the invalid point to the good point rotated clockwise/counterclockwise
-          var iP = invalidSegment.point;
-          var gP = goodSegment.point;
+      p.segments.forEach(function(segment) {
+        var point = segment.point;
+        var isSegmentInvalid = (getDistanceFromWholeNumber(point.x) > 0.1) || (getDistanceFromWholeNumber(point.y) > 0.1);
+        if (!isSegmentInvalid) return;
 
-          // flip the x/y axis depending on the direction of the segment
-          var xGreater = iP.x < gP.x;
-          var yGreater = iP.y < gP.y;
-          var axis = xGreater ^ yGreater;
+        var prevPoint = p.segments[(segment.index - 1 + p.segments.length) % p.segments.length].point;
+        var nextPoint = p.segments[(segment.index + 1) % p.segments.length].point;
 
-          var newPoint = axis // todo: do I need to check for clockwise?
-            ? new Point(gP.x - (xGreater ? 1 : -1), gP.y)
-            : new Point(gP.x, gP.y - (yGreater ? 1 : -1));
+        // todo: this assumes the problem point is always at .5, which may not be true in degenerate cases
+        var possiblePoint1 = point - new Point(0.5 * Math.sign(prevPoint.x - point.x), 0.5 * Math.sign(prevPoint.y - point.y));
+        var possiblePoint2 = point - new Point(0.5 * Math.sign(nextPoint.x - point.x), 0.5 * Math.sign(nextPoint.y - point.y));
 
-          invalidSegment.point = newPoint;
-        }
+        if (pointApproximates(state.drawing[color].getNearestPoint(possiblePoint1), possiblePoint1))
+          segment.point = possiblePoint1;
+        else
+          segment.point = possiblePoint2;
       });
     });
 
