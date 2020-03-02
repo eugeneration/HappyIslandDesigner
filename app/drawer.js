@@ -30,42 +30,43 @@ var colors = {
 }
 
 var layerDefinition = {};
-layerDefinition[colors.sand] = {
-  elevation: 10,
-  addLayers: [colors.sand],
-  cutLayers: [colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
-};
-layerDefinition[colors.rock] = {
-  elevation: 5,
-  addLayers: [colors.rock, colors.sand],
-  cutLayers: [colors.level1, colors.level2, colors.level3, colors.water],
-};
-layerDefinition[colors.level1] = {
-  elevation: 20,
-  addLayers: [colors.sand, colors.level1],
-  cutLayers: [colors.level2, colors.level3, colors.water],
-};
-layerDefinition[colors.level2] = {
-  elevation: 30,
-  addLayers: [colors.sand, colors.level1, colors.level2],
-  cutLayers: [colors.level3, colors.water],
-};
-layerDefinition[colors.level3] = {
-  elevation: 40,
-  addLayers: [colors.sand, colors.level1, colors.level2, colors.level3],
-  cutLayers: [colors.water],
-};
 layerDefinition[colors.water] = {
   elevation: -5,
   addLayers: [colors.water],
   cutLayers: [colors.rock],
   limit: true,
 };
+layerDefinition[colors.level3] = {
+  elevation: 40,
+  addLayers: [colors.sand, colors.level1, colors.level2, colors.level3],
+  cutLayers: [colors.water],
+};
+layerDefinition[colors.level2] = {
+  elevation: 30,
+  addLayers: [colors.sand, colors.level1, colors.level2],
+  cutLayers: [colors.level3, colors.water],
+};
+layerDefinition[colors.level1] = {
+  elevation: 20,
+  addLayers: [colors.sand, colors.level1],
+  cutLayers: [colors.level2, colors.level3, colors.water],
+};
+layerDefinition[colors.rock] = {
+  elevation: 5,
+  addLayers: [colors.rock, colors.sand],
+  cutLayers: [colors.level1, colors.level2, colors.level3, colors.water],
+};
+
+layerDefinition[colors.sand] = {
+  elevation: 10,
+  addLayers: [colors.sand],
+  cutLayers: [colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
+};
 layerDefinition[colors.eraser] = {
   elevation: 0,
   addLayers: [],
   cutLayers: [colors.sand, colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
-}
+};
 
 // load assets
 var svgPath = 'svg/'
@@ -1136,7 +1137,7 @@ function onKeyDown(event) {
 };
 
 mapOverlayLayer.activate();
-var tracemap = new Raster('../img/tracemap.png');
+var tracemap = new Raster('img/tracemap.png');
 tracemap.position = new Point(55.85, 52.2);
 tracemap.scaling = new Point(0.082, .082);
 tracemap.opacity = 0.3;
@@ -1178,6 +1179,7 @@ function decodeMap(json) {
     drawing: objectMap(json.drawing, function(colorData, color) {
       // if array of arrays, make compound path
       var p;
+      // todo: when using the eraser tool, it creates a new diff and new color
       if (typeof colorData[0][0] == 'number') {
         // normal path
         p = new Path(colorData.map(function(p) {return new Point(p);}));
