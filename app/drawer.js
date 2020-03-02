@@ -30,26 +30,31 @@ var colors = {
 }
 
 var layerDefinition = {};
+//layerDefinition[colors.water] = {
+//  elevation: -5,
+//  addLayers: [colors.water],
+//  cutLayers: [colors.rock],
+//  limit: true,
+//};
 layerDefinition[colors.water] = {
-  elevation: -5,
-  addLayers: [colors.water],
-  cutLayers: [colors.rock],
-  limit: true,
+  elevation: 0,
+  addLayers: [],
+  cutLayers: [colors.sand, colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
 };
 layerDefinition[colors.level3] = {
   elevation: 40,
   addLayers: [colors.sand, colors.level1, colors.level2, colors.level3],
-  cutLayers: [colors.water],
+  cutLayers: [colors.rock, colors.water],
 };
 layerDefinition[colors.level2] = {
   elevation: 30,
   addLayers: [colors.sand, colors.level1, colors.level2],
-  cutLayers: [colors.level3, colors.water],
+  cutLayers: [colors.rock, colors.level3, colors.water],
 };
 layerDefinition[colors.level1] = {
   elevation: 20,
   addLayers: [colors.sand, colors.level1],
-  cutLayers: [colors.level2, colors.level3, colors.water],
+  cutLayers: [colors.rock, colors.level2, colors.level3, colors.water],
 };
 layerDefinition[colors.rock] = {
   elevation: 5,
@@ -62,11 +67,11 @@ layerDefinition[colors.sand] = {
   addLayers: [colors.sand],
   cutLayers: [colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
 };
-layerDefinition[colors.eraser] = {
-  elevation: 0,
-  addLayers: [],
-  cutLayers: [colors.sand, colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
-};
+//layerDefinition[colors.eraser] = {
+//  elevation: 0,
+//  addLayers: [],
+//  cutLayers: [colors.sand, colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
+//};
 
 // load assets
 var svgPath = 'svg/'
@@ -1136,12 +1141,12 @@ function onKeyDown(event) {
   }
 };
 
-mapOverlayLayer.activate();
-var tracemap = new Raster('img/tracemap.png');
-tracemap.locked = true;
-tracemap.position = new Point(55.85, 52.2);
-tracemap.scaling = new Point(0.082, .082);
-tracemap.opacity = 0.3;
+//mapOverlayLayer.activate();
+//var tracemap = new Raster('img/tracemap.png');
+//tracemap.locked = true;
+//tracemap.position = new Point(55.85, 52.2);
+//tracemap.scaling = new Point(0.082, .082);
+//tracemap.opacity = 0.3;
 
 function removeFloatingPointError(f) {
   return (Math.abs(f - Math.round(f)) < 0.00001) ? Math.round(f) : f;
@@ -1781,17 +1786,61 @@ function startDrawGrid(viewPosition) {
   drawGrid(viewPosition);
 }
 
+function halfTriangleSegments(x0, y0, x1, y1, offsetX, offsetY) {
+  var xMid = (x0 + x1) / 2;
+  var yMid = (y0 + y1) / 2;
+  return [
+    [x0 + offsetX, y0 + offsetY],
+    [xMid + offsetX - Math.sign(offsetX) * 0.5, yMid + offsetY - Math.sign(offsetY) * 0.5],
+    [x1 + offsetX, y1 + offsetY]
+    ];
+}
+
 function drawGrid(viewPosition) {
   mapLayer.activate();
   var coordinate = new Point(mapLayer.globalToLocal(viewPosition));
 
+  var prevX = null;
+  var prevY = null;
+
   var drawPaths = [];
   doForCellsOnLine(
-    prevGridCoordinate.x, prevGridCoordinate.y,
-    coordinate.x, coordinate.y,
+    Math.round(prevGridCoordinate.x), Math.round(prevGridCoordinate.y),
+    Math.round(coordinate.x), Math.round(coordinate.y),
     function(x, y) {
-      var p = getDrawPath(new Point(x, y).floor());
-      if (p) drawPaths.push(p);
+      var p = getDrawPath(new Point(x, y));
+
+      if (p) {
+
+        // this brush has a wierd shape that creates issues when moving horizontally
+        if (prevGridCoordinate != null) {
+          if (brushType == brushTypes.rounded && brushSize == 2) { 
+            if (x == prevX) {
+              if (y == prevY + 1 || y == prevY - 1) {
+                var t1 = new Path(halfTriangleSegments(x, y, prevX, prevY, 1, 0));
+                var t2 = new Path(halfTriangleSegments(x, y, prevX, prevY, -1, 0));
+                t1.selected = true;
+                t2.selected = true;
+                drawPaths.push(t1);
+                drawPaths.push(t2);
+              }
+            } else if (y == prevY) {
+              if (x == prevX + 1 || x == prevX - 1) {
+                var t1 = new Path(halfTriangleSegments(x, y, prevX, prevY, 0, 1));
+                var t2 = new Path(halfTriangleSegments(x, y, prevX, prevY, 0, -1));
+                t1.selected = true;
+                t2.selected = true;
+                drawPaths.push(t1);
+                drawPaths.push(t2);
+              }
+            }
+            prevX = x;
+            prevY = y;
+          }
+        }
+
+        drawPaths.push(p);
+      }
     });
 
   var path; 
@@ -1823,6 +1872,7 @@ function drawGrid(viewPosition) {
 
 function endDrawGrid(viewPosition) {
   var mergedDiff = {};
+  prevGridCoordinate = null;
   Object.keys(diffCollection).forEach(function(k) {
     mergedDiff[k] = {
       isAdd: diffCollection[k].isAdd,
@@ -1849,6 +1899,9 @@ function getDrawPath(coordinate, drawPath) {
     prevDrawCoordinate = coordinate;
 
     var p = new Path(brush.segments);
+    // todo: make this shared logic with updateBrush();
+    p.pivot = brush.pivot;
+    p.position = getBrushCenteredCoordinate(coordinate);
     return p;
   }
 }
@@ -1893,23 +1946,7 @@ function getDiff(path, paintColor) {
     // todo: for free drawing, remove this check
     var deltaSubPaths = delta.children ? delta.children : [delta];
     deltaSubPaths.forEach(function(p) {
-      p.segments.forEach(function(segment) {
-        var point = segment.point;
-        var isSegmentInvalid = (getDistanceFromWholeNumber(point.x) > 0.1) || (getDistanceFromWholeNumber(point.y) > 0.1);
-        if (!isSegmentInvalid) return;
-
-        var prevPoint = p.segments[(segment.index - 1 + p.segments.length) % p.segments.length].point;
-        var nextPoint = p.segments[(segment.index + 1) % p.segments.length].point;
-
-        // todo: this assumes the problem point is always at .5, which may not be true in degenerate cases
-        var possiblePoint1 = point - new Point(0.5 * Math.sign(prevPoint.x - point.x), 0.5 * Math.sign(prevPoint.y - point.y));
-        var possiblePoint2 = point - new Point(0.5 * Math.sign(nextPoint.x - point.x), 0.5 * Math.sign(nextPoint.y - point.y));
-
-        if (pointApproximates(state.drawing[color].getNearestPoint(possiblePoint1), possiblePoint1))
-          segment.point = possiblePoint1;
-        else
-          segment.point = possiblePoint2;
-      });
+      correctPath(p, state.drawing[color]);
     });
 
     if (delta.children || (delta.segments && delta.segments.length > 0)) {
@@ -1922,6 +1959,26 @@ function getDiff(path, paintColor) {
   });
 
   return diff;
+}
+
+function correctPath(path, receivingPath) {
+  path.segments.forEach(function(segment) {
+    var point = segment.point;
+    var isSegmentInvalid = (getDistanceFromWholeNumber(point.x) > 0.1) || (getDistanceFromWholeNumber(point.y) > 0.1);
+    if (!isSegmentInvalid) return;
+
+    var prevPoint = path.segments[(segment.index - 1 + path.segments.length) % path.segments.length].point;
+    var nextPoint = path.segments[(segment.index + 1) % path.segments.length].point;
+
+    // todo: this assumes the problem point is always at .5, which may not be true in degenerate cases
+    var possiblePoint1 = point - new Point(0.5 * Math.sign(prevPoint.x - point.x), 0.5 * Math.sign(prevPoint.y - point.y));
+    var possiblePoint2 = point - new Point(0.5 * Math.sign(nextPoint.x - point.x), 0.5 * Math.sign(nextPoint.y - point.y));
+
+    if (pointApproximates(receivingPath.getNearestPoint(possiblePoint1), possiblePoint1))
+      segment.point = possiblePoint1;
+    else
+      segment.point = possiblePoint2;
+  });
 }
 
 function applyDiff(isApply, diff) {
@@ -1971,8 +2028,25 @@ function createRemap(inMin, inMax, outMin, outMax) {
 }
 
 function doForCellsOnLine(x0, y0, x1, y1, setPixel) {
-  var interval = 0.2;
+   var dx = Math.abs(x1 - x0);
+   var dy = Math.abs(y1 - y0);
+   var sx = (x0 < x1) ? 1 : -1;
+   var sy = (y0 < y1) ? 1 : -1;
+   var err = dx - dy;
 
+   while(true) {
+      setPixel(x0, y0); // Do what you need to for this
+
+      if ((x0 === x1) && (y0 === y1)) break;
+      var e2 = 2*err;
+      if (e2 > -dy) { err -= dy; x0 += sx; x0 = Math.round(x0);}
+      if (e2 < dx) { err += dx; y0 += sy; y0 = Math.round(y0);}
+   }
+}
+
+
+// interval = 0.2
+function doForCellsOnLinePerInterval(x0, y0, x1, y1, interval, setPixel) {
   if (Math.abs(x0 - x1) + Math.abs(y0 - y1) < 0.2) {
     setPixel(x0, y0);
     return;
@@ -2031,4 +2105,18 @@ function objectMap(object, mapFn) {
     result[key] = mapFn(object[key], key)
     return result
   }, {})
+}
+
+function maxMagnitude(/* arguments */) {
+  var maxIndex = null;
+  var maxValue = -1;
+  for (var i = 0; i < arguments.length; i++) {
+    var abs = Math.abs(arguments[i]);
+    if (abs > maxValue) {
+      maxIndex = i;
+      maxValue = abs;
+    }
+  }
+  if (maxIndex == null) return null;
+  return arguments[maxIndex];
 }
