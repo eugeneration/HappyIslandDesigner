@@ -1126,15 +1126,15 @@ function onKeyDown(event) {
       break;
 
       // temp
-    case 'u':
-      tracemap.opacity = Math.min(1, tracemap.opacity + 0.2);
-      break;
-    case 'h':
-      tracemap.visible = !tracemap.visible;
-      break;
-    case 'j':
-      tracemap.opacity = Math.max(0, tracemap.opacity -0.2);
-      break;
+//    case 'u':
+//      tracemap.opacity = Math.min(1, tracemap.opacity + 0.2);
+//      break;
+//    case 'h':
+//      tracemap.visible = !tracemap.visible;
+//      break;
+//    case 'j':
+//      tracemap.opacity = Math.max(0, tracemap.opacity -0.2);
+//      break;
     case 'k':
       Object.keys(state.drawing).forEach(function(color) {
         var path = state.drawing[color];
@@ -1730,6 +1730,12 @@ function setNewMapData(mapData) {
   // state.objects = mapData.objects; // objects are loaded asynchronously
   state.drawing = mapData.drawing;
   autosaveMap(); // automatically save when opening a new map
+}
+
+function smoothMap() {
+  Object.keys(state.drawing).forEach(function(color) {
+    state.drawing[color].smooth({ type: 'catmull-rom', factor: 0.9 });
+  });
 }
 
 function undo() {
