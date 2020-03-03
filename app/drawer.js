@@ -22,11 +22,25 @@ var colors = {
   level2: '#4ca14e',
   level3: '#62c360',
   rock: '#717488',
+
+  path: '#d99666',
+  pathEraser: '#f1b2c1',
+
   human: '#F078B0',
   npc: '#FABD25',
+
   selected: '#EA822F',
   pin: '#E85A31',
   paper: '#fefae4',
+}
+
+var pathDefinition = {};
+pathDefinition[colors.path] = {
+  addLayers: [colors.path],
+  requireLayer: colors.sand, // sand is always drawn below everything else
+}
+pathDefinition[colors.pathEraser] = {
+  cutLayers: [colors.path],
 }
 
 var layerDefinition = {};
@@ -100,7 +114,8 @@ var loadSvg = function(filename, itemCallback) {
     });
 };
 
-function createMenu(items) {
+function createMenu(items, spacing) {
+  if (spacing == null) spacing = 50;
   var i = 0;
   var iconMenu = new Group();
 
@@ -110,19 +125,19 @@ function createMenu(items) {
   backing.strokeCap = 'round';
   backing.segments = [
     new Point(0, 0),
-    new Point(0, 50 * (Object.keys(items).length - 1)),
+    new Point(0, spacing * (Object.keys(items).length - 1)),
   ];
 
-  var triangle = new Path.RegularPolygon(new Point(0, 0), 3, 20);
+  var triangle = new Path.RegularPolygon(new Point(0, 0), 3, 14);
   triangle.fillColor = colors.paper;
   triangle.rotate(-90);
   triangle.scale(0.5, 1)
-  triangle.position -= new Point(30 + 5, 0);
+  triangle.position -= new Point(30 + 3.5, 0);
 
   iconMenu.addChildren([backing, triangle]);
 
   var buttonMap = objectMap(items, function(item, name) {
-    item.position = new Point(0, 50 * i);
+    item.position = new Point(0, spacing * i);
     iconMenu.addChild(item);
     i++;
     return item;
@@ -757,6 +772,9 @@ var toolCategoryDefinition = {
     defaultModifiers: {
 
     },
+    data: {
+      paintColor: colors.level1,
+    },
     onSelect: function(isSelected) {
       this.base.onSelect(this, isSelected);
     },
@@ -778,15 +796,18 @@ var toolCategoryDefinition = {
     onKeyDown: function(event) {console.log('terrain onKeyDown')},
     openMenu: function(isSelected) {
       fixedLayer.activate();
+      updatePaintColor(this.data.paintColor);
       this.base.iconMenu = createMenu(
         objectMap(layerDefinition, function(definition, color) {
-          var paintCircle = new Path.Circle(new Point(0, 0), 18);
+          var paintCircle = new Path.Circle(new Point(0, 0), 16);
           paintCircle.fillColor = color;
           paintCircle.locked = true;
           return createButton(paintCircle, 20, function(button) {
             updatePaintColor(color);
-          });
-        })
+            this.data.paintColor = color;
+          }.bind(this));
+        }.bind(this)),
+        45 // menu spacing
       );
       this.base.iconMenu.data.setPointer(55);
       this.base.iconMenu.pivot = new Point(0, 0);
@@ -858,6 +879,9 @@ var toolCategoryDefinition = {
     defaultModifiers: {
 
     },
+    data: {
+      paintColor: colors.path,
+    },
     onSelect: function(isSelected) {
       this.base.onSelect(this, isSelected);
     },
@@ -866,16 +890,36 @@ var toolCategoryDefinition = {
     },
     onMouseDown: function(event) {
       this.base.onMouseMove(this, event);
-
+      startDraw(event);
     },
     onMouseDrag: function(event) {
       this.base.onMouseMove(this, event);
+      draw(event);
     },
     onMouseUp: function(event) {
       this.base.onMouseMove(this, event);
-
+      endDraw(event);
     },
-    onKeyDown: function(event) {
+    onKeyDown: function(event) {console.log('terrain onKeyDown')},
+    openMenu: function(isSelected) {
+      fixedLayer.activate();
+      updatePaintColor(this.data.paintColor);
+      var pathColorButtons =
+        objectMap(pathDefinition, function(definition, color) {
+          var paintCircle = new Path.Circle(new Point(0, 0), 16);
+          paintCircle.fillColor = color;
+          paintCircle.locked = true;
+          return createButton(paintCircle, 20, function(button) {
+            updatePaintColor(color);
+            this.data.paintColor = color; 
+          }.bind(this));
+        }.bind(this))
+      this.base.iconMenu = createMenu(pathColorButtons, 45);
+      this.base.iconMenu.data.setPointer(30);
+      this.base.iconMenu.pivot = new Point(0, 0);
+      this.base.iconMenu.position = new Point(100, 245);
+      // this is a little messy
+      this.base.iconMenu.data.update(paintColor);
     },
   },
 //  shovel: {
@@ -1002,10 +1046,13 @@ leftToolMenuPosition.y += 60;
 var paintColor = colors.level1;
 function updatePaintColor(color) {
   paintColor = color;
+  brush.fillColor = color;
   //activeColor.fillColor = paintColor;
 
   // todo: separate viewfrom logic
-  if (toolState.activeTool && toolState.activeTool.type == toolCategoryDefinition.terrain.type) {
+  if (toolState.activeTool &&
+    toolState.activeTool.type == toolCategoryDefinition.terrain.type
+    || toolState.activeTool.type == toolCategoryDefinition.path.type) {
     if (toolState.activeTool.definition.base.iconMenu) {
       toolState.activeTool.definition.base.iconMenu.data.update(color);
     }
@@ -1015,13 +1062,6 @@ function updatePaintColor(color) {
 fixedLayer.activate();
 
 var toolsPosition = new Point(40, 80);
-
-
-function initializeApp() {
-  toolState.switchToolType(toolCategoryDefinition.terrain.type);
-  updatePaintColor(colors.level1);
-}
-initializeApp();
 
 //var pointerToolButton = new Raster('../img/pointer.png');
 //pointerToolButton.position = toolsPosition + new Point(0, 0);
@@ -1521,7 +1561,7 @@ function centerBrushOffset(width, height) {
   return new Point(width * 0.5 * cellWidth, height * 0.5 * cellHeight);
 }
 
-var brushSize = 3;
+var brushSize = 2;
 var brushSegments;
 var brush = new Path();
 var brushOutline = new Path();
@@ -1560,7 +1600,7 @@ function updateBrush() {
   brush.segments = brushSegments;
   brush.pivot = new Point(brushSize / 2 - 0.5, brushSize / 2 - 0.5);
   brush.position = getBrushCenteredCoordinate(prevPos);
-  brush.opacity = 0.5;
+  brush.opacity = 0.6;
   brush.closed = true;
   brush.fillColor = paintColor;
   brush.locked = true;
@@ -2020,7 +2060,7 @@ function drawGridLinePreview(viewPosition) {
   drawPreview = drawLine(coordinate, startGridCoordinate);
   if (drawPreview) {
     drawPreview.locked = true;
-    drawPreview.opacity = 0.5;
+    drawPreview.opacity = 0.6;
     drawPreview.fillColor = paintColor;
   }
 }
@@ -2121,10 +2161,20 @@ function getDiff(path, paintColor) {
   if (!path.children && path.segments.length < 3) return {};
 
   // figure out which layers to add and subtract from
-  var definition = layerDefinition[paintColor];
+  var definition = layerDefinition[paintColor] || pathDefinition[paintColor];
+
+  // limit the path to the union of the shape on each layer
+  if (definition.requireLayer) {
+    var union = path.intersect(state.drawing[definition.requireLayer]);
+    path.remove();
+    path = union;
+  }
+
   var editLayers = {};
-  definition.addLayers.forEach(function(color) { editLayers[color] = true;});
-  definition.cutLayers.forEach(function(color) { editLayers[color] = false;});
+  if (definition.addLayers)
+    definition.addLayers.forEach(function(color) { editLayers[color] = true;});
+  if (definition.cutLayers)
+    definition.cutLayers.forEach(function(color) { editLayers[color] = false;});
 
   var diff = {};
   Object.keys(editLayers).forEach(function(color) {
@@ -2202,6 +2252,13 @@ function addPath(isAdd, path, color) {
 
   state.drawing[color] = combined;
 }
+
+
+function initializeApp() {
+  toolState.switchToolType(toolCategoryDefinition.terrain.type);
+  updatePaintColor(colors.level1);
+}
+initializeApp();
 
 // ===============================================
 // HELPERS
