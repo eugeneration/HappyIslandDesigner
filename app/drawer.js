@@ -36,6 +36,7 @@ var colors = {
 
 var pathDefinition = {};
 pathDefinition[colors.path] = {
+  priority: 100,
   addLayers: [colors.path],
   requireLayer: colors.sand, // sand is always drawn below everything else
 }
@@ -50,35 +51,41 @@ var layerDefinition = {};
 //  cutLayers: [colors.rock],
 //  limit: true,
 //};
-layerDefinition[colors.water] = {
-  elevation: 0,
-  addLayers: [],
-  cutLayers: [colors.sand, colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
-};
 layerDefinition[colors.level3] = {
+  priority: 50,
   elevation: 40,
   addLayers: [colors.sand, colors.level1, colors.level2, colors.level3],
   cutLayers: [colors.rock, colors.water],
 };
 layerDefinition[colors.level2] = {
+  priority: 40,
   elevation: 30,
   addLayers: [colors.sand, colors.level1, colors.level2],
   cutLayers: [colors.rock, colors.level3, colors.water],
 };
 layerDefinition[colors.level1] = {
+  priority: 30,
   elevation: 20,
   addLayers: [colors.sand, colors.level1],
   cutLayers: [colors.rock, colors.level2, colors.level3, colors.water],
 };
 layerDefinition[colors.rock] = {
+  priority: 20,
   elevation: 5,
   addLayers: [colors.rock, colors.sand],
   cutLayers: [colors.level1, colors.level2, colors.level3, colors.water],
 };
 layerDefinition[colors.sand] = {
+  priority: 10,
   elevation: 10,
   addLayers: [colors.sand],
   cutLayers: [colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
+};
+layerDefinition[colors.water] = {
+  priority: 0,
+  elevation: 0,
+  addLayers: [],
+  cutLayers: [colors.sand, colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
 };
 //layerDefinition[colors.eraser] = {
 //  elevation: 0,
@@ -751,13 +758,13 @@ var toolCategoryDefinition = {
       this.base.onMouseMove(this, event);
     },
     onMouseDown: function(event) {
-      this.base.onMouseMove(this, event);
+      this.base.onMouseDown(this, event);
     },
     onMouseDrag: function(event) {
-      this.base.onMouseMove(this, event);
+      this.base.onMouseDrag(this, event);
     },
     onMouseUp: function(event) {
-      this.base.onMouseMove(this, event);
+      this.base.onMouseUp(this, event);
     },
     onKeyDown: function(event) {console.log('pointer onKeyDown')},
   },
@@ -782,15 +789,19 @@ var toolCategoryDefinition = {
       this.base.onMouseMove(this, event);
     },
     onMouseDown: function(event) {
-      this.base.onMouseMove(this, event);
+      this.base.onMouseDown(this, event);
+      if (Key.isDown('alt')) {
+        var rawCoordinate = mapOverlayLayer.globalToLocal(event.point);
+        updatePaintColor(getColorAtCoordinate(rawCoordinate));
+      }
       startDraw(event);
     },
     onMouseDrag: function(event) {
-      this.base.onMouseMove(this, event);
+      this.base.onMouseDrag(this, event);
       draw(event);
     },
     onMouseUp: function(event) {
-      this.base.onMouseMove(this, event);
+      this.base.onMouseUp(this, event);
       endDraw(event);
     },
     onKeyDown: function(event) {console.log('terrain onKeyDown')},
@@ -835,13 +846,13 @@ var toolCategoryDefinition = {
     },
     onMouseDown: function(event) {
       placeObject(event);
-      this.base.onMouseMove(this, event);
+      this.base.onMouseDown(this, event);
     },
     onMouseDrag: function(event) {
-      this.base.onMouseMove(this, event);
+      this.base.onMouseDrag(this, event);
     },
     onMouseUp: function(event) {
-      this.base.onMouseMove(this, event);
+      this.base.onMouseUp(this, event);
     },
     onKeyDown: function(event) {console.log('structures onKeyDown')},
     openMenu: function(isSelected) {
@@ -889,15 +900,19 @@ var toolCategoryDefinition = {
       this.base.onMouseMove(this, event);
     },
     onMouseDown: function(event) {
-      this.base.onMouseMove(this, event);
+      this.base.onMouseDown(this, event);
+      if (Key.isDown('alt')) {
+        var rawCoordinate = mapOverlayLayer.globalToLocal(event.point);
+        updatePaintColor(getColorAtCoordinate(rawCoordinate));
+      }
       startDraw(event);
     },
     onMouseDrag: function(event) {
-      this.base.onMouseMove(this, event);
+      this.base.onMouseDrag(this, event);
       draw(event);
     },
     onMouseUp: function(event) {
-      this.base.onMouseMove(this, event);
+      this.base.onMouseUp(this, event);
       endDraw(event);
     },
     onKeyDown: function(event) {console.log('terrain onKeyDown')},
@@ -1054,6 +1069,18 @@ function updatePaintColor(color) {
     toolState.activeTool.type == toolCategoryDefinition.terrain.type
     || toolState.activeTool.type == toolCategoryDefinition.path.type) {
     if (toolState.activeTool.definition.base.iconMenu) {
+
+      var toolCategory;
+      if (layerDefinition[color]) {
+        toolCategory = toolCategoryDefinition.terrain.type;
+      } else if (pathDefinition[color]) {
+        toolCategory = toolCategoryDefinition.path.type;
+      }
+      if (toolState.activeTool.type != toolCategory){
+        console.log(color, toolCategory);
+        toolState.switchToolType(toolCategory);
+      }
+
       toolState.activeTool.definition.base.iconMenu.data.update(color);
     }
   }
@@ -1865,6 +1892,42 @@ function objectColorCommand(objectId, prevColor, color) {
     color: color,
     prevColor: prevColor,
   };
+}
+
+function getColorAtCoordinate(coordinate) {
+  // choose the highest elevation color
+  // todo - this logic should be elsewhere
+  if (toolState.activeTool) {
+    var bestColor;
+
+    if (toolState.activeTool.type == toolCategoryDefinition.terrain.type
+      || toolState.activeTool.type == toolCategoryDefinition.path.type) {
+      var bestColor = colors.water;
+
+      var bestPriority = 0;
+      Object.keys(state.drawing).forEach(function(color) {
+        var toolCategory;
+
+        var definition = layerDefinition[color] || pathDefinition[color];
+        if (!definition) {
+          console.log('Unknown color in drawing!');
+          return;
+        }
+        var priority = definition && definition.priority || 0;
+
+        var layer = state.drawing[color];
+        if (layer) {
+          if (layer.contains(coordinate)) {
+            if (priority > bestPriority) {
+              bestPriority = priority;
+              bestColor = color;
+            }
+          }
+        }
+      });
+    }
+    return bestColor;
+  }
 }
 
 // ===============================================
