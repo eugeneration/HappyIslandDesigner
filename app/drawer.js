@@ -61,7 +61,6 @@ layerDefinition[colors.rock] = {
   addLayers: [colors.rock, colors.sand],
   cutLayers: [colors.level1, colors.level2, colors.level3, colors.water],
 };
-
 layerDefinition[colors.sand] = {
   elevation: 10,
   addLayers: [colors.sand],
@@ -867,12 +866,14 @@ var toolCategoryDefinition = {
     },
     onMouseDown: function(event) {
       this.base.onMouseMove(this, event);
+
     },
     onMouseDrag: function(event) {
       this.base.onMouseMove(this, event);
     },
     onMouseUp: function(event) {
       this.base.onMouseMove(this, event);
+
     },
     onKeyDown: function(event) {
     },
@@ -1082,6 +1083,9 @@ function onKeyDown(event) {
       brushSize = Math.max(brushSize + 1, 1);
       updateBrush();
       break;
+    case 'l':
+      brushSweep = !brushSweep;
+      break;
     case 'p':
       cycleBrushHead();
       updateBrush();
@@ -1215,7 +1219,8 @@ function decodeMap(json) {
 
 var paintTools = {
   grid: 'grid',
-  diagonals: 'diagonals',
+  marquee: 'marquee',
+  marqueeDiagonal: 'marqueeDiagonal',
   freeform: 'freeform',
 };
 var paintTool = paintTools.grid;
@@ -1241,9 +1246,25 @@ function startDraw(event) {
 function draw(event) {
   switch (paintTool) {
     case paintTools.grid:
-      drawGrid(event.point);
+      var isShift = Key.isDown('shift');
+      if (!brushLine && isShift) {
+        startDrawGrid(event.point);
+      } else if (brushLine && !isShift) {
+        drawGrid(event.point);
+        stopGridLinePreview();
+      }
+
+      brushLine = isShift;
+
+      if (brushLine) {
+        drawGridLinePreview(event.point);
+      } else {
+        drawGrid(event.point);
+      }
       break;
-    case paintTools.diagonals:
+    case paintTools.marquee:
+      break;
+    case paintTools.marqueeDiagonal:
       break;
     case paintTools.freeform:
       // Add a segment to the path at the position of the mouse:
@@ -1258,7 +1279,9 @@ function draw(event) {
 function endDraw(event) {
   switch (paintTool) {
     case paintTools.grid:
-      endDrawGrid(event.point);
+        drawGrid(event.point);
+        endDrawGrid(event.point);
+        stopGridLinePreview();
       break;
     case paintTools.diagonals:
       break;
@@ -1506,6 +1529,8 @@ var brushTypes = {
   rounded: 'rounded',
   square: 'square',
 };
+var brushSweep = true;
+var brushLine = false;
 var brushType = brushTypes.rounded;
 updateBrush();
 
@@ -1561,6 +1586,13 @@ function getBrushSegments(size) {
   var sizeX = size;
   var sizeY = size;
   var offset = new Point(0, 0);
+  if (size == 0) {
+    return [
+      new Point(0, 0),
+      new Point(0, 1),
+      new Point(1, 0),
+    ];
+  }
   switch (brushType) {
     default:
     case brushTypes.square:
@@ -1775,6 +1807,7 @@ function objectColorCommand(objectId, prevColor, color) {
 
 //var drawPoints = [];
 
+var startGridCoordinate;
 var prevGridCoordinate;
 var prevDrawCoordinate;
 
@@ -1784,6 +1817,7 @@ function startDrawGrid(viewPosition) {
   mapLayer.activate();
   var coordinate = new Point(mapLayer.globalToLocal(viewPosition));
   coordinate = getBrushCenteredCoordinate(coordinate);
+  startGridCoordinate = coordinate;
   prevGridCoordinate = coordinate;
   drawGrid(viewPosition);
 }
@@ -1798,15 +1832,13 @@ function halfTriangleSegments(x0, y0, x1, y1, offsetX, offsetY) {
     ];
 }
 
-function drawGrid(viewPosition) {
-  mapLayer.activate();
-  var rawCoordinate = new Point(mapLayer.globalToLocal(viewPosition));
-  coordinate = getBrushCenteredCoordinate(rawCoordinate);
-
+// start/end: lattice Point
+// return: unioned Path/CompoundPath
+function drawLine(start, end, sweep) {
   var drawPaths = [];
   doForCellsOnLine(
-    Math.round(prevGridCoordinate.x), Math.round(prevGridCoordinate.y),
-    Math.round(coordinate.x), Math.round(coordinate.y),
+    Math.round(start.x), Math.round(start.y),
+    Math.round(end.x), Math.round(end.y),
     function(x, y) {
       var p = getDrawPath(new Point(x, y));
 
@@ -1854,6 +1886,40 @@ function drawGrid(viewPosition) {
     var compound = new CompoundPath({children: drawPaths});
     path = uniteCompoundPath(compound);
   }
+  return path;
+}
+
+// todo: merge this with the other preview code
+var drawPreview;
+function drawGridLinePreview(viewPosition) {
+  var rawCoordinate = new Point(mapLayer.globalToLocal(viewPosition));
+  coordinate = getBrushCenteredCoordinate(rawCoordinate);
+
+  mapLayer.activate();
+  if (drawPreview) {
+    drawPreview.remove();
+  }
+  if (startGridCoordinate == null)
+    startGridCoordinate = coordinate.clone();
+  drawPreview = drawLine(coordinate, startGridCoordinate);
+  if (drawPreview) {
+    drawPreview.locked = true;
+    drawPreview.opacity = 0.5;
+    drawPreview.fillColor = paintColor;
+  }
+}
+
+function stopGridLinePreview() {
+  if (drawPreview)
+    drawPreview.remove();
+}
+
+function drawGrid(viewPosition) {
+  mapLayer.activate();
+  var rawCoordinate = new Point(mapLayer.globalToLocal(viewPosition));
+  coordinate = getBrushCenteredCoordinate(rawCoordinate);
+
+  var path = drawLine(coordinate, prevGridCoordinate);
   if (path) {
     var diff = getDiff(path, paintColor);
 
@@ -1876,6 +1942,7 @@ function drawGrid(viewPosition) {
 function endDrawGrid(viewPosition) {
   var mergedDiff = {};
   prevGridCoordinate = null;
+  startGridCoordinate = null;
   Object.keys(diffCollection).forEach(function(k) {
     mergedDiff[k] = {
       isAdd: diffCollection[k].isAdd,
