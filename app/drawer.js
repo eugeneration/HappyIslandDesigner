@@ -1611,6 +1611,15 @@ function getBrushSegments(size) {
           new Point(0, 1),
           new Point(1, 1),
           new Point(1, 0),
+
+          //new Point(0, 0),
+          //new Point(0, 10),
+          //new Point(10, 10),
+          //new Point(10, 9),
+          //new Point(1, 9),
+          //new Point(1, 1),
+          //new Point(10, 1),
+          //new Point(10, 0),
         ]
       }
       // return diamond if 2
