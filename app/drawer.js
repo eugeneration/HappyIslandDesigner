@@ -1076,10 +1076,12 @@ function onKeyDown(event) {
       }
       break;
     case '[':
+    case '{':
       brushSize = Math.max(brushSize - 1, 1);
       updateBrush();
       break;
     case ']':
+    case '}':
       brushSize = Math.max(brushSize + 1, 1);
       updateBrush();
       break;
@@ -1253,7 +1255,6 @@ function draw(event) {
         drawGrid(event.point);
         stopGridLinePreview();
       }
-
       brushLine = isShift;
 
       if (brushLine) {
@@ -1604,6 +1605,15 @@ function getBrushSegments(size) {
       ];
     case brushTypes.rounded:
       // return diamond if 2
+      if (size == 1) {
+        return [
+          new Point(0, 0),
+          new Point(0, 1),
+          new Point(1, 1),
+          new Point(1, 0),
+        ]
+      }
+      // return diamond if 2
       if (size == 2) {
         return [
           new Point(1, 0),
@@ -1813,15 +1823,6 @@ var prevDrawCoordinate;
 
 var diffCollection = {};
 
-function startDrawGrid(viewPosition) {
-  mapLayer.activate();
-  var coordinate = new Point(mapLayer.globalToLocal(viewPosition));
-  coordinate = getBrushCenteredCoordinate(coordinate);
-  startGridCoordinate = coordinate;
-  prevGridCoordinate = coordinate;
-  drawGrid(viewPosition);
-}
-
 function halfTriangleSegments(x0, y0, x1, y1, offsetX, offsetY) {
   var xMid = (x0 + x1) / 2;
   var yMid = (y0 + y1) / 2;
@@ -1832,61 +1833,161 @@ function halfTriangleSegments(x0, y0, x1, y1, offsetX, offsetY) {
     ];
 }
 
-// start/end: lattice Point
-// return: unioned Path/CompoundPath
-function drawLine(start, end, sweep) {
-  var drawPaths = [];
-  doForCellsOnLine(
-    Math.round(start.x), Math.round(start.y),
-    Math.round(end.x), Math.round(end.y),
-    function(x, y) {
-      var p = getDrawPath(new Point(x, y));
+// assumes convex simple polygon with clockwise orientation
+// otherwise I have to simplify the polygon after stretching points
+function sweepPath(path, sweepVector) {
+  // find the lines w/ segment normals > 0
+  var allFrontEdges = [];
+  var frontEdge = [];
+  var sweepDirection = sweepVector.normalize();
 
-      if (p) {
-        // this brush has a wierd shape that creates issues when moving horizontally
-        if (prevGridCoordinate != null) {
-          if (brushType == brushTypes.rounded) { 
-            var prevX = prevGridCoordinate.x;
-            var prevY = prevGridCoordinate.y;
-            if (brushSize == 2) {
-              if (x == prevX) {
-                if (y == prevY + 1 || y == prevY - 1) {
-                  drawPaths.push(new Path(halfTriangleSegments(x, y, prevX, prevY, 1, 0)));
-                  drawPaths.push(new Path(halfTriangleSegments(x, y, prevX, prevY, -1, 0)));
-                }
-              } else if (y == prevY) {
-                if (x == prevX + 1 || x == prevX - 1) {
-                  drawPaths.push(new Path(halfTriangleSegments(x, y, prevX, prevY, 0, 1)));
-                  drawPaths.push(new Path(halfTriangleSegments(x, y, prevX, prevY, 0, -1)));
-                }
-              }
-            }
-            if (brushSize == 1) {
-              var deltaX = x - prevX;
-              var deltaY = y - prevY;
-              if (Math.abs(deltaX) == 1 && Math.abs(deltaY) == 1) {
-                drawPaths.push(new Path(halfTriangleSegments(x + 0.5, y + 0.5, prevX + 0.5, prevY + 0.5, deltaX * 0.5, -deltaY * 0.5)));
-                drawPaths.push(new Path(halfTriangleSegments(x + 0.5, y + 0.5, prevX + 0.5, prevY + 0.5, -deltaX * 0.5, deltaY * 0.5)));
-              }
-            }
-          }
-        }
-        prevX = x;
-        prevY = y;
+  if (sweepVector.x == 0 && sweepVector.y == 0) return path;
 
-        drawPaths.push(p);
+  var isFirstFront = false;
+  var isLastFront = false;
+
+  var potentialPoints = [];
+  // go backwards so when I add indices I don't affect the index order
+  for (var i = path.segments.length - 1; i >= 0; i--) {
+    var p0 = path.segments[i];
+    var p1 = path.segments[(i - 1 + path.segments.length) % path.segments.length];
+    var normal = path.clockwise
+      ? new Point(p0.point.y - p1.point.y, p1.point.x - p0.point.x).normalize()
+      : new Point(p1.point.y - p0.point.y, p0.point.x - p1.point.x).normalize();
+    var dot = normal.dot(sweepDirection);
+
+    if (dot > 0) {
+      if (i == path.segments.length - 1) isFirstFront = true;
+      if (i == 0) isLastFront = true;
+
+      if (potentialPoints.length > 0) {
+        frontEdge.concat(potentialPoints);
+        potentialPoints = [];
+      }
+      if (frontEdge.length == 0) {
+        // if this is the first point found in this edge, also add the start point
+        frontEdge.push(p0);
+      }
+      frontEdge.push(p1);
+    }
+    // include lines w/ normals == 0 if connected to line > 0
+    else if (dot == 0) {
+      if (frontEdge.length > 0) {
+        potentialPoints.push(p1);
+      }
+    } else {
+      if (frontEdge.length > 0) {
+        allFrontEdges.push(frontEdge);
+        frontEdge = [];
+      }
+      if (potentialPoints.length > 0) {
+        potentialPoints = [];
+      }
+    }
+  }
+  if (frontEdge.length > 0) {
+    allFrontEdges.push(frontEdge);
+  }
+
+  if (allFrontEdges.length == 0) {
+    console.log('Did not find any points to sweep!');
+    return path;
+  }
+
+
+  // check if there was a wrap around
+  var isWrapped = isFirstFront && isLastFront;
+  var skipFirst = allFrontEdges[0].length > 1;
+  var skipLast = allFrontEdges[allFrontEdges.length - 1].length > 1;
+
+  var first = true;
+  allFrontEdges.forEach(function(frontEdge) {
+    // duplicate the first and last point in the edge
+    // segments are in reverse index order
+
+    var s0 = frontEdge[0];
+    var s1 = frontEdge[frontEdge.length - 1];
+    var s0Clone = s0.clone();
+    var s1Clone = s1.clone();
+    if (!(isWrapped && skipFirst && first)) {
+       path.insert(s0.index + 1, s0Clone);
+    }
+    if (!(isWrapped && skipLast && s1.index == path.segments.length - 1)) {
+       path.insert(s1.index, s1Clone);
+    }
+    frontEdge.forEach(function(s) {
+      // there is a duplicate when it wraps around
+      if (isWrapped && first) {
+        first = false;
+      }
+      else {
+        s.point += sweepVector;
       }
     });
+  });
+  return path;
+}
 
-  var path; 
+// start/end: lattice Point
+// return: unioned Path/CompoundPath
+
+//var q = [];
+//q.forEach(function(s){s.remove()});
+//q.push(drawPaths[drawPaths.length - 1].clone());
+//q[q.length - 1].selected = true;
+
+
+function drawLine(start, end, sweep) {
+  var drawPaths = [];
+  if (brushSweep) {
+    var p = null;
+    var prevDelta = null;
+    var prevDrawCoordinate = null;
+    var prevDrawLineCoordinate = null;
+    doForCellsOnLine(
+      Math.round(start.x), Math.round(start.y),
+      Math.round(end.x), Math.round(end.y),
+      function(x, y) {
+        p = new Point(x, y);
+        if (prevDrawLineCoordinate == null) {
+          prevDrawLineCoordinate = p;
+        }
+        else if (p != prevDrawCoordinate) {
+          var delta = p - prevDrawCoordinate;
+          if (prevDelta != null && delta != prevDelta) {
+            path = getDrawPath(prevDrawCoordinate);
+            drawPaths.push(sweepPath(path, prevDrawLineCoordinate - prevDrawCoordinate));  
+            prevDrawLineCoordinate = prevDrawCoordinate;
+          }
+          prevDelta = delta;
+        }
+        prevDrawCoordinate = p;
+      });
+    path = getDrawPath(p);
+    drawPaths.push(sweepPath(path, prevDrawLineCoordinate - p));
+  }
+  else {
+    // stamping
+    doForCellsOnLine(
+      Math.round(start.x), Math.round(start.y),
+      Math.round(end.x), Math.round(end.y),
+      function(x, y) {
+        var p = new Point(x, y);
+        if (p != prevDrawCoordinate) {
+          drawPaths.push(getDrawPath(p));
+          prevDrawCoordinate = p;
+        }
+      });
+  }
+  var linePath;
   if (drawPaths.length == 1) {
-    path = drawPaths[0];
+    linePath = drawPaths[0];
   }
   else if (drawPaths.length > 1) {
     var compound = new CompoundPath({children: drawPaths});
-    path = uniteCompoundPath(compound);
+    linePath = uniteCompoundPath(compound);
   }
-  return path;
+  return linePath;
 }
 
 // todo: merge this with the other preview code
@@ -1900,7 +2001,7 @@ function drawGridLinePreview(viewPosition) {
     drawPreview.remove();
   }
   if (startGridCoordinate == null)
-    startGridCoordinate = coordinate.clone();
+    startDrawGrid(viewPosition);
   drawPreview = drawLine(coordinate, startGridCoordinate);
   if (drawPreview) {
     drawPreview.locked = true;
@@ -1914,11 +2015,22 @@ function stopGridLinePreview() {
     drawPreview.remove();
 }
 
+function startDrawGrid(viewPosition) {
+  mapLayer.activate();
+  var coordinate = new Point(mapLayer.globalToLocal(viewPosition));
+  coordinate = getBrushCenteredCoordinate(coordinate);
+  startGridCoordinate = coordinate;
+  prevGridCoordinate = coordinate;
+  drawGrid(viewPosition);
+}
+
 function drawGrid(viewPosition) {
   mapLayer.activate();
   var rawCoordinate = new Point(mapLayer.globalToLocal(viewPosition));
   coordinate = getBrushCenteredCoordinate(rawCoordinate);
 
+  if (prevGridCoordinate == null)
+    startDrawGrid(viewPosition);
   var path = drawLine(coordinate, prevGridCoordinate);
   if (path) {
     var diff = getDiff(path, paintColor);
@@ -1964,15 +2076,11 @@ function uniteCompoundPath(compound) {
   return p;
 }
 
-function getDrawPath(coordinate, drawPath) {
-  if (coordinate != prevDrawCoordinate) {
-    prevDrawCoordinate = coordinate;
-
-    var p = new Path(brushSegments);
-    p.pivot = new Point(brushSize / 2 - 0.5, brushSize / 2 - 0.5);
-    p.position = getBrushCenteredCoordinate(coordinate);
-    return p;
-  }
+function getDrawPath(coordinate) {
+  var p = new Path(brushSegments);
+  p.pivot = new Point(brushSize / 2 - 0.5, brushSize / 2 - 0.5);
+  p.position = getBrushCenteredCoordinate(coordinate);
+  return p;
 }
 
 // use for the vertex based drawing method for later
@@ -2014,9 +2122,9 @@ function getDiff(path, paintColor) {
     // search for invalid points caused by overlapping diagonals
     // todo: for free drawing, remove this check
     var deltaSubPaths = delta.children ? delta.children : [delta];
-    deltaSubPaths.forEach(function(p) {
-      correctPath(p, state.drawing[color]);
-    });
+     deltaSubPaths.forEach(function(p) {
+       correctPath(p, state.drawing[color]);
+     });
 
     if (delta.children || (delta.segments && delta.segments.length > 0)) {
       diff[color] = {
