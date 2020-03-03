@@ -1157,6 +1157,7 @@ function encodePoint(p) {
 
 function encodeMap() {
   var o = {
+    version: 0,
     objects: objectMap(state.objects, function(object) {
       return encodeObject(object);
     }),
@@ -1182,6 +1183,7 @@ function encodeMap() {
 function decodeMap(json) {
   mapLayer.activate();
   return {
+    version: json.version,
     drawing: objectMap(json.drawing, function(colorData, color) {
       // if array of arrays, make compound path
       var p;
@@ -1569,7 +1571,6 @@ function getBrushSegments(size) {
         offset.add([sizeX, 0]),
       ];
     case brushTypes.rounded:
-
       // return diamond if 2
       if (size == 2) {
         return [
@@ -1781,7 +1782,8 @@ var diffCollection = {};
 
 function startDrawGrid(viewPosition) {
   mapLayer.activate();
-  var coordinate = mapLayer.globalToLocal(viewPosition);
+  var coordinate = new Point(mapLayer.globalToLocal(viewPosition));
+  coordinate = getBrushCenteredCoordinate(coordinate);
   prevGridCoordinate = coordinate;
   drawGrid(viewPosition);
 }
@@ -1798,10 +1800,8 @@ function halfTriangleSegments(x0, y0, x1, y1, offsetX, offsetY) {
 
 function drawGrid(viewPosition) {
   mapLayer.activate();
-  var coordinate = new Point(mapLayer.globalToLocal(viewPosition));
-
-  var prevX = null;
-  var prevY = null;
+  var rawCoordinate = new Point(mapLayer.globalToLocal(viewPosition));
+  coordinate = getBrushCenteredCoordinate(rawCoordinate);
 
   var drawPaths = [];
   doForCellsOnLine(
@@ -1811,33 +1811,36 @@ function drawGrid(viewPosition) {
       var p = getDrawPath(new Point(x, y));
 
       if (p) {
-
         // this brush has a wierd shape that creates issues when moving horizontally
         if (prevGridCoordinate != null) {
-          if (brushType == brushTypes.rounded && brushSize == 2) { 
-            if (x == prevX) {
-              if (y == prevY + 1 || y == prevY - 1) {
-                var t1 = new Path(halfTriangleSegments(x, y, prevX, prevY, 1, 0));
-                var t2 = new Path(halfTriangleSegments(x, y, prevX, prevY, -1, 0));
-                t1.selected = true;
-                t2.selected = true;
-                drawPaths.push(t1);
-                drawPaths.push(t2);
-              }
-            } else if (y == prevY) {
-              if (x == prevX + 1 || x == prevX - 1) {
-                var t1 = new Path(halfTriangleSegments(x, y, prevX, prevY, 0, 1));
-                var t2 = new Path(halfTriangleSegments(x, y, prevX, prevY, 0, -1));
-                t1.selected = true;
-                t2.selected = true;
-                drawPaths.push(t1);
-                drawPaths.push(t2);
+          if (brushType == brushTypes.rounded) { 
+            var prevX = prevGridCoordinate.x;
+            var prevY = prevGridCoordinate.y;
+            if (brushSize == 2) {
+              if (x == prevX) {
+                if (y == prevY + 1 || y == prevY - 1) {
+                  drawPaths.push(new Path(halfTriangleSegments(x, y, prevX, prevY, 1, 0)));
+                  drawPaths.push(new Path(halfTriangleSegments(x, y, prevX, prevY, -1, 0)));
+                }
+              } else if (y == prevY) {
+                if (x == prevX + 1 || x == prevX - 1) {
+                  drawPaths.push(new Path(halfTriangleSegments(x, y, prevX, prevY, 0, 1)));
+                  drawPaths.push(new Path(halfTriangleSegments(x, y, prevX, prevY, 0, -1)));
+                }
               }
             }
-            prevX = x;
-            prevY = y;
+            if (brushSize == 1) {
+              var deltaX = x - prevX;
+              var deltaY = y - prevY;
+              if (Math.abs(deltaX) == 1 && Math.abs(deltaY) == 1) {
+                drawPaths.push(new Path(halfTriangleSegments(x + 0.5, y + 0.5, prevX + 0.5, prevY + 0.5, deltaX * 0.5, -deltaY * 0.5)));
+                drawPaths.push(new Path(halfTriangleSegments(x + 0.5, y + 0.5, prevX + 0.5, prevY + 0.5, -deltaX * 0.5, deltaY * 0.5)));
+              }
+            }
           }
         }
+        prevX = x;
+        prevY = y;
 
         drawPaths.push(p);
       }
@@ -1898,9 +1901,8 @@ function getDrawPath(coordinate, drawPath) {
   if (coordinate != prevDrawCoordinate) {
     prevDrawCoordinate = coordinate;
 
-    var p = new Path(brush.segments);
-    // todo: make this shared logic with updateBrush();
-    p.pivot = brush.pivot;
+    var p = new Path(brushSegments);
+    p.pivot = new Point(brushSize / 2 - 0.5, brushSize / 2 - 0.5);
     p.position = getBrushCenteredCoordinate(coordinate);
     return p;
   }
