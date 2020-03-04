@@ -184,6 +184,13 @@ function decodeObject(encodedData) {
     color: encodedData.color,
   };
   applyCommand(objectCreateCommand(objectData, position), true);
+  return {
+    position: position,
+    id: encodedData.id,
+    category: encodedData.category,
+    type: encodedData.type,
+    color: encodedData.color,
+  };
 }
 
 function getObjectData(objectDefinition) {
@@ -396,6 +403,7 @@ function autosaveMap() {
     return false;
   }
 }
+editor.autosaveMap = autosaveMap;
 function tryLoadAutosaveMap() {
   document.cookie = '';
   if(localStorage) {
@@ -1905,7 +1913,6 @@ function clearMap() {
 function setNewMapData(mapData) {
   // state.objects = mapData.objects; // objects are loaded asynchronously
   state.drawing = mapData.drawing;
-  autosaveMap(); // automatically save when opening a new map
 }
 
 function smoothMap() {
