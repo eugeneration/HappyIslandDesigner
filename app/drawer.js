@@ -26,6 +26,8 @@ var colors = {
   path: '#d99666',
   pathEraser: '#f1b2c1',
 
+  amenity: '#717488',
+  special: '#ffffff',
   human: '#F078B0',
   npc: '#FABD25',
   selected: '#EA822F',
@@ -641,29 +643,60 @@ function addToLeftToolMenu(icon) {
 
 // =======================================
 // STRUCTURE TOOL
-var asyncObjectDefinition = {
-  loadedCount: 0,
-  targetCount: function() {return Object.keys(this.value).length;},
-  onLoad: function() {
-    this.loadedCount++;
-    if (this.loadedCount == this.targetCount()) {
-      this.loadingCallbacks.forEach(
-        function(callback) { callback(this.value); }.bind(this));
-      this.loadingCallbacks = [];
+var AsyncObjectDefinition = ES3Class({
+  constructor: function() {
+    this.loadedCount = 0;
+    this.targetCount = function() {return Object.keys(this.value).length;};
+    this.onLoad = function() {
+      this.loadedCount++;
+      if (this.loadedCount == this.targetCount()) {
+        this.loadingCallbacks.forEach(
+          function(callback) { callback(this.value); }.bind(this));
+        this.loadingCallbacks = [];
+      }
+    }
+    this.loadingCallbacks = [];
+    this.getAsyncValue = function(callback) {
+      if (this.loadedCount == this.targetCount()) {
+        callback(this.value);
+        return true; // returns whether the value was returned immediately
+      } else {
+        this.loadingCallbacks.push(callback);
+        return false;
+      }
     }
   },
-  loadingCallbacks: [],
-  getAsyncValue: function(callback) {
-    if (this.loadedCount == this.targetCount()) {
-      callback(this.value);
-      return true; // returns whether the value was returned immediately
-    } else {
-      this.loadingCallbacks.push(callback);
-      return false;
-    }
+});
+
+var asyncAmenitiesDefinition = new AsyncObjectDefinition();
+asyncAmenitiesDefinition.value = {
+  dock: {},
+  airport: {},
+  lighthouse: {
+    color: colors.pin,
+    size: new Size([2, 2]),
+    offset: new Point(-1, -1.6),
   },
 };
-var asyncStructureDefinition = Object.create(asyncObjectDefinition);
+Object.keys(asyncAmenitiesDefinition.value).forEach(function(type) {
+  var def = asyncAmenitiesDefinition.value[type];
+  def.category = 'amenities';
+  def.type = type;
+  def.color = def.color || colors.amenity;
+  def.scaling = def.scaling || new Point(.03, .03);
+  def.menuScaling = def.menuScaling || new Point(.3, .3);
+  def.size = def.size || new Size([4, 4]);
+  def.offset = def.offset || new Point(-2, -3.6);
+  def.onSelect = function(isSelected) {};
+  // imnmediately load the assets
+  loadSvg('amenity-' + type, function(item) {
+    //item.pivot += new Point(-2, -3.6);
+    def.icon = item;
+    asyncAmenitiesDefinition.onLoad();
+  });
+});
+
+var asyncStructureDefinition = new AsyncObjectDefinition();
 asyncStructureDefinition.value = {
   tentRound: {},
   tentTriangle: {},
@@ -671,7 +704,6 @@ asyncStructureDefinition.value = {
   hut: {},
   house: {},
   building: {},
-  lighthouse: {},
   bush: {},
   fruit: {},
   palm: {},
@@ -701,7 +733,7 @@ Object.keys(asyncStructureDefinition.value).forEach(function(structureType) {
       asyncStructureDefinition.onLoad();
     });
   } else {
-    def.color = colors.human;
+    def.color = colors.npc;
     def.scaling = new Point(.03, .03);
     def.menuScaling = new Point(.3, .3);
     def.size = new Size(4, 4);
@@ -716,10 +748,10 @@ Object.keys(asyncStructureDefinition.value).forEach(function(structureType) {
   }
 });
 
-var asyncTreeDefinition = Object.create(asyncObjectDefinition);
-asyncTreeDefinition.value = {
-  
-}
+//var asyncTreeDefinition = Object.create(asyncObjectDefinition);
+//asyncTreeDefinition.value = {
+//  
+//}
 
 // =======================================
 // BASE LEVEL TOOLS
@@ -770,7 +802,7 @@ var baseToolCategoryDefinition = {
         if (nextToolData && nextToolData.tool && nextToolData.tool.onSelect)
           nextToolData.tool.onSelect(true);
         // todo: decouple view from logic
-        if (this.iconMenu && nextToolData.type == 'structures') {
+        if (this.iconMenu && (nextToolData.type == 'structures' || nextToolData.type == 'amenities')) {
           this.iconMenu.data.update(nextTool);
         }
       }
@@ -882,63 +914,6 @@ var toolCategoryDefinition = {
       this.base.iconMenu.data.update(paintColor);
     },
   },
-  structures: {
-    base: baseToolCategoryDefinition,
-    type: 'structures',
-    layer: mapIconLayer,
-    icon: "structure",
-    tools: asyncStructureDefinition,
-    defaultTool: null,
-    modifiers: {},
-    defaultModifiers: {
-
-    },
-    onSelect: function(isSelected) {
-      this.base.onSelect(this, isSelected);
-    },
-    onMouseMove: function(event) {
-      this.base.onMouseMove(this, event);
-    },
-    onMouseDown: function(event) {
-      placeObject(event);
-      this.base.onMouseDown(this, event);
-    },
-    onMouseDrag: function(event) {
-      this.base.onMouseDrag(this, event);
-    },
-    onMouseUp: function(event) {
-      this.base.onMouseUp(this, event);
-    },
-    onKeyDown: function(event) {
-      this.base.onKeyDown(this, event);
-    },
-    enablePreview: function(isEnabled) {
-      this.base.enablePreview(this, isEnabled);
-    },
-    openMenu: function(isSelected) {
-      this.tools.getAsyncValue(function(definitions) {
-        fixedLayer.activate();
-        var categoryDefinition = this;
-        this.base.iconMenu = createMenu(
-          objectMap(definitions, function(def, name) {
-            var icon = def.icon.clone();
-            icon.scaling = def.menuScaling;
-            icon.fillColor = def.color;
-            return createButton(icon, 20, function(button) {
-              toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
-            });
-          })
-        );
-        this.base.iconMenu.data.setPointer(105);
-        this.base.iconMenu.pivot = new Point(0, 0);
-        this.base.iconMenu.position = new Point(100, 120);
-        // this is a little messy
-        if (toolState.activeTool && toolState.activeTool.tool) {
-          this.base.iconMenu.data.update(toolState.activeTool.tool.type);
-        }
-      }.bind(this));
-    },
-  },
   path: {
     base: baseToolCategoryDefinition,
     type: 'path',
@@ -1003,9 +978,121 @@ var toolCategoryDefinition = {
       this.base.iconMenu = createMenu(pathColorButtons, 45);
       this.base.iconMenu.data.setPointer(30);
       this.base.iconMenu.pivot = new Point(0, 0);
-      this.base.iconMenu.position = new Point(100, 245);
+      this.base.iconMenu.position = new Point(100, 195);
       // this is a little messy
       this.base.iconMenu.data.update(paintColor);
+    },
+  },
+  structures: {
+    base: baseToolCategoryDefinition,
+    type: 'structures',
+    layer: mapIconLayer,
+    icon: "structure",
+    tools: asyncStructureDefinition,
+    defaultTool: null,
+    modifiers: {},
+    defaultModifiers: {
+
+    },
+    onSelect: function(isSelected) {
+      this.base.onSelect(this, isSelected);
+    },
+    onMouseMove: function(event) {
+      this.base.onMouseMove(this, event);
+    },
+    onMouseDown: function(event) {
+      placeObject(event);
+      this.base.onMouseDown(this, event);
+    },
+    onMouseDrag: function(event) {
+      this.base.onMouseDrag(this, event);
+    },
+    onMouseUp: function(event) {
+      this.base.onMouseUp(this, event);
+    },
+    onKeyDown: function(event) {
+      this.base.onKeyDown(this, event);
+    },
+    enablePreview: function(isEnabled) {
+      this.base.enablePreview(this, isEnabled);
+    },
+    openMenu: function(isSelected) {
+      this.tools.getAsyncValue(function(definitions) {
+        fixedLayer.activate();
+        var categoryDefinition = this;
+        this.base.iconMenu = createMenu(
+          objectMap(definitions, function(def, name) {
+            var icon = def.icon.clone();
+            icon.scaling = def.menuScaling;
+            icon.fillColor = def.color;
+            return createButton(icon, 20, function(button) {
+              toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
+            });
+          })
+        );
+        this.base.iconMenu.data.setPointer(105);
+        this.base.iconMenu.pivot = new Point(0, 0);
+        this.base.iconMenu.position = new Point(100, 170);
+        // this is a little messy
+        if (toolState.activeTool && toolState.activeTool.tool) {
+          this.base.iconMenu.data.update(toolState.activeTool.tool.type);
+        }
+      }.bind(this));
+    },
+  },
+  amenities: {
+    base: baseToolCategoryDefinition,
+    type: 'amenities',
+    layer: mapIconLayer,
+    icon: "amenities",
+    tools: asyncAmenitiesDefinition,
+    defaultTool: null,
+    modifiers: {},
+    defaultModifiers: {},
+    onSelect: function(isSelected) {
+      this.base.onSelect(this, isSelected);
+    },
+    onMouseMove: function(event) {
+      this.base.onMouseMove(this, event);
+    },
+    onMouseDown: function(event) {
+      placeObject(event);
+      this.base.onMouseDown(this, event);
+    },
+    onMouseDrag: function(event) {
+      this.base.onMouseDrag(this, event);
+    },
+    onMouseUp: function(event) {
+      this.base.onMouseUp(this, event);
+    },
+    onKeyDown: function(event) {
+      this.base.onKeyDown(this, event);
+    },
+    enablePreview: function(isEnabled) {
+      this.base.enablePreview(this, isEnabled);
+    },
+    openMenu: function(isSelected) {
+      this.tools.getAsyncValue(function(definitions) {
+        fixedLayer.activate();
+        var categoryDefinition = this;
+        this.base.iconMenu = createMenu(
+          objectMap(definitions, function(def, name) {
+            var icon = def.icon.clone();
+            icon.scaling = def.menuScaling;
+            icon.fillColor = def.color;
+            return createButton(icon, 20, function(button) {
+              toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
+            });
+          })
+        );
+        this.base.iconMenu.data.setPointer(60);
+        this.base.iconMenu.pivot = new Point(0, 0);
+        this.base.iconMenu.position = new Point(100, 265);
+        // this is a little messy
+        if (toolState.activeTool && toolState.activeTool.tool) {
+          this.base.iconMenu.data.update(toolState.activeTool.tool.type);
+        }
+      }.bind(this));
     },
   },
 //  shovel: {
@@ -1196,7 +1283,6 @@ function updatePaintColor(color) {
         toolCategory = toolCategoryDefinition.path.type;
       }
       if (toolState.activeTool.type != toolCategory){
-        console.log(color, toolCategory);
         toolState.switchToolType(toolCategory);
       }
 
