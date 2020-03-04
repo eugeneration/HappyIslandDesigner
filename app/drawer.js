@@ -234,19 +234,28 @@ function createObject(objectDefinition, itemData) {
   group.onMouseDown = function(event) {
     var coordinate = mapOverlayLayer.globalToLocal(event.point);
     group.data.prevPosition = group.position;
+    group.data.wasMoved = false;
     group.data.clickPivot = coordinate - group.pivot;
     grabObject(coordinate, group);
   }
   group.onMouseDrag = function(event) {
     var coordinate = mapOverlayLayer.globalToLocal(event.point);
     group.position = (coordinate - group.data.clickPivot).round();
+    if (group.position.getDistance(group.data.prevPosition, true) > 0.1) {
+      group.data.wasMoved = true;
+    }
     dragObject(coordinate, group);
   }
   group.onMouseUp = function(event) {
     var prevPosition = group.data.prevPosition;
     if (!prevPosition) return;
-
     var coordinate = mapOverlayLayer.globalToLocal(event.point);
+
+    // if the object was clicked, not dragged
+    if (!group.data.wasMoved) {
+      console.log('click');
+    }
+
     delete group.data.prevPosition;
     delete group.data.clickPivot;
     if (prevPosition == coordinate.position);
@@ -301,20 +310,21 @@ backgroundRect.onMouseLeave = function(event) {
 }
 
 onMouseDown = function onMouseDown(event) {
-  toolState.onDown(true);
+  toolState.onDown();
   if (toolState.toolIsActive)
     toolState.activeTool.definition.onMouseDown(event);
 }
 onMouseMove = function onMouseMove(event) {
-  if (toolState.toolIsActive)
+  if (toolState.toolIsActive) {
     toolState.activeTool.definition.onMouseMove(event);
+  }
 }
 onMouseDrag = function onMouseDrag(event) {
   if (toolState.toolIsActive)
     toolState.activeTool.definition.onMouseDrag(event);
 }
 onMouseUp = function onMouseUp(event) {
-  toolState.onDown(false);
+  toolState.onUp();
   if (toolState.toolIsActive)
     toolState.activeTool.definition.onMouseUp(event);
 }
@@ -690,18 +700,16 @@ var baseToolCategoryDefinition = {
     this.openMenu(subclass, isSelected);
   },
   onMouseMove: function(subclass, event) {
-    updateCoordinateLabel(event);
   },
   onMouseDown: function(subclass, event) {
-    updateCoordinateLabel(event);
   },
   onMouseDrag: function(subclass, event) {
-    updateCoordinateLabel(event);
   },
   onMouseUp: function(subclass, event) {
   },
   onKeyDown: function(subclass, event) {
-    console.log('base onKeyDown');
+  },
+  enablePreview: function(subclass, isEnabled) {
   },
   openMenu: function(subclass, isSelected) {
     if (subclass.openMenu) {
@@ -739,6 +747,7 @@ var baseToolCategoryDefinition = {
     }
   },
 }
+
 var toolCategoryDefinition = {
   pointer: {
     base: baseToolCategoryDefinition,
@@ -767,6 +776,9 @@ var toolCategoryDefinition = {
       this.base.onMouseUp(this, event);
     },
     onKeyDown: function(event) {console.log('pointer onKeyDown')},
+    enablePreview: function(isEnabled) {
+      this.base.enablePreview(this, isEnabled);
+    },
   },
   terrain: {
     base: baseToolCategoryDefinition,
@@ -787,9 +799,11 @@ var toolCategoryDefinition = {
     },
     onMouseMove: function(event) {
       this.base.onMouseMove(this, event);
+      updateCoordinateLabel(event);
     },
     onMouseDown: function(event) {
       this.base.onMouseDown(this, event);
+      updateCoordinateLabel(event);
       if (Key.isDown('alt')) {
         var rawCoordinate = mapOverlayLayer.globalToLocal(event.point);
         updatePaintColor(getColorAtCoordinate(rawCoordinate));
@@ -798,6 +812,7 @@ var toolCategoryDefinition = {
     },
     onMouseDrag: function(event) {
       this.base.onMouseDrag(this, event);
+      updateCoordinateLabel(event);
       draw(event);
     },
     onMouseUp: function(event) {
@@ -805,6 +820,11 @@ var toolCategoryDefinition = {
       endDraw(event);
     },
     onKeyDown: function(event) {console.log('terrain onKeyDown')},
+    enablePreview: function(isEnabled) {
+      this.base.enablePreview(this, isEnabled);
+      brushOutline.visible = isEnabled;
+      brush.visible = isEnabled;
+    },
     openMenu: function(isSelected) {
       fixedLayer.activate();
       updatePaintColor(this.data.paintColor);
@@ -855,6 +875,9 @@ var toolCategoryDefinition = {
       this.base.onMouseUp(this, event);
     },
     onKeyDown: function(event) {console.log('structures onKeyDown')},
+    enablePreview: function(isEnabled) {
+      this.base.enablePreview(this, isEnabled);
+    },
     openMenu: function(isSelected) {
       this.tools.getAsyncValue(function(definitions) {
         fixedLayer.activate();
@@ -898,9 +921,11 @@ var toolCategoryDefinition = {
     },
     onMouseMove: function(event) {
       this.base.onMouseMove(this, event);
+      updateCoordinateLabel(event);
     },
     onMouseDown: function(event) {
       this.base.onMouseDown(this, event);
+      updateCoordinateLabel(event);
       if (Key.isDown('alt')) {
         var rawCoordinate = mapOverlayLayer.globalToLocal(event.point);
         updatePaintColor(getColorAtCoordinate(rawCoordinate));
@@ -909,6 +934,7 @@ var toolCategoryDefinition = {
     },
     onMouseDrag: function(event) {
       this.base.onMouseDrag(this, event);
+      updateCoordinateLabel(event);
       draw(event);
     },
     onMouseUp: function(event) {
@@ -916,6 +942,11 @@ var toolCategoryDefinition = {
       endDraw(event);
     },
     onKeyDown: function(event) {console.log('terrain onKeyDown')},
+    enablePreview: function(isEnabled) {
+      this.base.enablePreview(this, isEnabled);
+      brushOutline.visible = isEnabled;
+      brush.visible = isEnabled;
+    },
     openMenu: function(isSelected) {
       fixedLayer.activate();
       updatePaintColor(this.data.paintColor);
@@ -957,7 +988,8 @@ Object.keys(toolCategoryDefinition).forEach(function(toolType) {
 var toolState = {
   activeTool: null,
   toolMap: {},
-  
+
+  selected: {},
   isCanvasFocused: false,
   toolIsActive: false,
   isDown: false,
@@ -987,16 +1019,30 @@ var toolState = {
     if (prevTool) prevTool.definition.updateTool(prevTool, toolData);
     else if (toolData) toolData.definition.updateTool(prevTool, toolData);
   },
+  selectObject: function(object) {
+    selected[object.data.id] = object;
+  },
+  deselectObject: function(object) {
+    delete selected[object.data.id];
+  },
   onDown: function(isDown) {
-    this.isDown = isDown;
-    if (!this.isDown) {
+    // deactivate the tool when something is selected or dragging an object
+    this.isDown = true;
+  },
+  onUp: function() {
+    this.isDown = false;
+    if (this.toolIsActive != this.isCanvasFocused) {
       this.toolIsActive = this.isCanvasFocused;
+      if (this.activeTool) this.activeTool.definition.enablePreview(this.toolIsActive);
     }
   },
   focusOnCanvas: function(isFocused) {
     this.isCanvasFocused = isFocused;
     if (!this.isDown) {
-      this.toolIsActive = this.isCanvasFocused;
+      if (this.toolIsActive != this.isCanvasFocused) {
+        this.toolIsActive = this.isCanvasFocused;
+        if (this.activeTool) this.activeTool.definition.enablePreview(this.toolIsActive);
+      }
     }
   }
 };
