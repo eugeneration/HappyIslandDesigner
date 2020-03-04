@@ -224,12 +224,29 @@ function createObject(objectDefinition, itemData) {
   group.pivot = bound.bounds.topLeft;
 
   group.data = itemData;
-
+  group.state = {
+    selected: false,
+    focused: false,
+  };
+  group.onDelete = function() {
+    var command = objectDeleteCommand(group.data, group.position);
+    applyCommand(command, true);
+    addToHistory(command);
+  };
+  group.onSelect = function(isSelected) {
+    if (group.state.selected != isSelected) {
+      group.state.selected = isSelected;
+      bound.strokeColor = isSelected ? colors.selected : 'white';
+      bound.strokeColor.alpha = group.state.focused ? 1 : 0;
+    }
+  }
   group.onMouseEnter = function(event) {
+    group.state.focused = true;
     bound.strokeColor.alpha = 1;
   }
   group.onMouseLeave = function(event) {
-    bound.strokeColor.alpha = 0;
+    group.state.focused = false;
+    bound.strokeColor.alpha = group.state.selected ? 1 : 0;
   }
   group.onMouseDown = function(event) {
     var coordinate = mapOverlayLayer.globalToLocal(event.point);
@@ -253,7 +270,7 @@ function createObject(objectDefinition, itemData) {
 
     // if the object was clicked, not dragged
     if (!group.data.wasMoved) {
-      console.log('click');
+      toolState.selectObject(this);
     }
 
     delete group.data.prevPosition;
@@ -310,7 +327,7 @@ backgroundRect.onMouseLeave = function(event) {
 }
 
 onMouseDown = function onMouseDown(event) {
-  toolState.onDown();
+  toolState.onDown(event);
   if (toolState.toolIsActive)
     toolState.activeTool.definition.onMouseDown(event);
 }
@@ -324,7 +341,7 @@ onMouseDrag = function onMouseDrag(event) {
     toolState.activeTool.definition.onMouseDrag(event);
 }
 onMouseUp = function onMouseUp(event) {
-  toolState.onUp();
+  toolState.onUp(event);
   if (toolState.toolIsActive)
     toolState.activeTool.definition.onMouseUp(event);
 }
@@ -775,7 +792,9 @@ var toolCategoryDefinition = {
     onMouseUp: function(event) {
       this.base.onMouseUp(this, event);
     },
-    onKeyDown: function(event) {console.log('pointer onKeyDown')},
+    onKeyDown: function(event) {
+      this.base.onKeyDown(this, event);
+    },
     enablePreview: function(isEnabled) {
       this.base.enablePreview(this, isEnabled);
     },
@@ -817,9 +836,12 @@ var toolCategoryDefinition = {
     },
     onMouseUp: function(event) {
       this.base.onMouseUp(this, event);
+      updateCoordinateLabel(event);
       endDraw(event);
     },
-    onKeyDown: function(event) {console.log('terrain onKeyDown')},
+    onKeyDown: function(event) {
+      this.base.onKeyDown(this, event);
+    },
     enablePreview: function(isEnabled) {
       this.base.enablePreview(this, isEnabled);
       brushOutline.visible = isEnabled;
@@ -874,7 +896,9 @@ var toolCategoryDefinition = {
     onMouseUp: function(event) {
       this.base.onMouseUp(this, event);
     },
-    onKeyDown: function(event) {console.log('structures onKeyDown')},
+    onKeyDown: function(event) {
+      this.base.onKeyDown(this, event);
+    },
     enablePreview: function(isEnabled) {
       this.base.enablePreview(this, isEnabled);
     },
@@ -939,9 +963,12 @@ var toolCategoryDefinition = {
     },
     onMouseUp: function(event) {
       this.base.onMouseUp(this, event);
+      updateCoordinateLabel(event);
       endDraw(event);
     },
-    onKeyDown: function(event) {console.log('terrain onKeyDown')},
+    onKeyDown: function(event) {
+      this.base.onKeyDown(this, event);
+    },
     enablePreview: function(isEnabled) {
       this.base.enablePreview(this, isEnabled);
       brushOutline.visible = isEnabled;
@@ -990,6 +1017,7 @@ var toolState = {
   toolMap: {},
 
   selected: {},
+  isSomethingSelected: function() {return Object.keys(this.selected).length > 0},
   isCanvasFocused: false,
   toolIsActive: false,
   isDown: false,
@@ -1019,29 +1047,61 @@ var toolState = {
     if (prevTool) prevTool.definition.updateTool(prevTool, toolData);
     else if (toolData) toolData.definition.updateTool(prevTool, toolData);
   },
+  deleteSelection: function() {
+    Object.keys(this.selected).forEach(function(objectId) {
+      var object = this.selected[objectId];
+      object.onDelete();
+    }.bind(this));
+    this.deselectAll();
+  },
   selectObject: function(object) {
-    selected[object.data.id] = object;
+    this.deselectAll();
+    this.selected[object.data.id] = object;
+    object.onSelect(true);
   },
   deselectObject: function(object) {
-    delete selected[object.data.id];
+    delete this.selected[object.data.id];
+    object.onSelect(false);
   },
-  onDown: function(isDown) {
+  deselectAll: function() {
+    Object.keys(this.selected).forEach(function(objectId) {
+      var object = this.selected[objectId];
+      object.onSelect(false);
+    }.bind(this));
+    this.selected = {};
+  },
+  onDown: function(event) {
     // deactivate the tool when something is selected or dragging an object
     this.isDown = true;
   },
-  onUp: function() {
+  onUp: function(event) {
     this.isDown = false;
-    if (this.toolIsActive != this.isCanvasFocused) {
-      this.toolIsActive = this.isCanvasFocused;
-      if (this.activeTool) this.activeTool.definition.enablePreview(this.toolIsActive);
+
+    // if we didn't click on one of the selected objects, deselect them
+    var clickedOnSelected = false;
+    Object.keys(this.selected).forEach(function(objectId) {
+      var object = this.selected[objectId];
+      if (object.contains(mapOverlayLayer.globalToLocal(event.point))) {
+        clickedOnSelected = true;
+      }
+    }.bind(this));
+    if (!clickedOnSelected) {
+      this.deselectAll();
+    }
+
+    var isActive = this.isCanvasFocused && !this.isSomethingSelected();
+    if (this.toolIsActive != isActive) {
+      this.toolIsActive = isActive;
+      if (this.activeTool) this.activeTool.definition.enablePreview(isActive);
     }
   },
   focusOnCanvas: function(isFocused) {
     this.isCanvasFocused = isFocused;
     if (!this.isDown) {
-      if (this.toolIsActive != this.isCanvasFocused) {
-        this.toolIsActive = this.isCanvasFocused;
-        if (this.activeTool) this.activeTool.definition.enablePreview(this.toolIsActive);
+      var isActive = this.isCanvasFocused && !this.isSomethingSelected();
+      if (this.toolIsActive != isActive) {
+        this.toolIsActive = isActive;
+        if (this.activeTool) this.activeTool.definition.enablePreview(isActive);
       }
     }
   }
@@ -1216,6 +1276,10 @@ function onKeyDown(event) {
       break;
     case 'm':
       toolState.switchToolType(toolCategoryDefinition.path.type);
+      break;
+    case 'backspace':
+    case 'delete':
+      toolState.deleteSelection();
       break;
     case '\\':
       toggleGrid();
@@ -1393,7 +1457,6 @@ function draw(event) {
 function endDraw(event) {
   switch (paintTool) {
     case paintTools.grid:
-        drawGrid(event.point);
         endDrawGrid(event.point);
         stopGridLinePreview();
       break;
@@ -1871,7 +1934,7 @@ function redo() {
 
 function applyCommand(command, isApply) {
   if (isApply == null) {
-    console.logError('applyCommand called without an apply direction');
+    throw 'exception: applyCommand called without an apply direction';
   }
   // if (draw command)
   switch(command.type) {
