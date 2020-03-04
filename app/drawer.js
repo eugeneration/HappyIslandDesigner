@@ -28,8 +28,10 @@ var colors = {
 
   human: '#F078B0',
   npc: '#FABD25',
-
   selected: '#EA822F',
+
+  selection: '#50EEFF',
+
   pin: '#E85A31',
   paper: '#fefae4',
 }
@@ -224,8 +226,8 @@ function createObject(objectDefinition, itemData) {
   var bound = new Path.Rectangle(new Rectangle(item.position, objectDefinition.size), .15);
   bound.strokeColor = 'white';
   bound.strokeColor.alpha = 0;
-  bound.strokeWidth = 0.15;
-  bound.fillColor = colors.selected;
+  bound.strokeWidth = 0.1;
+  bound.fillColor = 'white';
   bound.fillColor.alpha = 0.0001;
   group.addChildren([item, bound]);
   group.pivot = bound.bounds.topLeft;
@@ -243,19 +245,21 @@ function createObject(objectDefinition, itemData) {
   group.onSelect = function(isSelected) {
     if (group.state.selected != isSelected) {
       group.state.selected = isSelected;
-      bound.strokeColor = isSelected ? colors.selected : 'white';
+      bound.strokeWidth = isSelected ? 0.2 : 0.1;
+      bound.strokeColor = isSelected ? colors.selection : 'white';
       bound.strokeColor.alpha = group.state.focused ? 1 : 0;
     }
   }
   group.onMouseEnter = function(event) {
     group.state.focused = true;
-    bound.strokeColor.alpha = 1;
+    bound.strokeColor.alpha = group.state.selected ? 1 : 0.6;
   }
   group.onMouseLeave = function(event) {
     group.state.focused = false;
     bound.strokeColor.alpha = group.state.selected ? 1 : 0;
   }
   group.onMouseDown = function(event) {
+    bound.strokeColor.alpha = 1;
     var coordinate = mapOverlayLayer.globalToLocal(event.point);
     group.data.prevPosition = group.position;
     group.data.wasMoved = false;
@@ -271,6 +275,7 @@ function createObject(objectDefinition, itemData) {
     dragObject(coordinate, group);
   }
   group.onMouseUp = function(event) {
+    bound.strokeColor.alpha = group.state.selected ? 1 : 0.6;
     var prevPosition = group.data.prevPosition;
     if (!prevPosition) return;
     var coordinate = mapOverlayLayer.globalToLocal(event.point);
@@ -1081,9 +1086,6 @@ var toolState = {
   onDown: function(event) {
     // deactivate the tool when something is selected or dragging an object
     this.isDown = true;
-  },
-  onUp: function(event) {
-    this.isDown = false;
 
     // if we didn't click on one of the selected objects, deselect them
     var clickedOnSelected = false;
@@ -1096,6 +1098,9 @@ var toolState = {
     if (!clickedOnSelected) {
       this.deselectAll();
     }
+  },
+  onUp: function(event) {
+    this.isDown = false;
 
     var isActive = this.isCanvasFocused && !this.isSomethingSelected();
     if (this.toolIsActive != isActive) {
