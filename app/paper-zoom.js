@@ -1,7 +1,7 @@
 // ===============================================
 // GLOBAL FUNCTIONS
 
-var factor = 1.01;
+var factor = 1.02;
 var _minZoom;
 var _maxZoom;
 var mouseNativeStart;
@@ -9,11 +9,14 @@ var viewCenterStart;
 
 $(view.element).mousewheel(function(event) {
   var mousePosition = new Point(event.offsetX, event.offsetY);
-  if (event.shiftKey) {
+
+  if (event.shiftKey || event.ctrlKey) {
+    if (event.ctrlKey) event.deltaY *= 6;
     changeZoomCentered(event.deltaY * event.deltaFactor, mousePosition);
   } else {
     changeCenterPosition(event.deltaX, event.deltaY, event.deltaFactor);
   }
+  event.preventDefault();
 });
 
 //function onResize(event) {
