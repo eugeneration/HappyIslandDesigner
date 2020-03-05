@@ -14,38 +14,106 @@ mapIconLayer.pivot = new Point(0, 0);
 mapOverlayLayer.applyMatrix = false;
 mapOverlayLayer.pivot = new Point(0, 0);
 
+// if you want to rename a color, you must add a name parameter with the old name
+// otherwise backwards compatibility for encoding/decoding will break
 var colors = {
-  eraser: '#f1b2c1', // this is not actually drawn - just erases
-  water: '#7cd5c4',
-  sand: '#f0e5a6',
-  level1: '#42753e',
-  level2: '#4ca14e',
-  level3: '#62c360',
-  rock: '#717488',
+  // terrain colors
+  water: {color:'#83e1c3'},
+  sand: {color:'#eee9a9'},
+  level1: {color:'#498344'},
+  level2: {color:'#49b243'},
+  level3: {color:'#6bdd52'},
+  rock: {color:'#737a89'},
+  campground: {color:'#b0a280'},
 
-  path: '#d99666',
-  pathEraser: '#f1b2c1',
+  // paths
+  pathDirt: {color:'#d99666'},
+  pathEraser: {color:'#f1b2c1'},
 
-  amenity: '#717488',
-  special: '#ffffff',
-  human: '#F078B0',
-  npc: '#FABD25',
-  selected: '#EA822F',
+  // structures
+  special: {color:'#ffffff'},
+  dock: {color:'#a9926e'},
+  amenity: {color:'#514d40'},
+  amenityWhite: {color:'#efedd5'},
+  human: {color:'#F078B0'},
+  npc: {color:'#f8bd26'},
+  selected: {color:'#ed772f'},
+  pin: {color:'#e75a2e'},
 
-  selection: '#50EEFF',
+  // Map drawer UI
+  selection: {color:'#50EEFF'},
 
-  pin: '#E85A31',
-  paper: '#fefae4',
+  // UI
+  white: {color:'#f9f7ed'},
+  paper: {color:'#f5f3e5'}, // general white
+
+  // colors from nookPhone (colors are hued towards red/yellow)
+  purple: "be84f0",
+  blue: "8c97ec",
+  lightBlue: "b4bdfd",
+  orange: "df8670",
+  magenta: "f550ab",
+  pink: "f09eb3",
+  cyan: "63d5bf",
+  turquoise: "86e0bb",
+  green: "8dd08a",
+  red: "ee666e",
+  offBlack: "4b3b32",
+  offWhite: "f6f2e0",
+  lightText: "dcd8ca",
+  text: "726a5a",
+  yellow: "f5d830",
+
+  // generic colors
+  firetruck: {color:'#ef3c1d'},
+  flamingo: {color:'#f8ad82'},
+  brick: {color:'#ab4f46'},
+
+  safetyOrange: {color:'#f56745'},
+  lifeguardOrange: {color:'#f59447'},
+
+  frogYellow: {color:'#f7d00e'},
+  lightBannerYellow: {color:'#fdf252'},
+  darkBannerYellow: {color:'#c7b451'},
+
+  tentGreen: {color:'#22b759'},
+  darkBlueGreen: {color:'#11a972'},
+  lightGreen: {color:'#5aeb89'},
+  jaybird: {color:'#42bbf3'},
+
+  darkGreyBlue: {color:'#7c8da6'},
+  lightGreyBlue: {color:'#9cbbce'},
+
+  // Water UI
+  oceanPanel: {color:'#39ba9c'}, // game trailer had this color panel
+  oceanPanelDark: {color:'39ba9c'},
+  oceanText: {color:'#57b499'}, // text on ocean
+  oceanDarker: {color:'#77d6bd'}, // dark overlay 
+  oceanDark: {color:'#70cfb6'}, // dark overlay
+  oceanLighter: {color:'#d7fef1'}, // light overlay 
+  oceanLight: {color:'#a3f8dd'}, // light overlay
+  oceanWave: {color:'#63d4b2'},
+}
+Object.keys(colors).forEach(function(colorKey) {
+  var colorData = colors[colorKey];
+  if (!colorData.name) { // if it has a custom encoded name, make sure to use that
+    colorData.name = colorKey
+  }
+  colorData.key = colorKey;
+});
+
+function getColorDataFromEncodedName(encodedColorName) {
+  return Object.values(colors).find(function(c) {return c.name == encodedColorName});
 }
 
 var pathDefinition = {};
-pathDefinition[colors.path] = {
+pathDefinition[colors.pathDirt.key] = {
   priority: 100,
-  addLayers: [colors.path],
-  requireLayer: colors.sand, // sand is always drawn below everything else
+  addLayers: [colors.pathDirt.key],
+  requireLayer: colors.sand.key, // sand is always drawn below everything else
 }
-pathDefinition[colors.pathEraser] = {
-  cutLayers: [colors.path],
+pathDefinition[colors.pathEraser.key] = {
+  cutLayers: [colors.pathDirt.key],
 }
 
 var layerDefinition = {};
@@ -55,46 +123,46 @@ var layerDefinition = {};
 //  cutLayers: [colors.rock],
 //  limit: true,
 //};
-layerDefinition[colors.level3] = {
+layerDefinition[colors.level3.key] = {
   priority: 50,
   elevation: 40,
-  addLayers: [colors.sand, colors.level1, colors.level2, colors.level3],
-  cutLayers: [colors.rock, colors.water],
+  addLayers: [colors.sand.key, colors.level1.key, colors.level2.key, colors.level3.key],
+  cutLayers: [colors.rock.key, colors.water.key],
 };
-layerDefinition[colors.level2] = {
+layerDefinition[colors.level2.key] = {
   priority: 40,
   elevation: 30,
-  addLayers: [colors.sand, colors.level1, colors.level2],
-  cutLayers: [colors.rock, colors.level3, colors.water],
+  addLayers: [colors.sand.key, colors.level1.key, colors.level2.key],
+  cutLayers: [colors.rock.key, colors.level3.key, colors.water.key],
 };
-layerDefinition[colors.level1] = {
+layerDefinition[colors.level1.key] = {
   priority: 30,
   elevation: 20,
-  addLayers: [colors.sand, colors.level1],
-  cutLayers: [colors.rock, colors.level2, colors.level3, colors.water],
+  addLayers: [colors.sand.key, colors.level1.key],
+  cutLayers: [colors.rock.key, colors.level2.key, colors.level3.key, colors.water.key],
 };
-layerDefinition[colors.rock] = {
+layerDefinition[colors.rock.key] = {
   priority: 20,
   elevation: 5,
-  addLayers: [colors.rock, colors.sand],
-  cutLayers: [colors.level1, colors.level2, colors.level3, colors.water],
+  addLayers: [colors.rock.key, colors.sand.key],
+  cutLayers: [colors.level1.key, colors.level2.key, colors.level3.key, colors.water.key],
 };
-layerDefinition[colors.sand] = {
+layerDefinition[colors.sand.key] = {
   priority: 10,
   elevation: 10,
-  addLayers: [colors.sand],
-  cutLayers: [colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
+  addLayers: [colors.sand.key],
+  cutLayers: [colors.rock.key, colors.level1.key, colors.level2.key, colors.level3.key, colors.water.key],
 };
-layerDefinition[colors.water] = {
+layerDefinition[colors.water.key] = {
   priority: 0,
   elevation: 0,
   addLayers: [],
-  cutLayers: [colors.sand, colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
+  cutLayers: [colors.sand.key, colors.rock.key, colors.level1.key, colors.level2.key, colors.level3.key, colors.water.key],
 };
-//layerDefinition[colors.eraser] = {
+//layerDefinition[colors.eraser.key] = {
 //  elevation: 0,
 //  addLayers: [],
-//  cutLayers: [colors.sand, colors.rock, colors.level1, colors.level2, colors.level3, colors.water],
+//  cutLayers: [colors.sand.key, colors.rock.key, colors.level1.key, colors.level2.key, colors.level3.key, colors.water.key],
 //};
 
 // load assets
@@ -131,7 +199,7 @@ function createMenu(items, spacing) {
   var iconMenu = new Group();
 
   var backing = new Path();
-  backing.strokeColor = colors.paper;
+  backing.strokeColor = colors.paper.color;
   backing.strokeWidth = 60;
   backing.strokeCap = 'round';
   backing.segments = [
@@ -140,7 +208,7 @@ function createMenu(items, spacing) {
   ];
 
   var triangle = new Path.RegularPolygon(new Point(0, 0), 3, 14);
-  triangle.fillColor = colors.paper;
+  triangle.fillColor = colors.paper.color;
   triangle.rotate(-90);
   triangle.scale(0.5, 1)
   triangle.position -= new Point(30 + 3.5, 0);
@@ -175,17 +243,19 @@ function encodeObject(object) {
     id: object.data.id,
     category: object.data.category,
     type: object.data.type,
-    color: object.data.color,
+    color: object.data.colorData.name,
   };
 }
 
 function decodeObject(encodedData) {
   var position = new Point(encodedData.position);
+  // encode the color name separately from the key so we are able to refactor the code
+  var colorData = getColorDataFromEncodedName(encodedData.color);
   var objectData = {
     id: encodedData.id,
     category: encodedData.category,
     type: encodedData.type,
-    color: encodedData.color,
+    colorData: colorData,
   };
   applyCommand(objectCreateCommand(objectData, position), true);
   return {
@@ -193,7 +263,7 @@ function decodeObject(encodedData) {
     id: encodedData.id,
     category: encodedData.category,
     type: encodedData.type,
-    color: encodedData.color,
+    colorData: colorData,
   };
 }
 
@@ -202,7 +272,7 @@ function getObjectData(objectDefinition) {
     id: Date.now(),
     category: objectDefinition.category,
     type: objectDefinition.type,
-    color: objectDefinition.color,
+    colorData: objectDefinition.colorData,
   };
 }
 
@@ -221,7 +291,7 @@ function createObject(objectDefinition, itemData) {
   item.pivot = item.bounds.bottomCenter;
   item.pivot += objectDefinition.offset;
   item.position = new Point(0, 0);
-  item.fillColor = itemData.color;
+  item.fillColor = itemData.colorData.color;
 
   var group = new Group();
 
@@ -248,7 +318,7 @@ function createObject(objectDefinition, itemData) {
     if (group.state.selected != isSelected) {
       group.state.selected = isSelected;
       bound.strokeWidth = isSelected ? 0.2 : 0.1;
-      bound.strokeColor = isSelected ? colors.selection : 'white';
+      bound.strokeColor = isSelected ? colors.selection.color : 'white';
       bound.strokeColor.alpha = group.state.focused ? 1 : 0;
     }
   }
@@ -332,7 +402,7 @@ mapLayer.activate();
 
  backgroundLayer.activate();
 var backgroundRect = new Path();
-backgroundRect.fillColor = colors.water;
+backgroundRect.fillColor = colors.water.color;
 backgroundRect.onMouseEnter = function(event) {
   toolState.focusOnCanvas(true);
 }
@@ -450,7 +520,7 @@ function saveMapToFile() {
   var mapBoundsClippingMask = new Path.Rectangle(mapBounds);
 
   var background = mapBoundsClippingMask.clone();
-  background.fillColor = colors.water;
+  background.fillColor = colors.water.color;
 
   mapBoundsClippingMask.clipMask = true;
 
@@ -550,7 +620,7 @@ function createButton(item, buttonSize, onClick) {
   var group = new Group();
 
   var button = new Path.Circle(0, 0, buttonSize);
-  button.fillColor = colors.sand;
+  button.fillColor = colors.sand.color;
   button.fillColor.alpha = 0.0001;
 
   group.applyMatrix = false;
@@ -561,7 +631,7 @@ function createButton(item, buttonSize, onClick) {
     hovered: false,
     select: function(isSelected) {
       group.data.selected = isSelected;
-      button.fillColor = isSelected ? colors.npc : colors.sand;
+      button.fillColor = isSelected ? colors.npc.color : colors.sand.color;
       button.fillColor.alpha = isSelected ? 1 : 0.0001;
     },
     hover: function(isHover) {
@@ -588,7 +658,7 @@ function createButton(item, buttonSize, onClick) {
 fixedLayer.activate();
 
 //var menuButton = new Path();
-//menuButton.strokeColor = colors.selected;
+//menuButton.strokeColor = colors.selected.color;
 ////menuButton.strokeColor *= 0.9;
 //menuButton.strokeWidth = 120;
 //menuButton.strokeCap = 'round';
@@ -600,19 +670,19 @@ fixedLayer.activate();
 
 var mainMenu = new Path();
 var saveButton = new Path.Circle(120, 50, 30);
-saveButton.fillColor = colors.paper;
+saveButton.fillColor = colors.paper.color;
 saveButton.onMouseDown = function() {
   saveMapToFile();
 };
 
 var loadButton = new Path.Circle(200, 50, 30);
-loadButton.fillColor = colors.paper;
+loadButton.fillColor = colors.paper.color;
 loadButton.onMouseDown = function() {
   loadMapFromFile();
 };
 
 var newButton = new Path.Circle(280, 50, 30);
-newButton.fillColor = colors.paper;
+newButton.fillColor = colors.paper.color;
 newButton.onMouseDown = function() {
   var r = confirm("Clear your map? You will lose all unsaved changes.");
   if (r == true) {
@@ -621,7 +691,7 @@ newButton.onMouseDown = function() {
 };
 
 var leftToolMenu = new Path();
-leftToolMenu.strokeColor = colors.paper;
+leftToolMenu.strokeColor = colors.paper.color;
 leftToolMenu.strokeWidth = 120;
 leftToolMenu.strokeCap = 'round';
 leftToolMenu.segments = [
@@ -673,7 +743,7 @@ asyncAmenitiesDefinition.value = {
   dock: {},
   airport: {},
   lighthouse: {
-    color: colors.pin,
+    colorData: colors.pin,
     size: new Size([2, 2]),
     offset: new Point(-1, -1.6),
   },
@@ -682,7 +752,7 @@ Object.keys(asyncAmenitiesDefinition.value).forEach(function(type) {
   var def = asyncAmenitiesDefinition.value[type];
   def.category = 'amenities';
   def.type = type;
-  def.color = def.color || colors.amenity;
+  def.colorData = def.colorData || colors.amenity;
   def.scaling = def.scaling || new Point(.03, .03);
   def.menuScaling = def.menuScaling || new Point(.3, .3);
   def.size = def.size || new Size([4, 4]);
@@ -720,7 +790,7 @@ Object.keys(asyncStructureDefinition.value).forEach(function(structureType) {
     || structureType == 'palm'
     || structureType == 'pine') {
     var isBush = structureType == 'bush';
-    def.color = colors.level3;
+    def.colorData = colors.level3;
     def.scaling = new Point(.03, .03);
     def.menuScaling = new Point(.6, .6);
     def.size = new Size([isBush ? 1 : 2, 1]);
@@ -733,7 +803,7 @@ Object.keys(asyncStructureDefinition.value).forEach(function(structureType) {
       asyncStructureDefinition.onLoad();
     });
   } else {
-    def.color = colors.npc;
+    def.colorData = colors.npc;
     def.scaling = new Point(.03, .03);
     def.menuScaling = new Point(.3, .3);
     def.size = new Size(4, 4);
@@ -856,7 +926,7 @@ var toolCategoryDefinition = {
 
     },
     data: {
-      paintColor: colors.level1,
+      paintColorData: colors.level1,
     },
     onSelect: function(isSelected) {
       this.base.onSelect(this, isSelected);
@@ -894,15 +964,16 @@ var toolCategoryDefinition = {
     },
     openMenu: function(isSelected) {
       fixedLayer.activate();
-      updatePaintColor(this.data.paintColor);
+      updatePaintColor(this.data.paintColorData);
       this.base.iconMenu = createMenu(
-        objectMap(layerDefinition, function(definition, color) {
+        objectMap(layerDefinition, function(definition, colorKey) {
+          var colorData = colors[colorKey];
           var paintCircle = new Path.Circle(new Point(0, 0), 16);
-          paintCircle.fillColor = color;
+          paintCircle.fillColor = colorData.color;
           paintCircle.locked = true;
           return createButton(paintCircle, 20, function(button) {
-            updatePaintColor(color);
-            this.data.paintColor = color;
+            updatePaintColor(colorData);
+            this.data.paintColorData = colorData;
           }.bind(this));
         }.bind(this)),
         45 // menu spacing
@@ -911,7 +982,7 @@ var toolCategoryDefinition = {
       this.base.iconMenu.pivot = new Point(0, 0);
       this.base.iconMenu.position = new Point(100, 120);
       // this is a little messy
-      this.base.iconMenu.data.update(paintColor);
+      this.base.iconMenu.data.update(this.data.paintColorData.key);
     },
   },
   path: {
@@ -926,7 +997,7 @@ var toolCategoryDefinition = {
 
     },
     data: {
-      paintColor: colors.path,
+      paintColorData: colors.pathDirt,
     },
     onSelect: function(isSelected) {
       this.base.onSelect(this, isSelected);
@@ -964,15 +1035,16 @@ var toolCategoryDefinition = {
     },
     openMenu: function(isSelected) {
       fixedLayer.activate();
-      updatePaintColor(this.data.paintColor);
+      updatePaintColor(this.data.paintColorData);
       var pathColorButtons =
-        objectMap(pathDefinition, function(definition, color) {
+        objectMap(pathDefinition, function(definition, colorKey) {
+          var colorData = colors[colorKey];
           var paintCircle = new Path.Circle(new Point(0, 0), 16);
-          paintCircle.fillColor = color;
+          paintCircle.fillColor = colorData.color;
           paintCircle.locked = true;
           return createButton(paintCircle, 20, function(button) {
-            updatePaintColor(color);
-            this.data.paintColor = color; 
+            updatePaintColor(colorData);
+            this.data.paintColorData = colorData;
           }.bind(this));
         }.bind(this))
       this.base.iconMenu = createMenu(pathColorButtons, 45);
@@ -980,7 +1052,7 @@ var toolCategoryDefinition = {
       this.base.iconMenu.pivot = new Point(0, 0);
       this.base.iconMenu.position = new Point(100, 195);
       // this is a little messy
-      this.base.iconMenu.data.update(paintColor);
+      this.base.iconMenu.data.update(this.data.paintColorData.key);
     },
   },
   structures: {
@@ -1024,7 +1096,7 @@ var toolCategoryDefinition = {
           objectMap(definitions, function(def, name) {
             var icon = def.icon.clone();
             icon.scaling = def.menuScaling;
-            icon.fillColor = def.color;
+            icon.fillColor = def.colorData.color;
             return createButton(icon, 20, function(button) {
               toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
             });
@@ -1079,7 +1151,7 @@ var toolCategoryDefinition = {
           objectMap(definitions, function(def, name) {
             var icon = def.icon.clone();
             icon.scaling = def.menuScaling;
-            icon.fillColor = def.color;
+            icon.fillColor = def.colorData.color;
             return createButton(icon, 20, function(button) {
               toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
             });
@@ -1265,9 +1337,9 @@ leftToolMenuPosition.y += 60;
 //}
 
 var paintColor = colors.level1;
-function updatePaintColor(color) {
-  paintColor = color;
-  brush.fillColor = color;
+function updatePaintColor(colorData) {
+  paintColor = colorData;
+  brush.fillColor = colorData.color;
   //activeColor.fillColor = paintColor;
 
   // todo: separate viewfrom logic
@@ -1277,16 +1349,16 @@ function updatePaintColor(color) {
     if (toolState.activeTool.definition.base.iconMenu) {
 
       var toolCategory;
-      if (layerDefinition[color]) {
+      if (layerDefinition[colorData.key]) {
         toolCategory = toolCategoryDefinition.terrain.type;
-      } else if (pathDefinition[color]) {
+      } else if (pathDefinition[colorData.key]) {
         toolCategory = toolCategoryDefinition.path.type;
       }
       if (toolState.activeTool.type != toolCategory){
         toolState.switchToolType(toolCategory);
       }
 
-      toolState.activeTool.definition.base.iconMenu.data.update(color);
+      toolState.activeTool.definition.base.iconMenu.data.update(colorData.key);
     }
   }
 }
@@ -1412,8 +1484,7 @@ function onKeyDown(event) {
 //      tracemap.opacity = Math.max(0, tracemap.opacity -0.2);
 //      break;
     case 'k':
-      Object.keys(state.drawing).forEach(function(color) {
-        var path = state.drawing[color];
+      Object.values(state.drawing).forEach(function(path) {
         path.selected = !path.selected;
       });
       break;
@@ -1438,54 +1509,69 @@ function encodePoint(p) {
 }
 
 function encodeMap() {
+
+  // colors translated from keys => encoded name
+  var encodedDrawing = {};
+  Object.keys(state.drawing).forEach(function(colorKey) {
+    var pathItem = state.drawing[colorKey];
+    var p;
+    if (pathItem.children) {
+      p = pathItem.children.map(function(path) {
+        return path._segments.map(function(s) {
+          return encodePoint(s._point);
+        })
+      });
+    } else {
+      p = pathItem.segments.map(function(s) {
+        return encodePoint(s._point);
+      });
+    }
+    var encodedColorName = colors[colorKey].name;
+    encodedDrawing[encodedColorName] = p;
+  });
+
   var o = {
     version: 0,
     objects: objectMap(state.objects, function(object) {
       return encodeObject(object);
     }),
-    drawing: objectMap(state.drawing, function(pathItem) {
-      var p;
-      if (pathItem.children) {
-        p = pathItem.children.map(function(path) {
-          return path._segments.map(function(s) {
-            return encodePoint(s._point);
-          })
-        });
-      } else {
-        p = pathItem.segments.map(function(s) {
-          return encodePoint(s._point);
-        });
-      }
-      return p;
-    }),
+    drawing: encodedDrawing,
   }
   return JSON.stringify(o);
 }
 
 function decodeMap(json) {
   mapLayer.activate();
+
+  // colors translated from encoded name => keys
+  var decodedDrawing = {};
+  Object.keys(json.drawing).forEach(function(colorName) {
+    var colorData = getColorDataFromEncodedName(colorName);
+    var pathData = json.drawing[colorName];
+
+    // if array of arrays, make compound path
+    var p;
+    if (pathData.length == 0) {
+      p = new Path();
+    }
+    else if (typeof pathData[0][0] == 'number') {
+      // normal path
+      p = new Path(pathData.map(function(p) {return new Point(p);}));
+    } else {
+      p = new CompoundPath({
+        children: pathData.map(function(pathData) {
+          return new Path(pathData.map(function(p) {return new Point(p);}));
+        }),
+      });
+    }
+    p.locked = true;
+    p.fillColor = colorData.color;
+    decodedDrawing[colorData.key] = p;
+  });
+
   return {
     version: json.version,
-    drawing: objectMap(json.drawing, function(colorData, color) {
-      // if array of arrays, make compound path
-      var p;
-      if (colorData.length == 0) {
-        p = new Path();
-      }
-      else if (typeof colorData[0][0] == 'number') {
-        // normal path
-        p = new Path(colorData.map(function(p) {return new Point(p);}));
-      } else {
-        p = new CompoundPath({
-          children: colorData.map(function(pathData) {
-            return new Path(pathData.map(function(p) {return new Point(p);}));
-          }),
-        });
-      }
-      p.locked = true;
-      p.fillColor = color;
-      return p;
-    }),
+    drawing: decodedDrawing,
     objects: objectMap(json.objects, function(encodedData) {
       return decodeObject(encodedData);
     }),
@@ -1515,7 +1601,7 @@ function startDraw(event) {
       break;
     case paintTools.freeform:
       myPath = new Path();
-      myPath.strokeColor = paintColor;
+      myPath.strokeColor = paintColor.color;
       myPath.strokeWidth = 10;
       break;
   }
@@ -1602,7 +1688,7 @@ function applyCreateObject(isCreate, createCommand) {
   }
 }
 
-function updateObjectColor(object, color) {
+function updateObjectColor(object, colorData) {
 
 }
 
@@ -1837,7 +1923,7 @@ function updateBrush() {
   brush.position = getBrushCenteredCoordinate(prevPos);
   brush.opacity = 0.6;
   brush.closed = true;
-  brush.fillColor = paintColor;
+  brush.fillColor = paintColor.color;
   brush.locked = true;
 
   brushOutline.segments = brushSegments;
@@ -2007,8 +2093,8 @@ function setNewMapData(mapData) {
 }
 
 function smoothMap() {
-  Object.keys(state.drawing).forEach(function(color) {
-    state.drawing[color].smooth({ type: 'catmull-rom', factor: 0.9 });
+  Object.values(state.drawing).forEach(function(path) {
+    path.smooth({ type: 'catmull-rom', factor: 0.9 });
   });
 }
 
@@ -2112,22 +2198,22 @@ function getColorAtCoordinate(coordinate) {
       var bestColor = colors.water;
 
       var bestPriority = 0;
-      Object.keys(state.drawing).forEach(function(color) {
+      Object.keys(state.drawing).forEach(function(colorKey) {
         var toolCategory;
 
-        var definition = layerDefinition[color] || pathDefinition[color];
+        var definition = layerDefinition[colorKey] || pathDefinition[colorKey];
         if (!definition) {
           console.log('Unknown color in drawing!');
           return;
         }
         var priority = definition && definition.priority || 0;
 
-        var layer = state.drawing[color];
+        var layer = state.drawing[colorKey];
         if (layer) {
           if (layer.contains(coordinate)) {
             if (priority > bestPriority) {
               bestPriority = priority;
-              bestColor = color;
+              bestColor = colors[colorKey];
             }
           }
         }
@@ -2331,7 +2417,7 @@ function drawGridLinePreview(viewPosition) {
   if (drawPreview) {
     drawPreview.locked = true;
     drawPreview.opacity = 0.6;
-    drawPreview.fillColor = paintColor;
+    drawPreview.fillColor = paintColor.color;
   }
 }
 
@@ -2358,16 +2444,16 @@ function drawGrid(viewPosition) {
     startDrawGrid(viewPosition);
   var path = drawLine(coordinate, prevGridCoordinate);
   if (path) {
-    var diff = getDiff(path, paintColor);
+    var diff = getDiff(path, paintColor.key);
 
-    Object.keys(diff).forEach(function(color) {
-      var colorDiff = diff[color];
-      if (!diffCollection.hasOwnProperty(color)) {
-        diffCollection[color] = {isAdd: colorDiff.isAdd, path: []};
+    Object.keys(diff).forEach(function(colorKey) {
+      var colorDiff = diff[colorKey];
+      if (!diffCollection.hasOwnProperty(colorKey)) {
+        diffCollection[colorKey] = {isAdd: colorDiff.isAdd, path: []};
       }
-      diffCollection[color].path.push(colorDiff.path);
-      if (diffCollection[color].isAdd != colorDiff.isAdd) {
-        console.logError('Simultaneous add and remove for ' + color);
+      diffCollection[colorKey].path.push(colorDiff.path);
+      if (diffCollection[colorKey].isAdd != colorDiff.isAdd) {
+        console.logError('Simultaneous add and remove for ' + colorKey);
       }
     });
     applyDiff(true, diff);
@@ -2427,11 +2513,11 @@ function pointApproximates(p0, p1) {
   return Math.abs(p0.x - p1.x) < 0.001 && Math.abs(p0.y - p1.y) < 0.001;
 }
 
-function getDiff(path, paintColor) {
+function getDiff(path, colorKey) {
   if (!path.children && path.segments.length < 3) return {};
 
   // figure out which layers to add and subtract from
-  var definition = layerDefinition[paintColor] || pathDefinition[paintColor];
+  var definition = layerDefinition[colorKey] || pathDefinition[colorKey];
 
   // limit the path to the union of the shape on each layer
   if (definition.requireLayer) {
@@ -2442,27 +2528,27 @@ function getDiff(path, paintColor) {
 
   var editLayers = {};
   if (definition.addLayers)
-    definition.addLayers.forEach(function(color) { editLayers[color] = true;});
+    definition.addLayers.forEach(function(colorKey) { editLayers[colorKey] = true;});
   if (definition.cutLayers)
-    definition.cutLayers.forEach(function(color) { editLayers[color] = false;});
+    definition.cutLayers.forEach(function(colorKey) { editLayers[colorKey] = false;});
 
   var diff = {};
-  Object.keys(editLayers).forEach(function(color) {
-    var isAdd = editLayers[color];
+  Object.keys(editLayers).forEach(function(colorKey) {
+    var isAdd = editLayers[colorKey];
 
     var delta = isAdd
-      ? path.subtract(state.drawing[color])
-      : path.intersect(state.drawing[color]);
+      ? path.subtract(state.drawing[colorKey])
+      : path.intersect(state.drawing[colorKey]);
 
     // search for invalid points caused by overlapping diagonals
     // todo: for free drawing, remove this check
     var deltaSubPaths = delta.children ? delta.children : [delta];
      deltaSubPaths.forEach(function(p) {
-       correctPath(p, state.drawing[color]);
+       correctPath(p, state.drawing[colorKey]);
      });
 
     if (delta.children || (delta.segments && delta.segments.length > 0)) {
-      diff[color] = {
+      diff[colorKey] = {
         isAdd: isAdd,
         path: delta,
       };
@@ -2496,31 +2582,31 @@ function correctPath(path, receivingPath) {
 function applyDiff(isApply, diff) {
   // todo: weird location
   if (isApply) prevDrawCoordinate = null;
-  Object.keys(diff).forEach(function(color) {
-    var colorDiff = diff[color]
+  Object.keys(diff).forEach(function(colorKey) {
+    var colorDiff = diff[colorKey]
     var isAdd = colorDiff.isAdd;
     if (!isApply) isAdd = !isAdd; // do the reverse operation
-    addPath(isAdd, colorDiff.path, color);
+    addPath(isAdd, colorDiff.path, colorKey);
   })
 }
 
-function addPath(isAdd, path, color) {
+function addPath(isAdd, path, colorKey) {
   mapLayer.activate();
-  if (!state.drawing.hasOwnProperty(color)) {
-    state.drawing[color] = new Path();
-    state.drawing[color].locked = true;
+  if (!state.drawing.hasOwnProperty(colorKey)) {
+    state.drawing[colorKey] = new Path();
+    state.drawing[colorKey].locked = true;
   }
   var combined = isAdd
-    ? state.drawing[color].unite(path)
-    : state.drawing[color].subtract(path);
+    ? state.drawing[colorKey].unite(path)
+    : state.drawing[colorKey].subtract(path);
   combined.locked = true;
-  combined.fillColor = color;
-  combined.insertAbove(state.drawing[color]);
+  combined.fillColor = colors[colorKey].color;
+  combined.insertAbove(state.drawing[colorKey]);
 
-  state.drawing[color].remove();
+  state.drawing[colorKey].remove();
   path.remove();
 
-  state.drawing[color] = combined;
+  state.drawing[colorKey] = combined;
 }
 
 
