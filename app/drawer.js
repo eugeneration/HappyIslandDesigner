@@ -276,15 +276,7 @@ function getObjectData(objectDefinition) {
   };
 }
 
-function createObjectAsync(objectData, callback) {
-  toolCategoryDefinition[objectData.category].tools.getAsyncValue(
-    function(tools) {
-      callback(createObject(tools[objectData.type], objectData));
-    });
-}
-
-function createObject(objectDefinition, itemData) {
-  mapIconLayer.activate();
+function createObjectBase(objectDefinition, itemData) {
   var item = objectDefinition.icon.clone({insert: false});
 
   item.scaling = objectDefinition.scaling;
@@ -304,7 +296,27 @@ function createObject(objectDefinition, itemData) {
   group.addChildren([item, bound]);
   group.pivot = bound.bounds.topLeft;
 
+  group.elements = {
+    icon: item,
+    bound: bound,
+  }
   group.data = itemData;
+  group.definition = objectDefinition;
+
+  return group;
+}
+
+function createObjectPreview(objectDefinition, itemData) {
+  mapOverlayLayer.activate();
+  var group = createObjectBase(objectDefinition, itemData);
+  return group;
+}
+
+function createObject(objectDefinition, itemData) {
+  mapIconLayer.activate();
+  
+  var group = createObjectBase(objectDefinition, itemData);
+
   group.state = {
     selected: false,
     focused: false,
@@ -316,54 +328,76 @@ function createObject(objectDefinition, itemData) {
   };
   group.onSelect = function(isSelected) {
     if (group.state.selected != isSelected) {
-      group.state.selected = isSelected;
-      bound.strokeWidth = isSelected ? 0.2 : 0.1;
-      bound.strokeColor = isSelected ? colors.selection.color : 'white';
-      bound.strokeColor.alpha = group.state.focused ? 1 : 0;
+      this.state.selected = isSelected;
+      this.elements.bound.strokeWidth = isSelected ? 0.2 : 0.1;
+      this.elements.bound.strokeColor = isSelected ? colors.selection.color : 'white';
+      this.elements.bound.strokeColor.alpha = group.state.focused ? 1 : 0;
     }
   }
   group.onMouseEnter = function(event) {
-    group.state.focused = true;
-    bound.strokeColor.alpha = group.state.selected ? 1 : 0.6;
+    this.state.focused = true;
+    this.elements.bound.strokeColor.alpha = this.state.selected ? 1 : 0.6;
   }
   group.onMouseLeave = function(event) {
-    group.state.focused = false;
-    bound.strokeColor.alpha = group.state.selected ? 1 : 0;
+    this.state.focused = false;
+    this.elements.bound.strokeColor.alpha = this.state.selected ? 1 : 0;
   }
   group.onMouseDown = function(event) {
-    bound.strokeColor.alpha = 1;
+    //if (Key.isDown('alt')) {
+    //  toolState.switchTool(toolState.toolMapValue(
+    //    toolCategoryDefinition[this.definition.category],
+    //    this.definition,
+    //    {}));
+    //  return;
+    //}
+
+    this.elements.bound.strokeColor.alpha = 1;
     var coordinate = mapOverlayLayer.globalToLocal(event.point);
-    group.data.prevPosition = group.position;
-    group.data.wasMoved = false;
-    group.data.clickPivot = coordinate - group.pivot;
-    grabObject(coordinate, group);
+    this.data.prevPosition = this.position;
+    this.data.wasMoved = false;
+    this.data.clickPivot = coordinate - this.pivot;
+    grabObject(coordinate, this);
   }
   group.onMouseDrag = function(event) {
     var coordinate = mapOverlayLayer.globalToLocal(event.point);
-    group.position = (coordinate - group.data.clickPivot).round();
-    if (group.position.getDistance(group.data.prevPosition, true) > 0.1) {
-      group.data.wasMoved = true;
+    this.position = (coordinate - this.data.clickPivot).round();
+    if (this.position.getDistance(this.data.prevPosition, true) > 0.1) {
+      this.data.wasMoved = true;
     }
-    dragObject(coordinate, group);
+    dragObject(coordinate, this);
   }
   group.onMouseUp = function(event) {
-    bound.strokeColor.alpha = group.state.selected ? 1 : 0.6;
-    var prevPosition = group.data.prevPosition;
+    this.elements.bound.strokeColor.alpha = this.state.selected ? 1 : 0.6;
+    var prevPosition = this.data.prevPosition;
     if (!prevPosition) return;
     var coordinate = mapOverlayLayer.globalToLocal(event.point);
 
     // if the object was clicked, not dragged
-    if (!group.data.wasMoved) {
+    if (!this.data.wasMoved) {
       toolState.selectObject(this);
     }
 
-    delete group.data.prevPosition;
-    delete group.data.clickPivot;
+    delete this.data.prevPosition;
+    delete this.data.clickPivot;
     if (prevPosition == coordinate.position);
-    dropObject(coordinate, group, prevPosition);
+    dropObject(coordinate, this, prevPosition);
   }
 
   return group;
+}
+
+function createObjectPreviewAsync(objectData, callback) {
+  toolCategoryDefinition[objectData.category].tools.getAsyncValue(
+    function(tools) {
+      callback(createObjectPreview(tools[objectData.type], objectData));
+    });
+}
+
+function createObjectAsync(objectData, callback) {
+  toolCategoryDefinition[objectData.category].tools.getAsyncValue(
+    function(tools) {
+      callback(createObject(tools[objectData.type], objectData));
+    });
 }
 
 mapLayer.activate();
@@ -832,12 +866,16 @@ var baseToolCategoryDefinition = {
     this.openMenu(subclass, isSelected);
   },
   onMouseMove: function(subclass, event) {
+    updateCoordinateLabel(event);
   },
   onMouseDown: function(subclass, event) {
+    updateCoordinateLabel(event);
   },
   onMouseDrag: function(subclass, event) {
+    updateCoordinateLabel(event);
   },
   onMouseUp: function(subclass, event) {
+    updateCoordinateLabel(event);
   },
   onKeyDown: function(subclass, event) {
   },
@@ -874,6 +912,7 @@ var baseToolCategoryDefinition = {
         // todo: decouple view from logic
         if (this.iconMenu && (nextToolData.type == 'structures' || nextToolData.type == 'amenities')) {
           this.iconMenu.data.update(nextTool);
+          updateObjectPreview();
         }
       }
     }
@@ -933,11 +972,9 @@ var toolCategoryDefinition = {
     },
     onMouseMove: function(event) {
       this.base.onMouseMove(this, event);
-      updateCoordinateLabel(event);
     },
     onMouseDown: function(event) {
       this.base.onMouseDown(this, event);
-      updateCoordinateLabel(event);
       if (Key.isDown('alt')) {
         var rawCoordinate = mapOverlayLayer.globalToLocal(event.point);
         updatePaintColor(getColorAtCoordinate(rawCoordinate));
@@ -946,12 +983,10 @@ var toolCategoryDefinition = {
     },
     onMouseDrag: function(event) {
       this.base.onMouseDrag(this, event);
-      updateCoordinateLabel(event);
       draw(event);
     },
     onMouseUp: function(event) {
       this.base.onMouseUp(this, event);
-      updateCoordinateLabel(event);
       endDraw(event);
     },
     onKeyDown: function(event) {
@@ -1004,11 +1039,9 @@ var toolCategoryDefinition = {
     },
     onMouseMove: function(event) {
       this.base.onMouseMove(this, event);
-      updateCoordinateLabel(event);
     },
     onMouseDown: function(event) {
       this.base.onMouseDown(this, event);
-      updateCoordinateLabel(event);
       if (Key.isDown('alt')) {
         var rawCoordinate = mapOverlayLayer.globalToLocal(event.point);
         updatePaintColor(getColorAtCoordinate(rawCoordinate));
@@ -1017,12 +1050,10 @@ var toolCategoryDefinition = {
     },
     onMouseDrag: function(event) {
       this.base.onMouseDrag(this, event);
-      updateCoordinateLabel(event);
       draw(event);
     },
     onMouseUp: function(event) {
       this.base.onMouseUp(this, event);
-      updateCoordinateLabel(event);
       endDraw(event);
     },
     onKeyDown: function(event) {
@@ -1087,6 +1118,8 @@ var toolCategoryDefinition = {
     },
     enablePreview: function(isEnabled) {
       this.base.enablePreview(this, isEnabled);
+      if (objectPreviewOutline) objectPreviewOutline.visible = isEnabled;
+      if (objectPreview) objectPreview.visible = isEnabled;
     },
     openMenu: function(isSelected) {
       this.tools.getAsyncValue(function(definitions) {
@@ -1142,6 +1175,8 @@ var toolCategoryDefinition = {
     },
     enablePreview: function(isEnabled) {
       this.base.enablePreview(this, isEnabled);
+      if (objectPreviewOutline) objectPreviewOutline.visible = isEnabled;
+      if (objectPreview) objectPreview.visible = isEnabled;
     },
     openMenu: function(isSelected) {
       this.tools.getAsyncValue(function(definitions) {
@@ -1657,11 +1692,10 @@ function changePaintTool(newPaintTool) {
 }
 
 function placeObject(event) {
-  var rawCoordinate = mapOverlayLayer.globalToLocal(event.point);
-  var coordinate = rawCoordinate.floor();
+  var coordinate = mapOverlayLayer.globalToLocal(event.point);
   if (toolState.activeTool && toolState.activeTool.tool) {
     var objectData = getObjectData(toolState.activeTool.tool);
-    var command = objectCreateCommand(objectData, coordinate);
+    var command = objectCreateCommand(objectData, getObjectCenteredCoordinate(coordinate, toolState.activeTool.tool));
     applyCommand(command, true);
     addToHistory(command);
   }
@@ -1887,6 +1921,9 @@ var brushSegments;
 var brush = new Path();
 var brushOutline = new Path();
 
+var objectPreview;
+var objectPreviewOutline;
+
 var brushTypes = {
   rounded: 'rounded',
   square: 'square',
@@ -1904,6 +1941,13 @@ function cycleBrushHead() {
   brushType = heads[(index + 1) % heads.length];
 }
 
+function getObjectCenteredCoordinate(rawCoordinate, objectDefinition){
+  // hack for even sized brushes
+  var sizeX = objectDefinition.size.width / 2;
+  var sizeY = objectDefinition.size.height / 2;
+  return (rawCoordinate - new Point(sizeX, sizeY) + new Point(0.5, 0.5)).floor();
+}
+
 function getBrushCenteredCoordinate(rawCoordinate){
   // hack for even sized brushes
   if (brushSize % 2 == 0)
@@ -1915,7 +1959,8 @@ function getBrushCenteredCoordinate(rawCoordinate){
 function updateBrush() {
   brushSegments = getBrushSegments(brushSize);
 
-  var prevPos = brushOutline.position;
+  var prevPos = brush.position;
+  var prevPosOutline = brushOutline.position;
 
   brush.layer = uiLayer;
   brush.segments = brushSegments;
@@ -1927,11 +1972,41 @@ function updateBrush() {
   brush.locked = true;
 
   brushOutline.segments = brushSegments;
-  brushOutline.position = prevPos;
+  brushOutline.position = prevPosOutline;
   brushOutline.closed = true;
   brushOutline.strokeColor = '#fff';
   brushOutline.strokeWidth = 0.1;
   brushOutline.locked = true;
+}
+
+function updateObjectPreview() {
+  if (toolState.activeTool && toolState.activeTool.tool) {
+    var prevPos, prevPosOutline; 
+    if (objectPreview && objectPreviewOutline) {
+      objectPreview.remove();
+      objectPreviewOutline.remove();
+      prevPos = objectPreview.position;
+      prevPosOutline = objectPreviewOutline.position;
+    } else {
+      prevPos = new Point(0, 0);
+      prevPosOutline = new Point(0, 0);
+    }
+
+    var objectData = getObjectData(toolState.activeTool.tool);
+    createObjectPreviewAsync(objectData, function(object) {
+      objectPreview = object;
+      object.locked = true;
+      object.elements.bound.strokeColor.alpha = 0.6;
+      object.opacity = 0.5;
+
+      objectPreviewOutline = object.elements.bound.clone();
+      objectPreviewOutline.strokeColor.alpha = 1;
+
+      //todo: have a function that gets the most recent position of the mouse at any time
+      objectPreview.position = prevPos;
+      objectPreviewOutline.position = prevPosOutline;
+    });
+  }
 }
 
 function updateCoordinateLabel(event) {
@@ -1941,6 +2016,9 @@ function updateCoordinateLabel(event) {
 
   brushOutline.position = coordinate;
   brush.position = getBrushCenteredCoordinate(coordinate);
+
+  if (objectPreview) objectPreview.position = getObjectCenteredCoordinate(coordinate, objectPreview.definition);
+  if (objectPreviewOutline) objectPreviewOutline.position = coordinate;
 }
 
 function getBrushSegments(size) {
