@@ -48,21 +48,23 @@ var colors = {
   paper: {color:'#f5f3e5'}, // general white
 
   // colors from nookPhone (colors are hued towards red/yellow)
-  purple: "be84f0",
-  blue: "8c97ec",
-  lightBlue: "b4bdfd",
-  orange: "df8670",
-  magenta: "f550ab",
-  pink: "f09eb3",
-  cyan: "63d5bf",
-  turquoise: "86e0bb",
-  green: "8dd08a",
-  red: "ee666e",
-  offBlack: "4b3b32",
-  offWhite: "f6f2e0",
-  lightText: "dcd8ca",
-  text: "726a5a",
-  yellow: "f5d830",
+  purple: "#be84f0",
+  blue: "#8c97ec",
+  lightBlue: "#b4bdfd",
+  orange: "#df8670",
+  magenta: "#f550ab",
+  pink: "#f09eb3",
+  cyan: "#63d5bf",
+  turquoise: "#86e0bb",
+  green: "#8dd08a",
+  lime: "#d2e541",
+  red: "#ee666e",
+  offBlack: "#4b3b32",
+  offWhite: "#f6f2e0",
+  lightText: "#dcd8ca",
+  text: "#726a5a",
+  yellow: "#f5d830",
+  lightBrown: "#bfab76",
 
   // generic colors
   firetruck: {color:'#ef3c1d'},
@@ -83,6 +85,8 @@ var colors = {
 
   darkGreyBlue: {color:'#7c8da6'},
   lightGreyBlue: {color:'#9cbbce'},
+
+  highlightCircle: {color: '#2adbb8'},
 
   // Water UI
   oceanPanel: {color:'#39ba9c'}, // game trailer had this color panel
@@ -110,7 +114,7 @@ var pathDefinition = {};
 pathDefinition[colors.pathDirt.key] = {
   priority: 100,
   addLayers: [colors.pathDirt.key],
-  requireLayer: colors.sand.key, // sand is always drawn below everything else
+  //requireLayer: colors.sand.key, // sand is always drawn below everything else
 }
 pathDefinition[colors.pathEraser.key] = {
   cutLayers: [colors.pathDirt.key],
@@ -1677,6 +1681,9 @@ function draw(event) {
 function endDraw(event) {
   switch (paintTool) {
     case paintTools.grid:
+        if (Key.isDown('shift')) {
+          drawGrid(event.point);
+        }
         endDrawGrid(event.point);
         stopGridLinePreview();
       break;
@@ -2643,17 +2650,25 @@ function correctPath(path, receivingPath) {
     var isSegmentInvalid = (getDistanceFromWholeNumber(point.x) > 0.1) || (getDistanceFromWholeNumber(point.y) > 0.1);
     if (!isSegmentInvalid) return;
 
-    var prevPoint = path.segments[(segment.index - 1 + path.segments.length) % path.segments.length].point;
-    var nextPoint = path.segments[(segment.index + 1) % path.segments.length].point;
+    var prevIndex = (segment.index - 1 + path.segments.length) % path.segments.length;
+    var nextIndex = (segment.index + 1) % path.segments.length;
+    var prevPoint = path.segments[prevIndex].point;
+    var nextPoint = path.segments[nextIndex].point;
 
     // todo: this assumes the problem point is always at .5, which may not be true in degenerate cases
     var possiblePoint1 = point - new Point(0.5 * Math.sign(prevPoint.x - point.x), 0.5 * Math.sign(prevPoint.y - point.y));
     var possiblePoint2 = point - new Point(0.5 * Math.sign(nextPoint.x - point.x), 0.5 * Math.sign(nextPoint.y - point.y));
 
-    if (pointApproximates(receivingPath.getNearestPoint(possiblePoint1), possiblePoint1))
+    if (pointApproximates(receivingPath.getNearestPoint(possiblePoint1), possiblePoint1)) {
+      var crossPoint = possiblePoint2 - new Point(Math.sign(possiblePoint2.x - point.x), Math.sign(possiblePoint2.y - point.y));
+      path.insert(nextIndex, crossPoint);
       segment.point = possiblePoint1;
-    else
+    }
+    else {
+      var crossPoint = possiblePoint1 - new Point(Math.sign(possiblePoint1.x - point.x), Math.sign(possiblePoint1.y - point.y));
+      path.insert(prevIndex + 1, crossPoint);
       segment.point = possiblePoint2;
+    }
   });
 }
 
