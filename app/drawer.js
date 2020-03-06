@@ -27,7 +27,10 @@
     campground: {color:'#b0a280'},
 
     // paths
-    pathDirt: {color:'#d99666'},
+    pathDirt: {color:'#d5ac71'},
+    pathSand: {color:'#f9df96'},
+    pathStone: {color: '#999a8c'},
+    pathBrick: {color: '#e38f68'},
     pathEraser: {color:'#f1b2c1'},
 
     // structures
@@ -115,10 +118,29 @@
   pathDefinition[colors.pathDirt.key] = {
     priority: 100,
     addLayers: [colors.pathDirt.key],
+    cutLayers: [colors.pathBrick.key, colors.pathSand.key, colors.pathStone.key],
+    //requireLayer: colors.sand.key, // sand is always drawn below everything else
+  }
+    pathDefinition[colors.pathStone.key] = {
+    priority: 100,
+    addLayers: [colors.pathStone.key],
+    cutLayers: [colors.pathBrick.key, colors.pathDirt.key, colors.pathSand.key],
+    //requireLayer: colors.sand.key, // sand is always drawn below everything else
+  }
+  pathDefinition[colors.pathBrick.key] = {
+    priority: 100,
+    addLayers: [colors.pathBrick.key],
+    cutLayers: [colors.pathDirt.key, colors.pathSand.key, colors.pathStone.key],
+    //requireLayer: colors.sand.key, // sand is always drawn below everything else
+  }
+  pathDefinition[colors.pathSand.key] = {
+    priority: 100,
+    addLayers: [colors.pathSand.key],
+    cutLayers: [colors.pathBrick.key, colors.pathDirt.key, colors.pathStone.key],
     //requireLayer: colors.sand.key, // sand is always drawn below everything else
   }
   pathDefinition[colors.pathEraser.key] = {
-    cutLayers: [colors.pathDirt.key],
+    cutLayers: [colors.pathBrick.key, colors.pathDirt.key, colors.pathSand.key, colors.pathStone.key],
   }
 
   var layerDefinition = {};
@@ -198,19 +220,19 @@
       });
   };
 
-  function createMenu(items, spacing) {
+  function createMenu(items, spacing, perColumn) {
+    var itemsCount = Object.keys(items).length;
     if (spacing == null) spacing = 50;
+    if (perColumn == null) perColumn = itemsCount;
+    var horizontalSpacing = 60;
     var i = 0;
     var iconMenu = new Group();
 
-    var backing = new Path();
-    backing.strokeColor = colors.paper.color;
-    backing.strokeWidth = 60;
-    backing.strokeCap = 'round';
-    backing.segments = [
-      new Point(0, 0),
-      new Point(0, spacing * (Object.keys(items).length - 1)),
-    ];
+    var columns = Math.ceil(itemsCount / perColumn);
+
+    var backing = new Path.Rectangle(
+      new Rectangle(-30, -35, 60 * columns, 70 + spacing * (perColumn - 1)), 30);
+    backing.fillColor = colors.paper.color;
 
     var triangle = new Path.RegularPolygon(new Point(0, 0), 3, 14);
     triangle.fillColor = colors.paper.color;
@@ -221,7 +243,8 @@
     iconMenu.addChildren([backing, triangle]);
 
     var buttonMap = objectMap(items, function(item, name) {
-      item.position = new Point(0, spacing * i);
+      var column = Math.floor(i / perColumn);
+      item.position = new Point(horizontalSpacing * column, spacing * (i - column * perColumn));
       iconMenu.addChild(item);
       i++;
       return item;
@@ -292,6 +315,11 @@
   function createObjectBase(objectDefinition, itemData) {
     var item = createObjectIcon(objectDefinition, itemData);
     item.scaling = objectDefinition.scaling;
+
+    if (item.resolution) {
+      item = new Group(item);
+    }
+
     item.pivot = item.bounds.bottomCenter;
     item.pivot += objectDefinition.offset;
     item.position = new Point(0, 0);
@@ -803,6 +831,38 @@
         return baseGround;
       },
     },
+    townhallSprite: {
+      img: 'sprite/building-townhall.png',
+      menuScaling: new Point(.17, .17),
+      scaling: new Point(.017, .017),
+    },
+    campsiteSprite: {
+      img: 'sprite/building-campsite.png',
+      menuScaling: new Point(.17, .17),
+      scaling: new Point(.017, .017),
+    },
+    museumSprite: {
+      img: 'sprite/building-museum.png',
+      menuScaling: new Point(.17, .17),
+      scaling: new Point(.017, .017),
+    },
+    nookSprite: {
+      img: 'sprite/building-nook.png',
+      menuScaling: new Point(.17, .17),
+      scaling: new Point(.017, .017),
+    },
+    ableSprite: {
+      img: 'sprite/building-able.png',
+      menuScaling: new Point(.17, .17),
+      scaling: new Point(.017, .017),
+    },
+    lighthouseSprite: {
+      img: 'sprite/structure-lighthouse.png',
+      size: new Size([2, 2]),
+      scaling: new Point(.015, .015),
+      menuScaling: new Point(.14, .14),
+      offset: new Point(-1, -1.85),
+    },
     lighthouse: {
       colorData: colors.pin,
       size: new Size([2, 2]),
@@ -820,11 +880,18 @@
     def.offset = def.offset || new Point(-4, -7.6);
     def.onSelect = function(isSelected) {};
     // imnmediately load the assets
-    loadSvg('amenity-' + type, function(item) {
-      //item.pivot += new Point(-2, -3.6);
-      def.icon = item;
-      asyncAmenitiesDefinition.onLoad();
-    });
+    if (def.img) {
+      var img = new Raster(def.img);
+      def.icon = img;
+      def.icon.onLoad = function() {asyncAmenitiesDefinition.onLoad();}
+      img.remove();
+    } else {
+      loadSvg('amenity-' + type, function(item) {
+        //item.pivot += new Point(-2, -3.6);
+        def.icon = item;
+        asyncAmenitiesDefinition.onLoad();
+      });
+    }
   });
 
   var asyncStructureDefinition = new AsyncObjectDefinition();
@@ -839,6 +906,37 @@
     fruit: {},
     palm: {},
     pine: {},
+    playerhouseSprite: {
+      img: 'sprite/building-playerhouse.png',
+      menuScaling: new Point(.17, .17),
+      scaling: new Point(.017, .017),
+    },
+    houseSprite: {
+      img: 'sprite/building-house.png',
+      menuScaling: new Point(.17, .17),
+      scaling: new Point(.017, .017),
+    },
+    treePineSprite: {
+      img: 'sprite/tree-pine.png',
+      menuScaling: new Point(.15, .15),
+      scaling: new Point(.012, .012),
+      size: new Size([2, 1]),
+      offset: new Point(-1, -.75),
+    },
+    treePalmSprite: {
+      img: 'sprite/tree-palm.png',
+      menuScaling: new Point(.17, .17),
+      scaling: new Point(.014, .014),
+      size: new Size([2, 1]),
+      offset: new Point(-1, -.75),
+    },
+    treeFruitSprite: {
+      img: 'sprite/tree-fruit.png',
+      menuScaling: new Point(.17, .17),
+      scaling: new Point(.012, .012),
+      size: new Size([2, 1]),
+      offset: new Point(-1, -.75),
+    },
   }
   // set up the definitions programatically because they are all the same
   Object.keys(asyncStructureDefinition.value).forEach(function(structureType) {
@@ -854,28 +952,42 @@
       def.colorData = colors.level3;
       def.scaling = new Point(.03, .03);
       def.menuScaling = new Point(.6, .6);
-      def.size = new Size([isBush ? 1 : 2, 1]);
-      def.offset = isBush ? new Point( -0.5, -1) : new Point(-1, -.75);
+      def.size = def.size || new Size([isBush ? 1 : 2, 1]);
+      def.offset = def.offset || isBush ? new Point( -0.5, -1) : new Point(-1, -.75);
       def.onSelect = function(isSelected) {};
       // imnmediately load the assets
-      loadSvg('tree-' + structureType, function(item) {
-        //item.pivot += new Point(-2, -3.6);
-        def.icon = item;
-        asyncStructureDefinition.onLoad();
-      });
+      if (def.img) {
+        var img = new Raster(def.img);
+        def.icon = img;
+        def.icon.onLoad = function() {asyncStructureDefinition.onLoad();};
+        img.remove();
+      } else {
+        loadSvg('tree-' + structureType, function(item) {
+          //item.pivot += new Point(-2, -3.6);
+          def.icon = item;
+          asyncStructureDefinition.onLoad();
+        });
+      }
     } else {
       def.colorData = colors.npc;
-      def.scaling = new Point(.03, .03);
-      def.menuScaling = new Point(.3, .3);
-      def.size = new Size(4, 4);
-      def.offset = new Point(-2, -3.6);
+      def.scaling = def.scaling || new Point(.03, .03);
+      def.menuScaling = def.menuScaling || new Point(.3, .3);
+      def.size = def.size || new Size(4, 4);
+      def.offset = def.offset || new Point(-2, -3.6);
       def.onSelect = function(isSelected) {};
       // imnmediately load the assets
-      loadSvg('structure-' + structureType, function(item) {
-        //item.pivot += new Point(-2, -3.6);
-        def.icon = item;
-        asyncStructureDefinition.onLoad();
-      });
+      if (def.img) {
+        var img = new Raster(def.img);
+        def.icon = img;
+        def.icon.onLoad = function() {asyncStructureDefinition.onLoad();};
+        img.remove();
+      } else {
+        loadSvg('structure-' + structureType, function(item) {
+          //item.pivot += new Point(-2, -3.6);
+          def.icon = item;
+          asyncStructureDefinition.onLoad();
+        });
+      }
     }
   });
 
@@ -1096,11 +1208,21 @@
         updatePaintColor(this.data.paintColorData);
         var pathColorButtons =
           objectMap(pathDefinition, function(definition, colorKey) {
+            var buttonIcon;
             var colorData = colors[colorKey];
-            var paintCircle = new Path.Circle(new Point(0, 0), 16);
-            paintCircle.fillColor = colorData.color;
-            paintCircle.locked = true;
-            return createButton(paintCircle, 20, function(button) {
+            if (colorKey == colors.pathEraser.key) {
+              buttonIcon = new Group();
+              eraserImg = new Raster(imgPath + toolPrefix + 'eraser.png');
+              eraserImg.scaling = new Point(0.35, 0.35);
+              buttonIcon.addChildren([eraserImg]); 
+            } else {
+              var paintCircle = new Path.Circle(new Point(0, 0), 16);
+              paintCircle.fillColor = colorData.color;
+              paintCircle.locked = true;
+              buttonIcon = paintCircle;
+            }
+
+            return createButton(buttonIcon, 20, function(button) {
               updatePaintColor(colorData);
               this.data.paintColorData = colorData;
             }.bind(this));
@@ -1160,7 +1282,8 @@
               return createButton(icon, 20, function(button) {
                 toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
               });
-            })
+            }),
+            50, 10
           );
           this.base.iconMenu.data.setPointer(105);
           this.base.iconMenu.pivot = new Point(0, 0);
