@@ -835,26 +835,57 @@
       img: 'sprite/building-townhall.png',
       menuScaling: new Point(.17, .17),
       scaling: new Point(.017, .017),
+      size: new Size(4, 4),
+      offset: new Point(-2, -3.6),
     },
     campsiteSprite: {
       img: 'sprite/building-campsite.png',
       menuScaling: new Point(.17, .17),
       scaling: new Point(.017, .017),
+      size: new Size(4, 4),
+      offset: new Point(-2, -3.6),
     },
     museumSprite: {
       img: 'sprite/building-museum.png',
       menuScaling: new Point(.17, .17),
       scaling: new Point(.017, .017),
+      size: new Size(4, 4),
+      offset: new Point(-2, -3.6),
     },
     nookSprite: {
       img: 'sprite/building-nook.png',
       menuScaling: new Point(.17, .17),
       scaling: new Point(.017, .017),
+      size: new Size(4, 4),
+      offset: new Point(-2, -3.6),
     },
     ableSprite: {
       img: 'sprite/building-able.png',
       menuScaling: new Point(.17, .17),
       scaling: new Point(.017, .017),
+      size: new Size(4, 4),
+      offset: new Point(-2, -3.6),
+    },
+    bridgeVerticalSprite: {
+      img: 'sprite/structure-bridge-vertical.png',
+      menuScaling: new Point(.17, .17),
+      scaling: new Point(.026, .026),
+      size: new Size(3, 5),
+      offset: new Point(-1.5, -5),
+    },
+    bridgeHorizontalSprite: {
+      img: 'sprite/structure-bridge-horizontal.png',
+      menuScaling: new Point(.17, .17),
+      scaling: new Point(.026, .026),
+      size: new Size(5, 3),
+      offset: new Point(-2.8, -2.7),
+    },
+    rampSprite: {
+      img: 'sprite/structure-ramp.png',
+      menuScaling: new Point(.17, .17),
+      scaling: new Point(.026, .026),
+      size: new Size(5, 3),
+      offset: new Point(-2.8, -2.7),
     },
     lighthouseSprite: {
       img: 'sprite/structure-lighthouse.png',
@@ -1152,9 +1183,9 @@
           }.bind(this)),
           45 // menu spacing
         );
-        this.base.iconMenu.data.setPointer(55);
+        this.base.iconMenu.data.setPointer(30);
         this.base.iconMenu.pivot = new Point(0, 0);
-        this.base.iconMenu.position = new Point(100, 120);
+        this.base.iconMenu.position = new Point(100, 145);
         // this is a little messy
         this.base.iconMenu.data.update(this.data.paintColorData.key);
       },
@@ -1228,9 +1259,9 @@
             }.bind(this));
           }.bind(this))
         this.base.iconMenu = createMenu(pathColorButtons, 45);
-        this.base.iconMenu.data.setPointer(30);
+        this.base.iconMenu.data.setPointer(80);
         this.base.iconMenu.pivot = new Point(0, 0);
-        this.base.iconMenu.position = new Point(100, 195);
+        this.base.iconMenu.position = new Point(100, 145);
         // this is a little messy
         this.base.iconMenu.data.update(this.data.paintColorData.key);
       },
@@ -1285,9 +1316,9 @@
             }),
             50, 10
           );
-          this.base.iconMenu.data.setPointer(105);
+          this.base.iconMenu.data.setPointer(130);
           this.base.iconMenu.pivot = new Point(0, 0);
-          this.base.iconMenu.position = new Point(100, 170);
+          this.base.iconMenu.position = new Point(100, 145);
           // this is a little messy
           if (toolState.activeTool && toolState.activeTool.tool) {
             this.base.iconMenu.data.update(toolState.activeTool.tool.type);
@@ -1339,11 +1370,12 @@
               return createButton(icon, 20, function(button) {
                 toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
               });
-            })
+            }),
+            50, 8
           );
-          this.base.iconMenu.data.setPointer(60);
+          this.base.iconMenu.data.setPointer(185);
           this.base.iconMenu.pivot = new Point(0, 0);
-          this.base.iconMenu.position = new Point(100, 265);
+          this.base.iconMenu.position = new Point(100, 145);
           // this is a little messy
           if (toolState.activeTool && toolState.activeTool.tool) {
             this.base.iconMenu.data.update(toolState.activeTool.tool.type);
