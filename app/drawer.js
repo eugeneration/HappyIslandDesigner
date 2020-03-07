@@ -14,6 +14,8 @@
   mapOverlayLayer.applyMatrix = false;
   mapOverlayLayer.pivot = new Point(0, 0);
 
+  var emitter = mitt();
+
   // if you want to rename a color, you must add a name parameter with the old name
   // otherwise backwards compatibility for encoding/decoding will break
   var colors = {
@@ -453,6 +455,7 @@
     // Whenever the window is resized, recenter the path:
     resizeCoordinates();
     drawBackground();
+    emitter.emit('resize', event);
   }
 
   tool.minDistance = 1;
@@ -772,6 +775,7 @@
 
     var modalContents = new Group();
     modalContents.applyMatrix = false;
+    modalContents.pivot = new Point(0, 0);
     modalContents.position = modal.bounds.topLeft + new Point(40, 120);
     modalContents.data = {
       addElement: function () {
@@ -784,6 +788,12 @@
       height: modal.bounds.width - 120 + 40,
       contents: modalContents,
     };
+
+    emitter.on('resize', function() {
+      darkFill.bounds = new Rectangle(0, 0, view.bounds.width, view.bounds.height);
+      modal.position = new Point(view.bounds.center.x, view.bounds.center.y)
+      modalContents.position = modal.bounds.topLeft + new Point(40, 120);
+    })
 
     var text = new PointText(new Point(group.data.width / 2, -50));
     text.justification = 'center';
@@ -1829,7 +1839,7 @@
         toolState.deleteSelection();
         break;
       case 'escape':
-        showMainMenu(mainMenu != null && mainMenu.visible ? false : true)
+        showMainMenu(mainMenu != null && mainMenu.opacity > 0.8 ? false : true)
         break;
       case '\\':
         toggleGrid();
