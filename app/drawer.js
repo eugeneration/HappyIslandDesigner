@@ -17,7 +17,9 @@
   // if you want to rename a color, you must add a name parameter with the old name
   // otherwise backwards compatibility for encoding/decoding will break
   var colors = {
-    // terrain colors
+    invisible: {color: 'rgba(0, 0, 0, 0.00001)'},
+
+    // terrain color
     water: {color:'#83e1c3'},
     sand: {color:'#eee9a9'},
     level1: {color:'#347941'},
@@ -516,6 +518,10 @@
     mapLayer.activate();
   }
 
+  function jumpTween(item) {
+    item.Tween()
+  }
+
   // ===============================================
   // MAIN UI
   window.addEventListener("beforeunload", function (e) {
@@ -743,7 +749,7 @@
   //  new Point(0, 0),
   //];
 
-  function renderModal(width, height) {
+  function renderModal(name, width, height) {
     fixedLayer.activate();
 
     var group = new Group;
@@ -761,7 +767,7 @@
       view.bounds.center.y - height / 2, width, height), 60);
     modal.fillColor = colors.paper.color;
     modal.onMouseEnter = function(event) {
-      group.data.text.content = "";
+      group.data.text.content = name;
     }
 
     var modalContents = new Group();
@@ -781,7 +787,7 @@
 
     var text = new PointText(new Point(group.data.width / 2, -50));
     text.justification = 'center';
-    text.content = "",
+    text.content = name,
     text.fontSize = 20;
     text.fontFamily = 'TTNorms, sans-serif';
     text.fillColor = colors.text.color;
@@ -800,47 +806,123 @@
 
     if (mainMenu == null) {
       if (!isShown) return;
-      mainMenu = renderModal(260, 370);
+      mainMenu = renderModal('Main Menu', 260, 370);
 
-      var saveButton = new Raster('img/menu-save.png');
-      saveButton.scaling = new Point(0.4, 0.4);
-      saveButton.position = new Point(20, 0);
-      saveButton.onMouseDown = function() {
-        saveMapToFile();
-      };
-      saveButton.onMouseEnter = function(event) {
-        mainMenu.data.text.content = "Save as Image";
-      }
+      var hitSizeHalf = new Point(35, 35);
+      var hitSize = new Size(70, 70);
+      function createMenuButton(name, img, index, onMouseDown, onMouseEnter) {
+        var buttonGroup = new Group();
 
-      var loadButton = new Raster('img/menu-open.png');
-      loadButton.scaling = new Point(0.4, 0.4);
-      loadButton.position = new Point(90, 0);
-      loadButton.onMouseDown = function() {
-        loadMapFromFile();
-      };
-      loadButton.onMouseEnter = function(event) {
-        mainMenu.data.text.content = "Load Map";
-      }
+        var button = new Raster(img);
+        button.scaling = new Point(0.4, 0.4);
+        button.locked = true;
 
-      var newButton = new Raster('img/menu-new.png');
-      newButton.scaling = new Point(0.4, 0.4);
-      newButton.position = new Point(160, 0);
-      newButton.onMouseDown = function() {
-        var r = confirm("Clear your map? You will lose all unsaved changes.");
-        if (r == true) {
-          loadTemplate();
-        } else { }
-      };
-      newButton.onMouseEnter = function(event) {
-          mainMenu.data.text.content = "New Map";
+        var hitTarget = new Path.Rectangle(button.position - hitSizeHalf, hitSize);
+        hitTarget.fillColor = colors.invisible.color;
+
+        buttonGroup.applyMatrix = false;
+        buttonGroup.addChildren([hitTarget, button]);
+        buttonGroup.position = new Point(20 + index * 70, 0);
+
+        buttonGroup.onMouseDown = function(event) {
+          onMouseDown();
+        };
+
+        buttonGroup.onMouseEnter = function(event) {
+          mainMenu.data.text.content = name;
+
+          button.position = new Point(0, 0);
+          button.animate([{
+            properties: {
+                position: {y: "-5"},
+                scale: 1.1,
+            },
+            settings: {
+                duration:60,
+                easing:'linear',
+            }
+          },
+          {
+            properties: {
+                position: {y: "+7"},
+            },
+            settings: {
+                duration:60,
+                easing:"linear"
+            }
+          },
+          {
+            properties: {
+                position: {y: "-2"},
+            },
+            settings: {
+                duration:120,
+                easing:"linear"
+            }
+          }]);
+        }
+        buttonGroup.onMouseLeave = function(event) {
+           button.animate({
+            properties: {
+                scale: 1,
+            },
+            settings: {
+                duration:60,
+                easing:'linear',
+            }
+          });
         }
 
+        return buttonGroup;
+      }
+
+      var saveButton = createMenuButton("Save as Image", 'img/menu-save.png', 0,
+        function() {saveMapToFile()});
+      var loadButton = createMenuButton('Load Map', 'img/menu-open.png', 1,
+        function() {loadMapFromFile()});
+      var newButton = createMenuButton('New Map', 'img/menu-new.png', 2,
+        function() {
+          var r = confirm("Clear your map? You will lose all unsaved changes.");
+          if (r == true) {
+            loadTemplate();
+          } else { }
+        });
+
       mainMenu.data.contents.addChildren([saveButton, loadButton, newButton]);
-    } else {
-      mainMenu.visible = isShown;
-      mainMenu.locked = !isShown;
-      return;
+      mainMenu.opacity = 0;
     }
+    mainMenu.tweenTo({opacity: isShown ? 1 : 0}, 200);
+    mainMenu.locked = !isShown;
+  }
+
+  var mainMenuButton = new Path.Circle(new Point(view.center.x, 0), 40);
+  mainMenuButton.fillColor = colors.pink.color;
+  mainMenuButton.opacity = 0.00001;
+  mainMenuButtonIcon = new Group();
+  mainMenuButtonIcon.applyMatrix = false;
+  mainMenuButtonIcon.position = new Point(view.center.x, 20);
+  mainMenuButtonIcon.addChildren([
+    new Path.Rectangle({point: [-10, -10], size: [20, 4]}),
+    new Path.Rectangle({point: [-10, -2], size: [20, 4]}),
+    new Path.Rectangle({point: [-10, 6], size: [20, 4]}),
+  ]);
+  mainMenuButtonIcon.fillColor = colors.oceanDark.color;
+  mainMenuButtonIcon.locked = true;
+
+  mainMenuButton.onMouseEnter = function(event) {
+    mainMenuButton.tweenTo({opacity: 1}, 150);
+    mainMenuButtonIcon.tweenTo({fillColor: colors.offWhite.color}, 150);
+  }
+  mainMenuButton.onMouseLeave = function(event) {
+    mainMenuButton.tweenTo({opacity: 0.00001}, 150);
+    mainMenuButtonIcon.tweenTo({fillColor: colors.oceanDark.color}, 150);
+  }
+  mainMenuButton.onMouseDown = function(event) {
+    mainMenuButtonIcon.fillColor = colors.yellow.color;
+  }
+  mainMenuButton.onMouseUp = function(event) {
+    showMainMenu(true);
+    mainMenuButton.onMouseLeave(event);
   }
 
   var leftToolMenu = new Path();
