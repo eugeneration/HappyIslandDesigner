@@ -792,7 +792,7 @@
     emitter.on('resize', function() {
       darkFill.bounds = new Rectangle(0, 0, view.bounds.width, view.bounds.height);
       modal.position = new Point(view.bounds.center.x, view.bounds.center.y)
-      modalContents.position = modal.bounds.topLeft + new Point(40, 120);
+      modalContents.position = modal.bounds.topLeft + new Point(40, 135);
     })
 
     var text = new PointText(new Point(group.data.width / 2, -50));
@@ -802,6 +802,22 @@
     text.fontFamily = 'TTNorms, sans-serif';
     text.fillColor = colors.text.color;
     modalContents.addChild(text);
+
+    var statusBar = new Raster('img/ui-phonestatus.png');
+    statusBar.scaling = 0.35;
+    statusBar.position = new Point(group.data.width / 2 - 10, -93);
+    modalContents.addChild(statusBar);
+
+    var time = new PointText(new Point(group.data.width / 2, -90));
+    time.justification = 'center';
+    time.fontSize = 12;
+    time.fontFamily = 'TTNorms, sans-serif';
+    time.fillColor = colors.lightText.color;
+    time.content = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    setInterval(function() {
+      new Date().toLocaleTimeString([])//, {hour: '2-digit', minute:'2-digit'})
+    }, 1000);
+    modalContents.addChild(time);
 
     group.addChildren([darkFill, modal, modalContents]);
 
