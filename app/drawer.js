@@ -20,9 +20,9 @@
     // terrain colors
     water: {color:'#83e1c3'},
     sand: {color:'#eee9a9'},
-    level1: {color:'#498344'},
-    level2: {color:'#49b243'},
-    level3: {color:'#6bdd52'},
+    level1: {color:'#347941'},
+    level2: {color:'#35a043'},
+    level3: {color:'#4ac34e'},
     rock: {color:'#737a89'},
     campground: {color:'#b0a280'},
 
@@ -579,7 +579,7 @@
   function saveMapToFile() {
     var mapJson = encodeMap();
 
-    var saveMargins = new Point(8, 8);
+    var saveMargins = new Point(10, 10);
 
     uiLayer.activate();
     var mapRaster = mapLayer.rasterize();
@@ -603,8 +603,8 @@
     var text = new PointText(mapBounds.bottomRight - new Point(2, 2));
     text.justification = 'right';
     text.content = "made at eugeneration.github.io/HappyIslandDesigner";
-    text.fontFamily = 'Fredoka One';
-    text.fillColor = '#c3f6fb'
+    text.fontFamily = 'TTNorms, Fredoka One, sans-serif';
+    text.fillColor = colors.oceanDark.color;
     text.strokeWidth = 0;
     text.fontSize = 2;
     text.selected = true;
@@ -1034,6 +1034,7 @@
     onSelect: function(subclass, isSelected) {
       subclass.icon.data.select(isSelected);
       this.openMenu(subclass, isSelected);
+      if (!isSelected) subclass.enablePreview(isSelected);
     },
     onMouseMove: function(subclass, event) {
       updateCoordinateLabel(event);
@@ -1298,6 +1299,7 @@
       },
       enablePreview: function(isEnabled) {
         this.base.enablePreview(this, isEnabled);
+        console.log('enablepreview', isEnabled);
         if (objectPreviewOutline) objectPreviewOutline.visible = isEnabled;
         if (objectPreview) objectPreview.visible = isEnabled;
       },

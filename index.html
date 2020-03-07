@@ -15,7 +15,9 @@
     <meta charset="utf-8">
     <meta name=”viewport” content=”width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no” />
     <title>Happy Island Designer</title>
-    <link href="https://fonts.googleapis.com/css?family=Fredoka+One&display=swap" rel="stylesheet">
+    <link rel="preload" href="/font/TTNorms-Bold.woff" as="font" type="font/woff" crossorigin>
+    <link rel="prefetch" href="/font/TTNorms-Bold.woff" as="font" type="font/woff" crossorigin>
+    <!-- font choice from: https://github.com/JoseDelPino/dodo_passboard -->
     <script type="text/javascript" src="lib/paper-full.js"></script>
     <script type="text/javascript" src="lib/jquery-3.4.1.min.js"></script>
     <script type="text/javascript" src="lib/jquery.mousewheel.min.js"></script>
@@ -48,6 +50,10 @@
             box-shadow: 0px 1px 5px rgb(0,0,0,.2);
         }
 
+        .hidden {
+            display: none;
+        }
+
         .menuButton {
             position: fixed;
             top: 0;
@@ -63,9 +69,18 @@
             height: 60px;
             box-shadow: 0px 1px 5px rgb(0,0,0,.2);
         }
+
+        @font-face {
+            font-family: "TTNorms";
+            src: url("font/TTNorms-Bold.woff") format('woff');
+        }
     </style>
 </head>
 <body>
+    <!-- browsers unload fonts that aren't used -->
+    <div class="hidden">
+        <p style="font-family: TTNorms">.</p>
+    </div>
     <canvas id="canvas" resize></canvas>
 </body>
 </html>
