@@ -51,23 +51,23 @@
     paper: {color:'#f5f3e5'}, // general white
 
     // colors from nookPhone (colors are hued towards red/yellow)
-    purple: "#be84f0",
-    blue: "#8c97ec",
-    lightBlue: "#b4bdfd",
-    orange: "#df8670",
-    magenta: "#f550ab",
-    pink: "#f09eb3",
-    cyan: "#63d5bf",
-    turquoise: "#86e0bb",
-    green: "#8dd08a",
-    lime: "#d2e541",
-    red: "#ee666e",
-    offBlack: "#4b3b32",
-    offWhite: "#f6f2e0",
-    lightText: "#dcd8ca",
-    text: "#726a5a",
-    yellow: "#f5d830",
-    lightBrown: "#bfab76",
+    purple: {color: "#be84f0"},
+    blue: {color: "#8c97ec"},
+    lightBlue: {color: "#b4bdfd"},
+    orange: {color: "#df8670"},
+    magenta: {color: "#f550ab"},
+    pink: {color: "#f09eb3"},
+    cyan: {color: "#63d5bf"},
+    turquoise: {color: "#86e0bb"},
+    green: {color: "#8dd08a"},
+    lime: {color: "#d2e541"},
+    red: {color: "#ee666e"},
+    offBlack: {color: "#4b3b32"},
+    offWhite: {color: "#f6f2e0"},
+    lightText: {color: "#dcd8ca"},
+    text: {color: "#726a5a"},
+    yellow: {color: "#f5d830"},
+    lightBrown: {color: "#bfab76"},
 
     // generic colors
     firetruck: {color:'#ef3c1d'},
@@ -603,7 +603,7 @@
     var text = new PointText(mapBounds.bottomRight - new Point(2, 2));
     text.justification = 'right';
     text.content = "made at eugeneration.github.io/HappyIslandDesigner";
-    text.fontFamily = 'TTNorms, Fredoka One, sans-serif';
+    text.fontFamily = 'TTNorms, sans-serif';
     text.fillColor = colors.oceanDark.color;
     text.strokeWidth = 0;
     text.fontSize = 2;
@@ -743,28 +743,105 @@
   //  new Point(0, 0),
   //];
 
+  function renderModal(width, height) {
+    fixedLayer.activate();
 
-  var mainMenu = new Path();
-  var saveButton = new Path.Circle(120, 50, 30);
-  saveButton.fillColor = colors.paper.color;
-  saveButton.onMouseDown = function() {
-    saveMapToFile();
-  };
+    var group = new Group;
 
-  var loadButton = new Path.Circle(200, 50, 30);
-  loadButton.fillColor = colors.paper.color;
-  loadButton.onMouseDown = function() {
-    loadMapFromFile();
-  };
+    var darkFill = new Path.Rectangle(new Rectangle(
+      0, 0, view.bounds.width, view.bounds.height));
+    darkFill.fillColor = colors.offBlack.color;
+    darkFill.fillColor.alpha = 0.3;
+    darkFill.onMouseUp = function() {
+      showMainMenu(false);
+    }
 
-  var newButton = new Path.Circle(280, 50, 30);
-  newButton.fillColor = colors.paper.color;
-  newButton.onMouseDown = function() {
-    var r = confirm("Clear your map? You will lose all unsaved changes.");
-    if (r == true) {
-      loadTemplate();
-    } else { }
-  };
+    var modal = new Path.Rectangle(new Rectangle(
+      view.bounds.center.x - width / 2, 
+      view.bounds.center.y - height / 2, width, height), 60);
+    modal.fillColor = colors.paper.color;
+    modal.onMouseEnter = function(event) {
+      group.data.text.content = "";
+    }
+
+    var modalContents = new Group();
+    modalContents.applyMatrix = false;
+    modalContents.position = modal.bounds.topLeft + new Point(40, 120);
+    modalContents.data = {
+      addElement: function () {
+
+      },
+    }
+
+    group.data = {
+      width: modal.bounds.width - 40 * 2,
+      height: modal.bounds.width - 120 + 40,
+      contents: modalContents,
+    };
+
+    var text = new PointText(new Point(group.data.width / 2, -50));
+    text.justification = 'center';
+    text.content = "",
+    text.fontSize = 20;
+    text.fontFamily = 'TTNorms, sans-serif';
+    text.fillColor = colors.text.color;
+    modalContents.addChild(text);
+
+    group.addChildren([darkFill, modal, modalContents]);
+
+    group.data.text = text;
+
+    return group;
+  }
+
+  var mainMenu;
+
+  function showMainMenu(isShown) {
+
+    if (mainMenu == null) {
+      if (!isShown) return;
+      mainMenu = renderModal(260, 370);
+
+      var saveButton = new Raster('img/menu-save.png');
+      saveButton.scaling = new Point(0.4, 0.4);
+      saveButton.position = new Point(20, 0);
+      saveButton.onMouseDown = function() {
+        saveMapToFile();
+      };
+      saveButton.onMouseEnter = function(event) {
+        mainMenu.data.text.content = "Save as Image";
+      }
+
+      var loadButton = new Raster('img/menu-open.png');
+      loadButton.scaling = new Point(0.4, 0.4);
+      loadButton.position = new Point(90, 0);
+      loadButton.onMouseDown = function() {
+        loadMapFromFile();
+      };
+      loadButton.onMouseEnter = function(event) {
+        mainMenu.data.text.content = "Load Map";
+      }
+
+      var newButton = new Raster('img/menu-new.png');
+      newButton.scaling = new Point(0.4, 0.4);
+      newButton.position = new Point(160, 0);
+      newButton.onMouseDown = function() {
+        var r = confirm("Clear your map? You will lose all unsaved changes.");
+        if (r == true) {
+          loadTemplate();
+        } else { }
+      };
+      newButton.onMouseEnter = function(event) {
+          mainMenu.data.text.content = "New Map";
+        }
+
+      mainMenu.data.contents.addChildren([saveButton, loadButton, newButton]);
+    } else {
+      mainMenu.visible = isShown;
+      mainMenu.locked = !isShown;
+      return;
+    }
+  }
 
   var leftToolMenu = new Path();
   leftToolMenu.strokeColor = colors.paper.color;
@@ -772,7 +849,7 @@
   leftToolMenu.strokeCap = 'round';
   leftToolMenu.segments = [
     new Point(0, 120),
-    new Point(0, 400),
+    new Point(0, 280),
   ];
 
   var leftToolMenuPosition = new Point(30, 120);
@@ -1091,39 +1168,38 @@
   }
 
   var toolCategoryDefinition = {
-    pointer: {
-      base: baseToolCategoryDefinition,
-      type: 'pointer',
-      layer: mapIconLayer,
-      icon: "pointer",
-      tools: {},
-      defaultTool: null,
-      modifiers: {},
-      defaultModifiers: {
-
-      },
-      onSelect: function(isSelected) {
-        this.base.onSelect(this, isSelected);
-      },
-      onMouseMove: function(event) {
-        this.base.onMouseMove(this, event);
-      },
-      onMouseDown: function(event) {
-        this.base.onMouseDown(this, event);
-      },
-      onMouseDrag: function(event) {
-        this.base.onMouseDrag(this, event);
-      },
-      onMouseUp: function(event) {
-        this.base.onMouseUp(this, event);
-      },
-      onKeyDown: function(event) {
-        this.base.onKeyDown(this, event);
-      },
-      enablePreview: function(isEnabled) {
-        this.base.enablePreview(this, isEnabled);
-      },
-    },
+//    pointer: {
+//      base: baseToolCategoryDefinition,
+//      type: 'pointer',
+//      layer: mapIconLayer,
+//      icon: "pointer",
+//      tools: {},
+//      defaultTool: null,
+//      modifiers: {},
+//      defaultModifiers: {
+//      },
+//      onSelect: function(isSelected) {
+//        this.base.onSelect(this, isSelected);
+//      },
+//      onMouseMove: function(event) {
+//        this.base.onMouseMove(this, event);
+//      },
+//      onMouseDown: function(event) {
+//        this.base.onMouseDown(this, event);
+//      },
+//      onMouseDrag: function(event) {
+//        this.base.onMouseDrag(this, event);
+//      },
+//      onMouseUp: function(event) {
+//        this.base.onMouseUp(this, event);
+//      },
+//      onKeyDown: function(event) {
+//        this.base.onKeyDown(this, event);
+//      },
+//      enablePreview: function(isEnabled) {
+//        this.base.enablePreview(this, isEnabled);
+//      },
+//    },
     terrain: {
       base: baseToolCategoryDefinition,
       type: 'terrain',
@@ -1186,7 +1262,7 @@
         );
         this.base.iconMenu.data.setPointer(30);
         this.base.iconMenu.pivot = new Point(0, 0);
-        this.base.iconMenu.position = new Point(100, 145);
+        this.base.iconMenu.position = new Point(100, 95);
         // this is a little messy
         this.base.iconMenu.data.update(this.data.paintColorData.key);
       },
@@ -1262,7 +1338,7 @@
         this.base.iconMenu = createMenu(pathColorButtons, 45);
         this.base.iconMenu.data.setPointer(80);
         this.base.iconMenu.pivot = new Point(0, 0);
-        this.base.iconMenu.position = new Point(100, 145);
+        this.base.iconMenu.position = new Point(100, 95);
         // this is a little messy
         this.base.iconMenu.data.update(this.data.paintColorData.key);
       },
@@ -1320,7 +1396,7 @@
           );
           this.base.iconMenu.data.setPointer(130);
           this.base.iconMenu.pivot = new Point(0, 0);
-          this.base.iconMenu.position = new Point(100, 145);
+          this.base.iconMenu.position = new Point(100, 95);
           // this is a little messy
           if (toolState.activeTool && toolState.activeTool.tool) {
             this.base.iconMenu.data.update(toolState.activeTool.tool.type);
@@ -1377,7 +1453,7 @@
           );
           this.base.iconMenu.data.setPointer(185);
           this.base.iconMenu.pivot = new Point(0, 0);
-          this.base.iconMenu.position = new Point(100, 145);
+          this.base.iconMenu.position = new Point(100, 95);
           // this is a little messy
           if (toolState.activeTool && toolState.activeTool.tool) {
             this.base.iconMenu.data.update(toolState.activeTool.tool.type);
@@ -1669,6 +1745,9 @@
       case 'backspace':
       case 'delete':
         toolState.deleteSelection();
+        break;
+      case 'escape':
+        showMainMenu(mainMenu != null && mainMenu.visible ? false : true)
         break;
       case '\\':
         toggleGrid();
