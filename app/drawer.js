@@ -774,6 +774,7 @@
   //  new Point(0, 0),
   //];
 
+console.log(project)
   function renderModal(name, width, height, onDismiss) {
     fixedLayer.activate();
 
@@ -849,7 +850,7 @@
   var helpMenu;
   function showHelpMenu(isShown) {
     if (helpMenu == null) {
-      helpMenu = renderModal('Hotkeys', 340, 540, function() {showHelpMenu(false)});
+      helpMenu = renderModal('Hotkeys', 340, 560, function() {showHelpMenu(false)});
 
       var helpText = new PointText(new Point(80, 0));
       helpText.justification = 'right';
@@ -860,9 +861,9 @@
         'shift+scroll\n'+
         '\n'+
         '\\\n'+
+        'shift+drag\n'+
         '[ ]\n'+
         'p\n'+
-        'l\n'+
         'delet\n'+
         '\n'+
         'ctrl + s\n'+
@@ -887,9 +888,9 @@
         'zoom\n'+
         '\n'+
         'toggle grid\n'+
+        'draw line\n'+
         'adjust brush size\n'+
         'square/circle brush\n'+
-        'toggle diagonals\n'+
         'delete selection\n'+
         '\n'+
         'save\n'+
@@ -898,9 +899,9 @@
         'hotkeys\n'+
         '\n'+
         'terrain tool \n'+
-        'save\n'+
-        'save\n'+
-        'save\n'+
+        'path tool\n'+
+        'building tool\n'+
+        'amenities tool\n'+
         '\n'+
         'encode to console\n'+
         '';
@@ -1030,21 +1031,21 @@
   leftToolMenuBacking.strokeCap = 'round';
   leftToolMenuBacking.segments = [
     new Point(-30, -0),
-    new Point(-30, 360)
+    new Point(-30, 330)
   ];
   leftToolMenu.addChild(leftToolMenuBacking);
 
-  var leftToolMenuPosition = new Point(0, 140);
+  var leftToolMenuPosition = new Point(0, 100);
   var leftToolMenuIconHeight = 50;
 
   function addToLeftToolMenu(icon) {
     if (icon == null) {
-      // create spacer
-      icon = new Path.Rectangle(0, 0, 40, 2);
-      icon.fillColor = colors.lightText.color;
-      icon.position = leftToolMenuPosition - new Point(0, leftToolMenuIconHeight / 4);
+//      // create spacer
+//      icon = new Path.Rectangle(0, 0, 40, 2);
+//      icon.fillColor = colors.lightText.color;
+//      icon.position = leftToolMenuPosition - new Point(0, leftToolMenuIconHeight / 4);
+//      leftToolMenu.addChild(icon);
       leftToolMenuPosition.y += leftToolMenuIconHeight / 2;
-      leftToolMenu.addChild(icon);
       return;
     }
 
@@ -1489,7 +1490,7 @@
         );
         this.base.iconMenu.data.setPointer(30);
         this.base.iconMenu.pivot = new Point(0, 0);
-        this.base.iconMenu.position = new Point(100, 115);
+        this.base.iconMenu.position = new Point(100, 75);
         // this is a little messy
         this.base.iconMenu.data.update(this.data.paintColorData.key);
       },
@@ -1565,7 +1566,7 @@
         this.base.iconMenu = createMenu(pathColorButtons, 45);
         this.base.iconMenu.data.setPointer(80);
         this.base.iconMenu.pivot = new Point(0, 0);
-        this.base.iconMenu.position = new Point(100, 115);
+        this.base.iconMenu.position = new Point(100, 75);
         // this is a little messy
         this.base.iconMenu.data.update(this.data.paintColorData.key);
       },
@@ -1622,7 +1623,7 @@
           );
           this.base.iconMenu.data.setPointer(130);
           this.base.iconMenu.pivot = new Point(0, 0);
-          this.base.iconMenu.position = new Point(100, 115);
+          this.base.iconMenu.position = new Point(100, 75);
           // this is a little messy
           if (toolState.activeTool && toolState.activeTool.tool) {
             this.base.iconMenu.data.update(toolState.activeTool.tool.type);
@@ -1679,7 +1680,7 @@
           );
           this.base.iconMenu.data.setPointer(185);
           this.base.iconMenu.pivot = new Point(0, 0);
-          this.base.iconMenu.position = new Point(100, 115);
+          this.base.iconMenu.position = new Point(100, 75);
           // this is a little messy
           if (toolState.activeTool && toolState.activeTool.tool) {
             this.base.iconMenu.data.update(toolState.activeTool.tool.type);
@@ -1957,9 +1958,9 @@
         brushSize = Math.max(brushSize + 1, 1);
         updateBrush();
         break;
-      case 'l':
-        brushSweep = !brushSweep;
-        break;
+//      case 'l':
+//        brushSweep = !brushSweep;
+//        break;
       case 'p':
         cycleBrushHead();
         updateBrush();
@@ -2376,33 +2377,60 @@
     if (gridRaster) gridRaster.remove();
     var grid = [];
     for (var i = 0; i < horizontalBlocks * horizontalDivisions; i++) {
-      var line = createGridLine(getSegment(i, true), i % horizontalDivisions == 0);
+      var line = createGridLine(i, true, i != 0 && i % horizontalDivisions == 0);
       grid.push(line);
     }
     for (var i = 0; i < verticalBlocks * verticalDivisions; i++) {
-      var line = createGridLine(getSegment(i, false), i % verticalDivisions == 0);
+      var line = createGridLine(i, false, i != 0 && i % verticalDivisions == 0);
       grid.push(line);
     }
     var gridGroup = new Group(grid);
+
+    // it starts counting from the second block
+    for (var i = 0; i < horizontalBlocks - 1; i++) {
+      var gridLabel = new PointText((i + 1.5) * horizontalDivisions, verticalBlocks * verticalDivisions + 4);
+      gridLabel.justification = 'center';
+      gridLabel.fontFamily = 'TTNorms, sans-serif';
+      gridLabel.fontSize = 3;
+      gridLabel.fillColor = colors.oceanText.color;
+      gridLabel.content = 1 + i;
+      gridGroup.addChild(gridLabel);
+    }
+
+    for (var i = 0; i < verticalBlocks; i++) {
+      var gridLabel = new PointText(-4, (i + 0.5) * verticalDivisions + 1);
+      gridLabel.justification = 'center';
+      gridLabel.fontFamily = 'TTNorms, sans-serif';
+      gridLabel.fontSize = 3;
+      gridLabel.fillColor = colors.oceanText.color;
+      gridLabel.content = String.fromCharCode(65 + i); // A = 65
+      gridGroup.addChild(gridLabel);
+    }
+
     gridRaster = gridGroup.rasterize(view.resolution * 10);
     gridGroup.remove();
     mapLayer.activate();
     gridRaster.locked = true;
   }
 
-  function createGridLine(segment, blockEdge) {
+  function createGridLine(i, horizontal, blockEdge) {
+    var gridNegativeMarginLeft = blockEdge ? 4 : 0;
+    var gridNegativeMarginRight = blockEdge ? 4 : 0;
+    var gridNegativeMarginTop = blockEdge ? 0 : 0;
+    var gridNegativeMarginBottom = blockEdge ? 4 : 0;
+    var segment = horizontal
+      ? [new Point(i, -gridNegativeMarginTop), new Point(i, verticalBlocks * verticalDivisions + gridNegativeMarginTop + gridNegativeMarginBottom)]
+      : [new Point(-gridNegativeMarginLeft, i), new Point(horizontalBlocks * horizontalDivisions + gridNegativeMarginLeft + gridNegativeMarginRight, i)];
+
     line = new Path(segment);
     line.strokeColor = '#ffffff';
     line.strokeWidth = blockEdge ? .2 : 0.1;
     line.strokeCap = 'round';
     //line.dashArray = blockEdge ? [4, 6] : null;
-    line.opacity = blockEdge ? 0.5 : 0.3;
+    line.opacity = blockEdge ? 0.5 : 0.2;
     return line;
   }
 
-  function getSegment(i, horizontal) {
-    return horizontal ? [new Point(i, 0), new Point(i, verticalBlocks * verticalDivisions)] : [new Point(0, i), new Point(horizontalBlocks * horizontalDivisions, i)];
-  }
   /*function updateSegments() {
       for (var i = 0; i < horizontalBlocks * horizontalDivisions; i++) {
           var segmentPoints = getSegment(i, true);
