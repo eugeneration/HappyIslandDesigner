@@ -874,23 +874,23 @@
       helpText.fillColor = colors.oceanText.color;
       helpText.content = 
         'shift+scroll\n'+
-        '\n'+
         '\\\n'+
         'shift+drag\n'+
         '[ ]\n'+
         'p\n'+
-        'delet\n'+
-        '\n'+
-        'ctrl + s\n'+
-        'ctrl + o\n'+
-        'esc\n'+
-        '?\n'+
+        'delete\n'+
+        'ctrl + z\n'+
+        'ctrl + y\n'+
         '\n'+
         'v\n'+
         'b\n'+
         'n\n'+
         'm\n'+
         '\n'+
+        'ctrl + s\n'+
+        'ctrl + o\n'+
+        'esc\n'+
+        '?\n'+
         '/\n'+
         '';
 
@@ -901,23 +901,23 @@
       helpText2.fillColor = colors.text.color;
       helpText2.content = 
         'zoom\n'+
-        '\n'+
         'toggle grid\n'+
         'draw line\n'+
         'adjust brush size\n'+
         'square/circle brush\n'+
         'delete selection\n'+
-        '\n'+
-        'save\n'+
-        'open map file\n'+
-        'main menu\n'+
-        'hotkeys\n'+
+        'undo\n'+
+        'redo\n'+
         '\n'+
         'terrain tool \n'+
         'path tool\n'+
         'building tool\n'+
         'amenities tool\n'+
         '\n'+
+        'save\n'+
+        'open map file\n'+
+        'main menu\n'+
+        'hotkeys\n'+
         'encode to console\n'+
         '';
 
