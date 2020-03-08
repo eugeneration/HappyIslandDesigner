@@ -4,8 +4,12 @@
   var mapOverlayLayer = new Layer();
   var uiLayer = new Layer();
   var fixedLayer = new Layer();
+  var cloudLayer = new Layer();
+  var modalLayer = new Layer();
   backgroundLayer.applyMatrix = false;
+  cloudLayer.applyMatrix = false;
   fixedLayer.applyMatrix = false;
+  modalLayer.applyMatrix = false;
 
   mapLayer.applyMatrix = false;
   mapLayer.pivot = new Point(0, 0);
@@ -461,14 +465,26 @@
   tool.minDistance = 1;
 
   var prevViewMatrix = view.matrix.clone();
+
+  var inverted = view.matrix.inverted();
   fixedLayer.activate();
+
+//  cloudLayer.matrix = view.matrix.inverted();
+//  cloudLayer.scale(2, view.projectToView(new Point(0, 0)));
+//  cloudLayer.bounds.topLeft = view.projectToView(new Point(0, 0));
   function onFrame() {
     if (!view.matrix.equals(prevViewMatrix)) {
       var inverted = view.matrix.inverted();
       backgroundLayer.matrix = inverted;
+
       fixedLayer.matrix = inverted;
-      fixedLayer.scale(window.devicePixelRatio / 2, view.projectToView(new Point(0, 0)));
+      modalLayer.matrix = inverted;
       prevViewMatrix = view.matrix.clone();
+
+//      // clouds shift w/ parallax while scrolling
+//      cloudLayer.matrix = inverted;
+//      cloudLayer.scale(2, view.projectToView(new Point(0, 0)));
+//      cloudLayer.bounds.topLeft = view.projectToView(new Point(0, 0));
     }
     //fixedLayer.pivot = new Point(0, 0);
    // fixedLayer.position = view.viewSize.topLeft;
@@ -480,6 +496,12 @@
 
   // ===============================================
   // BACKGROUND
+
+//  cloudLayer.activate();
+//  for (var i = 0; i < 20; i ++) {
+//    var cloud = new Raster('img/cloud1.png');
+//    cloud.position = new Point((i % 2 + 2) * 120, (i % 2 + 3) * 120);
+//  }
 
    backgroundLayer.activate();
   var backgroundRect = new Path();
@@ -752,7 +774,7 @@
   //  new Point(0, 0),
   //];
 
-  function renderModal(name, width, height) {
+  function renderModal(name, width, height, onDismiss) {
     fixedLayer.activate();
 
     var group = new Group;
@@ -761,9 +783,7 @@
       0, 0, view.bounds.width, view.bounds.height));
     darkFill.fillColor = colors.offBlack.color;
     darkFill.fillColor.alpha = 0.3;
-    darkFill.onMouseUp = function() {
-      showMainMenu(false);
-    }
+    darkFill.onMouseUp = onDismiss;
 
     var modal = new Path.Rectangle(new Rectangle(
       view.bounds.center.x - width / 2, 
@@ -785,7 +805,7 @@
 
     group.data = {
       width: modal.bounds.width - 40 * 2,
-      height: modal.bounds.width - 120 + 40,
+      height: modal.bounds.height - 120 - 40,
       contents: modalContents,
     };
 
@@ -815,8 +835,8 @@
     time.fillColor = colors.lightText.color;
     time.content = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     setInterval(function() {
-      new Date().toLocaleTimeString([])//, {hour: '2-digit', minute:'2-digit'})
-    }, 1000);
+      time.content = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    }, 10000);
     modalContents.addChild(time);
 
     group.addChildren([darkFill, modal, modalContents]);
@@ -826,13 +846,92 @@
     return group;
   }
 
+  var helpMenu;
+  function showHelpMenu(isShown) {
+    if (helpMenu == null) {
+      helpMenu = renderModal('Hotkeys', 340, 540, function() {showHelpMenu(false)});
+
+      var helpText = new PointText(new Point(80, 0));
+      helpText.justification = 'right';
+      helpText.fontSize = 16;
+      helpText.fontFamily = 'TTNorms, sans-serif';
+      helpText.fillColor = colors.oceanText.color;
+      helpText.content = 
+        'shift+scroll\n'+
+        '\n'+
+        '\\\n'+
+        '[ ]\n'+
+        'p\n'+
+        'l\n'+
+        'delet\n'+
+        '\n'+
+        'ctrl + s\n'+
+        'ctrl + o\n'+
+        'esc\n'+
+        '?\n'+
+        '\n'+
+        'v\n'+
+        'b\n'+
+        'n\n'+
+        'm\n'+
+        '\n'+
+        '/\n'+
+        '';
+
+      var helpText2 = new PointText(new Point(100, 0));
+      helpText2.justification = 'left';
+      helpText2.fontSize = 16;
+      helpText2.fontFamily = 'TTNorms, sans-serif';
+      helpText2.fillColor = colors.text.color;
+      helpText2.content = 
+        'zoom\n'+
+        '\n'+
+        'toggle grid\n'+
+        'adjust brush size\n'+
+        'square/circle brush\n'+
+        'toggle diagonals\n'+
+        'delete selection\n'+
+        '\n'+
+        'save\n'+
+        'open map file\n'+
+        'main menu\n'+
+        'hotkeys\n'+
+        '\n'+
+        'terrain tool \n'+
+        'save\n'+
+        'save\n'+
+        'save\n'+
+        '\n'+
+        'encode to console\n'+
+        '';
+
+      var helpTextRaster = helpText.rasterize();
+      var helpText2Raster = helpText2.rasterize();
+      helpText.remove();
+      helpText2.remove();
+
+      var versionCode = new PointText(helpMenu.data.width / 2, helpMenu.data.height);
+      versionCode.justification = 'center';
+      versionCode.fontSize = 12;
+      versionCode.fontFamily = 'TTNorms, sans-serif';
+      versionCode.fillColor = colors.lightText.color;
+      versionCode.content = "v0.0.1";
+
+      helpMenu.data.contents.addChildren([helpTextRaster, helpText2Raster, versionCode]);
+
+      helpMenu.opacity = 0;
+    }
+    helpMenu.tweenTo({opacity: isShown ? 1 : 0}, 200);
+    helpMenu.locked = !isShown;
+  }
+
+
   var mainMenu;
 
   function showMainMenu(isShown) {
-
     if (mainMenu == null) {
       if (!isShown) return;
-      mainMenu = renderModal('Main Menu', 260, 370);
+      mainMenu = renderModal('Main Menu', 260, 370, function() {showMainMenu(false)});
 
       var hitSizeHalf = new Point(35, 35);
       var hitSize = new Size(70, 70);
@@ -921,18 +1020,55 @@
     mainMenu.locked = !isShown;
   }
 
-  var mainMenuButton = new Path.Circle(new Point(view.center.x, 0), 40);
+  var leftToolMenu = new Group();
+  leftToolMenu.applyMatrix = false;
+  leftToolMenu.position = [30, 0];
+
+  var leftToolMenuBacking = new Path();
+  leftToolMenuBacking.strokeColor = colors.paper.color;
+  leftToolMenuBacking.strokeWidth = 120;
+  leftToolMenuBacking.strokeCap = 'round';
+  leftToolMenuBacking.segments = [
+    new Point(-30, -0),
+    new Point(-30, 360)
+  ];
+  leftToolMenu.addChild(leftToolMenuBacking);
+
+  var leftToolMenuPosition = new Point(0, 140);
+  var leftToolMenuIconHeight = 50;
+
+  function addToLeftToolMenu(icon) {
+    if (icon == null) {
+      // create spacer
+      icon = new Path.Rectangle(0, 0, 40, 2);
+      icon.fillColor = colors.lightText.color;
+      icon.position = leftToolMenuPosition - new Point(0, leftToolMenuIconHeight / 4);
+      leftToolMenuPosition.y += leftToolMenuIconHeight / 2;
+      leftToolMenu.addChild(icon);
+      return;
+    }
+
+    icon.position = leftToolMenuPosition;
+    leftToolMenu.addChild(icon);
+    leftToolMenuPosition.y += leftToolMenuIconHeight;
+  }
+
+  // layout for mobile version
+  //var mainMenuButton = new Path.Circle(new Point(view.center.x, 0), 40);
+  // mainMenuButtonIcon.position = new Point(view.center.x, 20);
+
+  var mainMenuButton = new Path.Circle(new Point(30, 30), 24);
   mainMenuButton.fillColor = colors.pink.color;
   mainMenuButton.opacity = 0.00001;
   mainMenuButtonIcon = new Group();
   mainMenuButtonIcon.applyMatrix = false;
-  mainMenuButtonIcon.position = new Point(view.center.x, 20);
+  mainMenuButtonIcon.position = new Point(30, 30);
   mainMenuButtonIcon.addChildren([
     new Path.Rectangle({point: [-10, -10], size: [20, 4]}),
     new Path.Rectangle({point: [-10, -2], size: [20, 4]}),
     new Path.Rectangle({point: [-10, 6], size: [20, 4]}),
   ]);
-  mainMenuButtonIcon.fillColor = colors.oceanDark.color;
+  mainMenuButtonIcon.fillColor = colors.text.color;
   mainMenuButtonIcon.locked = true;
 
   mainMenuButton.onMouseEnter = function(event) {
@@ -941,7 +1077,7 @@
   }
   mainMenuButton.onMouseLeave = function(event) {
     mainMenuButton.tweenTo({opacity: 0.00001}, 150);
-    mainMenuButtonIcon.tweenTo({fillColor: colors.oceanDark.color}, 150);
+    mainMenuButtonIcon.tweenTo({fillColor: colors.text.color}, 150);
   }
   mainMenuButton.onMouseDown = function(event) {
     mainMenuButtonIcon.fillColor = colors.yellow.color;
@@ -949,23 +1085,6 @@
   mainMenuButton.onMouseUp = function(event) {
     showMainMenu(true);
     mainMenuButton.onMouseLeave(event);
-  }
-
-  var leftToolMenu = new Path();
-  leftToolMenu.strokeColor = colors.paper.color;
-  leftToolMenu.strokeWidth = 120;
-  leftToolMenu.strokeCap = 'round';
-  leftToolMenu.segments = [
-    new Point(0, 120),
-    new Point(0, 280),
-  ];
-
-  var leftToolMenuPosition = new Point(30, 120);
-  var leftToolMenuIconHeight = 50;
-
-  function addToLeftToolMenu(icon) {
-    icon.position = leftToolMenuPosition;
-    leftToolMenuPosition.y += leftToolMenuIconHeight;
   }
 
 
@@ -1370,7 +1489,7 @@
         );
         this.base.iconMenu.data.setPointer(30);
         this.base.iconMenu.pivot = new Point(0, 0);
-        this.base.iconMenu.position = new Point(100, 95);
+        this.base.iconMenu.position = new Point(100, 115);
         // this is a little messy
         this.base.iconMenu.data.update(this.data.paintColorData.key);
       },
@@ -1446,7 +1565,7 @@
         this.base.iconMenu = createMenu(pathColorButtons, 45);
         this.base.iconMenu.data.setPointer(80);
         this.base.iconMenu.pivot = new Point(0, 0);
-        this.base.iconMenu.position = new Point(100, 95);
+        this.base.iconMenu.position = new Point(100, 115);
         // this is a little messy
         this.base.iconMenu.data.update(this.data.paintColorData.key);
       },
@@ -1483,7 +1602,6 @@
       },
       enablePreview: function(isEnabled) {
         this.base.enablePreview(this, isEnabled);
-        console.log('enablepreview', isEnabled);
         if (objectPreviewOutline) objectPreviewOutline.visible = isEnabled;
         if (objectPreview) objectPreview.visible = isEnabled;
       },
@@ -1504,7 +1622,7 @@
           );
           this.base.iconMenu.data.setPointer(130);
           this.base.iconMenu.pivot = new Point(0, 0);
-          this.base.iconMenu.position = new Point(100, 95);
+          this.base.iconMenu.position = new Point(100, 115);
           // this is a little messy
           if (toolState.activeTool && toolState.activeTool.tool) {
             this.base.iconMenu.data.update(toolState.activeTool.tool.type);
@@ -1561,7 +1679,7 @@
           );
           this.base.iconMenu.data.setPointer(185);
           this.base.iconMenu.pivot = new Point(0, 0);
-          this.base.iconMenu.position = new Point(100, 95);
+          this.base.iconMenu.position = new Point(100, 115);
           // this is a little messy
           if (toolState.activeTool && toolState.activeTool.tool) {
             this.base.iconMenu.data.update(toolState.activeTool.tool.type);
@@ -1725,6 +1843,14 @@
     addToLeftToolMenu(button);
     def.icon = button;
   });
+  addToLeftToolMenu(); // spacer
+
+  var tool = new Raster(imgPath + 'menu-help.png');
+  tool.scaling = new Point(.3, .3);
+  tool.position = new Point(0, 4);
+  var button = createButton(tool, 20, function() {});
+  button.onMouseUp = function() {showHelpMenu(true)};
+  addToLeftToolMenu(button);
 
   // add gap
   leftToolMenuPosition.y += 60;
@@ -1838,24 +1964,36 @@
         cycleBrushHead();
         updateBrush();
         break;
-      case 'v':
-        toolState.switchToolType(toolCategoryDefinition.pointer.type);
-        break;
+//      case 'v':
+//        toolState.switchToolType(toolCategoryDefinition.pointer.type);
+//        break;
       case 'b':
         toolState.switchToolType(toolCategoryDefinition.terrain.type);
         break;
       case 'n':
-        toolState.switchToolType(toolCategoryDefinition.structures.type);
+        toolState.switchToolType(toolCategoryDefinition.path.type);
         break;
       case 'm':
-        toolState.switchToolType(toolCategoryDefinition.path.type);
+        toolState.switchToolType(toolCategoryDefinition.structures.type);
+        break;
+      case ',':
+        toolState.switchToolType(toolCategoryDefinition.amenities.type);
         break;
       case 'backspace':
       case 'delete':
         toolState.deleteSelection();
         break;
       case 'escape':
-        showMainMenu(mainMenu != null && mainMenu.opacity > 0.8 ? false : true)
+        var isMainMenuShown = mainMenu != null && mainMenu.opacity > 0.8 ? true : false;
+        showMainMenu(!isMainMenuShown);
+        var isHelpMenuShown = helpMenu != null && helpMenu.opacity > 0.8 ? true : false;
+        if (isHelpMenuShown == true) showHelpMenu(false);
+        break;
+      case '?':
+        var isHelpMenuShown = helpMenu != null && helpMenu.opacity > 0.8 ? true : false;
+        var isMainMenuShown = mainMenu != null && mainMenu.opacity > 0.8 ? true : false;
+        showHelpMenu(!isHelpMenuShown);
+        if (isMainMenuShown == true) showMainMenu(false);
         break;
       case '\\':
         toggleGrid();
