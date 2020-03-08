@@ -61,6 +61,11 @@ setZoomRange([view.size, new Size(100, 100)]);
 
 function changeCenterPosition(deltaX, deltaY, factor) {
   view.center += new Point(deltaX, -deltaY) * factor / view.zoom;
+  // limit movement
+  view.center = new Point(
+    Math.min(Math.max(view.center.x, view.scaling.x * view.bounds.width * 0), view.scaling.x * view.bounds.width),
+    Math.min(Math.max(view.center.y, view.scaling.y * view.bounds.height * 0), view.scaling.y * view.bounds.height)
+    );
 }
 
 function setZoomRange(range /*paper.Size[]*/) /* number[] */ {

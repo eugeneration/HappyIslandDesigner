@@ -534,11 +534,16 @@
   }
 
   function drawBackground() {
+
+    var topLeft = new Point(0, 0);// + view.bounds.topLeft;
+    var center = new Point(view.bounds.width , view.bounds.height * view.scaling.y / 2);// + view.bounds.topLeft * 2;
+    var bottomRight = new Point(view.bounds.width * view.scaling.x, view.bounds.height * view.scaling.y);// + view.bounds.topLeft * 2;
+
     backgroundRect.segments = [
       new Point(0, 0),
-      new Point(view.size.width, 0),
-      new Point(view.size.width, view.size.height),
-      new Point(0, view.size.height),
+      new Point(view.size.width * view.scaling.x, 0),
+      new Point(view.size.width * view.scaling.x, view.size.height * view.scaling.y),
+      new Point(0, view.size.height * view.scaling.y),
     ];
     mapLayer.activate();
   }
@@ -774,21 +779,23 @@
   //  new Point(0, 0),
   //];
 
-console.log(project)
   function renderModal(name, width, height, onDismiss) {
+    var topLeft = new Point(0, 0);// + view.bounds.topLeft;
+    var center = new Point(view.bounds.width * view.scaling.x / 2, view.bounds.height * view.scaling.y / 2);// + view.bounds.topLeft * 2;
+    var bottomRight = new Point(view.bounds.width * view.scaling.x, view.bounds.height * view.scaling.y);// + view.bounds.topLeft * 2;
+
     fixedLayer.activate();
 
     var group = new Group;
 
-    var darkFill = new Path.Rectangle(new Rectangle(
-      0, 0, view.bounds.width, view.bounds.height));
+    var darkFill = new Path.Rectangle(new Rectangle(topLeft, bottomRight));
     darkFill.fillColor = colors.offBlack.color;
     darkFill.fillColor.alpha = 0.3;
     darkFill.onMouseUp = onDismiss;
 
     var modal = new Path.Rectangle(new Rectangle(
-      view.bounds.center.x - width / 2, 
-      view.bounds.center.y - height / 2, width, height), 60);
+      center.x - width / 2, 
+      center.y - height / 2, width, height), 60);
     modal.fillColor = colors.paper.color;
     modal.onMouseEnter = function(event) {
       group.data.text.content = name;
@@ -811,8 +818,16 @@ console.log(project)
     };
 
     emitter.on('resize', function() {
-      darkFill.bounds = new Rectangle(0, 0, view.bounds.width, view.bounds.height);
-      modal.position = new Point(view.bounds.center.x, view.bounds.center.y)
+      var topLeft = new Point(0, 0);// + view.bounds.topLeft;
+      var center = new Point(view.bounds.width * view.scaling.x / 2, view.bounds.height * view.scaling.y / 2);// + view.bounds.topLeft * 2;
+      var bottomRight = new Point(view.bounds.width * view.scaling.x, view.bounds.height * view.scaling.y);// + view.bounds.topLeft * 2;
+
+      //var topLeft = view.viewToProject(view.projectToView(new Point(0, 0)));// + view.bounds.topLeft;
+      //var center = view.viewToProject(view.projectToView(new Point(view.bounds.width / 2, view.bounds.height / 2)));// + view.bounds.topLeft * 2;
+      //var bottomRight = view.viewToProject(view.projectToView(new Point(view.bounds.width, view.bounds.height)));// + view.bounds.topLeft * 2;
+
+      darkFill.bounds = new Rectangle(topLeft, bottomRight);
+      modal.position = center;
       modalContents.position = modal.bounds.topLeft + new Point(40, 135);
     })
 
