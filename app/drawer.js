@@ -1267,6 +1267,16 @@
       menuScaling: new Point(.17, .17),
       scaling: new Point(.017, .017),
     },
+    houseFlatSprite: {
+      img: 'sprite/building-flathouse.png',
+      menuScaling: new Point(.17, .17),
+      scaling: new Point(.014, .014),
+    },
+    houseOutlineFlatSprite: {
+      img: 'sprite/building-flathouseoutline.png',
+      menuScaling: new Point(.17, .17),
+      scaling: new Point(.014, .014),
+    },
     treePineSprite: {
       img: 'sprite/tree-pine.png',
       menuScaling: new Point(.15, .15),
