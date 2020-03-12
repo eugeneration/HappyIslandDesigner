@@ -514,6 +514,7 @@
   }
 
   onMouseDown = function onMouseDown(event) {
+    if (isSpaceDown) return;
     toolState.onDown(event);
     if (toolState.toolIsActive)
       toolState.activeTool.definition.onMouseDown(event);
@@ -524,10 +525,12 @@
     }
   }
   onMouseDrag = function onMouseDrag(event) {
+    if (isSpaceDown) return;
     if (toolState.toolIsActive)
       toolState.activeTool.definition.onMouseDrag(event);
   }
   onMouseUp = function onMouseUp(event) {
+    if (isSpaceDown) return;
     toolState.onUp(event);
     if (toolState.toolIsActive)
       toolState.activeTool.definition.onMouseUp(event);
@@ -873,7 +876,8 @@
       helpText.fontFamily = 'TTNorms, sans-serif';
       helpText.fillColor = colors.oceanText.color;
       helpText.content = 
-        'shift+scroll\n'+
+        'space+drag\n'+
+        'alt+scroll\n'+
         '\\\n'+
         'shift+drag\n'+
         '[ ]\n'+
@@ -900,6 +904,7 @@
       helpText2.fontFamily = 'TTNorms, sans-serif';
       helpText2.fillColor = colors.text.color;
       helpText2.content = 
+        'pan\n'+
         'zoom\n'+
         'toggle grid\n'+
         'draw line\n'+
@@ -1925,12 +1930,25 @@
   //pointerToolButton.position = toolsPosition + new Point(0, 0);
   //pointerToolButton.scaling = new Point(0.2, 0.2);
 
+  var isSpaceDown = false;
+
+  function onKeyUp(event) {
+    switch (event.key) {
+      case 'space':
+        isSpaceDown = false
+        break;
+      }
+  }
+
   function onKeyDown(event) {
     var shift = Key.isDown('shift');
     var control = Key.isDown('control') || Key.isDown('meta');
 
     var prevActiveTool = toolState.activeTool;
     switch (event.key) {
+      case 'space':
+        isSpaceDown = true;
+        break;
       case '0':
         updatePaintColor(colors.eraser);
         break;

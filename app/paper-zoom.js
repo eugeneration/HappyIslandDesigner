@@ -16,8 +16,8 @@ view.on('twofingermove', function(event) {
 $(view.element).mousewheel(function(event) {
   var mousePosition = new Point(event.offsetX, event.offsetY);
 
-  if (event.shiftKey || event.ctrlKey) {
-    if (event.shiftKey) event.deltaY = event.deltaX;
+  if (event.altKey || event.ctrlKey) {
+    if (event.altKey) event.deltaY += event.deltaX;
     if (event.ctrlKey) event.deltaY *= 6;
     changeZoomCentered(event.deltaY * event.deltaFactor, mousePosition);
   } else {
@@ -45,21 +45,34 @@ function onMiddleClickUp(event) {
 
 }
 
+var isSpaceDown = false;
+var mouseNativeStart = null;
+var viewCenterStart = null;
+
+view.on('keydown', function (event) {
+    if (event.key == 'space') isSpaceDown = true;
+});
+
+view.on('keyup', function (event) {
+    if (event.key == 'space') isSpaceDown = false;
+});
 
 // This function is called whenever the user
 // clicks the mouse in the view:
-function onMouseDown(event) {
+view.on('mousedown', function (event) {
+    if(!isSpaceDown) return;
     viewCenterStart = view.center;
     // Have to use native mouse offset, because ev.delta 
     //  changes as the view is scrolled.
-    mouseNativeStart = new Point(ev.event.offsetX, ev.event.offsetY);
-}
+    mouseNativeStart = new Point(event.event.offsetX, event.event.offsetY);
+});
 
-function onMouseDrag(event) {
-    if(viewCenterStart) {   
+view.on('mousedrag', function(event) {
+    if(!isSpaceDown) return;
+    if(viewCenterStart) {
         var nativeDelta = new Point(
-            event.offsetX - mouseNativeStart.x,
-            event.offsetY - mouseNativeStart.y
+            event.event.offsetX - mouseNativeStart.x,
+            event.event.offsetY - mouseNativeStart.y
         );
         // Move into view coordinates to subract delta,
         //  then back into project coords.
@@ -67,19 +80,17 @@ function onMouseDrag(event) {
             view.projectToView(viewCenterStart)
             .subtract(nativeDelta));
     }
-}
+});
 
-function onMouseUp(event) {
-    if(mouseNativeStart){
-        mouseNativeStart = null;
-        viewCenterStart = null;
-    }
-}
+view.on('mouseup', function (event) {
+    mouseNativeStart = null;
+    viewCenterStart = null;
+});
 
 // ===============================================
 // PUBLIC FUNCTIONS
 
-setZoomRange([view.size, new Size(100, 100)]);
+setZoomRange([view.size, new Size(50, 50)]);
 
 function changeCenterPosition(deltaX, deltaY, factor) {
   view.center += new Point(deltaX, -deltaY) * factor / view.zoom;
