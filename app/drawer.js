@@ -2519,7 +2519,7 @@
     brush.layer = uiLayer;
     brush.segments = brushSegments;
     brush.pivot = new Point(brushSize / 2 - 0.5, brushSize / 2 - 0.5);
-    brush.position = getBrushCenteredCoordinate(prevPos);
+    brush.position = prevPos;
     brush.opacity = 0.6;
     brush.closed = true;
     brush.fillColor = paintColor.color;
