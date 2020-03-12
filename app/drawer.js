@@ -1159,37 +1159,37 @@
     townhallSprite: {
       img: 'sprite/building-townhall.png',
       menuScaling: new Point(.17, .17),
-      scaling: new Point(.017, .017),
-      size: new Size(4, 4),
-      offset: new Point(-2, -3.6),
+      scaling: new Point(.02, .02),
+      size: new Size(6, 4),
+      offset: new Point(-3, -3.6),
     },
     campsiteSprite: {
       img: 'sprite/building-campsite.png',
       menuScaling: new Point(.17, .17),
       scaling: new Point(.017, .017),
-      size: new Size(4, 4),
-      offset: new Point(-2, -3.6),
+      size: new Size(4, 3),
+      offset: new Point(-2, -2.6),
     },
     museumSprite: {
       img: 'sprite/building-museum.png',
       menuScaling: new Point(.17, .17),
-      scaling: new Point(.017, .017),
-      size: new Size(4, 4),
-      offset: new Point(-2, -3.6),
+      scaling: new Point(.025, .025),
+      size: new Size(7, 4),
+      offset: new Point(-3.5, -3.6),
     },
     nookSprite: {
       img: 'sprite/building-nook.png',
       menuScaling: new Point(.17, .17),
-      scaling: new Point(.017, .017),
-      size: new Size(4, 4),
-      offset: new Point(-2, -3.6),
+      scaling: new Point(.020, .020),
+      size: new Size(7, 4),
+      offset: new Point(-3.6, -3.6),
     },
     ableSprite: {
       img: 'sprite/building-able.png',
       menuScaling: new Point(.17, .17),
       scaling: new Point(.017, .017),
-      size: new Size(4, 4),
-      offset: new Point(-2, -3.6),
+      size: new Size(4, 3),
+      offset: new Point(-2, -2.8),
     },
     bridgeVerticalSprite: {
       img: 'sprite/structure-bridge-vertical.png',
@@ -1265,12 +1265,14 @@
     playerhouseSprite: {
       img: 'sprite/building-playerhouse.png',
       menuScaling: new Point(.17, .17),
-      scaling: new Point(.017, .017),
+      scaling: new Point(.022, .022),
+      size: new Size([5,4]),
+      offset: new Point(-2.5, -3.6)
     },
     houseSprite: {
       img: 'sprite/building-house.png',
       menuScaling: new Point(.17, .17),
-      scaling: new Point(.017, .017),
+      scaling: new Point(.02, .02),
     },
     houseFlatSprite: {
       img: 'sprite/building-flathouse.png',
@@ -1286,22 +1288,22 @@
       img: 'sprite/tree-pine.png',
       menuScaling: new Point(.15, .15),
       scaling: new Point(.012, .012),
-      size: new Size([2, 1]),
-      offset: new Point(-1, -.75),
+      size: new Size([1, 1]),
+      offset: new Point(-.5, -.75),
     },
     treePalmSprite: {
       img: 'sprite/tree-palm.png',
       menuScaling: new Point(.17, .17),
       scaling: new Point(.014, .014),
-      size: new Size([2, 1]),
-      offset: new Point(-1, -.75),
+      size: new Size([1, 1]),
+      offset: new Point(-.5, -.75),
     },
     treeFruitSprite: {
       img: 'sprite/tree-fruit.png',
       menuScaling: new Point(.17, .17),
       scaling: new Point(.012, .012),
-      size: new Size([2, 1]),
-      offset: new Point(-1, -.75),
+      size: new Size([1, 1]),
+      offset: new Point(-.45, -.75),
     },
   }
   // set up the definitions programatically because they are all the same
@@ -1336,7 +1338,7 @@
       }
     } else {
       def.colorData = colors.npc;
-      def.scaling = def.scaling || new Point(.03, .03);
+      def.scaling = def.scaling || new Point(.032, .032);
       def.menuScaling = def.menuScaling || new Point(.3, .3);
       def.size = def.size || new Size(4, 4);
       def.offset = def.offset || new Point(-2, -3.6);
