@@ -1368,9 +1368,12 @@
   // BASE LEVEL TOOLS
 
   var baseToolCategoryDefinition = {
-    onSelect: function(subclass, isSelected) {
+    onSelect: function(subclass, isSelected, isReselected) {
       subclass.icon.data.select(isSelected);
-      this.openMenu(subclass, isSelected);
+
+      if (isReselected) this.toggleMenu(subclass);
+      else this.openMenu(subclass, isSelected);
+
       if (!isSelected) subclass.enablePreview(isSelected);
     },
     onMouseMove: function(subclass, event) {
@@ -1389,6 +1392,17 @@
     },
     enablePreview: function(subclass, isEnabled) {
     },
+    toggleMenu: function(subclass) {
+      if (subclass.openMenu) {
+        if (this.iconMenu) {
+          this.iconMenu.remove();
+          this.iconMenu = null; // hide, don't delete the menu
+        }
+        else {
+          subclass.openMenu(true);
+        }
+      }
+    },
     openMenu: function(subclass, isSelected) {
       if (subclass.openMenu) {
         if (!isSelected) {
@@ -1402,7 +1416,9 @@
     },
     updateTool: function(subclass, prevToolData, nextToolData) {
       var sameToolType = prevToolData && (prevToolData.definition.type === nextToolData.definition.type);
-      if (!sameToolType) {
+      if (sameToolType) {
+        nextToolData.definition.onSelect(true, true);
+      } else {
         if (prevToolData) {
           prevToolData.definition.onSelect(false);
         }
@@ -1474,8 +1490,8 @@
       data: {
         paintColorData: colors.level1,
       },
-      onSelect: function(isSelected) {
-        this.base.onSelect(this, isSelected);
+      onSelect: function(isSelected, isReselected) {
+        this.base.onSelect(this, isSelected, isReselected);
       },
       onMouseMove: function(event) {
         this.base.onMouseMove(this, event);
@@ -1541,8 +1557,8 @@
       data: {
         paintColorData: colors.pathDirt,
       },
-      onSelect: function(isSelected) {
-        this.base.onSelect(this, isSelected);
+      onSelect: function(isSelected, isReselected) {
+        this.base.onSelect(this, isSelected, isReselected);
       },
       onMouseMove: function(event) {
         this.base.onMouseMove(this, event);
@@ -1614,8 +1630,8 @@
       defaultModifiers: {
 
       },
-      onSelect: function(isSelected) {
-        this.base.onSelect(this, isSelected);
+      onSelect: function(isSelected, isReselected) {
+        this.base.onSelect(this, isSelected, isReselected);
       },
       onMouseMove: function(event) {
         this.base.onMouseMove(this, event);
@@ -1672,8 +1688,8 @@
       defaultTool: null,
       modifiers: {},
       defaultModifiers: {},
-      onSelect: function(isSelected) {
-        this.base.onSelect(this, isSelected);
+      onSelect: function(isSelected, isReselected) {
+        this.base.onSelect(this, isSelected, isReselected);
       },
       onMouseMove: function(event) {
         this.base.onMouseMove(this, event);
