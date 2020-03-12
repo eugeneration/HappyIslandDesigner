@@ -1414,15 +1414,16 @@
         }
       }
     },
-    updateTool: function(subclass, prevToolData, nextToolData) {
+    updateTool: function(subclass, prevToolData, nextToolData, isToolTypeSwitch) {
       var sameToolType = prevToolData && (prevToolData.definition.type === nextToolData.definition.type);
-      if (sameToolType) {
-        nextToolData.definition.onSelect(true, true);
-      } else {
+      if (!sameToolType) {
         if (prevToolData) {
           prevToolData.definition.onSelect(false);
         }
         nextToolData.definition.onSelect(true);
+      } else if (isToolTypeSwitch) {
+        // user pressed the tool menu button - toggle the menu visibility
+        prevToolData.definition.onSelect(true, true);
       }
       {
         var prevTool = (prevToolData && prevToolData.tool) ? prevToolData.tool.type : null;
@@ -1747,8 +1748,8 @@
   // add additional sub functions to all definitions
   Object.keys(toolCategoryDefinition).forEach(function(toolType) {
     var def = toolCategoryDefinition[toolType];
-    def.updateTool = function(prevToolData, nextToolData) {
-      def.base.updateTool(def, prevToolData, nextToolData);
+    def.updateTool = function(prevToolData, nextToolData, isToolTypeSwitch) {
+      def.base.updateTool(def, prevToolData, nextToolData, isToolTypeSwitch);
     };
   });
 
@@ -1776,17 +1777,17 @@
     },
     switchToolType: function(toolType) {
       if (!this.toolMap.hasOwnProperty(toolType)) {
-        this.switchTool(this.defaultToolMapValue(toolType));
+        this.switchTool(this.defaultToolMapValue(toolType), true);
       } else {
-        this.switchTool(this.toolMap[toolType]);
+        this.switchTool(this.toolMap[toolType], true);
       }
     },
-    switchTool: function(toolData) {
+    switchTool: function(toolData, isToolTypeSwitch) {
       var prevTool = this.activeTool;
       this.activeTool = toolData;
       this.toolMap[toolData.type] = toolData;
-      if (prevTool) prevTool.definition.updateTool(prevTool, toolData);
-      else if (toolData) toolData.definition.updateTool(prevTool, toolData);
+      if (prevTool) prevTool.definition.updateTool(prevTool, toolData, isToolTypeSwitch);
+      else if (toolData) toolData.definition.updateTool(prevTool, toolData, isToolTypeSwitch);
     },
     deleteSelection: function() {
       Object.keys(this.selected).forEach(function(objectId) {
