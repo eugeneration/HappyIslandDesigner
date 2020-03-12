@@ -1,16 +1,23 @@
 // ===============================================
-// GLOBAL FUNCTIONS
+// TOUCH EVENTS
 
-var factor = 1.02;
-var _minZoom;
-var _maxZoom;
-var mouseNativeStart;
-var viewCenterStart;
+// https://developer.mozilla.org/en-US/docs/Web/API/Touch_events/Multi-touch_interaction
+
+// ===============================================
+// SCROLL EVENTS
+
+view.on('twofingermove', function(event) {
+    changeZoomCentered(event.deltaScale * 500, event.center);
+    view.center = view.viewToProject( 
+        view.projectToView(view.center)
+        .subtract(event.deltaPosition));
+})
 
 $(view.element).mousewheel(function(event) {
   var mousePosition = new Point(event.offsetX, event.offsetY);
 
   if (event.shiftKey || event.ctrlKey) {
+    if (event.shiftKey) event.deltaY = event.deltaX;
     if (event.ctrlKey) event.deltaY *= 6;
     changeZoomCentered(event.deltaY * event.deltaFactor, mousePosition);
   } else {
@@ -22,6 +29,22 @@ $(view.element).mousewheel(function(event) {
 //function onResize(event) {
     // Whenever the window is resized, recenter the path:
 //}
+
+// ===============================================
+// MOUSE EVENTS
+
+function onMiddleClickDown(event) {
+    console.log(event);
+}
+
+function onMiddleClickDrag(event) {
+
+}
+
+function onMiddleClickUp(event) {
+
+}
+
 
 // This function is called whenever the user
 // clicks the mouse in the view:
@@ -52,7 +75,6 @@ function onMouseUp(event) {
         viewCenterStart = null;
     }
 }
-
 
 // ===============================================
 // PUBLIC FUNCTIONS
