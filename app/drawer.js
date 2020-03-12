@@ -3095,7 +3095,7 @@
         }
         diffCollection[colorKey].path.push(colorDiff.path);
         if (diffCollection[colorKey].isAdd != colorDiff.isAdd) {
-          console.logError('Simultaneous add and remove for ' + colorKey);
+          console.error('Simultaneous add and remove for ' + colorKey);
         }
       });
       applyDiff(true, diff);
