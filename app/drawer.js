@@ -870,7 +870,7 @@
     if (helpMenu == null) {
       helpMenu = renderModal('Hotkeys', 340, 560, function() {showHelpMenu(false)});
 
-      var helpText = new PointText(new Point(80, 0));
+      var helpText = new PointText(new Point(80, -10));
       helpText.justification = 'right';
       helpText.fontSize = 16;
       helpText.fontFamily = 'TTNorms, sans-serif';
@@ -882,6 +882,7 @@
         'shift+drag\n'+
         '[ ]\n'+
         'p\n'+
+        'alt+click\n'+
         'delete\n'+
         'ctrl + z\n'+
         'ctrl + y\n'+
@@ -895,10 +896,9 @@
         'ctrl + o\n'+
         'esc\n'+
         '?\n'+
-        '/\n'+
         '';
 
-      var helpText2 = new PointText(new Point(100, 0));
+      var helpText2 = new PointText(new Point(100, -10));
       helpText2.justification = 'left';
       helpText2.fontSize = 16;
       helpText2.fontFamily = 'TTNorms, sans-serif';
@@ -910,6 +910,7 @@
         'draw line\n'+
         'adjust brush size\n'+
         'square/circle brush\n'+
+        'color pick\n'+
         'delete selection\n'+
         'undo\n'+
         'redo\n'+
@@ -923,7 +924,6 @@
         'open map file\n'+
         'main menu\n'+
         'hotkeys\n'+
-        'encode to console\n'+
         '';
 
       var helpTextRaster = helpText.rasterize();
@@ -936,7 +936,7 @@
       versionCode.fontSize = 12;
       versionCode.fontFamily = 'TTNorms, sans-serif';
       versionCode.fillColor = colors.lightText.color;
-      versionCode.content = "v0.0.1";
+      versionCode.content = "v0.1.1";
 
       helpMenu.data.contents.addChildren([helpTextRaster, helpText2Raster, versionCode]);
 
