@@ -796,18 +796,29 @@
     group.applyMatrix = false;
     group.addChildren([button, item]);
 
+    function updateColor() {
+      button.fillColor = group.data.selected || group.data.pressed ? colors.npc.color : colors.sand.color;
+      button.fillColor.alpha = group.data.selected ? 1
+        : group.data.pressed ? 0.5 
+        : (group.data.hovered ? 1 : 0.0001);
+    }
+
     group.data = {
       selected: false,
       hovered: false,
+      pressed: false,
       disabled: false,
       select: function(isSelected) {
         group.data.selected = isSelected;
-        button.fillColor = isSelected ? colors.npc.color : colors.sand.color;
-        button.fillColor.alpha = isSelected ? 1 : 0.0001;
+        updateColor();
       },
       hover: function(isHover) {
         group.data.hovered = isHover;
-        button.fillColor.alpha = isHover || group.data.selected ? 1 : 0.0001;
+        updateColor();
+      },
+      press: function(isPressed) {
+        group.data.pressed = isPressed;
+        updateColor();
       },
       disable: function(isDisabled) {
         group.data.disabled = isDisabled;
@@ -821,11 +832,18 @@
     }
     group.onMouseLeave = function(event) {
       if (group.data.disabled) return;
+      group.data.press(false);
       group.data.hover(false);
     }
     group.onMouseDown = function(event) {
       if (group.data.disabled) return;
-      onClick(event, group);
+      group.data.press(true);
+    }
+    group.onMouseUp = function(event) {
+      if (group.data.disabled) return;
+      if (group.data.pressed)
+        onClick(event, group);
+      group.data.press(false);
     }
     return group;
   }
