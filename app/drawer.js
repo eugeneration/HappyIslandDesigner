@@ -228,31 +228,61 @@
       });
   };
 
-  function createMenu(items, spacing, perColumn) {
+  // menuOptions
+  // spacing: float
+  // columnSpacing: float
+  // perColumn: int
+  // horizontal: bool
+  // menuWidth: float
+  // noPointer: bool
+  // margin : float
+
+  function createMenu(items, options) {
     var itemsCount = Object.keys(items).length;
-    if (spacing == null) spacing = 50;
-    if (perColumn == null) perColumn = itemsCount;
-    var horizontalSpacing = 60;
+    var spacing = options.spacing == null ? 50 : options.spacing;
+    var perColumn = options.perColumn == null ? itemsCount : options.perColumn;
+    var columnSpacing = options.columnSpacing == null ? 60 : options.columnSpacing;
+    var horizontal = options.horizontal == null ? false : options.horizontal;
+    var noPointer = options.noPointer == null ? false : options.noPointer;
+    var margin = options.margin == null ? 35 : options.margin;
     var i = 0;
     var iconMenu = new Group();
 
     var columns = Math.ceil(itemsCount / perColumn);
 
+    var menuLongPosition = -margin;
+    var menuShortPosition = -0.5 * columnSpacing;
+    var menuLongDimension = 2 * margin + spacing * (perColumn - 1);
+    var menuShortDimension = columnSpacing * columns;
     var backing = new Path.Rectangle(
-      new Rectangle(-30, -35, 60 * columns, 70 + spacing * (perColumn - 1)), 30);
+      new Rectangle(
+        horizontal ? menuLongPosition : menuShortPosition, 
+        horizontal ? menuShortPosition : menuLongPosition,
+        horizontal ? menuLongDimension : menuShortDimension,
+        horizontal ? menuShortDimension : menuLongDimension),
+        Math.min(columnSpacing / 2, 30));
     backing.fillColor = colors.paper.color;
 
-    var triangle = new Path.RegularPolygon(new Point(0, 0), 3, 14);
-    triangle.fillColor = colors.paper.color;
-    triangle.rotate(-90);
-    triangle.scale(0.5, 1)
-    triangle.position -= new Point(30 + 3.5, 0);
-
+    var triangle;
+    if (!noPointer) {
+      triangle = new Path.RegularPolygon(new Point(0, 0), 3, 14);
+      triangle.fillColor = colors.paper.color;
+      triangle.rotate(-90);
+      triangle.scale(0.5, 1)
+      // respond to horizontal
+      triangle.position -= new Point(30 + 3.5, 0);
+    } else {
+      triangle = new Path();
+    }
     iconMenu.addChildren([backing, triangle]);
 
     var buttonMap = objectMap(items, function(item, name) {
       var column = Math.floor(i / perColumn);
-      item.position = new Point(horizontalSpacing * column, spacing * (i - column * perColumn));
+      var buttonLongDimension = spacing * (i - column * perColumn);
+      var buttonShortDimension = columnSpacing * column;
+      item.position = new Point(
+        horizontal ? buttonLongDimension : buttonShortDimension,
+        horizontal ? buttonShortDimension : buttonLongDimension);
       iconMenu.addChild(item);
       i++;
       return item;
@@ -744,6 +774,7 @@
     group.data = {
       selected: false,
       hovered: false,
+      disabled: false,
       select: function(isSelected) {
         group.data.selected = isSelected;
         button.fillColor = isSelected ? colors.npc.color : colors.sand.color;
@@ -752,15 +783,23 @@
       hover: function(isHover) {
         group.data.hovered = isHover;
         button.fillColor.alpha = isHover || group.data.selected ? 1 : 0.0001;
-      }
+      },
+      disable: function(isDisabled) {
+        group.data.disabled = isDisabled;
+        item.opacity = isDisabled ? 0.5 : 1;
+        if (isDisabled) group.data.hover(false);
+      },
     }
     group.onMouseEnter = function(event) {
+      if (group.data.disabled) return;
       group.data.hover(true);
     }
     group.onMouseLeave = function(event) {
+      if (group.data.disabled) return;
       group.data.hover(false);
     }
     group.onMouseDown = function(event) {
+      if (group.data.disabled) return;
       onClick(group);
     }
     return group;
@@ -1074,6 +1113,33 @@
     leftToolMenuPosition.y += leftToolMenuIconHeight;
   }
 
+  var redoButton = undoMenuButton('img/menu-redo.png', function() {redo()});
+  var undoButton = undoMenuButton('img/menu-undo.png', function() {undo()});
+  var undoMenu = createMenu({
+    'undo': undoButton,
+    'redo': redoButton,
+  }, {spacing: 38, columnSpacing: 45, margin: 23, horizontal: true, noPointer: true}
+  );
+
+  function undoMenuButton(path, onPress) {
+    var icon = new Raster(path);
+    icon.scaling = 0.45;
+    return createButton(icon, 20, onPress);
+  }
+  emitter.on('historyUpdate', updateUndoButtonState);
+  function updateUndoButtonState() {
+    undoButton.data.disable(!canUndo());
+    redoButton.data.disable(!canRedo());
+  }
+  updateUndoButtonState();
+
+  emitter.on('resize', function() {positionUndoMenu();})
+  function positionUndoMenu() {
+    undoMenu.position = view.bounds.topRight + new Point(-50, 30);
+  }
+  positionUndoMenu();
+
+
   // layout for mobile version
   //var mainMenuButton = new Path.Circle(new Point(view.center.x, 0), 40);
   // mainMenuButtonIcon.position = new Point(view.center.x, 20);
@@ -1274,16 +1340,16 @@
       menuScaling: new Point(.17, .17),
       scaling: new Point(.02, .02),
     },
-    houseFlatSprite: {
-      img: 'sprite/building-flathouse.png',
-      menuScaling: new Point(.17, .17),
-      scaling: new Point(.014, .014),
-    },
-    houseOutlineFlatSprite: {
-      img: 'sprite/building-flathouseoutline.png',
-      menuScaling: new Point(.17, .17),
-      scaling: new Point(.014, .014),
-    },
+//    houseFlatSprite: {
+//      img: 'sprite/building-flathouse.png',
+//      menuScaling: new Point(.17, .17),
+//      scaling: new Point(.014, .014),
+//    },
+//    houseOutlineFlatSprite: {
+//      img: 'sprite/building-flathouseoutline.png',
+//      menuScaling: new Point(.17, .17),
+//      scaling: new Point(.014, .014),
+//    },
     treePineSprite: {
       img: 'sprite/tree-pine.png',
       menuScaling: new Point(.15, .15),
@@ -1535,7 +1601,7 @@
               this.data.paintColorData = colorData;
             }.bind(this));
           }.bind(this)),
-          45 // menu spacing
+          {spacing: 45}
         );
         this.base.iconMenu.data.setPointer(30);
         this.base.iconMenu.pivot = new Point(0, 0);
@@ -1612,7 +1678,7 @@
               this.data.paintColorData = colorData;
             }.bind(this));
           }.bind(this))
-        this.base.iconMenu = createMenu(pathColorButtons, 45);
+        this.base.iconMenu = createMenu(pathColorButtons, {spacing: 45});
         this.base.iconMenu.data.setPointer(80);
         this.base.iconMenu.pivot = new Point(0, 0);
         this.base.iconMenu.position = new Point(100, 75);
@@ -1668,7 +1734,7 @@
                 toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
               });
             }),
-            50, 10
+            {spacing: 50, perColumn: 10}
           );
           this.base.iconMenu.data.setPointer(130);
           this.base.iconMenu.pivot = new Point(0, 0);
@@ -1725,7 +1791,7 @@
                 toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
               });
             }),
-            50, 8
+            {spacing: 50, perColumn: 8}
           );
           this.base.iconMenu.data.setPointer(185);
           this.base.iconMenu.pivot = new Point(0, 0);
@@ -2748,6 +2814,8 @@
         autosaveMap();
       }, autosaveInactivityTimer);
     }
+
+    emitter.emit('historyUpdate', 'add');
   }
   var actionsSinceSave = 0;
   var actionsCount = 0;
@@ -2777,19 +2845,29 @@
     });
   }
 
+  function canRedo() {
+    return state == null ? 0 : state.index < state.history.length - 1;
+  }
+
+  function canUndo() {
+    return state == null ? 0 : state.index >= 0;
+  }
+
   function undo() {
-    if (state.index >= 0) {
+    if (canUndo()) {
       applyCommand(state.history[state.index], false);
       state.index -= 1;
+      emitter.emit('historyUpdate', 'undo');
     } else {
       console.log('Nothing to undo');
     }
   }
 
   function redo() {
-    if (state.index < state.history.length - 1) {
+    if (canRedo()) {
       state.index += 1;
       applyCommand(state.history[state.index], true);
+      emitter.emit('historyUpdate', 'redo');
     } else {
       console.log('Nothing to redo');
     }
