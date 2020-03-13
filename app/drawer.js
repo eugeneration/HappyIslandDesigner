@@ -57,6 +57,8 @@
     // UI
     white: {color:'#f9f7ed'},
     paper: {color:'#f5f3e5'}, // general white
+    paperOverlay: {color: '#ecebd5'},
+    paperOverlay2: {color: '#e4e2d0'},
 
     // colors from nookPhone (colors are hued towards red/yellow)
     purple: {color: "#be84f0"},
@@ -75,6 +77,7 @@
     lightText: {color: "#dcd8ca"},
     text: {color: "#726a5a"},
     yellow: {color: "#f5d830"},
+    lightYellow: {color: "#f7e676"},
     lightBrown: {color: "#bfab76"},
 
     // generic colors
@@ -237,12 +240,14 @@
   // noPointer: bool
   // margin : float
   // extraColumns: bool
+  // extraRows: bool
 
   function createMenu(items, options) {
     var itemsCount = Object.keys(items).length;
     var spacing = options.spacing == null ? 50 : options.spacing;
     var perColumn = options.perColumn == null ? itemsCount : options.perColumn;
     var extraColumns = options.extraColumns == null ? 0 : options.extraColumns;
+    var extraRows = options.extraRows == null ? 0 : options.extraRows;
     var columnSpacing = options.columnSpacing == null ? 60 : options.columnSpacing;
     var horizontal = options.horizontal == null ? false : options.horizontal;
     var noPointer = options.noPointer == null ? false : options.noPointer;
@@ -254,7 +259,7 @@
 
     var menuLongPosition = -margin;
     var menuShortPosition = -0.5 * columnSpacing;
-    var menuLongDimension = 2 * margin + spacing * (perColumn - 1);
+    var menuLongDimension = 2 * margin + spacing * (perColumn - 1 + extraRows);
     var menuShortDimension = columnSpacing * columns;
     var backing = new Path.Rectangle(
       new Rectangle(
@@ -281,7 +286,7 @@
     var buttonMap = objectMap(items, function(item, name) {
       var column = Math.floor(i / perColumn);
       var buttonLongDimension = spacing * (i - column * perColumn);
-      var buttonShortDimension = columnSpacing * column;
+      var buttonShortDimension = columnSpacing * (column + extraColumns);
       item.position = new Point(
         horizontal ? buttonLongDimension : buttonShortDimension,
         horizontal ? buttonShortDimension : buttonLongDimension);
@@ -338,13 +343,60 @@
       }
       update();
 
-      var increaseButton = undoMenuButton('img/ui-plus.png', incrementBrush);
-      var decreaseButton = undoMenuButton('img/ui-minus.png', decrementBrush);
-      increaseButton.position = new Point(0, 60);
-      decreaseButton.position = new Point(0, 100);
+      function brushButton(path, onPress) {
+        var icon = new Raster(path);
+        icon.scaling = 0.45;
+        return createButton(icon, 20, onPress, {
+          highlightedColor: colors.paperOverlay.color,
+          selectedColor: colors.paperOverlay2.color,
+        });
+      }
+      function brushLineButton(path, onPress) {
+        var icon = new Raster(path);
+        icon.scaling = 0.45;
+        return createButton(icon, 20, onPress, {
+          highlightedColor: colors.paperOverlay.color,
+          selectedColor: colors.yellow.color,
+        });
+      }
 
-      group.addChildren([brushPreview, brushSizeText, increaseButton, decreaseButton]);
-      group.position = new Point(160, 130);
+      var increaseButton = brushButton('img/ui-plus.png', incrementBrush);
+      var decreaseButton = brushButton('img/ui-minus.png', decrementBrush);
+      increaseButton.position = new Point(0, 70);
+      decreaseButton.position = new Point(0, 110);
+
+      var drawLineButton = brushLineButton('img/menu-drawline.png', function() {
+        setBrushLineForce(true);
+      });
+      var drawBrushButton = brushLineButton('img/menu-drawbrush.png', function() {
+        setBrushLineForce(false);
+      });
+      emitter.on('updateBrushLineForce', updateBrushLineButton);
+      function updateBrushLineButton(isBrushLine) {
+        drawLineButton.data.select(isBrushLine);
+        drawBrushButton.data.select(!isBrushLine);
+      }
+      updateBrushLineButton(brushLineForce);
+
+      drawLineButton.position = new Point(0, 210);
+      drawBrushButton.position = new Point(0, 170);
+
+      var backingWidth = 42;
+      var brushSizeBacking = new Path.Rectangle(-backingWidth / 2, 0, backingWidth, 153, backingWidth / 2);
+      brushSizeBacking.strokeColor = colors.paperOverlay2.color;
+      brushSizeBacking.strokeWidth = 2;
+      brushSizeBacking.position += new Point(0, -22);
+
+      var brushLineBacking = new Path.Rectangle(-backingWidth / 2, 0, backingWidth, 82, backingWidth / 2);
+      brushLineBacking.strokeColor = colors.paperOverlay2.color;
+      brushLineBacking.strokeWidth = 2;
+      brushLineBacking.position += new Point(0, 149);
+
+      group.addChildren([brushPreview, brushSizeText,
+        brushSizeBacking, increaseButton, decreaseButton,
+        brushLineBacking, drawLineButton, drawBrushButton]);
+      group.pivot = new Point(0, 0);
+      group.position = new Point(105, 80);
       brushSizeUI = group;
     }
     brushSizeUI.bringToFront();
@@ -834,22 +886,30 @@
   // ===============================================
   // UI ELEMENTS
 
-  function createButton(item, buttonSize, onClick) {
+  // highlightedColor: string
+  // selectedColor: string
+
+  function createButton(item, buttonSize, onClick, options) {
+
+    var highlightedColor = (!options || options.highlightedColor == null) ? colors.sand.color : options.highlightedColor;
+    var selectedColor = (!options || options.selectedColor == null) ? colors.npc.color : options.selectedColor;
+
     var group = new Group();
 
     var button = new Path.Circle(0, 0, buttonSize);
-    button.fillColor = colors.sand.color;
-    button.fillColor.alpha = 0.0001;
 
     group.applyMatrix = false;
     group.addChildren([button, item]);
 
     function updateColor() {
-      button.fillColor = group.data.selected || group.data.pressed ? colors.npc.color : colors.sand.color;
+      button.fillColor = group.data.selected || group.data.pressed
+        ? selectedColor
+        : highlightedColor;
       button.fillColor.alpha = group.data.selected ? 1
         : group.data.pressed ? 0.5 
         : (group.data.hovered ? 1 : 0.0001);
     }
+    updateColor();
 
     group.data = {
       selected: false,
@@ -1765,7 +1825,7 @@
                 this.data.paintColorData = colorData;
               }.bind(this));
             }.bind(this))
-          this.iconMenu = createMenu(pathColorButtons, {spacing: 45, extraColumns: 1});
+          this.iconMenu = createMenu(pathColorButtons, {spacing: 45, extraColumns: 1, extraRows: 1});
           this.iconMenu.data.setPointer(80);
           this.iconMenu.pivot = new Point(0, 0);
           this.iconMenu.position = new Point(100, 75);
@@ -2380,15 +2440,15 @@
     switch (paintTool) {
       case paintTools.grid:
         var isShift = Key.isDown('shift');
-        if (!brushLine && isShift) {
+        if (!brushLine && (isShift || brushLineForce)) {
           startDrawGrid(event.point);
-        } else if (brushLine && !isShift) {
+        } else if (brushLine && !(isShift || brushLineForce)) {
           drawGrid(event.point);
           stopGridLinePreview();
         }
-        brushLine = isShift;
+        brushLine = (isShift || brushLineForce);
 
-        if (brushLine) {
+        if ((brushLine)) {
           drawGridLinePreview(event.point);
         } else {
           drawGrid(event.point);
@@ -2411,7 +2471,8 @@
   function endDraw(event) {
     switch (paintTool) {
       case paintTools.grid:
-          if (Key.isDown('shift')) {
+          var isShift = Key.isDown('shift');
+          if (isShift || brushLineForce) {
             drawGrid(event.point);
           }
           endDrawGrid(event.point);
@@ -2694,8 +2755,15 @@
   };
   var brushSweep = true;
   var brushLine = false;
+  var brushLineForce = false;
   var brushType = brushTypes.rounded;
   updateBrush();
+
+  function setBrushLineForce(isLine) {
+    brushLineForce = isLine;
+    emitter.emit('updateBrushLineForce', brushLineForce);
+  }
+  setBrushLineForce(false);
 
   function cycleBrushHead() {
     var heads = Object.keys(brushTypes).sort(function(a, b) {
