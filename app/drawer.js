@@ -406,12 +406,36 @@
       applyCommand(command, true);
       addToHistory(command);
     };
+    group.showDeleteButton = function(show) {
+      var deleteButton = group.data.deleteButton;
+
+      if (show && deleteButton == null) {
+        var icon = new Raster('img/ui-x.png');
+        icon.scaling = 0.03;
+
+        var buttonBacking = new Path.Circle(0, 0, 0.9);
+        buttonBacking.fillColor = colors.offWhite.color;
+        var button = createButton(icon, 0.8, function(event) {group.onDelete(); event.stopPropagation();});
+        var deleteButton = new Group();
+        deleteButton.applyMatrix =  false;
+        deleteButton.addChildren([buttonBacking, button]);
+        group.addChild(deleteButton);
+        deleteButton.position = this.elements.bound.bounds.topRight;
+        group.data.deleteButton = deleteButton;
+      }
+      if (!show && deleteButton != null) {
+        deleteButton.remove();
+        group.data.deleteButton = null;
+      }
+    };
     group.onSelect = function(isSelected) {
       if (group.state.selected != isSelected) {
         this.state.selected = isSelected;
         this.elements.bound.strokeWidth = isSelected ? 0.2 : 0.1;
         this.elements.bound.strokeColor = isSelected ? colors.selection.color : 'white';
         this.elements.bound.strokeColor.alpha = group.state.focused ? 1 : 0;
+
+        group.showDeleteButton(isSelected);
       }
     }
     group.onMouseEnter = function(event) {
@@ -459,8 +483,9 @@
 
       delete this.data.prevPosition;
       delete this.data.clickPivot;
-      if (prevPosition == coordinate.position);
-      dropObject(coordinate, this, prevPosition);
+      if (prevPosition != coordinate.position) {
+        dropObject(coordinate, this, prevPosition);
+      }
     }
 
     return group;
@@ -800,7 +825,7 @@
     }
     group.onMouseDown = function(event) {
       if (group.data.disabled) return;
-      onClick(group);
+      onClick(event, group);
     }
     return group;
   }
@@ -1596,7 +1621,7 @@
             var paintCircle = new Path.Circle(new Point(0, 0), 16);
             paintCircle.fillColor = colorData.color;
             paintCircle.locked = true;
-            return createButton(paintCircle, 20, function(button) {
+            return createButton(paintCircle, 20, function(event, button) {
               updatePaintColor(colorData);
               this.data.paintColorData = colorData;
             }.bind(this));
@@ -1673,7 +1698,7 @@
               buttonIcon = paintCircle;
             }
 
-            return createButton(buttonIcon, 20, function(button) {
+            return createButton(buttonIcon, 20, function(event, button) {
               updatePaintColor(colorData);
               this.data.paintColorData = colorData;
             }.bind(this));
@@ -1730,7 +1755,7 @@
               var icon = def.icon.clone();
               icon.scaling = def.menuScaling;
               icon.fillColor = def.colorData.color;
-              return createButton(icon, 20, function(button) {
+              return createButton(icon, 20, function(event, button) {
                 toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
               });
             }),
@@ -1787,7 +1812,7 @@
             objectMap(definitions, function(def, name) {
               var icon = createObjectIcon(def, getObjectData(def));
               icon.scaling = def.menuScaling;
-              return createButton(icon, 20, function(button) {
+              return createButton(icon, 20, function(event, button) {
                 toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
               });
             }),
