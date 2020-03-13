@@ -236,11 +236,13 @@
   // menuWidth: float
   // noPointer: bool
   // margin : float
+  // extraColumns: bool
 
   function createMenu(items, options) {
     var itemsCount = Object.keys(items).length;
     var spacing = options.spacing == null ? 50 : options.spacing;
     var perColumn = options.perColumn == null ? itemsCount : options.perColumn;
+    var extraColumns = options.extraColumns == null ? 0 : options.extraColumns;
     var columnSpacing = options.columnSpacing == null ? 60 : options.columnSpacing;
     var horizontal = options.horizontal == null ? false : options.horizontal;
     var noPointer = options.noPointer == null ? false : options.noPointer;
@@ -248,7 +250,7 @@
     var i = 0;
     var iconMenu = new Group();
 
-    var columns = Math.ceil(itemsCount / perColumn);
+    var columns = Math.ceil(itemsCount / perColumn) + extraColumns;
 
     var menuLongPosition = -margin;
     var menuShortPosition = -0.5 * columnSpacing;
@@ -301,6 +303,52 @@
     };
 
     return iconMenu;
+  }
+
+
+  var brushSizeUI;
+  function showBrushSizeUI(isShown) {
+    if (brushSizeUI == null) {
+      var group = new Group();
+      group.applyMatrix = false;
+      var brushPreview = new Path();
+      if (brushSegments) {
+        brushPreview.segments = brushSegments;
+      }
+      brushPreview.fillColor = paintColor.color;
+      brushPreview.strokeColor = colors.lightText.color;
+      brushPreview.strokeWidth = 0.1;
+      
+
+      brushSizeText = new PointText(0, 28);
+      brushSizeText.fontFamily = 'TTNorms, sans-serif';
+      brushSizeText.fontSize = 14;
+      brushSizeText.fillColor = colors.text.color;
+      brushSizeText.justification = 'center';
+
+      emitter.on('updateBrush', update)
+      function update() {
+        if (brushSegments) {
+          brushPreview.segments = brushSegments;
+          brushPreview.bounds.height = Math.min(30, 5 * brushPreview.bounds.height);
+          brushPreview.bounds.width = Math.min(30, 5 * brushPreview.bounds.width);
+          brushPreview.position = new Point(0, 0);
+        }
+        brushSizeText.content = brushSize;
+      }
+      update();
+
+      var increaseButton = undoMenuButton('img/ui-plus.png', incrementBrush);
+      var decreaseButton = undoMenuButton('img/ui-minus.png', decrementBrush);
+      increaseButton.position = new Point(0, 60);
+      decreaseButton.position = new Point(0, 100);
+
+      group.addChildren([brushPreview, brushSizeText, increaseButton, decreaseButton]);
+      group.position = new Point(160, 130);
+      brushSizeUI = group;
+    }
+    brushSizeUI.bringToFront();
+    brushSizeUI.visible = isShown;
   }
 
   function encodeObject(object) {
@@ -1506,24 +1554,12 @@
     },
     toggleMenu: function(subclass) {
       if (subclass.openMenu) {
-        if (this.iconMenu) {
-          this.iconMenu.remove();
-          this.iconMenu = null; // hide, don't delete the menu
-        }
-        else {
-          subclass.openMenu(true);
-        }
+        subclass.openMenu(!(subclass.iconMenu && subclass.iconMenu.visible));
       }
     },
     openMenu: function(subclass, isSelected) {
       if (subclass.openMenu) {
-        if (!isSelected) {
-          if (this.iconMenu)
-            this.iconMenu.remove();
-        }
-        else {
-          subclass.openMenu(isSelected);
-        }
+        subclass.openMenu(isSelected);
       }
     },
     updateTool: function(subclass, prevToolData, nextToolData, isToolTypeSwitch) {
@@ -1547,8 +1583,8 @@
           if (nextToolData && nextToolData.tool && nextToolData.tool.onSelect)
             nextToolData.tool.onSelect(true);
           // todo: decouple view from logic
-          if (this.iconMenu && (nextToolData.type == 'structures' || nextToolData.type == 'amenities')) {
-            this.iconMenu.data.update(nextTool);
+          if (subclass.iconMenu && (nextToolData.type == 'structures' || nextToolData.type == 'amenities')) {
+            subclass.iconMenu.data.update(nextTool);
             updateObjectPreview();
           }
         }
@@ -1634,26 +1670,30 @@
         brush.visible = isEnabled;
       },
       openMenu: function(isSelected) {
-        fixedLayer.activate();
-        updatePaintColor(this.data.paintColorData);
-        this.base.iconMenu = createMenu(
-          objectMap(layerDefinition, function(definition, colorKey) {
-            var colorData = colors[colorKey];
-            var paintCircle = new Path.Circle(new Point(0, 0), 16);
-            paintCircle.fillColor = colorData.color;
-            paintCircle.locked = true;
-            return createButton(paintCircle, 20, function(event, button) {
-              updatePaintColor(colorData);
-              this.data.paintColorData = colorData;
-            }.bind(this));
-          }.bind(this)),
-          {spacing: 45}
-        );
-        this.base.iconMenu.data.setPointer(30);
-        this.base.iconMenu.pivot = new Point(0, 0);
-        this.base.iconMenu.position = new Point(100, 75);
-        // this is a little messy
-        this.base.iconMenu.data.update(this.data.paintColorData.key);
+        if (this.iconMenu == null) {
+          fixedLayer.activate();
+          updatePaintColor(this.data.paintColorData);
+          this.iconMenu = createMenu(
+            objectMap(layerDefinition, function(definition, colorKey) {
+              var colorData = colors[colorKey];
+              var paintCircle = new Path.Circle(new Point(0, 0), 16);
+              paintCircle.fillColor = colorData.color;
+              paintCircle.locked = true;
+              return createButton(paintCircle, 20, function(event, button) {
+                updatePaintColor(colorData);
+                this.data.paintColorData = colorData;
+              }.bind(this));
+            }.bind(this)),
+            {spacing: 45, extraColumns: 1}
+          );
+          this.iconMenu.data.setPointer(30);
+          this.iconMenu.pivot = new Point(0, 0);
+          this.iconMenu.position = new Point(100, 75);
+          // this is a little messy
+          this.iconMenu.data.update(this.data.paintColorData.key);
+        }
+        this.iconMenu.visible = isSelected;
+        var adjusterUI = showBrushSizeUI(isSelected);
       },
     },
     path: {
@@ -1701,35 +1741,39 @@
         brush.visible = isEnabled;
       },
       openMenu: function(isSelected) {
-        fixedLayer.activate();
-        updatePaintColor(this.data.paintColorData);
-        var pathColorButtons =
-          objectMap(pathDefinition, function(definition, colorKey) {
-            var buttonIcon;
-            var colorData = colors[colorKey];
-            if (colorKey == colors.pathEraser.key) {
-              buttonIcon = new Group();
-              eraserImg = new Raster(imgPath + toolPrefix + 'eraser.png');
-              eraserImg.scaling = new Point(0.35, 0.35);
-              buttonIcon.addChildren([eraserImg]); 
-            } else {
-              var paintCircle = new Path.Circle(new Point(0, 0), 16);
-              paintCircle.fillColor = colorData.color;
-              paintCircle.locked = true;
-              buttonIcon = paintCircle;
-            }
+        if (this.iconMenu == null) {
+          fixedLayer.activate();
+          updatePaintColor(this.data.paintColorData);
+          var pathColorButtons =
+            objectMap(pathDefinition, function(definition, colorKey) {
+              var buttonIcon;
+              var colorData = colors[colorKey];
+              if (colorKey == colors.pathEraser.key) {
+                buttonIcon = new Group();
+                eraserImg = new Raster(imgPath + toolPrefix + 'eraser.png');
+                eraserImg.scaling = new Point(0.35, 0.35);
+                buttonIcon.addChildren([eraserImg]); 
+              } else {
+                var paintCircle = new Path.Circle(new Point(0, 0), 16);
+                paintCircle.fillColor = colorData.color;
+                paintCircle.locked = true;
+                buttonIcon = paintCircle;
+              }
 
-            return createButton(buttonIcon, 20, function(event, button) {
-              updatePaintColor(colorData);
-              this.data.paintColorData = colorData;
-            }.bind(this));
-          }.bind(this))
-        this.base.iconMenu = createMenu(pathColorButtons, {spacing: 45});
-        this.base.iconMenu.data.setPointer(80);
-        this.base.iconMenu.pivot = new Point(0, 0);
-        this.base.iconMenu.position = new Point(100, 75);
-        // this is a little messy
-        this.base.iconMenu.data.update(this.data.paintColorData.key);
+              return createButton(buttonIcon, 20, function(event, button) {
+                updatePaintColor(colorData);
+                this.data.paintColorData = colorData;
+              }.bind(this));
+            }.bind(this))
+          this.iconMenu = createMenu(pathColorButtons, {spacing: 45, extraColumns: 1});
+          this.iconMenu.data.setPointer(80);
+          this.iconMenu.pivot = new Point(0, 0);
+          this.iconMenu.position = new Point(100, 75);
+          // this is a little messy
+          this.iconMenu.data.update(this.data.paintColorData.key);
+        }
+        this.iconMenu.visible = isSelected;
+        var adjusterUI = showBrushSizeUI(isSelected);
       },
     },
     structures: {
@@ -1768,28 +1812,33 @@
         if (objectPreview) objectPreview.visible = isEnabled;
       },
       openMenu: function(isSelected) {
-        this.tools.getAsyncValue(function(definitions) {
-          fixedLayer.activate();
-          var categoryDefinition = this;
-          this.base.iconMenu = createMenu(
-            objectMap(definitions, function(def, name) {
-              var icon = def.icon.clone();
-              icon.scaling = def.menuScaling;
-              icon.fillColor = def.colorData.color;
-              return createButton(icon, 20, function(event, button) {
-                toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
-              });
-            }),
-            {spacing: 50, perColumn: 10}
-          );
-          this.base.iconMenu.data.setPointer(130);
-          this.base.iconMenu.pivot = new Point(0, 0);
-          this.base.iconMenu.position = new Point(100, 75);
-          // this is a little messy
-          if (toolState.activeTool && toolState.activeTool.tool) {
-            this.base.iconMenu.data.update(toolState.activeTool.tool.type);
-          }
-        }.bind(this));
+        if (this.iconMenu == null) {
+          this.tools.getAsyncValue(function(definitions) {
+            fixedLayer.activate();
+            var categoryDefinition = this;
+            this.iconMenu = createMenu(
+              objectMap(definitions, function(def, name) {
+                var icon = def.icon.clone();
+                icon.scaling = def.menuScaling;
+                icon.fillColor = def.colorData.color;
+                return createButton(icon, 20, function(event, button) {
+                  toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
+                });
+              }),
+              {spacing: 50, perColumn: 10}
+            );
+            this.iconMenu.data.setPointer(130);
+            this.iconMenu.pivot = new Point(0, 0);
+            this.iconMenu.position = new Point(100, 75);
+            // this is a little messy
+            if (toolState.activeTool && toolState.activeTool.tool) {
+              this.iconMenu.data.update(toolState.activeTool.tool.type);
+            }
+            this.iconMenu.visible = isSelected;
+          }.bind(this));
+        } else {
+          this.iconMenu.visible = isSelected;
+        }
       },
     },
     amenities: {
@@ -1826,27 +1875,32 @@
         if (objectPreview) objectPreview.visible = isEnabled;
       },
       openMenu: function(isSelected) {
-        this.tools.getAsyncValue(function(definitions) {
-          fixedLayer.activate();
-          var categoryDefinition = this;
-          this.base.iconMenu = createMenu(
-            objectMap(definitions, function(def, name) {
-              var icon = createObjectIcon(def, getObjectData(def));
-              icon.scaling = def.menuScaling;
-              return createButton(icon, 20, function(event, button) {
-                toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
-              });
-            }),
-            {spacing: 50, perColumn: 8}
-          );
-          this.base.iconMenu.data.setPointer(185);
-          this.base.iconMenu.pivot = new Point(0, 0);
-          this.base.iconMenu.position = new Point(100, 75);
-          // this is a little messy
-          if (toolState.activeTool && toolState.activeTool.tool) {
-            this.base.iconMenu.data.update(toolState.activeTool.tool.type);
-          }
-        }.bind(this));
+        if (this.iconMenu == null) {
+          this.tools.getAsyncValue(function(definitions) {
+            fixedLayer.activate();
+            var categoryDefinition = this;
+            this.iconMenu = createMenu(
+              objectMap(definitions, function(def, name) {
+                var icon = createObjectIcon(def, getObjectData(def));
+                icon.scaling = def.menuScaling;
+                return createButton(icon, 20, function(event, button) {
+                  toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
+                });
+              }),
+              {spacing: 50, perColumn: 8}
+            );
+            this.iconMenu.data.setPointer(185);
+            this.iconMenu.pivot = new Point(0, 0);
+            this.iconMenu.position = new Point(100, 75);
+            // this is a little messy
+            if (toolState.activeTool && toolState.activeTool.tool) {
+              this.iconMenu.data.update(toolState.activeTool.tool.type);
+            }
+            this.iconMenu.visible = isSelected;
+          }.bind(this));
+        } else {
+          this.iconMenu.visible = isSelected;
+        }
       },
     },
   //  shovel: {
@@ -2036,7 +2090,7 @@
     if (toolState.activeTool &&
       toolState.activeTool.type == toolCategoryDefinition.terrain.type
       || toolState.activeTool.type == toolCategoryDefinition.path.type) {
-      if (toolState.activeTool.definition.base.iconMenu) {
+      if (toolState.activeTool.definition.iconMenu) {
 
         var toolCategory;
         if (layerDefinition[colorData.key]) {
@@ -2048,7 +2102,7 @@
           toolState.switchToolType(toolCategory);
         }
 
-        toolState.activeTool.definition.base.iconMenu.data.update(colorData.key);
+        toolState.activeTool.definition.iconMenu.data.update(colorData.key);
       }
     }
   }
@@ -2124,20 +2178,17 @@
         break;
       case '[':
       case '{':
-        brushSize = Math.max(brushSize - 1, 1);
-        updateBrush();
+        decrementBrush();
         break;
       case ']':
       case '}':
-        brushSize = Math.max(brushSize + 1, 1);
-        updateBrush();
+        incrementBrush();
         break;
 //      case 'l':
 //        brushSweep = !brushSweep;
 //        break;
       case 'p':
         cycleBrushHead();
-        updateBrush();
         break;
 //      case 'v':
 //        toolState.switchToolType(toolCategoryDefinition.pointer.type);
@@ -2652,6 +2703,7 @@
     });
     var index = heads.indexOf(brushType);
     brushType = heads[(index + 1) % heads.length];
+    updateBrush();
   }
 
   function getObjectCenteredCoordinate(rawCoordinate, objectDefinition){
@@ -2669,6 +2721,14 @@
       return rawCoordinate.floor();
   }
 
+  function decrementBrush() {
+    brushSize = Math.max(brushSize - 1, 1);
+    updateBrush();
+  }
+  function incrementBrush() {
+    brushSize = Math.max(brushSize + 1, 1);
+    updateBrush();
+  }
   function updateBrush() {
     brushSegments = getBrushSegments(brushSize);
 
@@ -2690,6 +2750,8 @@
     brushOutline.strokeColor = '#fff';
     brushOutline.strokeWidth = 0.1;
     brushOutline.locked = true;
+
+    emitter.emit('updateBrush');
   }
 
   function updateObjectPreview() {
