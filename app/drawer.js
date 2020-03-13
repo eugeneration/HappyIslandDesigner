@@ -1289,7 +1289,7 @@
 
   emitter.on('resize', function() {positionUndoMenu();})
   function positionUndoMenu() {
-    undoMenu.position = view.bounds.topRight + new Point(-50, 30);
+    undoMenu.position = new Point(view.bounds.width * view.scaling.x, 0) + new Point(-50, 30);
   }
   positionUndoMenu();
 
@@ -2588,18 +2588,21 @@
     var screenRatio = view.size.width / view.size.height;
     var horizontallyContrained = (screenRatio <= mapRatio);
 
+    var viewWidth = view.size.width * view.scaling.x;
+    var viewHeight = view.size.height * view.scaling.y;
+
     // todo - clean this up with less code duplication
     if (horizontallyContrained) {
       marginX = view.size.width * 0.1;
 
-      var width = view.size.width - marginX * 2;
+      var width = viewWidth - marginX * 2;
       var blockWidth = width / horizontalBlocks;
       cellWidth = blockWidth / horizontalDivisions;
       cellHeight = cellWidth * verticalRatio;
       var blockHeight = cellHeight * verticalDivisions;
       var height = blockHeight * verticalBlocks;
 
-      marginY = (view.size.height - height) / 2;
+      marginY = (viewHeight- height) / 2;
 
       //var xView = view.size.width - marginX;
       //var xCoord = horizontalBlocks * horizontalDivisions;
@@ -2612,16 +2615,16 @@
       //remapInvX = createRemap(0, xCoord, marginX, xView);
       //remapInvY = createRemap(0, yCoord, marginY, yView);
     } else {
-      marginY = view.size.height * 0.1;
+      marginY = viewHeight * 0.1;
 
-      var height = view.size.height - marginY * 2;
+      var height = viewHeight - marginY * 2;
       var blockHeight = height / verticalBlocks;
       cellHeight = blockHeight / verticalDivisions;
       cellWidth = cellHeight / verticalRatio;
       var blockWidth = cellWidth * horizontalDivisions;
       var width = blockWidth * horizontalBlocks;
 
-      marginX = (view.size.width - width) / 2;
+      marginX = (viewWidth - width) / 2;
     }
     
 
