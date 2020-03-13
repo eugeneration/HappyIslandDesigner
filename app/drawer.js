@@ -951,6 +951,9 @@
   function showHelpMenu(isShown) {
     if (helpMenu == null) {
       helpMenu = renderModal('Hotkeys', 340, 560, function() {showHelpMenu(false)});
+      helpMenu.onMouseUp = function() {
+        showHelpMenu(false);
+      }
 
       var helpText = new PointText(new Point(80, -10));
       helpText.justification = 'right';
