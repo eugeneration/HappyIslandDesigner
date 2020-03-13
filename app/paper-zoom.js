@@ -90,7 +90,7 @@ view.on('mouseup', function (event) {
 // ===============================================
 // PUBLIC FUNCTIONS
 
-setZoomRange([view.size, new Size(50, 50)]);
+setZoomRange([view.size, view.size * 0.1]);
 
 function changeCenterPosition(deltaX, deltaY, factor) {
   view.center += new Point(deltaX, -deltaY) * factor / view.zoom;
