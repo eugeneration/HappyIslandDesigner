@@ -57,6 +57,8 @@
     // UI
     white: {color:'#f9f7ed'},
     paper: {color:'#f5f3e5'}, // general white
+    paperOverlay: {color: '#ecebd5'},
+    paperOverlay2: {color: '#e4e2d0'},
 
     // colors from nookPhone (colors are hued towards red/yellow)
     purple: {color: "#be84f0"},
@@ -75,6 +77,7 @@
     lightText: {color: "#dcd8ca"},
     text: {color: "#726a5a"},
     yellow: {color: "#f5d830"},
+    lightYellow: {color: "#f7e676"},
     lightBrown: {color: "#bfab76"},
 
     // generic colors
@@ -228,31 +231,65 @@
       });
   };
 
-  function createMenu(items, spacing, perColumn) {
+  // menuOptions
+  // spacing: float
+  // columnSpacing: float
+  // perColumn: int
+  // horizontal: bool
+  // menuWidth: float
+  // noPointer: bool
+  // margin : float
+  // extraColumns: bool
+  // extraRows: bool
+
+  function createMenu(items, options) {
     var itemsCount = Object.keys(items).length;
-    if (spacing == null) spacing = 50;
-    if (perColumn == null) perColumn = itemsCount;
-    var horizontalSpacing = 60;
+    var spacing = options.spacing == null ? 50 : options.spacing;
+    var perColumn = options.perColumn == null ? itemsCount : options.perColumn;
+    var extraColumns = options.extraColumns == null ? 0 : options.extraColumns;
+    var extraRows = options.extraRows == null ? 0 : options.extraRows;
+    var columnSpacing = options.columnSpacing == null ? 60 : options.columnSpacing;
+    var horizontal = options.horizontal == null ? false : options.horizontal;
+    var noPointer = options.noPointer == null ? false : options.noPointer;
+    var margin = options.margin == null ? 35 : options.margin;
     var i = 0;
     var iconMenu = new Group();
 
-    var columns = Math.ceil(itemsCount / perColumn);
+    var columns = Math.ceil(itemsCount / perColumn) + extraColumns;
 
+    var menuLongPosition = -margin;
+    var menuShortPosition = -0.5 * columnSpacing;
+    var menuLongDimension = 2 * margin + spacing * (perColumn - 1 + extraRows);
+    var menuShortDimension = columnSpacing * columns;
     var backing = new Path.Rectangle(
-      new Rectangle(-30, -35, 60 * columns, 70 + spacing * (perColumn - 1)), 30);
+      new Rectangle(
+        horizontal ? menuLongPosition : menuShortPosition, 
+        horizontal ? menuShortPosition : menuLongPosition,
+        horizontal ? menuLongDimension : menuShortDimension,
+        horizontal ? menuShortDimension : menuLongDimension),
+        Math.min(columnSpacing / 2, 30));
     backing.fillColor = colors.paper.color;
 
-    var triangle = new Path.RegularPolygon(new Point(0, 0), 3, 14);
-    triangle.fillColor = colors.paper.color;
-    triangle.rotate(-90);
-    triangle.scale(0.5, 1)
-    triangle.position -= new Point(30 + 3.5, 0);
-
+    var triangle;
+    if (!noPointer) {
+      triangle = new Path.RegularPolygon(new Point(0, 0), 3, 14);
+      triangle.fillColor = colors.paper.color;
+      triangle.rotate(-90);
+      triangle.scale(0.5, 1)
+      // respond to horizontal
+      triangle.position -= new Point(30 + 3.5, 0);
+    } else {
+      triangle = new Path();
+    }
     iconMenu.addChildren([backing, triangle]);
 
     var buttonMap = objectMap(items, function(item, name) {
       var column = Math.floor(i / perColumn);
-      item.position = new Point(horizontalSpacing * column, spacing * (i - column * perColumn));
+      var buttonLongDimension = spacing * (i - column * perColumn);
+      var buttonShortDimension = columnSpacing * (column + extraColumns);
+      item.position = new Point(
+        horizontal ? buttonLongDimension : buttonShortDimension,
+        horizontal ? buttonShortDimension : buttonLongDimension);
       iconMenu.addChild(item);
       i++;
       return item;
@@ -271,6 +308,99 @@
     };
 
     return iconMenu;
+  }
+
+
+  var brushSizeUI;
+  function showBrushSizeUI(isShown) {
+    if (brushSizeUI == null) {
+      var group = new Group();
+      group.applyMatrix = false;
+      var brushPreview = new Path();
+      if (brushSegments) {
+        brushPreview.segments = brushSegments;
+      }
+      brushPreview.fillColor = paintColor.color;
+      brushPreview.strokeColor = colors.lightText.color;
+      brushPreview.strokeWidth = 0.1;
+      
+
+      brushSizeText = new PointText(0, 28);
+      brushSizeText.fontFamily = 'TTNorms, sans-serif';
+      brushSizeText.fontSize = 14;
+      brushSizeText.fillColor = colors.text.color;
+      brushSizeText.justification = 'center';
+
+      emitter.on('updateBrush', update)
+      function update() {
+        if (brushSegments) {
+          brushPreview.segments = brushSegments;
+          brushPreview.bounds.height = Math.min(30, 5 * brushPreview.bounds.height);
+          brushPreview.bounds.width = Math.min(30, 5 * brushPreview.bounds.width);
+          brushPreview.position = new Point(0, 0);
+        }
+        brushSizeText.content = brushSize;
+      }
+      update();
+
+      function brushButton(path, onPress) {
+        var icon = new Raster(path);
+        icon.scaling = 0.45;
+        return createButton(icon, 20, onPress, {
+          highlightedColor: colors.paperOverlay.color,
+          selectedColor: colors.paperOverlay2.color,
+        });
+      }
+      function brushLineButton(path, onPress) {
+        var icon = new Raster(path);
+        icon.scaling = 0.45;
+        return createButton(icon, 20, onPress, {
+          highlightedColor: colors.paperOverlay.color,
+          selectedColor: colors.yellow.color,
+        });
+      }
+
+      var increaseButton = brushButton('img/ui-plus.png', incrementBrush);
+      var decreaseButton = brushButton('img/ui-minus.png', decrementBrush);
+      increaseButton.position = new Point(0, 70);
+      decreaseButton.position = new Point(0, 110);
+
+      var drawLineButton = brushLineButton('img/menu-drawline.png', function() {
+        setBrushLineForce(true);
+      });
+      var drawBrushButton = brushLineButton('img/menu-drawbrush.png', function() {
+        setBrushLineForce(false);
+      });
+      emitter.on('updateBrushLineForce', updateBrushLineButton);
+      function updateBrushLineButton(isBrushLine) {
+        drawLineButton.data.select(isBrushLine);
+        drawBrushButton.data.select(!isBrushLine);
+      }
+      updateBrushLineButton(brushLineForce);
+
+      drawLineButton.position = new Point(0, 210);
+      drawBrushButton.position = new Point(0, 170);
+
+      var backingWidth = 42;
+      var brushSizeBacking = new Path.Rectangle(-backingWidth / 2, 0, backingWidth, 153, backingWidth / 2);
+      brushSizeBacking.strokeColor = colors.paperOverlay2.color;
+      brushSizeBacking.strokeWidth = 2;
+      brushSizeBacking.position += new Point(0, -22);
+
+      var brushLineBacking = new Path.Rectangle(-backingWidth / 2, 0, backingWidth, 82, backingWidth / 2);
+      brushLineBacking.strokeColor = colors.paperOverlay2.color;
+      brushLineBacking.strokeWidth = 2;
+      brushLineBacking.position += new Point(0, 149);
+
+      group.addChildren([brushPreview, brushSizeText,
+        brushSizeBacking, increaseButton, decreaseButton,
+        brushLineBacking, drawLineButton, drawBrushButton]);
+      group.pivot = new Point(0, 0);
+      group.position = new Point(105, 80);
+      brushSizeUI = group;
+    }
+    brushSizeUI.bringToFront();
+    brushSizeUI.visible = isShown;
   }
 
   function encodeObject(object) {
@@ -376,12 +506,36 @@
       applyCommand(command, true);
       addToHistory(command);
     };
+    group.showDeleteButton = function(show) {
+      var deleteButton = group.data.deleteButton;
+
+      if (show && deleteButton == null) {
+        var icon = new Raster('img/ui-x.png');
+        icon.scaling = 0.03;
+
+        var buttonBacking = new Path.Circle(0, 0, 0.9);
+        buttonBacking.fillColor = colors.offWhite.color;
+        var button = createButton(icon, 0.8, function(event) {group.onDelete(); event.stopPropagation();});
+        var deleteButton = new Group();
+        deleteButton.applyMatrix =  false;
+        deleteButton.addChildren([buttonBacking, button]);
+        group.addChild(deleteButton);
+        deleteButton.position = this.elements.bound.bounds.topRight;
+        group.data.deleteButton = deleteButton;
+      }
+      if (!show && deleteButton != null) {
+        deleteButton.remove();
+        group.data.deleteButton = null;
+      }
+    };
     group.onSelect = function(isSelected) {
       if (group.state.selected != isSelected) {
         this.state.selected = isSelected;
         this.elements.bound.strokeWidth = isSelected ? 0.2 : 0.1;
         this.elements.bound.strokeColor = isSelected ? colors.selection.color : 'white';
         this.elements.bound.strokeColor.alpha = group.state.focused ? 1 : 0;
+
+        group.showDeleteButton(isSelected);
       }
     }
     group.onMouseEnter = function(event) {
@@ -429,8 +583,9 @@
 
       delete this.data.prevPosition;
       delete this.data.clickPivot;
-      if (prevPosition == coordinate.position);
-      dropObject(coordinate, this, prevPosition);
+      if (prevPosition != coordinate.position) {
+        dropObject(coordinate, this, prevPosition);
+      }
     }
 
     return group;
@@ -514,6 +669,7 @@
   }
 
   onMouseDown = function onMouseDown(event) {
+    if (isSpaceDown) return;
     toolState.onDown(event);
     if (toolState.toolIsActive)
       toolState.activeTool.definition.onMouseDown(event);
@@ -524,10 +680,12 @@
     }
   }
   onMouseDrag = function onMouseDrag(event) {
+    if (isSpaceDown) return;
     if (toolState.toolIsActive)
       toolState.activeTool.definition.onMouseDrag(event);
   }
   onMouseUp = function onMouseUp(event) {
+    if (isSpaceDown) return;
     toolState.onUp(event);
     if (toolState.toolIsActive)
       toolState.activeTool.definition.onMouseUp(event);
@@ -728,37 +886,72 @@
   // ===============================================
   // UI ELEMENTS
 
-  function createButton(item, buttonSize, onClick) {
+  // highlightedColor: string
+  // selectedColor: string
+
+  function createButton(item, buttonSize, onClick, options) {
+
+    var highlightedColor = (!options || options.highlightedColor == null) ? colors.sand.color : options.highlightedColor;
+    var selectedColor = (!options || options.selectedColor == null) ? colors.npc.color : options.selectedColor;
+
     var group = new Group();
 
     var button = new Path.Circle(0, 0, buttonSize);
-    button.fillColor = colors.sand.color;
-    button.fillColor.alpha = 0.0001;
 
     group.applyMatrix = false;
     group.addChildren([button, item]);
 
+    function updateColor() {
+      button.fillColor = group.data.selected || group.data.pressed
+        ? selectedColor
+        : highlightedColor;
+      button.fillColor.alpha = group.data.selected ? 1
+        : group.data.pressed ? 0.5 
+        : (group.data.hovered ? 1 : 0.0001);
+    }
+    updateColor();
+
     group.data = {
       selected: false,
       hovered: false,
+      pressed: false,
+      disabled: false,
       select: function(isSelected) {
         group.data.selected = isSelected;
-        button.fillColor = isSelected ? colors.npc.color : colors.sand.color;
-        button.fillColor.alpha = isSelected ? 1 : 0.0001;
+        updateColor();
       },
       hover: function(isHover) {
         group.data.hovered = isHover;
-        button.fillColor.alpha = isHover || group.data.selected ? 1 : 0.0001;
-      }
+        updateColor();
+      },
+      press: function(isPressed) {
+        group.data.pressed = isPressed;
+        updateColor();
+      },
+      disable: function(isDisabled) {
+        group.data.disabled = isDisabled;
+        item.opacity = isDisabled ? 0.5 : 1;
+        if (isDisabled) group.data.hover(false);
+      },
     }
     group.onMouseEnter = function(event) {
+      if (group.data.disabled) return;
       group.data.hover(true);
     }
     group.onMouseLeave = function(event) {
+      if (group.data.disabled) return;
+      group.data.press(false);
       group.data.hover(false);
     }
     group.onMouseDown = function(event) {
-      onClick(group);
+      if (group.data.disabled) return;
+      group.data.press(true);
+    }
+    group.onMouseUp = function(event) {
+      if (group.data.disabled) return;
+      if (group.data.pressed)
+        onClick(event, group);
+      group.data.press(false);
     }
     return group;
   }
@@ -866,18 +1059,23 @@
   function showHelpMenu(isShown) {
     if (helpMenu == null) {
       helpMenu = renderModal('Hotkeys', 340, 560, function() {showHelpMenu(false)});
+      helpMenu.onMouseUp = function() {
+        showHelpMenu(false);
+      }
 
-      var helpText = new PointText(new Point(80, 0));
+      var helpText = new PointText(new Point(80, -10));
       helpText.justification = 'right';
       helpText.fontSize = 16;
       helpText.fontFamily = 'TTNorms, sans-serif';
       helpText.fillColor = colors.oceanText.color;
       helpText.content = 
-        'shift+scroll\n'+
+        'space+drag\n'+
+        'alt+scroll\n'+
         '\\\n'+
         'shift+drag\n'+
         '[ ]\n'+
         'p\n'+
+        'alt+click\n'+
         'delete\n'+
         'ctrl + z\n'+
         'ctrl + y\n'+
@@ -891,20 +1089,21 @@
         'ctrl + o\n'+
         'esc\n'+
         '?\n'+
-        '/\n'+
         '';
 
-      var helpText2 = new PointText(new Point(100, 0));
+      var helpText2 = new PointText(new Point(100, -10));
       helpText2.justification = 'left';
       helpText2.fontSize = 16;
       helpText2.fontFamily = 'TTNorms, sans-serif';
       helpText2.fillColor = colors.text.color;
       helpText2.content = 
+        'pan\n'+
         'zoom\n'+
         'toggle grid\n'+
         'draw line\n'+
         'adjust brush size\n'+
         'square/circle brush\n'+
+        'color pick\n'+
         'delete selection\n'+
         'undo\n'+
         'redo\n'+
@@ -918,7 +1117,6 @@
         'open map file\n'+
         'main menu\n'+
         'hotkeys\n'+
-        'encode to console\n'+
         '';
 
       var helpTextRaster = helpText.rasterize();
@@ -931,7 +1129,7 @@
       versionCode.fontSize = 12;
       versionCode.fontFamily = 'TTNorms, sans-serif';
       versionCode.fillColor = colors.lightText.color;
-      versionCode.content = "v0.0.1";
+      versionCode.content = "v0.1.1";
 
       helpMenu.data.contents.addChildren([helpTextRaster, helpText2Raster, versionCode]);
 
@@ -1069,6 +1267,33 @@
     leftToolMenuPosition.y += leftToolMenuIconHeight;
   }
 
+  var redoButton = undoMenuButton('img/menu-redo.png', function() {redo()});
+  var undoButton = undoMenuButton('img/menu-undo.png', function() {undo()});
+  var undoMenu = createMenu({
+    'undo': undoButton,
+    'redo': redoButton,
+  }, {spacing: 38, columnSpacing: 45, margin: 23, horizontal: true, noPointer: true}
+  );
+
+  function undoMenuButton(path, onPress) {
+    var icon = new Raster(path);
+    icon.scaling = 0.45;
+    return createButton(icon, 20, onPress);
+  }
+  emitter.on('historyUpdate', updateUndoButtonState);
+  function updateUndoButtonState() {
+    undoButton.data.disable(!canUndo());
+    redoButton.data.disable(!canRedo());
+  }
+  updateUndoButtonState();
+
+  emitter.on('resize', function() {positionUndoMenu();})
+  function positionUndoMenu() {
+    undoMenu.position = new Point(view.bounds.width * view.scaling.x, 0) + new Point(-50, 30);
+  }
+  positionUndoMenu();
+
+
   // layout for mobile version
   //var mainMenuButton = new Path.Circle(new Point(view.center.x, 0), 40);
   // mainMenuButtonIcon.position = new Point(view.center.x, 20);
@@ -1154,37 +1379,37 @@
     townhallSprite: {
       img: 'sprite/building-townhall.png',
       menuScaling: new Point(.17, .17),
-      scaling: new Point(.017, .017),
-      size: new Size(4, 4),
-      offset: new Point(-2, -3.6),
+      scaling: new Point(.02, .02),
+      size: new Size(6, 4),
+      offset: new Point(-3, -3.6),
     },
     campsiteSprite: {
       img: 'sprite/building-campsite.png',
       menuScaling: new Point(.17, .17),
       scaling: new Point(.017, .017),
-      size: new Size(4, 4),
-      offset: new Point(-2, -3.6),
+      size: new Size(4, 3),
+      offset: new Point(-2, -2.6),
     },
     museumSprite: {
       img: 'sprite/building-museum.png',
       menuScaling: new Point(.17, .17),
-      scaling: new Point(.017, .017),
-      size: new Size(4, 4),
-      offset: new Point(-2, -3.6),
+      scaling: new Point(.025, .025),
+      size: new Size(7, 4),
+      offset: new Point(-3.5, -3.6),
     },
     nookSprite: {
       img: 'sprite/building-nook.png',
       menuScaling: new Point(.17, .17),
-      scaling: new Point(.017, .017),
-      size: new Size(4, 4),
-      offset: new Point(-2, -3.6),
+      scaling: new Point(.020, .020),
+      size: new Size(7, 4),
+      offset: new Point(-3.6, -3.6),
     },
     ableSprite: {
       img: 'sprite/building-able.png',
       menuScaling: new Point(.17, .17),
       scaling: new Point(.017, .017),
-      size: new Size(4, 4),
-      offset: new Point(-2, -3.6),
+      size: new Size(4, 3),
+      offset: new Point(-2, -2.8),
     },
     bridgeVerticalSprite: {
       img: 'sprite/structure-bridge-vertical.png',
@@ -1260,33 +1485,45 @@
     playerhouseSprite: {
       img: 'sprite/building-playerhouse.png',
       menuScaling: new Point(.17, .17),
-      scaling: new Point(.017, .017),
+      scaling: new Point(.022, .022),
+      size: new Size([5,4]),
+      offset: new Point(-2.5, -3.6)
     },
     houseSprite: {
       img: 'sprite/building-house.png',
       menuScaling: new Point(.17, .17),
-      scaling: new Point(.017, .017),
+      scaling: new Point(.02, .02),
     },
+//    houseFlatSprite: {
+//      img: 'sprite/building-flathouse.png',
+//      menuScaling: new Point(.17, .17),
+//      scaling: new Point(.014, .014),
+//    },
+//    houseOutlineFlatSprite: {
+//      img: 'sprite/building-flathouseoutline.png',
+//      menuScaling: new Point(.17, .17),
+//      scaling: new Point(.014, .014),
+//    },
     treePineSprite: {
       img: 'sprite/tree-pine.png',
       menuScaling: new Point(.15, .15),
       scaling: new Point(.012, .012),
-      size: new Size([2, 1]),
-      offset: new Point(-1, -.75),
+      size: new Size([1, 1]),
+      offset: new Point(-.5, -.75),
     },
     treePalmSprite: {
       img: 'sprite/tree-palm.png',
       menuScaling: new Point(.17, .17),
       scaling: new Point(.014, .014),
-      size: new Size([2, 1]),
-      offset: new Point(-1, -.75),
+      size: new Size([1, 1]),
+      offset: new Point(-.5, -.75),
     },
     treeFruitSprite: {
       img: 'sprite/tree-fruit.png',
       menuScaling: new Point(.17, .17),
       scaling: new Point(.012, .012),
-      size: new Size([2, 1]),
-      offset: new Point(-1, -.75),
+      size: new Size([1, 1]),
+      offset: new Point(-.45, -.75),
     },
   }
   // set up the definitions programatically because they are all the same
@@ -1321,7 +1558,7 @@
       }
     } else {
       def.colorData = colors.npc;
-      def.scaling = def.scaling || new Point(.03, .03);
+      def.scaling = def.scaling || new Point(.032, .032);
       def.menuScaling = def.menuScaling || new Point(.3, .3);
       def.size = def.size || new Size(4, 4);
       def.offset = def.offset || new Point(-2, -3.6);
@@ -1351,9 +1588,12 @@
   // BASE LEVEL TOOLS
 
   var baseToolCategoryDefinition = {
-    onSelect: function(subclass, isSelected) {
+    onSelect: function(subclass, isSelected, isReselected) {
       subclass.icon.data.select(isSelected);
-      this.openMenu(subclass, isSelected);
+
+      if (isReselected) this.toggleMenu(subclass);
+      else this.openMenu(subclass, isSelected);
+
       if (!isSelected) subclass.enablePreview(isSelected);
     },
     onMouseMove: function(subclass, event) {
@@ -1372,24 +1612,26 @@
     },
     enablePreview: function(subclass, isEnabled) {
     },
-    openMenu: function(subclass, isSelected) {
+    toggleMenu: function(subclass) {
       if (subclass.openMenu) {
-        if (!isSelected) {
-          if (this.iconMenu)
-            this.iconMenu.remove();
-        }
-        else {
-          subclass.openMenu(isSelected);
-        }
+        subclass.openMenu(!(subclass.iconMenu && subclass.iconMenu.visible));
       }
     },
-    updateTool: function(subclass, prevToolData, nextToolData) {
+    openMenu: function(subclass, isSelected) {
+      if (subclass.openMenu) {
+        subclass.openMenu(isSelected);
+      }
+    },
+    updateTool: function(subclass, prevToolData, nextToolData, isToolTypeSwitch) {
       var sameToolType = prevToolData && (prevToolData.definition.type === nextToolData.definition.type);
       if (!sameToolType) {
         if (prevToolData) {
           prevToolData.definition.onSelect(false);
         }
         nextToolData.definition.onSelect(true);
+      } else if (isToolTypeSwitch) {
+        // user pressed the tool menu button - toggle the menu visibility
+        prevToolData.definition.onSelect(true, true);
       }
       {
         var prevTool = (prevToolData && prevToolData.tool) ? prevToolData.tool.type : null;
@@ -1401,8 +1643,8 @@
           if (nextToolData && nextToolData.tool && nextToolData.tool.onSelect)
             nextToolData.tool.onSelect(true);
           // todo: decouple view from logic
-          if (this.iconMenu && (nextToolData.type == 'structures' || nextToolData.type == 'amenities')) {
-            this.iconMenu.data.update(nextTool);
+          if (subclass.iconMenu && (nextToolData.type == 'structures' || nextToolData.type == 'amenities')) {
+            subclass.iconMenu.data.update(nextTool);
             updateObjectPreview();
           }
         }
@@ -1457,8 +1699,8 @@
       data: {
         paintColorData: colors.level1,
       },
-      onSelect: function(isSelected) {
-        this.base.onSelect(this, isSelected);
+      onSelect: function(isSelected, isReselected) {
+        this.base.onSelect(this, isSelected, isReselected);
       },
       onMouseMove: function(event) {
         this.base.onMouseMove(this, event);
@@ -1488,26 +1730,30 @@
         brush.visible = isEnabled;
       },
       openMenu: function(isSelected) {
-        fixedLayer.activate();
-        updatePaintColor(this.data.paintColorData);
-        this.base.iconMenu = createMenu(
-          objectMap(layerDefinition, function(definition, colorKey) {
-            var colorData = colors[colorKey];
-            var paintCircle = new Path.Circle(new Point(0, 0), 16);
-            paintCircle.fillColor = colorData.color;
-            paintCircle.locked = true;
-            return createButton(paintCircle, 20, function(button) {
-              updatePaintColor(colorData);
-              this.data.paintColorData = colorData;
-            }.bind(this));
-          }.bind(this)),
-          45 // menu spacing
-        );
-        this.base.iconMenu.data.setPointer(30);
-        this.base.iconMenu.pivot = new Point(0, 0);
-        this.base.iconMenu.position = new Point(100, 75);
-        // this is a little messy
-        this.base.iconMenu.data.update(this.data.paintColorData.key);
+        if (this.iconMenu == null) {
+          fixedLayer.activate();
+          updatePaintColor(this.data.paintColorData);
+          this.iconMenu = createMenu(
+            objectMap(layerDefinition, function(definition, colorKey) {
+              var colorData = colors[colorKey];
+              var paintCircle = new Path.Circle(new Point(0, 0), 16);
+              paintCircle.fillColor = colorData.color;
+              paintCircle.locked = true;
+              return createButton(paintCircle, 20, function(event, button) {
+                updatePaintColor(colorData);
+                this.data.paintColorData = colorData;
+              }.bind(this));
+            }.bind(this)),
+            {spacing: 45, extraColumns: 1}
+          );
+          this.iconMenu.data.setPointer(30);
+          this.iconMenu.pivot = new Point(0, 0);
+          this.iconMenu.position = new Point(100, 75);
+          // this is a little messy
+          this.iconMenu.data.update(this.data.paintColorData.key);
+        }
+        this.iconMenu.visible = isSelected;
+        var adjusterUI = showBrushSizeUI(isSelected);
       },
     },
     path: {
@@ -1524,8 +1770,8 @@
       data: {
         paintColorData: colors.pathDirt,
       },
-      onSelect: function(isSelected) {
-        this.base.onSelect(this, isSelected);
+      onSelect: function(isSelected, isReselected) {
+        this.base.onSelect(this, isSelected, isReselected);
       },
       onMouseMove: function(event) {
         this.base.onMouseMove(this, event);
@@ -1555,35 +1801,39 @@
         brush.visible = isEnabled;
       },
       openMenu: function(isSelected) {
-        fixedLayer.activate();
-        updatePaintColor(this.data.paintColorData);
-        var pathColorButtons =
-          objectMap(pathDefinition, function(definition, colorKey) {
-            var buttonIcon;
-            var colorData = colors[colorKey];
-            if (colorKey == colors.pathEraser.key) {
-              buttonIcon = new Group();
-              eraserImg = new Raster(imgPath + toolPrefix + 'eraser.png');
-              eraserImg.scaling = new Point(0.35, 0.35);
-              buttonIcon.addChildren([eraserImg]); 
-            } else {
-              var paintCircle = new Path.Circle(new Point(0, 0), 16);
-              paintCircle.fillColor = colorData.color;
-              paintCircle.locked = true;
-              buttonIcon = paintCircle;
-            }
+        if (this.iconMenu == null) {
+          fixedLayer.activate();
+          updatePaintColor(this.data.paintColorData);
+          var pathColorButtons =
+            objectMap(pathDefinition, function(definition, colorKey) {
+              var buttonIcon;
+              var colorData = colors[colorKey];
+              if (colorKey == colors.pathEraser.key) {
+                buttonIcon = new Group();
+                eraserImg = new Raster(imgPath + toolPrefix + 'eraser.png');
+                eraserImg.scaling = new Point(0.35, 0.35);
+                buttonIcon.addChildren([eraserImg]); 
+              } else {
+                var paintCircle = new Path.Circle(new Point(0, 0), 16);
+                paintCircle.fillColor = colorData.color;
+                paintCircle.locked = true;
+                buttonIcon = paintCircle;
+              }
 
-            return createButton(buttonIcon, 20, function(button) {
-              updatePaintColor(colorData);
-              this.data.paintColorData = colorData;
-            }.bind(this));
-          }.bind(this))
-        this.base.iconMenu = createMenu(pathColorButtons, 45);
-        this.base.iconMenu.data.setPointer(80);
-        this.base.iconMenu.pivot = new Point(0, 0);
-        this.base.iconMenu.position = new Point(100, 75);
-        // this is a little messy
-        this.base.iconMenu.data.update(this.data.paintColorData.key);
+              return createButton(buttonIcon, 20, function(event, button) {
+                updatePaintColor(colorData);
+                this.data.paintColorData = colorData;
+              }.bind(this));
+            }.bind(this))
+          this.iconMenu = createMenu(pathColorButtons, {spacing: 45, extraColumns: 1, extraRows: 1});
+          this.iconMenu.data.setPointer(80);
+          this.iconMenu.pivot = new Point(0, 0);
+          this.iconMenu.position = new Point(100, 75);
+          // this is a little messy
+          this.iconMenu.data.update(this.data.paintColorData.key);
+        }
+        this.iconMenu.visible = isSelected;
+        var adjusterUI = showBrushSizeUI(isSelected);
       },
     },
     structures: {
@@ -1597,8 +1847,8 @@
       defaultModifiers: {
 
       },
-      onSelect: function(isSelected) {
-        this.base.onSelect(this, isSelected);
+      onSelect: function(isSelected, isReselected) {
+        this.base.onSelect(this, isSelected, isReselected);
       },
       onMouseMove: function(event) {
         this.base.onMouseMove(this, event);
@@ -1622,28 +1872,33 @@
         if (objectPreview) objectPreview.visible = isEnabled;
       },
       openMenu: function(isSelected) {
-        this.tools.getAsyncValue(function(definitions) {
-          fixedLayer.activate();
-          var categoryDefinition = this;
-          this.base.iconMenu = createMenu(
-            objectMap(definitions, function(def, name) {
-              var icon = def.icon.clone();
-              icon.scaling = def.menuScaling;
-              icon.fillColor = def.colorData.color;
-              return createButton(icon, 20, function(button) {
-                toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
-              });
-            }),
-            50, 10
-          );
-          this.base.iconMenu.data.setPointer(130);
-          this.base.iconMenu.pivot = new Point(0, 0);
-          this.base.iconMenu.position = new Point(100, 75);
-          // this is a little messy
-          if (toolState.activeTool && toolState.activeTool.tool) {
-            this.base.iconMenu.data.update(toolState.activeTool.tool.type);
-          }
-        }.bind(this));
+        if (this.iconMenu == null) {
+          this.tools.getAsyncValue(function(definitions) {
+            fixedLayer.activate();
+            var categoryDefinition = this;
+            this.iconMenu = createMenu(
+              objectMap(definitions, function(def, name) {
+                var icon = def.icon.clone();
+                icon.scaling = def.menuScaling;
+                icon.fillColor = def.colorData.color;
+                return createButton(icon, 20, function(event, button) {
+                  toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
+                });
+              }),
+              {spacing: 50, perColumn: 10}
+            );
+            this.iconMenu.data.setPointer(130);
+            this.iconMenu.pivot = new Point(0, 0);
+            this.iconMenu.position = new Point(100, 75);
+            // this is a little messy
+            if (toolState.activeTool && toolState.activeTool.tool) {
+              this.iconMenu.data.update(toolState.activeTool.tool.type);
+            }
+            this.iconMenu.visible = isSelected;
+          }.bind(this));
+        } else {
+          this.iconMenu.visible = isSelected;
+        }
       },
     },
     amenities: {
@@ -1655,8 +1910,8 @@
       defaultTool: null,
       modifiers: {},
       defaultModifiers: {},
-      onSelect: function(isSelected) {
-        this.base.onSelect(this, isSelected);
+      onSelect: function(isSelected, isReselected) {
+        this.base.onSelect(this, isSelected, isReselected);
       },
       onMouseMove: function(event) {
         this.base.onMouseMove(this, event);
@@ -1680,27 +1935,32 @@
         if (objectPreview) objectPreview.visible = isEnabled;
       },
       openMenu: function(isSelected) {
-        this.tools.getAsyncValue(function(definitions) {
-          fixedLayer.activate();
-          var categoryDefinition = this;
-          this.base.iconMenu = createMenu(
-            objectMap(definitions, function(def, name) {
-              var icon = createObjectIcon(def, getObjectData(def));
-              icon.scaling = def.menuScaling;
-              return createButton(icon, 20, function(button) {
-                toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
-              });
-            }),
-            50, 8
-          );
-          this.base.iconMenu.data.setPointer(185);
-          this.base.iconMenu.pivot = new Point(0, 0);
-          this.base.iconMenu.position = new Point(100, 75);
-          // this is a little messy
-          if (toolState.activeTool && toolState.activeTool.tool) {
-            this.base.iconMenu.data.update(toolState.activeTool.tool.type);
-          }
-        }.bind(this));
+        if (this.iconMenu == null) {
+          this.tools.getAsyncValue(function(definitions) {
+            fixedLayer.activate();
+            var categoryDefinition = this;
+            this.iconMenu = createMenu(
+              objectMap(definitions, function(def, name) {
+                var icon = createObjectIcon(def, getObjectData(def));
+                icon.scaling = def.menuScaling;
+                return createButton(icon, 20, function(event, button) {
+                  toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
+                });
+              }),
+              {spacing: 50, perColumn: 8}
+            );
+            this.iconMenu.data.setPointer(185);
+            this.iconMenu.pivot = new Point(0, 0);
+            this.iconMenu.position = new Point(100, 75);
+            // this is a little messy
+            if (toolState.activeTool && toolState.activeTool.tool) {
+              this.iconMenu.data.update(toolState.activeTool.tool.type);
+            }
+            this.iconMenu.visible = isSelected;
+          }.bind(this));
+        } else {
+          this.iconMenu.visible = isSelected;
+        }
       },
     },
   //  shovel: {
@@ -1714,8 +1974,8 @@
   // add additional sub functions to all definitions
   Object.keys(toolCategoryDefinition).forEach(function(toolType) {
     var def = toolCategoryDefinition[toolType];
-    def.updateTool = function(prevToolData, nextToolData) {
-      def.base.updateTool(def, prevToolData, nextToolData);
+    def.updateTool = function(prevToolData, nextToolData, isToolTypeSwitch) {
+      def.base.updateTool(def, prevToolData, nextToolData, isToolTypeSwitch);
     };
   });
 
@@ -1743,17 +2003,17 @@
     },
     switchToolType: function(toolType) {
       if (!this.toolMap.hasOwnProperty(toolType)) {
-        this.switchTool(this.defaultToolMapValue(toolType));
+        this.switchTool(this.defaultToolMapValue(toolType), true);
       } else {
-        this.switchTool(this.toolMap[toolType]);
+        this.switchTool(this.toolMap[toolType], true);
       }
     },
-    switchTool: function(toolData) {
+    switchTool: function(toolData, isToolTypeSwitch) {
       var prevTool = this.activeTool;
       this.activeTool = toolData;
       this.toolMap[toolData.type] = toolData;
-      if (prevTool) prevTool.definition.updateTool(prevTool, toolData);
-      else if (toolData) toolData.definition.updateTool(prevTool, toolData);
+      if (prevTool) prevTool.definition.updateTool(prevTool, toolData, isToolTypeSwitch);
+      else if (toolData) toolData.definition.updateTool(prevTool, toolData, isToolTypeSwitch);
     },
     deleteSelection: function() {
       Object.keys(this.selected).forEach(function(objectId) {
@@ -1890,7 +2150,7 @@
     if (toolState.activeTool &&
       toolState.activeTool.type == toolCategoryDefinition.terrain.type
       || toolState.activeTool.type == toolCategoryDefinition.path.type) {
-      if (toolState.activeTool.definition.base.iconMenu) {
+      if (toolState.activeTool.definition.iconMenu) {
 
         var toolCategory;
         if (layerDefinition[colorData.key]) {
@@ -1902,7 +2162,7 @@
           toolState.switchToolType(toolCategory);
         }
 
-        toolState.activeTool.definition.base.iconMenu.data.update(colorData.key);
+        toolState.activeTool.definition.iconMenu.data.update(colorData.key);
       }
     }
   }
@@ -1915,12 +2175,25 @@
   //pointerToolButton.position = toolsPosition + new Point(0, 0);
   //pointerToolButton.scaling = new Point(0.2, 0.2);
 
+  var isSpaceDown = false;
+
+  function onKeyUp(event) {
+    switch (event.key) {
+      case 'space':
+        isSpaceDown = false
+        break;
+      }
+  }
+
   function onKeyDown(event) {
     var shift = Key.isDown('shift');
     var control = Key.isDown('control') || Key.isDown('meta');
 
     var prevActiveTool = toolState.activeTool;
     switch (event.key) {
+      case 'space':
+        isSpaceDown = true;
+        break;
       case '0':
         updatePaintColor(colors.eraser);
         break;
@@ -1965,20 +2238,17 @@
         break;
       case '[':
       case '{':
-        brushSize = Math.max(brushSize - 1, 1);
-        updateBrush();
+        decrementBrush();
         break;
       case ']':
       case '}':
-        brushSize = Math.max(brushSize + 1, 1);
-        updateBrush();
+        incrementBrush();
         break;
 //      case 'l':
 //        brushSweep = !brushSweep;
 //        break;
       case 'p':
         cycleBrushHead();
-        updateBrush();
         break;
 //      case 'v':
 //        toolState.switchToolType(toolCategoryDefinition.pointer.type);
@@ -2170,15 +2440,15 @@
     switch (paintTool) {
       case paintTools.grid:
         var isShift = Key.isDown('shift');
-        if (!brushLine && isShift) {
+        if (!brushLine && (isShift || brushLineForce)) {
           startDrawGrid(event.point);
-        } else if (brushLine && !isShift) {
+        } else if (brushLine && !(isShift || brushLineForce)) {
           drawGrid(event.point);
           stopGridLinePreview();
         }
-        brushLine = isShift;
+        brushLine = (isShift || brushLineForce);
 
-        if (brushLine) {
+        if ((brushLine)) {
           drawGridLinePreview(event.point);
         } else {
           drawGrid(event.point);
@@ -2201,7 +2471,8 @@
   function endDraw(event) {
     switch (paintTool) {
       case paintTools.grid:
-          if (Key.isDown('shift')) {
+          var isShift = Key.isDown('shift');
+          if (isShift || brushLineForce) {
             drawGrid(event.point);
           }
           endDrawGrid(event.point);
@@ -2317,18 +2588,21 @@
     var screenRatio = view.size.width / view.size.height;
     var horizontallyContrained = (screenRatio <= mapRatio);
 
+    var viewWidth = view.size.width * view.scaling.x;
+    var viewHeight = view.size.height * view.scaling.y;
+
     // todo - clean this up with less code duplication
     if (horizontallyContrained) {
       marginX = view.size.width * 0.1;
 
-      var width = view.size.width - marginX * 2;
+      var width = viewWidth - marginX * 2;
       var blockWidth = width / horizontalBlocks;
       cellWidth = blockWidth / horizontalDivisions;
       cellHeight = cellWidth * verticalRatio;
       var blockHeight = cellHeight * verticalDivisions;
       var height = blockHeight * verticalBlocks;
 
-      marginY = (view.size.height - height) / 2;
+      marginY = (viewHeight- height) / 2;
 
       //var xView = view.size.width - marginX;
       //var xCoord = horizontalBlocks * horizontalDivisions;
@@ -2341,16 +2615,16 @@
       //remapInvX = createRemap(0, xCoord, marginX, xView);
       //remapInvY = createRemap(0, yCoord, marginY, yView);
     } else {
-      marginY = view.size.height * 0.1;
+      marginY = viewHeight * 0.1;
 
-      var height = view.size.height - marginY * 2;
+      var height = viewHeight - marginY * 2;
       var blockHeight = height / verticalBlocks;
       cellHeight = blockHeight / verticalDivisions;
       cellWidth = cellHeight / verticalRatio;
       var blockWidth = cellWidth * horizontalDivisions;
       var width = blockWidth * horizontalBlocks;
 
-      marginX = (view.size.width - width) / 2;
+      marginX = (viewWidth - width) / 2;
     }
     
 
@@ -2484,8 +2758,15 @@
   };
   var brushSweep = true;
   var brushLine = false;
+  var brushLineForce = false;
   var brushType = brushTypes.rounded;
   updateBrush();
+
+  function setBrushLineForce(isLine) {
+    brushLineForce = isLine;
+    emitter.emit('updateBrushLineForce', brushLineForce);
+  }
+  setBrushLineForce(false);
 
   function cycleBrushHead() {
     var heads = Object.keys(brushTypes).sort(function(a, b) {
@@ -2493,6 +2774,7 @@
     });
     var index = heads.indexOf(brushType);
     brushType = heads[(index + 1) % heads.length];
+    updateBrush();
   }
 
   function getObjectCenteredCoordinate(rawCoordinate, objectDefinition){
@@ -2510,6 +2792,14 @@
       return rawCoordinate.floor();
   }
 
+  function decrementBrush() {
+    brushSize = Math.max(brushSize - 1, 1);
+    updateBrush();
+  }
+  function incrementBrush() {
+    brushSize = Math.max(brushSize + 1, 1);
+    updateBrush();
+  }
   function updateBrush() {
     brushSegments = getBrushSegments(brushSize);
 
@@ -2530,6 +2820,8 @@
     brushOutline.strokeColor = '#fff';
     brushOutline.strokeWidth = 0.1;
     brushOutline.locked = true;
+
+    emitter.emit('updateBrush');
   }
 
   function updateObjectPreview() {
@@ -2700,6 +2992,8 @@
         autosaveMap();
       }, autosaveInactivityTimer);
     }
+
+    emitter.emit('historyUpdate', 'add');
   }
   var actionsSinceSave = 0;
   var actionsCount = 0;
@@ -2729,19 +3023,29 @@
     });
   }
 
+  function canRedo() {
+    return state == null ? 0 : state.index < state.history.length - 1;
+  }
+
+  function canUndo() {
+    return state == null ? 0 : state.index >= 0;
+  }
+
   function undo() {
-    if (state.index >= 0) {
+    if (canUndo()) {
       applyCommand(state.history[state.index], false);
       state.index -= 1;
+      emitter.emit('historyUpdate', 'undo');
     } else {
       console.log('Nothing to undo');
     }
   }
 
   function redo() {
-    if (state.index < state.history.length - 1) {
+    if (canRedo()) {
       state.index += 1;
       applyCommand(state.history[state.index], true);
+      emitter.emit('historyUpdate', 'redo');
     } else {
       console.log('Nothing to redo');
     }
@@ -3084,7 +3388,7 @@
         }
         diffCollection[colorKey].path.push(colorDiff.path);
         if (diffCollection[colorKey].isAdd != colorDiff.isAdd) {
-          console.logError('Simultaneous add and remove for ' + colorKey);
+          console.error('Simultaneous add and remove for ' + colorKey);
         }
       });
       applyDiff(true, diff);
