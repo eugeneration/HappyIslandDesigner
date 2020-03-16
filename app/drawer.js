@@ -2803,13 +2803,12 @@
   function updateBrush() {
     brushSegments = getBrushSegments(brushSize);
 
-    var prevPos = brush.position;
     var prevPosOutline = brushOutline.position;
 
     brush.layer = uiLayer;
     brush.segments = brushSegments;
     brush.pivot = new Point(brushSize / 2 - 0.5, brushSize / 2 - 0.5);
-    brush.position = getBrushCenteredCoordinate(prevPos);
+    brush.position = getBrushCenteredCoordinate(prevPosOutline);
     brush.opacity = 0.6;
     brush.closed = true;
     brush.fillColor = paintColor.color;
