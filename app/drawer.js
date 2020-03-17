@@ -1775,21 +1775,21 @@
     tulipYellow: {
       img: 'sprite/flower/tulip-yellow.png',
     },
-    weedBush: {
-      img: 'sprite/flower/weed-bush.png',
-    },
-    weedBrush: {
-      img: 'sprite/flower/weed-brush.png',
-    },
+//    weedBush: {
+//      img: 'sprite/flower/weed-bush.png',
+//    },
+//    weedBrush: {
+//      img: 'sprite/flower/weed-brush.png',
+//    },
     weedClover: {
       img: 'sprite/flower/weed-clover.png',
     },
-    weedCattail: {
-      img: 'sprite/flower/weed-cattail.png',
-    },
-    weedDandelion: {
-      img: 'sprite/flower/weed-dandelion.png',
-    },
+//    weedCattail: {
+//      img: 'sprite/flower/weed-cattail.png',
+//    },
+//    weedDandelion: {
+//      img: 'sprite/flower/weed-dandelion.png',
+//    },
   };
   Object.keys(asyncFlowerDefinition.value).forEach(function(type) {
     var def = asyncFlowerDefinition.value[type];
