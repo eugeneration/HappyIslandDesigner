@@ -396,56 +396,93 @@
         brushSizeBacking, increaseButton, decreaseButton,
         brushLineBacking, drawLineButton, drawBrushButton]);
       group.pivot = new Point(0, 0);
-      group.position = new Point(105, 80);
+      group.position = new Point(105, 55);
       brushSizeUI = group;
     }
     brushSizeUI.bringToFront();
     brushSizeUI.visible = isShown;
   }
 
-  function encodeObject(object) {
-    return {
-      position: [object.position.x, object.position.y],
-      id: object.data.id,
-      category: object.data.category,
-      type: object.data.type,
-      color: object.data.colorData ? object.data.colorData.name : "",
-    };
+  var atomicObjectId = 0;
+
+  function encodeObjectGroups(objects) {
+    var objectGroups = {};
+    Object.values(objects).forEach(function(object) {
+      var key = object.data.category + "_" + object.data.type;
+      if (!objectGroups[key]) {
+        objectGroups[key] = [];
+      }
+      var encodedPoint = encodePoint(object.position);
+      objectGroups[key].push(encodedPoint[0], encodedPoint[1]);
+    });
+    return objectGroups;
   }
 
-  function decodeObject(encodedData) {
+  function decodeObjectGroups(objectGroups, encodingVersion) {
+    if (encodingVersion == 0) {
+      return objectMap(objectGroups, function(encodedData) {
+        return decodeObject(encodedData, version);
+      });
+    }
+
+    var objects = {};
+    Object.keys(objectGroups).forEach(function(key) {
+      var keySplit = key.split('_');
+      var category = keySplit[0],
+        type = keySplit[1];
+      var positionArray = objectGroups[key];
+      for(var i = 0; i < positionArray.length; i += 2) {
+        decodeObject({
+          category: category,
+          type: type,
+          position: [positionArray[i], positionArray[i + 1]],
+        }, encodingVersion);
+      }
+    });
+    return objects;
+  }
+
+  function decodeObject(encodedData, encodingVersion) {
     var position = new Point(encodedData.position);
-    // encode the color name separately from the key so we are able to refactor the code
-    var colorData = getColorDataFromEncodedName(encodedData.color);
     var objectData = {
-      id: encodedData.id,
       category: encodedData.category,
       type: encodedData.type,
-      colorData: colorData,
     };
+    // for legacy or renamed objects, rename them
+    if (toolCategoryDefinition[encodedData.category].tools && toolCategoryDefinition[encodedData.category].tools.value) {
+      var objectDefinition = toolCategoryDefinition[encodedData.category].tools.value[objectData.type];
+      if (objectDefinition.legacy) {
+        objectData.type = objectDefinition.legacy;
+      }
+      if (objectDefinition.legacyCategory) {
+          objectData.category = objectDefinition.legacyCategory;
+        }
+      if (objectDefinition.rename) {
+        if (encodingVersion <= objectDefinition.rename[0]) {
+          objectData.type = objectDefinition.rename[1];
+        }
+      }
+    }
+
     applyCommand(objectCreateCommand(objectData, position), true);
     return {
       position: position,
-      id: encodedData.id,
       category: encodedData.category,
       type: encodedData.type,
-      colorData: colorData,
     };
   }
 
   function getObjectData(objectDefinition) {
     return {
-      id: Date.now(),
       category: objectDefinition.category,
       type: objectDefinition.type,
-      colorData: objectDefinition.colorData,
     };
   }
 
   function createObjectIcon(objectDefinition, itemData) {
     var item = objectDefinition.icon.clone({insert: false});
-    if (itemData.colorData) {
-      item.fillColor = itemData.colorData.color;
+    if (objectDefinition.colorData) {
+      item.fillColor = objectDefinition.colorData.color;
     }
     return item;
   }
@@ -772,6 +809,7 @@
 
   function saveMapToFile() {
     var mapJson = encodeMap();
+    mapJson = LZString.compress(mapJson);
 
     var saveMargins = new Point(10, 10);
 
@@ -863,7 +901,15 @@
               width: image.width,
             });
             clearMap();
-            var map = decodeMap(JSON.parse(mapJSONString));
+
+            var json;
+            try {
+              var json = JSON.parse(mapJSONString);
+            } catch(e) {
+              var json = JSON.parse(LZString.decompress(mapJSONString))
+            }
+            var map = decodeMap(json);
+
             setNewMapData(map);
           }, false);
       }
@@ -977,7 +1023,7 @@
     var center = new Point(view.bounds.width * view.scaling.x / 2, view.bounds.height * view.scaling.y / 2);// + view.bounds.topLeft * 2;
     var bottomRight = new Point(view.bounds.width * view.scaling.x, view.bounds.height * view.scaling.y);// + view.bounds.topLeft * 2;
 
-    fixedLayer.activate();
+    modalLayer.activate();
 
     var group = new Group;
 
@@ -1227,7 +1273,11 @@
           } else { }
         });
 
-      mainMenu.data.contents.addChildren([saveButton, loadButton, newButton]);
+      var twitterButton = createMenuButton('Twitter', 'img/menu-twitt.png', 0,
+        function() {window.open('https://twitter.com/island_designer', '_blank')});
+      twitterButton.position = new Point(0, 210);
+
+      mainMenu.data.contents.addChildren([saveButton, loadButton, newButton, twitterButton]);
       mainMenu.opacity = 0;
     }
     mainMenu.tweenTo({opacity: isShown ? 1 : 0}, 200);
@@ -1244,7 +1294,7 @@
   leftToolMenuBacking.strokeCap = 'round';
   leftToolMenuBacking.segments = [
     new Point(-30, -0),
-    new Point(-30, 330)
+    new Point(-30, 480)
   ];
   leftToolMenu.addChild(leftToolMenuBacking);
 
@@ -1411,27 +1461,6 @@
       size: new Size(4, 3),
       offset: new Point(-2, -2.8),
     },
-    bridgeVerticalSprite: {
-      img: 'sprite/structure-bridge-vertical.png',
-      menuScaling: new Point(.17, .17),
-      scaling: new Point(.026, .026),
-      size: new Size(3, 5),
-      offset: new Point(-1.5, -5),
-    },
-    bridgeHorizontalSprite: {
-      img: 'sprite/structure-bridge-horizontal.png',
-      menuScaling: new Point(.17, .17),
-      scaling: new Point(.026, .026),
-      size: new Size(5, 3),
-      offset: new Point(-2.8, -2.7),
-    },
-    rampSprite: {
-      img: 'sprite/structure-ramp.png',
-      menuScaling: new Point(.17, .17),
-      scaling: new Point(.026, .026),
-      size: new Size(5, 3),
-      offset: new Point(-2.8, -2.7),
-    },
     lighthouseSprite: {
       img: 'sprite/structure-lighthouse.png',
       size: new Size([2, 2]),
@@ -1444,6 +1473,49 @@
       size: new Size([2, 2]),
       menuScaling: new Point(.3, .3),
       offset: new Point(-1, -1.6),
+    },
+    airportBlue: {
+      img: 'sprite/structure/airport.png',
+      size: new Size([10, 6]),
+      scaling: new Point(.03, .03),
+      menuScaling: new Point(.14, .14),
+      offset: new Point(-5, -5.5),
+    },
+    airportRed: {
+      img: 'sprite/structure/airport-red.png',
+      size: new Size([10, 6]),
+      scaling: new Point(.03, .03),
+      menuScaling: new Point(.14, .14),
+      offset: new Point(-5, -5.5),
+    },
+    airportYellow: {
+      img: 'sprite/structure/airport-yellow.png',
+      size: new Size([10, 6]),
+      scaling: new Point(.03, .03),
+      menuScaling: new Point(.14, .14),
+      offset: new Point(-5, -5.5),
+    },
+    airportGreen: {
+      img: 'sprite/structure/airport-green.png',
+      size: new Size([10, 6]),
+      scaling: new Point(.03, .03),
+      menuScaling: new Point(.14, .14),
+      offset: new Point(-5, -5.5),
+    },
+
+    //legacy
+    bridgeVerticalSprite: {
+      legacyCategory: 'construction',
+      img: 'sprite/structure-bridge-vertical.png',
+    },
+    bridgeHorizontalSprite: {
+      legacyCategory: 'construction',
+      img: 'sprite/structure-bridge-horizontal.png',
+    },
+    rampSprite: {
+      legacy: 'stairsStoneLeft',
+      legacyCategory: 'construction',
+      img: 'sprite/structure-ramp.png',
     },
   };
   Object.keys(asyncAmenitiesDefinition.value).forEach(function(type) {
@@ -1470,6 +1542,276 @@
     }
   });
 
+  var asyncConstructionDefinition = new AsyncObjectDefinition();
+    asyncConstructionDefinition.value = {
+      bridgeStoneHorizontal: {
+        img: 'sprite/construction/bridge-stone-horizontal.png',
+        size: new Size(4, 2),
+      },
+      bridgeStoneVertical: {
+        img: 'sprite/construction/bridge-stone-vertical.png',
+        size: new Size(2, 4),
+      },
+      bridgeStoneTLBR: {
+        img: 'sprite/construction/bridge-stone-tlbr.png',
+        size: new Size(4, 4),
+      },
+      bridgeStoneTRBL: {
+        img: 'sprite/construction/bridge-stone-trbl.png',
+        size: new Size(4, 4),
+      },
+      bridgeWoodHorizontal: {
+        img: 'sprite/construction/bridge-wood-horizontal.png',
+        size: new Size(4, 2),
+      },
+      bridgeWoodVertical: {
+        img: 'sprite/construction/bridge-wood-vertical.png',
+        size: new Size(2, 4),
+      },
+      bridgeWoodTLBR: {
+        img: 'sprite/construction/bridge-wood-tlbr.png',
+        size: new Size(4, 4),
+      },
+      bridgeWoodTRBL: {
+        img: 'sprite/construction/bridge-wood-trbl.png',
+        size: new Size(4, 4),
+      },
+      bridgeVerticalSprite: {
+        img: 'sprite/structure-bridge-vertical.png',
+        menuScaling: new Point(.17, .17),
+        scaling: new Point(.026, .026),
+        size: new Size(3, 5),
+        offset: new Point(-1.5, -5),
+      },
+      stairsStoneUp: {
+        img: 'sprite/construction/stairs-stone-up.png',
+        size: new Size(1, 2),
+      },
+      stairsStoneDown: {
+        img: 'sprite/construction/stairs-stone-down.png',
+        size: new Size(1, 2),
+      },
+      stairsStoneLeft: {
+        img: 'sprite/construction/stairs-stone-left.png',
+        size: new Size(2, 1),
+      },
+      stairsStoneRight: {
+        img: 'sprite/construction/stairs-stone-right.png',
+        size: new Size(2, 1),
+      },
+      stairsWoodUp: {
+        img: 'sprite/construction/stairs-wood-up.png',
+        size: new Size(1, 2),
+      },
+      stairsWoodDown: {
+        img: 'sprite/construction/stairs-wood-down.png',
+        size: new Size(1, 2),
+      },
+      stairsWoodLeft: {
+        img: 'sprite/construction/stairs-wood-left.png',
+        size: new Size(2, 1),
+      },
+      stairsWoodRight: {
+        img: 'sprite/construction/stairs-wood-right.png',
+        size: new Size(2, 1),
+      },
+      //legacy
+      bridgeHorizontalSprite: {
+        img: 'sprite/structure-bridge-horizontal.png',
+        menuScaling: new Point(.17, .17),
+        scaling: new Point(.026, .026),
+        size: new Size(5, 3),
+        offset: new Point(-2.8, -2.7),
+      },
+      rampSprite: {
+        legacy: 'stairsStoneRight',
+        img: 'sprite/structure-ramp.png',
+        menuScaling: new Point(.17, .17),
+        scaling: new Point(.026, .026),
+        size: new Size(5, 3),
+        offset: new Point(-2.8, -2.7),
+      },
+    };
+  Object.keys(asyncConstructionDefinition.value).forEach(function(type) {
+    var def = asyncConstructionDefinition.value[type];
+    def.category = 'construction';
+    def.type = type;
+    def.scaling = def.scaling || new Point(.015, .015);
+    def.menuScaling = def.menuScaling || new Point(.18, .18);
+    def.size = def.size;
+    def.offset = def.offset || new Point(-def.size.width / 2, -def.size.height);
+    def.onSelect = function(isSelected) {};
+    // imnmediately load the assets
+    if (def.img) {
+      var img = new Raster(def.img);
+      def.icon = img;
+      def.icon.onLoad = function() {asyncConstructionDefinition.onLoad();}
+      img.remove();
+    };
+  });
+
+  var asyncTreeDefinition = new AsyncObjectDefinition();
+  asyncTreeDefinition.value = {
+    tree: {
+      img: 'sprite/tree/tree.png',
+    },
+    treeApple: {
+      img: 'sprite/tree/tree-apple.png',
+    },
+    treeCherry: {
+      img: 'sprite/tree/tree-cherry.png',
+    },
+    treeOrange: {
+      img: 'sprite/tree/tree-orange.png',
+    },
+    treePear: {
+      img: 'sprite/tree/tree-pear.png',
+    },
+    treePeach: {
+      img: 'sprite/tree/tree-peach.png',
+    },
+    treeAutumn: {
+      img: 'sprite/tree/tree-autumn.png',
+    },
+    treeSakura: {
+      img: 'sprite/tree/tree-sakura.png',
+    },
+    pine: {
+      rename: [0, 'flatPine'],
+      img: 'sprite/tree/pine.png',
+    },
+    palm: {
+      rename: [0, 'flatPalm'],
+      img: 'sprite/tree/palm.png',
+    },
+    bamboo: {
+      img: 'sprite/tree-bamboo.png',
+      menuScaling: new Point(.26, .26),
+      scaling: new Point(.02, .02),
+      offset: new Point(-.6, -.75),
+    },
+
+    flatBush: {
+      svg: 'bush',
+    },
+    flatTree: {
+      svg: 'fruit',
+    },
+    flatPalm: {
+      svg: 'palm',
+    },
+    flatPine: {
+      svg: 'pine',
+    },
+  };
+  Object.keys(asyncTreeDefinition.value).forEach(function(type) {
+    var def = asyncTreeDefinition.value[type];
+    def.category = 'tree';
+    def.type = type;
+    def.scaling = def.scaling || new Point(.014, .014);
+    def.menuScaling = def.menuScaling || new Point(.2, .2);
+    def.size = new Size(1, 1);
+    def.offset = def.offset || new Point(-def.size.width / 2, -def.size.height + .2);
+    def.onSelect = function(isSelected) {};
+    // imnmediately load the assets
+    if (def.svg) {
+      def.colorData = colors.level3;
+      def.scaling = new Point(.03, .03);
+      def.menuScaling = new Point(.6, .6);
+      def.size = def.size || new Size([1, 1]);
+      def.offset = def.offset || new Point(-1, -.75);
+      def.onSelect = function(isSelected) {};
+      // imnmediately load the assets
+      {
+        loadSvg('tree-' + def.svg, function(item) {
+          //item.pivot += new Point(-2, -3.6);
+          def.icon = item;
+          asyncTreeDefinition.onLoad();
+        });
+      }
+    }
+    else if (def.img) {
+      var img = new Raster(def.img);
+      def.icon = img;
+      def.icon.onLoad = function() {asyncTreeDefinition.onLoad();}
+      img.remove();
+    };
+  });
+
+  var asyncFlowerDefinition = new AsyncObjectDefinition();
+  asyncFlowerDefinition.value = {
+    chrysanthemumWhite: {
+      img: 'sprite/flower/chrysanthemum-white.png',
+    },
+    hyacinthRed: {
+      img: 'sprite/flower/hyacinth-red.png',
+    },
+    hyacinthWhite: {
+      img: 'sprite/flower/hyacinth-white.png',
+    },
+    lilyWhite: {
+      img: 'sprite/flower/lily-white.png',
+    },
+    pansyPurple: {
+      img: 'sprite/flower/pansy-purple.png',
+    },
+    pansyRed: {
+      img: 'sprite/flower/pansy-red.png',
+    },
+    pansyYellow: {
+      img: 'sprite/flower/pansy-yellow.png',
+    },
+    poppyOrange: {
+      img: 'sprite/flower/poppy-orange.png',
+    },
+    poppyRed: {
+      img: 'sprite/flower/poppy-red.png',
+    },
+    poppyWhite: {
+      img: 'sprite/flower/poppy-white.png',
+    },
+    tulipRed: {
+      img: 'sprite/flower/tulip-red.png',
+    },
+    tulipWhite: {
+      img: 'sprite/flower/tulip-white.png',
+    },
+    tulipYellow: {
+      img: 'sprite/flower/tulip-yellow.png',
+    },
+//    weedBush: {
+//      img: 'sprite/flower/weed-bush.png',
+//    },
+//    weedBrush: {
+//      img: 'sprite/flower/weed-brush.png',
+//    },
+    weedClover: {
+      img: 'sprite/flower/weed-clover.png',
+    },
+//    weedCattail: {
+//      img: 'sprite/flower/weed-cattail.png',
+//    },
+//    weedDandelion: {
+//      img: 'sprite/flower/weed-dandelion.png',
+//    },
+  };
+  Object.keys(asyncFlowerDefinition.value).forEach(function(type) {
+    var def = asyncFlowerDefinition.value[type];
+    def.category = 'flower';
+    def.type = type;
+    def.scaling = def.scaling || new Point(.016, .016);
+    def.menuScaling = def.menuScaling || new Point(.65, .65);
+    def.size = new Size(1, 1);
+    def.offset = def.offset || new Point(-def.size.width / 2, -def.size.height + 0.2);
+    def.onSelect = function(isSelected) {};
+    if (def.img) {
+      var img = new Raster(def.img);
+      def.icon = img;
+      def.icon.onLoad = function() {asyncFlowerDefinition.onLoad();}
+      img.remove();
+    };
+  });
+
   var asyncStructureDefinition = new AsyncObjectDefinition();
   asyncStructureDefinition.value = {
     tentRound: {},
@@ -1478,10 +1820,13 @@
     hut: {},
     house: {},
     building: {},
-    bush: {},
-    fruit: {},
-    palm: {},
-    pine: {},
+    tentSprite: {
+      img: 'sprite/building-tent.png',
+      menuScaling: new Point(.17, .17),
+      scaling: new Point(.022, .022),
+      size: new Size([5,4]),
+      offset: new Point(-2.5, -3.6)
+    },
     playerhouseSprite: {
       img: 'sprite/building-playerhouse.png',
       menuScaling: new Point(.17, .17),
@@ -1505,25 +1850,40 @@
 //      scaling: new Point(.014, .014),
 //    },
     treePineSprite: {
+      legacy: 'pine',
+      legacyCategory: 'tree',
       img: 'sprite/tree-pine.png',
-      menuScaling: new Point(.15, .15),
-      scaling: new Point(.012, .012),
-      size: new Size([1, 1]),
-      offset: new Point(-.5, -.75),
     },
     treePalmSprite: {
+      legacy: 'palm',
+      legacyCategory: 'tree',
       img: 'sprite/tree-palm.png',
-      menuScaling: new Point(.17, .17),
-      scaling: new Point(.014, .014),
-      size: new Size([1, 1]),
-      offset: new Point(-.5, -.75),
     },
     treeFruitSprite: {
+      legacy: 'treeOrange',
+      legacyCategory: 'tree',
       img: 'sprite/tree-fruit.png',
-      menuScaling: new Point(.17, .17),
-      scaling: new Point(.012, .012),
-      size: new Size([1, 1]),
-      offset: new Point(-.45, -.75),
+    },
+    // legacy
+    bush: {
+      img: 'sprite/tree-fruit.png',
+      legacy: 'flatBush',
+      legacyCategory: 'tree',
+    },
+    fruit: {
+      img: 'sprite/tree-fruit.png',
+      legacy: 'flatTree',
+      legacyCategory: 'tree',
+    },
+    palm: {
+      img: 'sprite/tree-fruit.png',
+      legacy: 'flatPalm',
+      legacyCategory: 'tree',
+    },
+    pine: {
+      img: 'sprite/tree-fruit.png',
+      legacy: 'flatPine',
+      legacyCategory: 'tree',
     },
   }
   // set up the definitions programatically because they are all the same
@@ -1532,31 +1892,7 @@
     def.category = 'structures';
     def.type = structureType;
 
-    if (structureType == 'bush'
-      || structureType == 'fruit'
-      || structureType == 'palm'
-      || structureType == 'pine') {
-      var isBush = structureType == 'bush';
-      def.colorData = colors.level3;
-      def.scaling = new Point(.03, .03);
-      def.menuScaling = new Point(.6, .6);
-      def.size = def.size || new Size([isBush ? 1 : 2, 1]);
-      def.offset = def.offset || isBush ? new Point( -0.5, -1) : new Point(-1, -.75);
-      def.onSelect = function(isSelected) {};
-      // imnmediately load the assets
-      if (def.img) {
-        var img = new Raster(def.img);
-        def.icon = img;
-        def.icon.onLoad = function() {asyncStructureDefinition.onLoad();};
-        img.remove();
-      } else {
-        loadSvg('tree-' + structureType, function(item) {
-          //item.pivot += new Point(-2, -3.6);
-          def.icon = item;
-          asyncStructureDefinition.onLoad();
-        });
-      }
-    } else {
+    {
       def.colorData = colors.npc;
       def.scaling = def.scaling || new Point(.032, .032);
       def.menuScaling = def.menuScaling || new Point(.3, .3);
@@ -1643,7 +1979,12 @@
           if (nextToolData && nextToolData.tool && nextToolData.tool.onSelect)
             nextToolData.tool.onSelect(true);
           // todo: decouple view from logic
-          if (subclass.iconMenu && (nextToolData.type == 'structures' || nextToolData.type == 'amenities')) {
+          if (subclass.iconMenu && (
+            nextToolData.type == 'structures' ||
+            nextToolData.type == 'amenities' ||
+            nextToolData.type == 'construction' ||
+            nextToolData.type == 'tree' ||
+            nextToolData.type == 'flower')) {
             subclass.iconMenu.data.update(nextTool);
             updateObjectPreview();
           }
@@ -1651,6 +1992,72 @@
       }
     },
   }
+
+  var baseObjectCategoryDefinition = {
+    base: baseToolCategoryDefinition,
+    //type: 'tree', // filled in by base class
+    //icon: "amenities",
+    //tools: asyncTreeDefinition,
+    //menuOptions: {},
+    //yPos: 185
+    layer: mapIconLayer,
+    defaultTool: null,
+    modifiers: {},
+    defaultModifiers: {},
+    onSelect: function(isSelected, isReselected) {
+      this.base.onSelect(this, isSelected, isReselected);
+    },
+    onMouseMove: function(event) {
+      this.base.onMouseMove(this, event);
+    },
+    onMouseDown: function(event) {
+      placeObject(event);
+      this.base.onMouseDown(this, event);
+    },
+    onMouseDrag: function(event) {
+      this.base.onMouseDrag(this, event);
+    },
+    onMouseUp: function(event) {
+      this.base.onMouseUp(this, event);
+    },
+    onKeyDown: function(event) {
+      this.base.onKeyDown(this, event);
+    },
+    enablePreview: function(isEnabled) {
+      this.base.enablePreview(this, isEnabled);
+      if (objectPreviewOutline) objectPreviewOutline.visible = isEnabled;
+      if (objectPreview) objectPreview.visible = isEnabled;
+    },
+    openMenu: function(isSelected) {
+      if (this.iconMenu == null) {
+        this.tools.getAsyncValue(function(definitions) {
+          fixedLayer.activate();
+          var categoryDefinition = this;
+          this.iconMenu = createMenu(
+            objectMap(definitions, function(def, name) {
+              if (def.legacy || def.legacyCategory) return null;
+              var icon = createObjectIcon(def, getObjectData(def));
+              icon.scaling = def.menuScaling;
+              return createButton(icon, 20, function(event, button) {
+                toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
+              });
+            }),
+            this.menuOptions
+          );
+          this.iconMenu.data.setPointer(this.yPos);
+          this.iconMenu.pivot = new Point(0, 0);
+          this.iconMenu.position = new Point(100, 45);
+          // this is a little messy
+          if (toolState.activeTool && toolState.activeTool.tool) {
+            this.iconMenu.data.update(toolState.activeTool.tool.type);
+          }
+          this.iconMenu.visible = isSelected;
+        }.bind(this));
+      } else {
+        this.iconMenu.visible = isSelected;
+      }
+    },
+  };
 
   var toolCategoryDefinition = {
 //    pointer: {
@@ -1690,8 +2097,6 @@
       type: 'terrain',
       layer: mapLayer,
       icon: "color",
-      tools: {},
-      defaultTool: null,
       modifiers: {},
       defaultModifiers: {
 
@@ -1746,9 +2151,9 @@
             }.bind(this)),
             {spacing: 45, extraColumns: 1}
           );
-          this.iconMenu.data.setPointer(30);
+          this.iconMenu.data.setPointer(60);
           this.iconMenu.pivot = new Point(0, 0);
-          this.iconMenu.position = new Point(100, 75);
+          this.iconMenu.position = new Point(100, 45);
           // this is a little messy
           this.iconMenu.data.update(this.data.paintColorData.key);
         }
@@ -1761,8 +2166,6 @@
       type: 'path',
       layer: mapLayer,
       icon: "path",
-      tools: {},
-      defaultTool: null,
       modifiers: {},
       defaultModifiers: {
 
@@ -1826,9 +2229,9 @@
               }.bind(this));
             }.bind(this))
           this.iconMenu = createMenu(pathColorButtons, {spacing: 45, extraColumns: 1, extraRows: 1});
-          this.iconMenu.data.setPointer(80);
+          this.iconMenu.data.setPointer(110);
           this.iconMenu.pivot = new Point(0, 0);
-          this.iconMenu.position = new Point(100, 75);
+          this.iconMenu.position = new Point(100, 45);
           // this is a little messy
           this.iconMenu.data.update(this.data.paintColorData.key);
         }
@@ -1836,133 +2239,44 @@
         var adjusterUI = showBrushSizeUI(isSelected);
       },
     },
-    structures: {
-      base: baseToolCategoryDefinition,
+    structures: Object.assign(Object.create(baseObjectCategoryDefinition), {
       type: 'structures',
-      layer: mapIconLayer,
       icon: "structure",
       tools: asyncStructureDefinition,
-      defaultTool: null,
-      modifiers: {},
-      defaultModifiers: {
-
-      },
-      onSelect: function(isSelected, isReselected) {
-        this.base.onSelect(this, isSelected, isReselected);
-      },
-      onMouseMove: function(event) {
-        this.base.onMouseMove(this, event);
-      },
-      onMouseDown: function(event) {
-        placeObject(event);
-        this.base.onMouseDown(this, event);
-      },
-      onMouseDrag: function(event) {
-        this.base.onMouseDrag(this, event);
-      },
-      onMouseUp: function(event) {
-        this.base.onMouseUp(this, event);
-      },
-      onKeyDown: function(event) {
-        this.base.onKeyDown(this, event);
-      },
-      enablePreview: function(isEnabled) {
-        this.base.enablePreview(this, isEnabled);
-        if (objectPreviewOutline) objectPreviewOutline.visible = isEnabled;
-        if (objectPreview) objectPreview.visible = isEnabled;
-      },
-      openMenu: function(isSelected) {
-        if (this.iconMenu == null) {
-          this.tools.getAsyncValue(function(definitions) {
-            fixedLayer.activate();
-            var categoryDefinition = this;
-            this.iconMenu = createMenu(
-              objectMap(definitions, function(def, name) {
-                var icon = def.icon.clone();
-                icon.scaling = def.menuScaling;
-                icon.fillColor = def.colorData.color;
-                return createButton(icon, 20, function(event, button) {
-                  toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
-                });
-              }),
-              {spacing: 50, perColumn: 10}
-            );
-            this.iconMenu.data.setPointer(130);
-            this.iconMenu.pivot = new Point(0, 0);
-            this.iconMenu.position = new Point(100, 75);
-            // this is a little messy
-            if (toolState.activeTool && toolState.activeTool.tool) {
-              this.iconMenu.data.update(toolState.activeTool.tool.type);
-            }
-            this.iconMenu.visible = isSelected;
-          }.bind(this));
-        } else {
-          this.iconMenu.visible = isSelected;
-        }
-      },
-    },
-    amenities: {
-      base: baseToolCategoryDefinition,
+      menuOptions: {spacing: 50, perColumn: 9},
+      yPos: 160,
+    }),
+    amenities: Object.assign(Object.create(baseObjectCategoryDefinition), {
       type: 'amenities',
-      layer: mapIconLayer,
       icon: "amenities",
       tools: asyncAmenitiesDefinition,
-      defaultTool: null,
-      modifiers: {},
-      defaultModifiers: {},
-      onSelect: function(isSelected, isReselected) {
-        this.base.onSelect(this, isSelected, isReselected);
-      },
-      onMouseMove: function(event) {
-        this.base.onMouseMove(this, event);
-      },
-      onMouseDown: function(event) {
-        placeObject(event);
-        this.base.onMouseDown(this, event);
-      },
-      onMouseDrag: function(event) {
-        this.base.onMouseDrag(this, event);
-      },
-      onMouseUp: function(event) {
-        this.base.onMouseUp(this, event);
-      },
-      onKeyDown: function(event) {
-        this.base.onKeyDown(this, event);
-      },
-      enablePreview: function(isEnabled) {
-        this.base.enablePreview(this, isEnabled);
-        if (objectPreviewOutline) objectPreviewOutline.visible = isEnabled;
-        if (objectPreview) objectPreview.visible = isEnabled;
-      },
-      openMenu: function(isSelected) {
-        if (this.iconMenu == null) {
-          this.tools.getAsyncValue(function(definitions) {
-            fixedLayer.activate();
-            var categoryDefinition = this;
-            this.iconMenu = createMenu(
-              objectMap(definitions, function(def, name) {
-                var icon = createObjectIcon(def, getObjectData(def));
-                icon.scaling = def.menuScaling;
-                return createButton(icon, 20, function(event, button) {
-                  toolState.switchTool(toolState.toolMapValue(categoryDefinition, def, {}));
-                });
-              }),
-              {spacing: 50, perColumn: 8}
-            );
-            this.iconMenu.data.setPointer(185);
-            this.iconMenu.pivot = new Point(0, 0);
-            this.iconMenu.position = new Point(100, 75);
-            // this is a little messy
-            if (toolState.activeTool && toolState.activeTool.tool) {
-              this.iconMenu.data.update(toolState.activeTool.tool.type);
-            }
-            this.iconMenu.visible = isSelected;
-          }.bind(this));
-        } else {
-          this.iconMenu.visible = isSelected;
-        }
-      },
-    },
+      menuOptions: {spacing: 50, perColumn: 8},
+      yPos: 208,
+    }),
+
+    construction: Object.assign(Object.create(baseObjectCategoryDefinition), {
+      type: 'construction',
+      icon: "construction",
+      tools: asyncConstructionDefinition,
+      menuOptions: {spacing: 50, perColumn: 9},
+      yPos: 260,
+    }),
+
+    tree: Object.assign(Object.create(baseObjectCategoryDefinition), {
+      type: 'tree',
+      icon: "tree",
+      tools: asyncTreeDefinition,
+      menuOptions: {spacing: 50, perColumn: 8},
+      yPos: 310,
+    }),
+    flower: Object.assign(Object.create(baseObjectCategoryDefinition), {
+      type: 'flower',
+      icon: "flower",
+      tools: asyncFlowerDefinition,
+      menuOptions: {spacing: 50, perColumn: 9},
+      yPos: 360,
+    })
+
   //  shovel: {
 
   //},
@@ -2331,79 +2645,108 @@
   //tracemap.opacity = 0.3;
 
   function removeFloatingPointError(f) {
-    return (Math.abs(f - Math.round(f)) < 0.00001) ? Math.round(f) : f;
+    return Math.round((f + Number.EPSILON) * 100) / 100;
   }
   function encodePoint(p) {
     return [removeFloatingPointError(p.x), removeFloatingPointError(p.y)];
   }
 
-  function encodeMap() {
+  function encodePath(p) {
+    var positions = [];
+    p.segments.forEach(function(s) {
+      var encodedPoint = encodePoint(s.point);
+      positions.push(encodedPoint[0], encodedPoint[1]);
+    });
+    return positions;
+  }
 
-    // colors translated from keys => encoded name
+  function decodePath(positionArray) {
+    var points = [];
+    for (var i = 0 ; i < positionArray.length; i += 2) {
+      points.push(new Point(positionArray[i], positionArray[i+1]))
+    }
+    return points;
+  }
+
+  function encodeDrawing(drawing) {
     var encodedDrawing = {};
-    Object.keys(state.drawing).forEach(function(colorKey) {
-      var pathItem = state.drawing[colorKey];
+    Object.keys(drawing).forEach(function(colorKey) {
+      var pathItem = drawing[colorKey];
       var p;
       if (pathItem.children) {
         p = pathItem.children.map(function(path) {
-          return path._segments.map(function(s) {
-            return encodePoint(s._point);
-          })
+          return encodePath(path);
         });
       } else {
-        p = pathItem.segments.map(function(s) {
-          return encodePoint(s._point);
-        });
+        p = encodePath(pathItem);
       }
       var encodedColorName = colors[colorKey].name;
       encodedDrawing[encodedColorName] = p;
     });
-
-    var o = {
-      version: 0,
-      objects: objectMap(state.objects, function(object) {
-        return encodeObject(object);
-      }),
-      drawing: encodedDrawing,
-    }
-    return JSON.stringify(o);
+    return encodedDrawing;
   }
 
-  function decodeMap(json) {
-    mapLayer.activate();
-
-    // colors translated from encoded name => keys
+  function decodeDrawing(encodedDrawing, version) {
+     // colors translated from encoded name => keys
     var decodedDrawing = {};
-    Object.keys(json.drawing).forEach(function(colorName) {
+    Object.keys(encodedDrawing).forEach(function(colorName) {
       var colorData = getColorDataFromEncodedName(colorName);
-      var pathData = json.drawing[colorName];
+      var pathData = encodedDrawing[colorName];
 
       // if array of arrays, make compound path
       var p;
       if (pathData.length == 0) {
         p = new Path();
       }
-      else if (typeof pathData[0][0] == 'number') {
-        // normal path
-        p = new Path(pathData.map(function(p) {return new Point(p);}));
-      } else {
-        p = new CompoundPath({
-          children: pathData.map(function(pathData) {
-            return new Path(pathData.map(function(p) {return new Point(p);}));
-          }),
-        });
+      else {
+        if (version == 0) {
+          if (typeof pathData[0][0] == 'number') {
+            // normal path
+            p = new Path(pathData.map(function(p) {return new Point(p);}));
+          } else {
+            p = new CompoundPath({
+              children: pathData.map(function(pathData) {
+                return new Path(pathData.map(function(p) {return new Point(p);}));
+              }),
+            });
+          }
+        } else {
+          if (typeof pathData[0] == 'number') {
+            // normal path
+            p = new Path(decodePath(pathData));
+          } else {
+            p = new CompoundPath({
+              children: pathData.map(function(pathData) {
+                return new Path(decodePath(pathData));
+              }),
+            });
+          }
+        }
       }
       p.locked = true;
       p.fillColor = colorData.color;
       decodedDrawing[colorData.key] = p;
     });
+    return decodedDrawing;
+  }
 
+  function encodeMap(compress) {
+    // colors translated from keys => encoded name
+    var o = {
+      version: 1,
+      objects: encodeObjectGroups(state.objects),
+      drawing: encodeDrawing(state.drawing),
+    }
+    return JSON.stringify(o);
+  }
+
+  function decodeMap(json) {
+    mapLayer.activate();
+    var version = json.version;
     return {
       version: json.version,
-      drawing: decodedDrawing,
-      objects: objectMap(json.objects, function(encodedData) {
-        return decodeObject(encodedData);
-      }),
+      drawing: decodeDrawing(json.drawing, version),
+      objects: decodeObjectGroups(json.objects, version),
     };
   }
 
@@ -2503,12 +2846,13 @@
     var command = objectDeleteCommand(object.data, object.position);
     applyCommand(command, true);
     addToHistory(command);
-  }
+  } 
 
   function applyCreateObject(isCreate, createCommand) {
     if (isCreate) {
       createObjectAsync(createCommand.data, function(object) {
         object.position = createCommand.position;
+        object.data.id = atomicObjectId++;
         // immediately grab the structure with the start position of creation
         state.objects[object.data.id] = object;
       });
@@ -2518,10 +2862,6 @@
       object.remove();
       delete state.objects[id];
     }
-  }
-
-  function updateObjectColor(object, colorData) {
-
   }
 
   function grabObject(coordinate, object) {
@@ -3648,10 +3988,12 @@
     return true;
   }
 
-  function objectMap(object, mapFn) {
+  function objectMap(object, mapFn, allowNull) {
     return Object.keys(object).reduce(function(result, key) {
-      result[key] = mapFn(object[key], key)
-      return result
+      var value = mapFn(object[key], key);
+      if (value != null)
+        result[key] = value;
+      return result;
     }, {})
   }
 
