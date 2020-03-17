@@ -2031,7 +2031,7 @@
           var categoryDefinition = this;
           this.iconMenu = createMenu(
             objectMap(definitions, function(def, name) {
-              if (def.legacy) return null;
+              if (def.legacy || def.legacyCategory) return null;
               var icon = createObjectIcon(def, getObjectData(def));
               icon.scaling = def.menuScaling;
               return createButton(icon, 20, function(event, button) {
