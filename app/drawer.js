@@ -1480,23 +1480,23 @@
     airportRed: {
       img: 'sprite/structure/airport-red.png',
       size: new Size([10, 6]),
-      scaling: new Point(.015, .015),
+      scaling: new Point(.03, .03),
       menuScaling: new Point(.14, .14),
-      offset: new Point(-1, -1.85),
+      offset: new Point(-5, -5.5),
     },
     airportYellow: {
       img: 'sprite/structure/airport-yellow.png',
       size: new Size([10, 6]),
-      scaling: new Point(.015, .015),
+      scaling: new Point(.03, .03),
       menuScaling: new Point(.14, .14),
-      offset: new Point(-1, -1.85),
+      offset: new Point(-5, -5.5),
     },
     airportGreen: {
       img: 'sprite/structure/airport-green.png',
       size: new Size([10, 6]),
-      scaling: new Point(.015, .015),
+      scaling: new Point(.03, .03),
       menuScaling: new Point(.14, .14),
-      offset: new Point(-1, -1.85),
+      offset: new Point(-5, -5.5),
     },
 
     //legacy
@@ -1581,35 +1581,35 @@
       },
       stairsStoneUp: {
         img: 'sprite/construction/stairs-stone-up.png',
-        size: new Size(2, 4),
+        size: new Size(1, 2),
       },
       stairsStoneDown: {
         img: 'sprite/construction/stairs-stone-down.png',
-        size: new Size(2, 4),
+        size: new Size(1, 2),
       },
       stairsStoneLeft: {
         img: 'sprite/construction/stairs-stone-left.png',
-        size: new Size(4, 2),
+        size: new Size(2, 1),
       },
       stairsStoneRight: {
         img: 'sprite/construction/stairs-stone-right.png',
-        size: new Size(4, 2),
+        size: new Size(2, 1),
       },
       stairsWoodUp: {
         img: 'sprite/construction/stairs-wood-up.png',
-        size: new Size(2, 4),
+        size: new Size(1, 2),
       },
       stairsWoodDown: {
         img: 'sprite/construction/stairs-wood-down.png',
-        size: new Size(2, 4),
+        size: new Size(1, 2),
       },
       stairsWoodLeft: {
         img: 'sprite/construction/stairs-wood-left.png',
-        size: new Size(4, 2),
+        size: new Size(2, 1),
       },
       stairsWoodRight: {
         img: 'sprite/construction/stairs-wood-right.png',
-        size: new Size(4, 2),
+        size: new Size(2, 1),
       },
       //legacy
       bridgeHorizontalSprite: {
@@ -1632,7 +1632,7 @@
     var def = asyncConstructionDefinition.value[type];
     def.category = 'construction';
     def.type = type;
-    def.scaling = def.scaling || new Point(.022, .022);
+    def.scaling = def.scaling || new Point(.015, .015);
     def.menuScaling = def.menuScaling || new Point(.18, .18);
     def.size = def.size;
     def.offset = def.offset || new Point(-def.size.width / 2, -def.size.height);
@@ -1704,7 +1704,7 @@
     var def = asyncTreeDefinition.value[type];
     def.category = 'tree';
     def.type = type;
-    def.scaling = def.scaling || new Point(.016, .016);
+    def.scaling = def.scaling || new Point(.014, .014);
     def.menuScaling = def.menuScaling || new Point(.2, .2);
     def.size = new Size(1, 1);
     def.offset = def.offset || new Point(-def.size.width / 2, -def.size.height + .2);
