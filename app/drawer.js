@@ -451,18 +451,14 @@
     // for legacy or renamed objects, rename them
     if (toolCategoryDefinition[encodedData.category].tools && toolCategoryDefinition[encodedData.category].tools.value) {
       var objectDefinition = toolCategoryDefinition[encodedData.category].tools.value[objectData.type];
-      console.log(toolCategoryDefinition[encodedData.category].tools.value, objectData.type, objectDefinition);
       if (objectDefinition.legacy) {
-        console.log('legacy from', objectData.type, 'to', objectDefinition.legacy);
         objectData.type = objectDefinition.legacy;
       }
       if (objectDefinition.legacyCategory) {
-        console.log('legacy category from', objectData.category, 'to', objectDefinition.legacyCategory);
           objectData.category = objectDefinition.legacyCategory;
         }
       if (objectDefinition.rename) {
         if (encodingVersion <= objectDefinition.rename[0]) {
-          console.log('rename from', objectData.type, 'to', objectDefinition.rename[1]);
           objectData.type = objectDefinition.rename[1];
         }
       }
@@ -813,6 +809,7 @@
 
   function saveMapToFile() {
     var mapJson = encodeMap();
+    mapJson = LZString.compress(mapJson);
 
     var saveMargins = new Point(10, 10);
 
@@ -904,7 +901,15 @@
               width: image.width,
             });
             clearMap();
-            var map = decodeMap(JSON.parse(mapJSONString));
+
+            var json;
+            try {
+              var json = JSON.parse(mapJSONString);
+            } catch(e) {
+              var json = JSON.parse(LZString.decompress(mapJSONString))
+            }
+            var map = decodeMap(json);
+
             setNewMapData(map);
           }, false);
       }
@@ -2661,7 +2666,6 @@
 
   function encodeDrawing(drawing) {
     var encodedDrawing = {};
-    console.log(drawing);
     Object.keys(drawing).forEach(function(colorKey) {
       var pathItem = drawing[colorKey];
       var p;
@@ -2722,7 +2726,7 @@
     return decodedDrawing;
   }
 
-  function encodeMap() {
+  function encodeMap(compress) {
     // colors translated from keys => encoded name
     var o = {
       version: 1,
@@ -2734,8 +2738,6 @@
 
   function decodeMap(json) {
     mapLayer.activate();
-
-    console.log(json);
     var version = json.version;
     return {
       version: json.version,
