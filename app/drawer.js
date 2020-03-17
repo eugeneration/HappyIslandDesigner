@@ -403,49 +403,90 @@
     brushSizeUI.visible = isShown;
   }
 
-  function encodeObject(object) {
-    return {
-      position: [object.position.x, object.position.y],
-      id: object.data.id,
-      category: object.data.category,
-      type: object.data.type,
-      color: object.data.colorData ? object.data.colorData.name : "",
-    };
+  var atomicObjectId = 0;
+
+  function encodeObjectGroups(objects) {
+    var objectGroups = {};
+    Object.values(objects).forEach(function(object) {
+      var key = object.data.category + "_" + object.data.type;
+      if (!objectGroups[key]) {
+        objectGroups[key] = [];
+      }
+      var encodedPoint = encodePoint(object.position);
+      objectGroups[key].push(encodedPoint[0], encodedPoint[1]);
+    });
+    return objectGroups;
   }
 
-  function decodeObject(encodedData) {
+  function decodeObjectGroups(objectGroups, encodingVersion) {
+    if (encodingVersion == 0) {
+      return objectMap(objectGroups, function(encodedData) {
+        return decodeObject(encodedData, version);
+      });
+    }
+
+    var objects = {};
+    Object.keys(objectGroups).forEach(function(key) {
+      var keySplit = key.split('_');
+      var category = keySplit[0],
+        type = keySplit[1];
+      var positionArray = objectGroups[key];
+      for(var i = 0; i < positionArray.length; i += 2) {
+        decodeObject({
+          category: category,
+          type: type,
+          position: [positionArray[i], positionArray[i + 1]],
+        }, encodingVersion);
+      }
+    });
+    return objects;
+  }
+
+  function decodeObject(encodedData, encodingVersion) {
     var position = new Point(encodedData.position);
-    // encode the color name separately from the key so we are able to refactor the code
-    var colorData = getColorDataFromEncodedName(encodedData.color);
     var objectData = {
-      id: encodedData.id,
       category: encodedData.category,
       type: encodedData.type,
-      colorData: colorData,
     };
+    // for legacy or renamed objects, rename them
+    if (toolCategoryDefinition[encodedData.category].tools && toolCategoryDefinition[encodedData.category].tools.value) {
+      var objectDefinition = toolCategoryDefinition[encodedData.category].tools.value[objectData.type];
+      console.log(toolCategoryDefinition[encodedData.category].tools.value, objectData.type, objectDefinition);
+      if (objectDefinition.legacy) {
+        console.log('legacy from', objectData.type, 'to', objectDefinition.legacy);
+        objectData.type = objectDefinition.legacy;
+      }
+      if (objectDefinition.legacyCategory) {
+        console.log('legacy category from', objectData.category, 'to', objectDefinition.legacyCategory);
+          objectData.category = objectDefinition.legacyCategory;
+        }
+      if (objectDefinition.rename) {
+        if (encodingVersion <= objectDefinition.rename[0]) {
+          console.log('rename from', objectData.type, 'to', objectDefinition.rename[1]);
+          objectData.type = objectDefinition.rename[1];
+        }
+      }
+    }
+
     applyCommand(objectCreateCommand(objectData, position), true);
     return {
       position: position,
-      id: encodedData.id,
       category: encodedData.category,
       type: encodedData.type,
-      colorData: colorData,
     };
   }
 
   function getObjectData(objectDefinition) {
     return {
-      id: Date.now(),
       category: objectDefinition.category,
       type: objectDefinition.type,
-      colorData: objectDefinition.colorData,
     };
   }
 
   function createObjectIcon(objectDefinition, itemData) {
     var item = objectDefinition.icon.clone({insert: false});
-    if (itemData.colorData) {
-      item.fillColor = itemData.colorData.color;
+    if (objectDefinition.colorData) {
+      item.fillColor = objectDefinition.colorData.color;
     }
     return item;
   }
@@ -1452,6 +1493,21 @@
       menuScaling: new Point(.14, .14),
       offset: new Point(-1, -1.85),
     },
+
+    //legacy
+    bridgeVerticalSprite: {
+      legacyCategory: 'construction',
+      img: 'sprite/structure-bridge-vertical.png',
+    },
+    bridgeHorizontalSprite: {
+      legacyCategory: 'construction',
+      img: 'sprite/structure-bridge-horizontal.png',
+    },
+    rampSprite: {
+      legacy: 'stairsStoneLeft',
+      legacyCategory: 'construction',
+      img: 'sprite/structure-ramp.png',
+    },
   };
   Object.keys(asyncAmenitiesDefinition.value).forEach(function(type) {
     var def = asyncAmenitiesDefinition.value[type];
@@ -1511,6 +1567,13 @@
         img: 'sprite/construction/bridge-wood-trbl.png',
         size: new Size(4, 4),
       },
+      bridgeVerticalSprite: {
+        img: 'sprite/structure-bridge-vertical.png',
+        menuScaling: new Point(.17, .17),
+        scaling: new Point(.026, .026),
+        size: new Size(3, 5),
+        offset: new Point(-1.5, -5),
+      },
       stairsStoneUp: {
         img: 'sprite/construction/stairs-stone-up.png',
         size: new Size(2, 4),
@@ -1544,16 +1607,7 @@
         size: new Size(4, 2),
       },
       //legacy
-      bridgeVerticalSprite: {
-        legacy: true,
-        img: 'sprite/structure-bridge-vertical.png',
-        menuScaling: new Point(.17, .17),
-        scaling: new Point(.026, .026),
-        size: new Size(3, 5),
-        offset: new Point(-1.5, -5),
-      },
       bridgeHorizontalSprite: {
-        legacy: true,
         img: 'sprite/structure-bridge-horizontal.png',
         menuScaling: new Point(.17, .17),
         scaling: new Point(.026, .026),
@@ -1561,7 +1615,7 @@
         offset: new Point(-2.8, -2.7),
       },
       rampSprite: {
-        legacy: true,
+        legacy: 'stairsStoneRight',
         img: 'sprite/structure-ramp.png',
         menuScaling: new Point(.17, .17),
         scaling: new Point(.026, .026),
@@ -1614,9 +1668,11 @@
       img: 'sprite/tree/tree-sakura.png',
     },
     pine: {
+      rename: [0, 'flatPine'],
       img: 'sprite/tree/pine.png',
     },
     palm: {
+      rename: [0, 'flatPalm'],
       img: 'sprite/tree/palm.png',
     },
     bamboo: {
@@ -1626,31 +1682,17 @@
       offset: new Point(-.6, -.75),
     },
 
-    // legacy
-    bush: {},
-    fruit: {},
-    palmLegacy: {},
-    pineLegacy: {},
-    treePineSprite: {
-      legacy: true,
-      img: 'sprite/tree-pine.png',
-      menuScaling: new Point(.15, .15),
-      scaling: new Point(.012, .012),
-      offset: new Point(-.5, -.75),
+    flatBush: {
+      svg: 'bush',
     },
-    treePalmSprite: {
-      legacy: true,
-      img: 'sprite/tree-palm.png',
-      menuScaling: new Point(.17, .17),
-      scaling: new Point(.014, .014),
-      offset: new Point(-.5, -.75),
+    flatTree: {
+      svg: 'fruit',
     },
-    treeFruitSprite: {
-      legacy: true,
-      img: 'sprite/tree-fruit.png',
-      menuScaling: new Point(.17, .17),
-      scaling: new Point(.012, .012),
-      offset: new Point(-.45, -.75),
+    flatPalm: {
+      svg: 'palm',
+    },
+    flatPine: {
+      svg: 'pine',
     },
   };
   Object.keys(asyncTreeDefinition.value).forEach(function(type) {
@@ -1663,27 +1705,16 @@
     def.offset = def.offset || new Point(-def.size.width / 2, -def.size.height + .2);
     def.onSelect = function(isSelected) {};
     // imnmediately load the assets
-    if (type == 'bush'
-      || type == 'fruit'
-      || type == 'palmLegacy'
-      || type == 'pineLegacy') {
-      var isBush = type == 'bush';
+    if (def.svg) {
       def.colorData = colors.level3;
       def.scaling = new Point(.03, .03);
       def.menuScaling = new Point(.6, .6);
-      def.size = def.size || new Size([isBush ? 1 : 2, 1]);
-      def.offset = def.offset || isBush ? new Point( -0.5, -1) : new Point(-1, -.75);
+      def.size = def.size || new Size([1, 1]);
+      def.offset = def.offset || new Point(-1, -.75);
       def.onSelect = function(isSelected) {};
       // imnmediately load the assets
-      if (def.img) {
-        var img = new Raster(def.img);
-        def.icon = img;
-        def.icon.onLoad = function() {asyncTreeDefinition.onLoad();};
-        img.remove();
-      } else {
-        if (type == 'palmLegacy') type = 'palm';
-        if (type == 'pineLegacy') type = 'pine';
-        loadSvg('tree-' + type, function(item) {
+      {
+        loadSvg('tree-' + def.svg, function(item) {
           //item.pivot += new Point(-2, -3.6);
           def.icon = item;
           asyncTreeDefinition.onLoad();
@@ -1809,6 +1840,42 @@
 //      menuScaling: new Point(.17, .17),
 //      scaling: new Point(.014, .014),
 //    },
+    treePineSprite: {
+      legacy: 'pine',
+      legacyCategory: 'tree',
+      img: 'sprite/tree-pine.png',
+    },
+    treePalmSprite: {
+      legacy: 'palm',
+      legacyCategory: 'tree',
+      img: 'sprite/tree-palm.png',
+    },
+    treeFruitSprite: {
+      legacy: 'treeOrange',
+      legacyCategory: 'tree',
+      img: 'sprite/tree-fruit.png',
+    },
+    // legacy
+    bush: {
+      img: 'sprite/tree-fruit.png',
+      legacy: 'flatBush',
+      legacyCategory: 'tree',
+    },
+    fruit: {
+      img: 'sprite/tree-fruit.png',
+      legacy: 'flatTree',
+      legacyCategory: 'tree',
+    },
+    palm: {
+      img: 'sprite/tree-fruit.png',
+      legacy: 'flatPalm',
+      legacyCategory: 'tree',
+    },
+    pine: {
+      img: 'sprite/tree-fruit.png',
+      legacy: 'flatPine',
+      legacyCategory: 'tree',
+    },
   }
   // set up the definitions programatically because they are all the same
   Object.keys(asyncStructureDefinition.value).forEach(function(structureType) {
@@ -2021,8 +2088,6 @@
       type: 'terrain',
       layer: mapLayer,
       icon: "color",
-      tools: {},
-      defaultTool: null,
       modifiers: {},
       defaultModifiers: {
 
@@ -2092,8 +2157,6 @@
       type: 'path',
       layer: mapLayer,
       icon: "path",
-      tools: {},
-      defaultTool: null,
       modifiers: {},
       defaultModifiers: {
 
@@ -2186,7 +2249,7 @@
       type: 'construction',
       icon: "construction",
       tools: asyncConstructionDefinition,
-      menuOptions: {spacing: 50, perColumn: 8},
+      menuOptions: {spacing: 50, perColumn: 9},
       yPos: 260,
     }),
 
@@ -2573,40 +2636,98 @@
   //tracemap.opacity = 0.3;
 
   function removeFloatingPointError(f) {
-    return (Math.abs(f - Math.round(f)) < 0.00001) ? Math.round(f) : f;
+    return Math.round((f + Number.EPSILON) * 100) / 100;
   }
   function encodePoint(p) {
     return [removeFloatingPointError(p.x), removeFloatingPointError(p.y)];
   }
 
-  function encodeMap() {
+  function encodePath(p) {
+    var positions = [];
+    p.segments.forEach(function(s) {
+      var encodedPoint = encodePoint(s.point);
+      positions.push(encodedPoint[0], encodedPoint[1]);
+    });
+    return positions;
+  }
 
-    // colors translated from keys => encoded name
+  function decodePath(positionArray) {
+    var points = [];
+    for (var i = 0 ; i < positionArray.length; i += 2) {
+      points.push(new Point(positionArray[i], positionArray[i+1]))
+    }
+    return points;
+  }
+
+  function encodeDrawing(drawing) {
     var encodedDrawing = {};
-    Object.keys(state.drawing).forEach(function(colorKey) {
-      var pathItem = state.drawing[colorKey];
+    console.log(drawing);
+    Object.keys(drawing).forEach(function(colorKey) {
+      var pathItem = drawing[colorKey];
       var p;
       if (pathItem.children) {
         p = pathItem.children.map(function(path) {
-          return path._segments.map(function(s) {
-            return encodePoint(s._point);
-          })
+          return encodePath(path);
         });
       } else {
-        p = pathItem.segments.map(function(s) {
-          return encodePoint(s._point);
-        });
+        p = encodePath(pathItem);
       }
       var encodedColorName = colors[colorKey].name;
       encodedDrawing[encodedColorName] = p;
     });
+    return encodedDrawing;
+  }
 
+  function decodeDrawing(encodedDrawing, version) {
+     // colors translated from encoded name => keys
+    var decodedDrawing = {};
+    Object.keys(encodedDrawing).forEach(function(colorName) {
+      var colorData = getColorDataFromEncodedName(colorName);
+      var pathData = encodedDrawing[colorName];
+
+      // if array of arrays, make compound path
+      var p;
+      if (pathData.length == 0) {
+        p = new Path();
+      }
+      else {
+        if (version == 0) {
+          if (typeof pathData[0][0] == 'number') {
+            // normal path
+            p = new Path(pathData.map(function(p) {return new Point(p);}));
+          } else {
+            p = new CompoundPath({
+              children: pathData.map(function(pathData) {
+                return new Path(pathData.map(function(p) {return new Point(p);}));
+              }),
+            });
+          }
+        } else {
+          if (typeof pathData[0] == 'number') {
+            // normal path
+            p = new Path(decodePath(pathData));
+          } else {
+            p = new CompoundPath({
+              children: pathData.map(function(pathData) {
+                return new Path(decodePath(pathData));
+              }),
+            });
+          }
+        }
+      }
+      p.locked = true;
+      p.fillColor = colorData.color;
+      decodedDrawing[colorData.key] = p;
+    });
+    return decodedDrawing;
+  }
+
+  function encodeMap() {
+    // colors translated from keys => encoded name
     var o = {
-      version: 0,
-      objects: objectMap(state.objects, function(object) {
-        return encodeObject(object);
-      }),
-      drawing: encodedDrawing,
+      version: 1,
+      objects: encodeObjectGroups(state.objects),
+      drawing: encodeDrawing(state.drawing),
     }
     return JSON.stringify(o);
   }
@@ -2614,38 +2735,12 @@
   function decodeMap(json) {
     mapLayer.activate();
 
-    // colors translated from encoded name => keys
-    var decodedDrawing = {};
-    Object.keys(json.drawing).forEach(function(colorName) {
-      var colorData = getColorDataFromEncodedName(colorName);
-      var pathData = json.drawing[colorName];
-
-      // if array of arrays, make compound path
-      var p;
-      if (pathData.length == 0) {
-        p = new Path();
-      }
-      else if (typeof pathData[0][0] == 'number') {
-        // normal path
-        p = new Path(pathData.map(function(p) {return new Point(p);}));
-      } else {
-        p = new CompoundPath({
-          children: pathData.map(function(pathData) {
-            return new Path(pathData.map(function(p) {return new Point(p);}));
-          }),
-        });
-      }
-      p.locked = true;
-      p.fillColor = colorData.color;
-      decodedDrawing[colorData.key] = p;
-    });
-
+    console.log(json);
+    var version = json.version;
     return {
       version: json.version,
-      drawing: decodedDrawing,
-      objects: objectMap(json.objects, function(encodedData) {
-        return decodeObject(encodedData);
-      }),
+      drawing: decodeDrawing(json.drawing, version),
+      objects: decodeObjectGroups(json.objects, version),
     };
   }
 
@@ -2745,12 +2840,13 @@
     var command = objectDeleteCommand(object.data, object.position);
     applyCommand(command, true);
     addToHistory(command);
-  }
+  } 
 
   function applyCreateObject(isCreate, createCommand) {
     if (isCreate) {
       createObjectAsync(createCommand.data, function(object) {
         object.position = createCommand.position;
+        object.data.id = atomicObjectId++;
         // immediately grab the structure with the start position of creation
         state.objects[object.data.id] = object;
       });
@@ -2760,10 +2856,6 @@
       object.remove();
       delete state.objects[id];
     }
-  }
-
-  function updateObjectColor(object, colorData) {
-
   }
 
   function grabObject(coordinate, object) {
