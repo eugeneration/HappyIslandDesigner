@@ -1023,7 +1023,7 @@
     var center = new Point(view.bounds.width * view.scaling.x / 2, view.bounds.height * view.scaling.y / 2);// + view.bounds.topLeft * 2;
     var bottomRight = new Point(view.bounds.width * view.scaling.x, view.bounds.height * view.scaling.y);// + view.bounds.topLeft * 2;
 
-    fixedLayer.activate();
+    modalLayer.activate();
 
     var group = new Group;
 
