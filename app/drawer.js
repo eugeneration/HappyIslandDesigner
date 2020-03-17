@@ -1273,7 +1273,11 @@
           } else { }
         });
 
-      mainMenu.data.contents.addChildren([saveButton, loadButton, newButton]);
+      var twitterButton = createMenuButton('Twitter', 'img/menu-twitt.png', 0,
+        function() {window.open('https://twitter.com/island_designer', '_blank')});
+      twitterButton.position = new Point(0, 210);
+
+      mainMenu.data.contents.addChildren([saveButton, loadButton, newButton, twitterButton]);
       mainMenu.opacity = 0;
     }
     mainMenu.tweenTo({opacity: isShown ? 1 : 0}, 200);
