@@ -3016,8 +3016,8 @@
     var gridGroup = new Group(grid);
 
     // it starts counting from the second block
-    for (var i = 0; i < horizontalBlocks - 1; i++) {
-      var gridLabel = new PointText((i + 1.5) * horizontalDivisions, verticalBlocks * verticalDivisions + 4);
+    for (var i = 0; i < horizontalBlocks; i++) {
+      var gridLabel = new PointText((i + .5) * horizontalDivisions, verticalBlocks * verticalDivisions + 4);
       gridLabel.justification = 'center';
       gridLabel.fontFamily = 'TTNorms, sans-serif';
       gridLabel.fontSize = 3;
