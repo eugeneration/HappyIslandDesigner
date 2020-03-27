@@ -30,6 +30,17 @@
     <!-- font choice from: https://github.com/JoseDelPino/dodo_passboard -->
     <!--<script type="text/javascript" src="lib/touch-emulator.js"></script>
     <script> TouchEmulator(); </script>-->
+    <!--Browser update script, minimum edge/ie browser is edge 79 (chromium) minimum firefox browser is 45, opera 45, safari 2 versions behind latest, chrome 60-->
+    <script> 
+var $buoop = {required:{e:79,f:45,o:45,s:-2,c:60},insecure:true,unsupported:true,api:2020.03 }; 
+function $buo_f(){ 
+ var e = document.createElement("script"); 
+ e.src = "//browser-update.org/update.min.js"; 
+ document.body.appendChild(e);
+};
+try {document.addEventListener("DOMContentLoaded", $buo_f,false)}
+catch(e){window.attachEvent("onload", $buo_f)}
+</script>
 
     <script type="text/javascript" src="lib/paper-full.js"></script>
     <script type="text/javascript" src="lib/paper-animate-browser.min.js"></script>
