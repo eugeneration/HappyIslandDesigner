@@ -915,10 +915,14 @@
       }
       reader.readAsDataURL(file);
     }
+    loadFile(readFile);
+  }
+
+  function loadFile(onLoad) {
     fileInput = document.createElement("input");
     fileInput.type='file';
     fileInput.style.display='none';
-    fileInput.onchange=readFile;
+    fileInput.onchange=onLoad;
     clickElem(fileInput);
   }
 
@@ -1018,6 +1022,8 @@
   //  new Point(0, 0),
   //];
 
+  var modals = [];
+
   function renderModal(name, width, height, onDismiss) {
     var topLeft = new Point(0, 0);// + view.bounds.topLeft;
     var center = new Point(view.bounds.width * view.scaling.x / 2, view.bounds.height * view.scaling.y / 2);// + view.bounds.topLeft * 2;
@@ -1097,6 +1103,19 @@
     group.addChildren([darkFill, modal, modalContents]);
 
     group.data.text = text;
+
+    modals.push(group);
+    group.data.isShown = function() { return group.opacity > 0.8; };
+    group.data.show = function(isShown) {
+      var modal = group;
+      modals.forEach(function (modal) {
+        var show = isShown && modal == group;
+        var targetOpacity = show ? 1 : 0;
+        if (modal.opacity != targetOpacity)
+          modal.tweenTo({opacity: targetOpacity}, 200);
+        modal.locked = !show;
+      });
+    }
 
     return group;
   }
@@ -1181,8 +1200,7 @@
 
       helpMenu.opacity = 0;
     }
-    helpMenu.tweenTo({opacity: isShown ? 1 : 0}, 200);
-    helpMenu.locked = !isShown;
+    helpMenu.data.show(isShown);
   }
 
 
@@ -1195,7 +1213,7 @@
 
       var hitSizeHalf = new Point(35, 35);
       var hitSize = new Size(70, 70);
-      function createMenuButton(name, img, index, onMouseDown, onMouseEnter) {
+      function createMenuButton(name, img, column, row, onMouseDown, onMouseEnter) {
         var buttonGroup = new Group();
 
         var button = new Raster(img);
@@ -1207,7 +1225,7 @@
 
         buttonGroup.applyMatrix = false;
         buttonGroup.addChildren([hitTarget, button]);
-        buttonGroup.position = new Point(20 + index * 70, 0);
+        buttonGroup.position = new Point(20 + column * 70, row * 70);
 
         buttonGroup.onMouseDown = function(event) {
           onMouseDown();
@@ -1261,28 +1279,228 @@
         return buttonGroup;
       }
 
-      var saveButton = createMenuButton("Save as Image", 'img/menu-save.png', 0,
+      var saveButton = createMenuButton("Save as Image", 'img/menu-save.png', 0, 0,
         function() {saveMapToFile()});
-      var loadButton = createMenuButton('Load Map', 'img/menu-open.png', 1,
+      var loadButton = createMenuButton('Load Map', 'img/menu-open.png', 1, 0,
         function() {loadMapFromFile()});
-      var newButton = createMenuButton('New Map', 'img/menu-new.png', 2,
+      var newButton = createMenuButton('New Map', 'img/menu-new.png', 2, 0,
         function() {
           var r = confirm("Clear your map? You will lose all unsaved changes.");
           if (r == true) {
             loadTemplate();
           } else { }
         });
+      var switchButton = createMenuButton('Load Game Map', 'img/menu-switch.png', 0, 1,
+        function() { showSwitchModal(true) });
 
       var twitterButton = createMenuButton('Twitter', 'img/menu-twitt.png', 0,
         function() {window.open('https://twitter.com/island_designer', '_blank')});
       twitterButton.position = new Point(0, 210);
 
-      mainMenu.data.contents.addChildren([saveButton, loadButton, newButton, twitterButton]);
+      mainMenu.data.contents.addChildren([saveButton, loadButton, newButton, switchButton, twitterButton]);
       mainMenu.opacity = 0;
     }
-    mainMenu.tweenTo({opacity: isShown ? 1 : 0}, 200);
-    mainMenu.locked = !isShown;
+    mainMenu.data.show(isShown);
   }
+
+  var switchMenu;
+  function showSwitchModal(isShown) {
+    if (switchMenu == null) {
+      if (!isShown) return;
+      switchMenu = renderModal('Load Game Map', view.size.width - 40, view.size.height - 40, function() {showSwitchModal(false)});
+
+      var mapImageGroup = new Group();
+      mapImageGroup.applyMatrix = false;
+      switchMenu.data.contents.addChildren([mapImageGroup]);
+
+      var mapImage = new Raster('phonecamera1.jpg');
+      mapImage.onLoad = function() {
+        //var maxImageWidth = 700;
+        //var maxImageHeight = 700;
+        //var originalSize = new Size(mapImage.size);
+        //var scale = Math.min(maxImageWidth / mapImage.width, maxImageHeight / mapImage.height);
+        //console.log(maxImageWidth / mapImage.width, maxImageHeight / mapImage.height);
+        //var newSize = originalSize * scale;
+        //console.log(originalSize, scale, newSize)
+        //mapImage.scale(scale);
+        //var resampled = mapImage.rasterize(view.resolution / view.pixelRatio);
+        //resampled.smoothing=false;
+        //mapImage.remove();
+        //mapImage = resampled;
+
+        var newSize = mapImage.size;
+
+        mapImage.bounds.topLeft = new Point(0, 0);
+
+        var mapImagePoints = new Group();
+        mapImageGroup.addChildren([mapImage, mapImagePoints]);
+
+        var maxImageWidth = switchMenu.data.width;
+        var maxImageHeight = switchMenu.data.height;
+        mapImageGroup.scale(Math.min(maxImageWidth / newSize.width, maxImageHeight / newSize.height));
+        mapImageGroup.bounds.topLeft = new Point(0, 0)
+
+        mapImage.data.pointIndex = 0;
+        mapImage.data.points = [];
+        mapImage.onMouseDown = function(event) {
+          var rawCoordinate = mapImageGroup.globalToLocal(event.point);
+
+          var point = new Group();
+          point.pivot = new Point(0, 0);
+          point.applyMatrix = false;
+          point.addChildren([
+            new Path.Circle({
+              center: [0, 0],
+              radius: 1,
+              fillColor: colors.yellow.color,
+            }),
+            new Path({
+              segments: [[0, 3], [0, 8]],
+              strokeWidth: 1,
+              strokeColor: colors.yellow.color,
+              strokeCap: 'round',
+            }),
+            new Path({
+              segments: [[3, 0], [8, 0]],
+              strokeWidth: 1,
+              strokeColor: colors.yellow.color,
+              strokeCap: 'round',
+            }),
+            new Path({
+              segments: [[0, -3], [0, -8]],
+              strokeWidth: 1,
+              strokeColor: colors.yellow.color,
+              strokeCap: 'round',
+            }),
+            new Path({
+              segments: [[-3, 0], [-8, 0]],
+              strokeWidth: 1,
+              strokeColor: colors.yellow.color,
+              strokeCap: 'round',
+            }),
+            new Path.Circle({
+              center: [0, 0],
+              radius: 15,
+              fillColor: colors.invisible.color,
+              strokeColor: colors.yellow.color,
+              strokeWidth: 2,
+            }),
+          ]);
+          point.scaling = 1 / mapImageGroup.scaling.x;
+          point.position = rawCoordinate;
+          point.data.startPoint = rawCoordinate;
+          mapImagePoints.addChild(point);
+
+          mapImage.data.pointIndex = mapImage.data.points.length;
+          mapImage.data.points[mapImage.data.pointIndex] = point;
+
+          var zoom = document.createElement("canvas");
+          zoom.height = 200;
+          zoom.width = 200;
+          zoom.style.position = 'absolute';
+          zoom.style.display = "block";
+          document.body.appendChild(zoom);
+          mapImage.data.zoom = zoom;
+
+  //        // todo: NOT DRY, repeats code below
+  //        var pointCanvasPosition = view.viewToProject(point.position);
+  //        var zoomLevel = 2;
+  //        var zoomSize = 100;
+  //        zoom.getContext("2d").drawImage(view.element,
+  //          pointCanvasPosition.x * zoomLevel - zoomSize * 0.5, pointCanvasPosition.y * zoomLevel  - zoomSize * 0.5, zoomSize, zoomSize,
+  //          0, 0, zoomSize * 2, zoomSize * 2);
+  //        zoom.style.top = event.event.pageY + 10 + "px";
+  //        zoom.style.left = event.event.pageX + 10 + "px";
+        }
+        mapImage.onMouseDrag = function(event) {
+          var rawCoordinate = mapImageGroup.globalToLocal(event.point);
+          
+          var point = mapImage.data.points[mapImage.data.pointIndex];
+          if (point) {
+            var delta = rawCoordinate - point.data.startPoint;
+            point.position = point.data.startPoint + delta * 0.2;
+
+            var pointCanvasPosition = view.viewToProject(mapImageGroup.localToGlobal(point.position));
+            var zoomLevel = 2;
+            var zoomSize = 100;
+            var zoom = mapImage.data.zoom;
+            zoom.getContext("2d").drawImage(view.element,
+              pointCanvasPosition.x * zoomLevel - zoomSize * 0.5, pointCanvasPosition.y * zoomLevel  - zoomSize * 0.5, zoomSize, zoomSize,
+              0, 0, zoomSize * 2, zoomSize * 2);
+            zoom.style.top = event.event.pageY - 10 - zoomSize * 2 + "px";
+            zoom.style.left = event.event.pageX - 10 - zoomSize * 2 + "px";
+          }
+        }
+        mapImage.onMouseUp = function(event) {
+          var rawCoordinate = mapImageGroup.globalToLocal(event.point);
+
+          if (mapImage.data.zoom) {
+            mapImage.data.zoom.remove();
+          }
+
+          if (mapImage.data.points.length == 4) {
+            var resultSize = new Size(700, 600);
+
+            var perspectiveTransformMatrix = PerspT(
+              mapImage.data.points.reduce(function(acc, point) {
+                acc.push(point.position.x, point.position.y); return acc;
+              }, []),
+              [0, 0,
+              resultSize.width, 0,
+              resultSize.width, resultSize.height,
+              0, resultSize.height]);
+
+            var mapImageData = mapImage.getImageData(0, 0, mapImage.width, mapImage.height);
+
+            var perspectiveWarpImage = new Raster(resultSize);
+            mapImageGroup.addChild(perspectiveWarpImage);
+            perspectiveWarpImage.position = mapImage.position;
+            perspectiveWarpImage.smoothing = false;
+            perspectiveWarpImage.scaling = 1 / mapImageGroup.scaling.x;
+
+            var context = perspectiveWarpImage.context;
+
+            var xScale = 7 / 5;
+            var yScale = 6 / 4;
+
+            var imageData = context.createImageData(resultSize.width, resultSize.height)
+            for (var y = 0; y < resultSize.height; y++) {
+              var rowIndex = y * resultSize.width;
+              for (var x = 0; x < resultSize.width; x++) {
+                var index = (rowIndex + x) * 4;
+
+                // the points we want is actually an acre outside the bounds
+
+                var mapPosX = x * xScale - resultSize.width / 5;
+                var mapPosY = y * yScale - resultSize.height / 4;
+
+                var srcPt = perspectiveTransformMatrix.transformInverse(mapPosX, mapPosY);
+                var srcIndex = (Math.round(srcPt[0]) + Math.round(srcPt[1]) * mapImage.width) * 4;
+                
+
+                //console.log(x, y, '->', Math.round(srcPt[0]), Math.round(srcPt[1]), srcIndex);
+                //var srcIndex = ((x) + (y + 10) * mapImage.width) * 4;
+
+                imageData.data[index] = mapImageData.data[srcIndex];
+                imageData.data[index+1] = mapImageData.data[srcIndex+1];
+                imageData.data[index+2] = mapImageData.data[srcIndex+2];
+                imageData.data[index+3] = mapImageData.data[srcIndex+3];
+              }
+            }
+            context.putImageData(imageData, 0, 0);
+          }
+        }
+      };
+
+      var button = createButton();
+
+      switchMenu.data.contents.addChildren([mapImageGroup]);
+      switchMenu.opacity = 0;
+    }
+    switchMenu.data.show(isShown);
+  }
+
+  showSwitchModal(true);
 
   var leftToolMenu = new Group();
   leftToolMenu.applyMatrix = false;
@@ -2584,16 +2802,24 @@
         toolState.deleteSelection();
         break;
       case 'escape':
-        var isMainMenuShown = mainMenu != null && mainMenu.opacity > 0.8 ? true : false;
-        showMainMenu(!isMainMenuShown);
-        var isHelpMenuShown = helpMenu != null && helpMenu.opacity > 0.8 ? true : false;
-        if (isHelpMenuShown == true) showHelpMenu(false);
+        var isMainMenuShown = mainMenu && mainMenu.data.isShown();
+        if (isMainMenuShown) {
+          showMainMenu(false);  
+        } else {
+          var otherModalShown = false;
+          modals.forEach(function (modal) {
+            if (modal != mainMenu && modal.data.isShown()) {
+              modal.data.show(false);
+              otherModalShown = true;
+            }
+          });
+          if (!otherModalShown)
+            showMainMenu(true);
+        }
         break;
       case '?':
-        var isHelpMenuShown = helpMenu != null && helpMenu.opacity > 0.8 ? true : false;
-        var isMainMenuShown = mainMenu != null && mainMenu.opacity > 0.8 ? true : false;
+        var isHelpMenuShown = helpMenu && helpMenu.data.isShown();
         showHelpMenu(!isHelpMenuShown);
-        if (isMainMenuShown == true) showMainMenu(false);
         break;
       case '\\':
         toggleGrid();
