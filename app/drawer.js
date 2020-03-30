@@ -33,6 +33,7 @@
     level3: {color:'#4ac34e'},
     rock: {color:'#737a89'},
     campground: {color:'#b0a280'},
+    townsquare: {color:'#E2AA78'},
 
     // paths
     pathDirt: {color:'#d5ac71'},
@@ -1244,7 +1245,7 @@
       versionCode.fontSize = 12;
       versionCode.fontFamily = 'TTNorms, sans-serif';
       versionCode.fillColor = colors.lightText.color;
-      versionCode.content = "v0.2.0";
+      versionCode.content = "v0.2.1";
 
       helpMenu.data.contents.addChildren([helpTextRaster, helpText2Raster, versionCode]);
 
@@ -1695,9 +1696,15 @@
     townhallSprite: {
       img: 'sprite/building-townhall.png',
       menuScaling: new Point(.17, .17),
-      scaling: new Point(.02, .02),
+      scaling: new Point(.023, .023),
       size: new Size(6, 4),
       offset: new Point(-3, -3.6),
+      extraObject: function() {
+        var baseGround = new Path.Rectangle(new Rectangle(0, 0, 12, 10), 1);
+        baseGround.fillColor = colors.townsquare.color;
+        baseGround.position = new Point(3, 5);
+        return baseGround;
+      },
     },
     campsiteSprite: {
       img: 'sprite/building-campsite.png',
@@ -1709,9 +1716,9 @@
     museumSprite: {
       img: 'sprite/building-museum.png',
       menuScaling: new Point(.17, .17),
-      scaling: new Point(.025, .025),
+      scaling: new Point(.028, .028),
       size: new Size(7, 4),
-      offset: new Point(-3.5, -3.6),
+      offset: new Point(-3.5, -4),
     },
     nookSprite: {
       img: 'sprite/building-nook.png',
@@ -1722,10 +1729,10 @@
     },
     ableSprite: {
       img: 'sprite/building-able.png',
-      menuScaling: new Point(.17, .17),
-      scaling: new Point(.017, .017),
-      size: new Size(4, 3),
-      offset: new Point(-2, -2.8),
+      menuScaling: new Point(.16, .16),
+      scaling: new Point(.021, .021),
+      size: new Size(5, 4),
+      offset: new Point(-2.5, -3.9),
     },
     lighthouseSprite: {
       img: 'sprite/structure-lighthouse.png',
@@ -1812,74 +1819,74 @@
     asyncConstructionDefinition.value = {
       bridgeStoneHorizontal: {
         img: 'sprite/construction/bridge-stone-horizontal.png',
-        size: new Size(4, 2),
+        size: new Size(6, 4),
       },
       bridgeStoneVertical: {
         img: 'sprite/construction/bridge-stone-vertical.png',
-        size: new Size(2, 4),
+        size: new Size(4, 6),
       },
       bridgeStoneTLBR: {
         img: 'sprite/construction/bridge-stone-tlbr.png',
-        size: new Size(4, 4),
+        size: new Size(6, 6),
       },
       bridgeStoneTRBL: {
         img: 'sprite/construction/bridge-stone-trbl.png',
-        size: new Size(4, 4),
+        size: new Size(6, 6),
       },
       bridgeWoodHorizontal: {
         img: 'sprite/construction/bridge-wood-horizontal.png',
-        size: new Size(4, 2),
+        size: new Size(6, 4),
       },
       bridgeWoodVertical: {
         img: 'sprite/construction/bridge-wood-vertical.png',
-        size: new Size(2, 4),
+        size: new Size(4, 6),
       },
       bridgeWoodTLBR: {
         img: 'sprite/construction/bridge-wood-tlbr.png',
-        size: new Size(4, 4),
+        size: new Size(6, 6),
       },
       bridgeWoodTRBL: {
         img: 'sprite/construction/bridge-wood-trbl.png',
-        size: new Size(4, 4),
+        size: new Size(6, 6),
       },
       bridgeVerticalSprite: {
         img: 'sprite/structure-bridge-vertical.png',
         menuScaling: new Point(.17, .17),
         scaling: new Point(.026, .026),
-        size: new Size(3, 5),
+        size: new Size(4, 6),
         offset: new Point(-1.5, -5),
       },
       stairsStoneUp: {
         img: 'sprite/construction/stairs-stone-up.png',
-        size: new Size(1, 2),
+        size: new Size(2, 4),
       },
       stairsStoneDown: {
         img: 'sprite/construction/stairs-stone-down.png',
-        size: new Size(1, 2),
+        size: new Size(2, 4),
       },
       stairsStoneLeft: {
         img: 'sprite/construction/stairs-stone-left.png',
-        size: new Size(2, 1),
+        size: new Size(4, 2),
       },
       stairsStoneRight: {
         img: 'sprite/construction/stairs-stone-right.png',
-        size: new Size(2, 1),
+        size: new Size(4, 2),
       },
       stairsWoodUp: {
         img: 'sprite/construction/stairs-wood-up.png',
-        size: new Size(1, 2),
+        size: new Size(2, 4),
       },
       stairsWoodDown: {
         img: 'sprite/construction/stairs-wood-down.png',
-        size: new Size(1, 2),
+        size: new Size(2, 4),
       },
       stairsWoodLeft: {
         img: 'sprite/construction/stairs-wood-left.png',
-        size: new Size(2, 1),
+        size: new Size(4, 2),
       },
       stairsWoodRight: {
         img: 'sprite/construction/stairs-wood-right.png',
-        size: new Size(2, 1),
+        size: new Size(4, 2),
       },
       //legacy
       bridgeHorizontalSprite: {
@@ -1902,7 +1909,7 @@
     var def = asyncConstructionDefinition.value[type];
     def.category = 'construction';
     def.type = type;
-    def.scaling = def.scaling || new Point(.015, .015);
+    def.scaling = def.scaling || new Point(.029, .029);
     def.menuScaling = def.menuScaling || new Point(.18, .18);
     def.size = def.size;
     def.offset = def.offset || new Point(-def.size.width / 2, -def.size.height);
