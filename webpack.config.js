@@ -2,6 +2,7 @@ const path = require('path');
 const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
+const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   mode: 'development',
@@ -27,12 +28,22 @@ module.exports = {
             presets: [
               [
                 '@babel/preset-env',
-                { targets: { browsers: 'last 2 versions' } },
+                {
+                  targets: { browsers: 'last 2 versions' },
+                  useBuiltIns: 'entry',
+                  corejs: '3',
+                },
               ],
               '@babel/preset-typescript',
             ],
             plugins: [
               ['@babel/plugin-proposal-class-properties', { loose: true }],
+              [
+                '@babel/plugin-transform-runtime',
+                {
+                  regenerator: true,
+                },
+              ],
             ],
           },
         },
@@ -43,6 +54,10 @@ module.exports = {
   plugins: [
     new ForkTsCheckerWebpackPlugin(),
     new webpack.NamedModulesPlugin(),
-    new HtmlWebpackPlugin(),
+    new HtmlWebpackPlugin({
+      template: path.resolve(__dirname, 'static', 'index.html'),
+      filename: 'index.html',
+    }),
+    new CopyPlugin([{ from: 'src/static', to: 'static' }]),
   ],
 };
