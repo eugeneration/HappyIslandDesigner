@@ -339,7 +339,7 @@
   function createVerticalIncrementControl(increment, decrement, height, image, imageMargin) {
 
     var backingWidth = 42;
-    var height = 153;
+    var height = height || 153;
     var backing = new Path.Rectangle(-backingWidth / 2, 0, backingWidth, height, backingWidth / 2);
     backing.strokeColor = colors.paperOverlay2.color;
     backing.strokeWidth = 2;
@@ -354,18 +354,136 @@
     return group;
   }
 
+  function container(components) {
+    var content = new Group();
+    content.applyMatrix = false;
+    content.addChildren(components);
+    var size = 0;
+    var spacing = 12;
+    content.children.forEach(function(component) {
+      component.bounds.topCenter = new Point(0, size);
+      size += component.bounds.height + spacing;
+    });
+
+    var padding = 13;
+    var backing = new Path.Rectangle(new Rectangle(0, 0, 65, content.bounds.height + padding * 2), 30);
+    backing.fillColor = colors.paper.color;
+    backing.bounds.topCenter = new Point(0, -padding);
+
+    var container = new Group();
+    container.applyMatrix = false;
+    container.addChildren([backing, content]);
+
+    return container;
+  }
+
   var screenshotOverlayUI;
   function showScreenshotOverlayUI(isShown) {
-    if (screenshotOverlayUI) {
-      var group = new Group();
-      group.applyMatrix = false;
+    if (!screenshotOverlayUI) {
+      fixedLayer.activate();
 
+      var closeIcon = new Raster('img/ui-x.png');
+      closeIcon.scaling = 0.3;
+      closeButton = createButton(closeIcon, 12, stopScreenshotOverlay, {
+        alpha: 0.7,
+        highlightedColor: colors.paperOverlay.color,
+        selectedColor: colors.paperOverlay2.color,
+      });
 
+      var visibleIcon = new Raster('img/ui-visible.png');
+      var invisibleIcon = new Raster('img/ui-invisible.png');
+      visibleIcon.scaling = 0.5;
+      visibleIcon.position += new Point(2, 0);
+      invisibleIcon.scaling = 0.5;
+      invisibleIcon.position += new Point(2, 4);
+      var toggleIcon = new Group();
+      toggleIcon.applyMatrix = false;
+      toggleIcon.addChildren([visibleIcon, invisibleIcon]);
+      toggleIcon.data.enabled = true;
+      toggleIcon.data.set = function(visible) {
+        toggleIcon.children[0].visible = visible;
+        toggleIcon.children[1].visible = !visible;
+      };
+      toggleIcon.data.set(true);
+      var visibilityButton = createButton(toggleIcon, 20, toggleScreenshotVisible,
+        {
+          // options  
+        });
+      emitter.on('updateScreenshotVisible', function(visible) {
+        toggleIcon.data.set(visible);
+      });
 
+      //var icon = new Raster('img/ui-switch.png');
+      //icon.scaling = 0.5;
+
+      var incrementComponents = createIncrementComponents(
+        function() {incrementScreenshotAlpha(true)},
+        function() {incrementScreenshotAlpha(false)});
+      var text = incrementComponents.text;
+      var incrementControl = createVerticalIncrementControl(
+        incrementComponents.increment,
+        incrementComponents.decrement,
+        130,
+        text,
+        35);
+
+      emitter.on('updateScreenshotAlpha', update);
+      function update(alpha) {
+        text.content = alpha * 100 + '%'
+      }
+      update(0.5);
+
+      screenshotOverlayUI = container([visibilityButton, incrementControl]);
+      screenshotOverlayUI.addChild(closeButton);
+      closeButton.position = screenshotOverlayUI.bounds.topRight + new Point(-5, 5);
+
+      emitter.on('resize', resize);
+      function resize() {
+        screenshotOverlayUI.bounds.bottomRight =
+          screenCoordinates(1, 1, -4, -10);
+      }
+      resize();
     }
-    brushSizeUI.bringToFront();
-    brushSizeUI.visible = isShown;
+    screenshotOverlayUI.bringToFront();
+    screenshotOverlayUI.visible = isShown;
   }
+
+  mapOverlayLayer.activate();
+  var screenshot = new Raster('phonecamera1.jpg');
+  screenshot.scaling = new Point(0.02, 0.02);
+  screenshot.onLoad = function() {
+    screenshot.bounds.topLeft = new Point(0, 0);
+  };
+  screenshot.opacity = 0;
+  screenshot.locked = true;
+  function startScreenshotOverlay() {
+    screenshot.opacity = 0.5;
+    showScreenshotOverlayUI(true);
+  }
+  function stopScreenshotOverlay() {
+    showScreenshotOverlayUI(false);
+    screenshot.remove(); 
+  }
+  function incrementScreenshotAlpha(increase, amount) {
+    if (!screenshot) return;
+    amount = amount || 0.1;
+    var newOpacity = round(
+      clamp(screenshot.opacity + (increase ? 1 : -1) * 0.1, 0, 1),
+      2);
+    if (newOpacity == 0) return; // don't allow 0 opacity
+
+    screenshot.opacity = newOpacity;
+    emitter.emit('updateScreenshotAlpha', newOpacity);
+  }
+  function toggleScreenshotVisible() {
+    if (!screenshot) return;
+    screenshot.visible = !screenshot.visible;
+    emitter.emit('updateScreenshotVisible', screenshot.visible);
+  }
+  function swapScreenshotLayer() {
+    if (!screenshot) return;
+  }
+  startScreenshotOverlay();
 
 
   var brushSizeUI;
@@ -794,6 +912,14 @@
     mapLayer.activate();
   }
 
+  function screenCoordinates(percentX, percentY, offsetX, offsetY) {
+    offsetX = offsetX || 0;
+    offsetY = offsetY || 0;
+    return new Point(
+      percentX * view.size.width * view.scaling.x + offsetX,
+      percentY * view.size.height * view.scaling.y + offsetY);
+  }
+
   function jumpTween(item) {
     item.Tween()
   }
@@ -987,11 +1113,12 @@
   // ===============================================
   // UI ELEMENTS
 
+  // alpha: number
   // highlightedColor: string
   // selectedColor: string
 
   function createButton(item, buttonSize, onClick, options) {
-
+    var alpha = (!options || options.alpha == null) ? 0.0001 : options.alpha;
     var highlightedColor = (!options || options.highlightedColor == null) ? colors.sand.color : options.highlightedColor;
     var selectedColor = (!options || options.selectedColor == null) ? colors.npc.color : options.selectedColor;
 
@@ -1008,7 +1135,7 @@
         : highlightedColor;
       button.fillColor.alpha = group.data.selected ? 1
         : group.data.pressed ? 0.5 
-        : (group.data.hovered ? 1 : 0.0001);
+        : (group.data.hovered ? 1 : alpha);
     }
     updateColor();
 
@@ -2762,12 +2889,18 @@
   //pointerToolButton.position = toolsPosition + new Point(0, 0);
   //pointerToolButton.scaling = new Point(0.2, 0.2);
 
+  var keyDownMap = {};
+
   var isSpaceDown = false;
 
   function onKeyUp(event) {
     switch (event.key) {
       case 'space':
         isSpaceDown = false
+        break;
+      case '`':
+        toggleScreenshotVisible();
+        delete keyDownMap['`'];
         break;
       }
   }
@@ -2911,6 +3044,11 @@
         Object.values(state.drawing).forEach(function(path) {
           path.selected = !path.selected;
         });
+        break;
+      case '`':
+        if (!keyDownMap['`'])
+          toggleScreenshotVisible();
+        keyDownMap['`'] = true;
         break;
     }
     if (prevActiveTool == toolState.activeTool) {
@@ -4291,3 +4429,8 @@
     if (maxIndex == null) return null;
     return arguments[maxIndex];
   }
+
+  function round(n, p) {
+    d = Math.pow(10, p);
+    return Math.round(n * d) / d;
+  };
