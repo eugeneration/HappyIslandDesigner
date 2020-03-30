@@ -310,12 +310,67 @@
     return iconMenu;
   }
 
+  function createIncrementComponents(onIncrement, onDecrement) {
+    function incrementButton(path, onPress) {
+      var icon = new Raster(path);
+      icon.scaling = 0.45;
+      return createButton(icon, 20, onPress, {
+        highlightedColor: colors.paperOverlay.color,
+        selectedColor: colors.paperOverlay2.color,
+      });
+    }
+    var increment = incrementButton('img/ui-plus.png', onIncrement);
+    var decrement = incrementButton('img/ui-minus.png', onDecrement);
+
+    text = new PointText(0, 28);
+    text.fontFamily = 'TTNorms, sans-serif';
+    text.fontSize = 14;
+    text.fillColor = colors.text.color;
+    text.justification = 'center';
+
+    return {
+      increment: increment,
+      decrement: decrement,
+      text: text,
+    };
+  }
+
+  function createVerticalIncrementControl(increment, decrement, height, image, imageMargin) {
+
+    var backingWidth = 42;
+    var height = 153;
+    var backing = new Path.Rectangle(-backingWidth / 2, 0, backingWidth, height, backingWidth / 2);
+    backing.strokeColor = colors.paperOverlay2.color;
+    backing.strokeWidth = 2;
+
+    decrement.position = new Point(0, height - 20 - 1); // button radius and half stroke width
+    increment.position = decrement.position - new Point(0, 40);
+
+    image.bounds.topCenter = new Point(0, imageMargin);
+
+    var group = new Group();
+    group.addChildren([backing, increment, decrement, image]);
+    return group;
+  }
+
+  var screenshotOverlayUI;
+  function showScreenshotOverlayUI(isShown) {
+    if (screenshotOverlayUI) {
+      var group = new Group();
+      group.applyMatrix = false;
+
+
+
+    }
+    brushSizeUI.bringToFront();
+    brushSizeUI.visible = isShown;
+  }
+
 
   var brushSizeUI;
   function showBrushSizeUI(isShown) {
     if (brushSizeUI == null) {
-      var group = new Group();
-      group.applyMatrix = false;
+
       var brushPreview = new Path();
       if (brushSegments) {
         brushPreview.segments = brushSegments;
@@ -324,12 +379,24 @@
       brushPreview.strokeColor = colors.lightText.color;
       brushPreview.strokeWidth = 0.1;
       
+      var incrementComponents = createIncrementComponents(incrementBrush, decrementBrush);
 
-      brushSizeText = new PointText(0, 28);
-      brushSizeText.fontFamily = 'TTNorms, sans-serif';
-      brushSizeText.fontSize = 14;
-      brushSizeText.fillColor = colors.text.color;
-      brushSizeText.justification = 'center';
+      var brushSizeText = incrementComponents.text;
+      brushSizeText.content = '0';
+      brushSizeText.position = new Point(0, 24);
+
+      var incrementImage = new Group();
+      incrementImage.applyMatrix = false;
+      incrementImage.addChildren([brushPreview, brushSizeText]);
+
+      var incrementControl = createVerticalIncrementControl(
+        incrementComponents.increment,
+        incrementComponents.decrement,
+        153,
+        incrementImage,
+        22);
+
+      incrementControl.position += new Point(0, -22);
 
       emitter.on('updateBrush', update)
       function update() {
@@ -343,14 +410,6 @@
       }
       update();
 
-      function brushButton(path, onPress) {
-        var icon = new Raster(path);
-        icon.scaling = 0.45;
-        return createButton(icon, 20, onPress, {
-          highlightedColor: colors.paperOverlay.color,
-          selectedColor: colors.paperOverlay2.color,
-        });
-      }
       function brushLineButton(path, onPress) {
         var icon = new Raster(path);
         icon.scaling = 0.45;
@@ -359,11 +418,6 @@
           selectedColor: colors.yellow.color,
         });
       }
-
-      var increaseButton = brushButton('img/ui-plus.png', incrementBrush);
-      var decreaseButton = brushButton('img/ui-minus.png', decrementBrush);
-      increaseButton.position = new Point(0, 70);
-      decreaseButton.position = new Point(0, 110);
 
       var drawLineButton = brushLineButton('img/menu-drawline.png', function() {
         setBrushLineForce(true);
@@ -382,18 +436,14 @@
       drawBrushButton.position = new Point(0, 170);
 
       var backingWidth = 42;
-      var brushSizeBacking = new Path.Rectangle(-backingWidth / 2, 0, backingWidth, 153, backingWidth / 2);
-      brushSizeBacking.strokeColor = colors.paperOverlay2.color;
-      brushSizeBacking.strokeWidth = 2;
-      brushSizeBacking.position += new Point(0, -22);
-
       var brushLineBacking = new Path.Rectangle(-backingWidth / 2, 0, backingWidth, 82, backingWidth / 2);
       brushLineBacking.strokeColor = colors.paperOverlay2.color;
       brushLineBacking.strokeWidth = 2;
       brushLineBacking.position += new Point(0, 149);
 
-      group.addChildren([brushPreview, brushSizeText,
-        brushSizeBacking, increaseButton, decreaseButton,
+      var group = new Group();
+      group.applyMatrix = false;
+      group.addChildren([incrementControl,
         brushLineBacking, drawLineButton, drawBrushButton]);
       group.pivot = new Point(0, 0);
       group.position = new Point(105, 55);
@@ -1499,8 +1549,6 @@
     }
     switchMenu.data.show(isShown);
   }
-
-  showSwitchModal(true);
 
   var leftToolMenu = new Group();
   leftToolMenu.applyMatrix = false;
