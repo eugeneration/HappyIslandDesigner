@@ -332,7 +332,10 @@ export function drawer() {
         horizontal ? menuLongDimension : menuShortDimension,
         horizontal ? menuShortDimension : menuLongDimension
       ),
-      Math.min(columnSpacing / 2, 30)
+      new paper.Size(
+        Math.min(columnSpacing / 2, 30),
+        Math.min(columnSpacing / 2, 30)
+      )
     );
     backing.fillColor = colors.paper.color;
 
@@ -602,7 +605,7 @@ export function drawer() {
 
     const bound = new paper.Path.Rectangle(
       new paper.Rectangle(item.position, objectDefinition.size),
-      0.15
+      new paper.Size(0.15, 0.15)
     );
     bound.strokeColor = 'white';
     bound.strokeColor.alpha = 0;
@@ -1306,7 +1309,7 @@ export function drawer() {
         width,
         height
       ),
-      60
+      new paper.Size(60, 60)
     );
     modal.fillColor = colors.paper.color;
     modal.onMouseEnter = function (event) {
@@ -1638,7 +1641,7 @@ export function drawer() {
   const leftToolMenuPosition = new paper.Point(0, 100);
   const leftToolMenuIconHeight = 50;
 
-  function addToLeftToolMenu(icon) {
+  function addToLeftToolMenu(icon?: any) {
     if (icon == null) {
       //      // create spacer
       //      icon = new paper.Path.Rectangle(0, 0, 40, 2);
@@ -1727,7 +1730,9 @@ export function drawer() {
   };
   mainMenuButton.onMouseUp = function (event) {
     showMainMenu(true);
-    mainMenuButton.onMouseLeave(event);
+    if (mainMenuButton && mainMenuButton.onMouseLeave) {
+      mainMenuButton.onMouseLeave(event);
+    }
   };
 
   // =======================================
@@ -2357,6 +2362,7 @@ export function drawer() {
     // tools: asyncTreeDefinition,
     // menuOptions: {},
     // yPos: 185
+    iconMenu: null,
     layer: mapIconLayer,
     defaultTool: null,
     modifiers: {},
@@ -2457,6 +2463,7 @@ export function drawer() {
       layer: mapLayer,
       icon: 'color',
       modifiers: {},
+      iconMenu: null,
       defaultModifiers: {},
       data: {
         paintColorData: colors.level1,
@@ -2528,6 +2535,7 @@ export function drawer() {
       icon: 'path',
       modifiers: {},
       defaultModifiers: {},
+      iconMenu: null,
       data: {
         paintColorData: colors.pathDirt,
       },
@@ -2572,7 +2580,7 @@ export function drawer() {
               const colorData = colors[colorKey];
               if (colorKey == colors.pathEraser.key) {
                 buttonIcon = new paper.Group();
-                eraserImg = new paper.Raster(
+                const eraserImg = new paper.Raster(
                   `${imgPath + toolPrefix}eraser.png`
                 );
                 eraserImg.scaling = new paper.Point(0.35, 0.35);
@@ -3424,7 +3432,7 @@ export function drawer() {
     ).floor();
   }
 
-  function getBrushCenteredCoordinate(rawCoordinate) {
+  function getBrushCenteredCoordinate(rawCoordinate: paper.Point): paper.Point {
     // hack for even sized brushes
     if (brushSize % 2 == 0)
       return (
@@ -3459,7 +3467,7 @@ export function drawer() {
     brushOutline.segments = brushSegments;
     brushOutline.position = prevPosOutline;
     brushOutline.closed = true;
-    brushOutline.strokeColor = '#fff';
+    brushOutline.strokeColor = new paper.Color('#fff');
     brushOutline.strokeWidth = 0.1;
     brushOutline.locked = true;
 
@@ -3529,10 +3537,10 @@ export function drawer() {
       default:
       case brushTypes.square:
         return [
-          offset.add([0, 0]),
-          offset.add([0, sizeY]),
-          offset.add([sizeX, sizeY]),
-          offset.add([sizeX, 0]),
+          offset.add(new paper.Point(0, 0)),
+          offset.add(new paper.Point(0, sizeY)),
+          offset.add(new paper.Point(sizeX, sizeY)),
+          offset.add(new paper.Point(sizeX, 0)),
         ];
       case brushTypes.rounded:
         // return diamond if 2
@@ -3572,14 +3580,14 @@ export function drawer() {
         var maxPoint = diagonalSize + straightSize;
 
         return [
-          offset.add([minPoint, 0]),
-          offset.add([maxPoint, 0]),
-          offset.add([size, minPoint]),
-          offset.add([size, maxPoint]),
-          offset.add([maxPoint, size]),
-          offset.add([minPoint, size]),
-          offset.add([0, maxPoint]),
-          offset.add([0, minPoint]),
+          offset.add(new paper.Point(minPoint, 0)),
+          offset.add(new paper.Point(maxPoint, 0)),
+          offset.add(new paper.Point(size, minPoint)),
+          offset.add(new paper.Point(size, maxPoint)),
+          offset.add(new paper.Point(maxPoint, size)),
+          offset.add(new paper.Point(minPoint, size)),
+          offset.add(new paper.Point(0, maxPoint)),
+          offset.add(new paper.Point(0, minPoint)),
         ];
     }
   }
@@ -3948,7 +3956,7 @@ export function drawer() {
   // q.push(drawPaths[drawPaths.length - 1].clone());
   // q[q.length - 1].selected = true;
 
-  function drawLine(start, end, sweep) {
+  function drawLine(start, end) {
     const drawPaths = [];
     if (brushSweep) {
       let p = null;
@@ -4259,28 +4267,4 @@ export function drawer() {
     updatePaintColor(colors.level1);
   }
   initializeApp();
-
-  // ===============================================
-  // HELPERS
-
-  // https://stackoverflow.com/questions/7837456/how-to-compare-arrays-in-javascript
-  Array.prototype.equals = function (array) {
-    // if the other array is a falsy value, return
-    if (!array) return false;
-
-    // compare lengths - can save a lot of time
-    if (this.length != array.length) return false;
-
-    for (let i = 0, l = this.length; i < l; i++) {
-      // Check if we have nested arrays
-      if (this[i] instanceof Array && array[i] instanceof Array) {
-        // recurse into the nested arrays
-        if (!this[i].equals(array[i])) return false;
-      } else if (this[i] != array[i]) {
-        // Warning - two different object instances will never be equal: {x:20} != {x:20}
-        return false;
-      }
-    }
-    return true;
-  };
 }

@@ -1,22 +1,22 @@
-import paper, { Path, Point, view, Color } from 'paper';
+import paper, { Path, Point, Color } from 'paper';
 
 export function multitouch() {
   let myPaths: paper.Path[] = [];
 
   window.onload = function () {
-    const colors = [
-      '#83e1c3',
-      '#eee9a9',
-      '#347941',
-      '#35a043',
-      '#4ac34e',
-      '#737a89',
-      '#b0a280',
-      '#d5ac71',
-      '#f9df96',
-      '#999a8c',
-      '#e38f68',
-      '#f1b2c1',
+    const colors: paper.Color[] = [
+      new paper.Color('#83e1c3'),
+      new paper.Color('#eee9a9'),
+      new paper.Color('#347941'),
+      new paper.Color('#35a043'),
+      new paper.Color('#4ac34e'),
+      new paper.Color('#737a89'),
+      new paper.Color('#b0a280'),
+      new paper.Color('#d5ac71'),
+      new paper.Color('#f9df96'),
+      new paper.Color('#999a8c'),
+      new paper.Color('#e38f68'),
+      new paper.Color('#f1b2c1'),
     ];
 
     const blah = new Path.Rectangle(new Point(100, 100), new Point(300, 300));
@@ -140,8 +140,8 @@ export function multitouch() {
         y1 = ev.changedTouches[i].pageY;
 
         myPaths[i].strokeColor = colors[i];
-        myPaths[i].add(view.viewToProject(new Point(x1, y1)));
-        view.draw();
+        myPaths[i].add(paper.view.viewToProject(new Point(x1, y1)));
+        paper.view.draw();
       }
 
       if (ev.targetTouches.length == 1) {
@@ -186,9 +186,9 @@ export function multitouch() {
 
           gestureCache.prev = gestureData;
 
-          view.scale(
+          paper.view.scale(
             1 + scalingDelta,
-            view.viewToProject(
+            paper.view.viewToProject(
               new Point(gestureCache.prev.centerX, gestureCache.prev.centerY)
             )
           );

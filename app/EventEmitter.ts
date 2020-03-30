@@ -1,4 +1,4 @@
-type Callback = (data: any) => void;
+type Callback = (data?: any) => void;
 
 export class EventEmitter {
   callbacks: Record<string, Callback[]> = {};
@@ -9,7 +9,7 @@ export class EventEmitter {
     this.callbacks[event].push(cb);
   }
 
-  emit(event: string, data: any) {
+  emit(event: string, data?: any) {
     let cbs = this.callbacks[event];
     if (cbs) {
       cbs.forEach((cb) => cb(data));
