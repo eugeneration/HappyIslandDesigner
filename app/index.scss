@@ -17,7 +17,7 @@ canvas[resize] {
   top: 0;
   width: 100%;
   height: 60px;
-  box-shadow: 0px 1px 5px rgb(0, 0, 0, 0.2);
+  box-shadow: 0px 1px 5px rgba(0, 0, 0, 0.2);
 }
 
 .hidden {
@@ -29,7 +29,7 @@ canvas[resize] {
   top: 0;
   width: 100%;
   height: 60px;
-  box-shadow: 0px 1px 5px rgb(0, 0, 0, 0.2);
+  box-shadow: 0px 1px 5px rgba(0, 0, 0, 0.2);
 }
 
 .modal {
@@ -37,10 +37,5 @@ canvas[resize] {
   top: 40;
   bottom: 100%;
   height: 60px;
-  box-shadow: 0px 1px 5px rgb(0, 0, 0, 0.2);
-}
-
-@font-face {
-  font-family: 'TTNorms';
-  src: url('font/TTNorms-Bold.woff') format('woff');
+  box-shadow: 0px 1px 5px rgba(0, 0, 0, 0.2);
 }

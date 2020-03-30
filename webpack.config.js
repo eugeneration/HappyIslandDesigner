@@ -3,6 +3,7 @@ const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 module.exports = {
   mode: 'development',
@@ -17,6 +18,17 @@ module.exports = {
   },
   module: {
     rules: [
+      {
+        test: /\.scss$/,
+        exclude: /node_modules/,
+        use: [
+          process.env.NODE_ENV !== 'production'
+            ? 'style-loader'
+            : MiniCssExtractPlugin.loader,
+          'css-loader',
+          'sass-loader',
+        ],
+      },
       {
         test: /\.(j|t)s(x)?$/,
         exclude: /node_modules/,
@@ -59,5 +71,12 @@ module.exports = {
       filename: 'index.html',
     }),
     new CopyPlugin([{ from: 'src/static', to: 'static' }]),
+
+    // new MiniCssExtractPlugin({
+    //   // Options similar to the same options in webpackOptions.output
+    //   // both options are optional
+    //   filename: '[name].css',
+    //   chunkFilename: '[id].css',
+    // }),
   ],
 };
