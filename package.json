@@ -1,0 +1,50 @@
+{
+  "name": "HappyIslandDesigner",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "repository": "https://github.com/bodinsamuel/HappyIslandDesigner.git",
+  "author": "Samuel Bodin <samuel.bodin@algolia.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/core": "7.9.0",
+    "@babel/plugin-proposal-class-properties": "7.8.3",
+    "@babel/preset-env": "7.9.0",
+    "@babel/preset-typescript": "7.9.0",
+    "@types/express": "4.17.3",
+    "@typescript-eslint/eslint-plugin": "2.26.0",
+    "babel-loader": "8.1.0",
+    "eslint": "6.8.0",
+    "eslint-config-airbnb-base": "14.1.0",
+    "eslint-plugin-import": "2.20.2",
+    "eslint-plugin-prettier": "3.1.2",
+    "express": "4.17.1",
+    "fork-ts-checker-webpack-plugin": "4.1.2",
+    "html-webpack-plugin": "4.0.3",
+    "prettier": "2.0.2",
+    "typescript": "3.8.3",
+    "webpack": "4.42.1",
+    "webpack-cli": "3.3.11",
+    "webpack-dev-server": "3.10.3"
+  },
+  "engines": {
+    "node": ">= 10.13.0",
+    "yarn": "^1.19.1"
+  },
+  "scripts": {
+    "dev": "webpack-dev-server --hot",
+    "lint": "eslint --ext=ts,js app/",
+    "build": "rollup -c rollup.config.js"
+  },
+  "prettier": {
+    "tabWidth": 2,
+    "singleQuote": true,
+    "trailingComma": "es5",
+    "arrowParens": "always"
+  },
+  "dependencies": {
+    "hammerjs": "2.0.8",
+    "paper": "0.12.4",
+    "remove": "^0.1.5",
+    "tinycolor2": "1.4.1"
+  }
+}
