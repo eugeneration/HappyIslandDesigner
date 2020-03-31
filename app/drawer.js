@@ -1262,23 +1262,26 @@
         return buttonGroup;
       }
 
-      var saveButton = createMenuButton("Save as Image", 'img/menu-save.png', 0,
+      var saveButton = createMenuButton("Save as Image (Ctrl+S)", 'img/menu-save.png', 0,
         function() {saveMapToFile()});
-      var loadButton = createMenuButton('Load Map', 'img/menu-open.png', 1,
+      var loadButton = createMenuButton('Load Map (Ctrl+O)', 'img/menu-open.png', 1,
         function() {loadMapFromFile()});
       var newButton = createMenuButton('New Map', 'img/menu-new.png', 2,
         function() {
-          var r = confirm("Clear your map? You will lose all unsaved changes.");
+          var r = confirm("Clear your map? You will lose all unsaved changes. Make sure you save changes by hitting Ctrl+S before you clear your map.");
           if (r == true) {
             loadTemplate();
           } else { }
         });
+      
+      var downloaddroidButton = createMenuButton('Download for Android', 'img/menu_androiddownload.png', 3,
+        function() {window.open('https://flynnfarrow.github.io/HappyIslandDesigner/programs/android.md', '_blank')});
 
       var twitterButton = createMenuButton('Twitter', 'img/menu-twitt.png', 0,
         function() {window.open('https://twitter.com/island_designer', '_blank')});
       twitterButton.position = new Point(0, 210);
 
-      mainMenu.data.contents.addChildren([saveButton, loadButton, newButton, twitterButton]);
+      mainMenu.data.contents.addChildren([saveButton, loadButton, newButton, downloaddroidButton, twitterButton]);
       mainMenu.opacity = 0;
     }
     mainMenu.tweenTo({opacity: isShown ? 1 : 0}, 200);
