@@ -1275,7 +1275,7 @@
         });
       
       var downloaddroidButton = createMenuButton('Download for Android', 'img/menu_androiddownload.png', 3,
-        function() {window.open('https://flynnfarrow.github.io/HappyIslandDesigner/programs/android.md', '_blank')});
+        function() {window.open('https://github.com/FlynnFarrow/HappyIslandDesigner/releases/download/androidapp-v1.0-beta/HappyIslandDesigner_Android_1.0_BETA.zip', '_blank')});
 
       var twitterButton = createMenuButton('Twitter', 'img/menu-twitt.png', 0,
         function() {window.open('https://twitter.com/island_designer', '_blank')});
