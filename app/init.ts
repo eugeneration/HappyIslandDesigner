@@ -4,6 +4,8 @@ import { store } from './store';
 export function init() {
   return new Promise((resolve) => {
     window.onload = function onload() {
+      paper.install(window);
+
       // Setup PaperJS
       const canvas = document.getElementById('canvas') as HTMLCanvasElement;
       paper.setup(canvas);

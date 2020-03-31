@@ -307,10 +307,13 @@ export function drawer() {
   function createMenu(items, options) {
     const itemsCount = Object.keys(items).length;
     const spacing = options.spacing == null ? 50 : options.spacing;
-    const perColumn = options.perColumn == null ? itemsCount : options.perColumn;
-    const extraColumns = options.extraColumns == null ? 0 : options.extraColumns;
+    const perColumn =
+      options.perColumn == null ? itemsCount : options.perColumn;
+    const extraColumns =
+      options.extraColumns == null ? 0 : options.extraColumns;
     const extraRows = options.extraRows == null ? 0 : options.extraRows;
-    const columnSpacing = options.columnSpacing == null ? 60 : options.columnSpacing;
+    const columnSpacing =
+      options.columnSpacing == null ? 60 : options.columnSpacing;
     const horizontal = options.horizontal == null ? false : options.horizontal;
     const noPointer = options.noPointer == null ? false : options.noPointer;
     const margin = options.margin == null ? 35 : options.margin;
@@ -321,7 +324,8 @@ export function drawer() {
 
     const menuLongPosition = -margin;
     const menuShortPosition = -0.5 * columnSpacing;
-    const menuLongDimension = 2 * margin + spacing * (perColumn - 1 + extraRows);
+    const menuLongDimension =
+      2 * margin + spacing * (perColumn - 1 + extraRows);
     const menuShortDimension = columnSpacing * columns;
     const backing = new paper.Path.Rectangle(
       new paper.Rectangle(
@@ -432,17 +436,29 @@ export function drawer() {
         });
       }
 
-      const increaseButton = brushButton('img/ui-plus.png', incrementBrush);
-      const decreaseButton = brushButton('img/ui-minus.png', decrementBrush);
+      const increaseButton = brushButton(
+        'static/img/ui-plus.png',
+        incrementBrush,
+      );
+      const decreaseButton = brushButton(
+        'static/img/ui-minus.png',
+        decrementBrush,
+      );
       increaseButton.position = new paper.Point(0, 70);
       decreaseButton.position = new paper.Point(0, 110);
 
-      const drawLineButton = brushLineButton('img/menu-drawline.png', () => {
-        setBrushLineForce(true);
-      });
-      const drawBrushButton = brushLineButton('img/menu-drawbrush.png', () => {
-        setBrushLineForce(false);
-      });
+      const drawLineButton = brushLineButton(
+        'static/img/menu-drawline.png',
+        () => {
+          setBrushLineForce(true);
+        },
+      );
+      const drawBrushButton = brushLineButton(
+        'static/img/menu-drawbrush.png',
+        () => {
+          setBrushLineForce(false);
+        },
+      );
       emitter.on('updateBrushLineForce', updateBrushLineButton);
       function updateBrushLineButton(isBrushLine) {
         drawLineButton.data.select(isBrushLine);
@@ -511,7 +527,9 @@ export function drawer() {
 
   function decodeObjectGroups(objectGroups, encodingVersion) {
     if (encodingVersion == 0) {
-      return objectMap(objectGroups, (encodedData) => decodeObject(encodedData, version));
+      return objectMap(objectGroups, (encodedData) =>
+        decodeObject(encodedData, version),
+      );
     }
 
     const objects = {};
@@ -542,12 +560,13 @@ export function drawer() {
     };
     // for legacy or renamed objects, rename them
     if (
-      toolCategoryDefinition[encodedData.category].tools
-      && toolCategoryDefinition[encodedData.category].tools.value
+      toolCategoryDefinition[encodedData.category].tools &&
+      toolCategoryDefinition[encodedData.category].tools.value
     ) {
-      const objectDefinition = toolCategoryDefinition[encodedData.category].tools.value[
-        objectData.type
-      ];
+      const objectDefinition =
+        toolCategoryDefinition[encodedData.category].tools.value[
+          objectData.type
+        ];
       if (objectDefinition.legacy) {
         objectData.type = objectDefinition.legacy;
       }
@@ -602,10 +621,10 @@ export function drawer() {
       new paper.Rectangle(item.position, objectDefinition.size),
       new paper.Size(0.15, 0.15),
     );
-    bound.strokeColor = 'white';
+    bound.strokeColor = new paper.Color('white');
     bound.strokeColor.alpha = 0;
     bound.strokeWidth = 0.1;
-    bound.fillColor = 'white';
+    bound.fillColor = new paper.Color('white');
     bound.fillColor.alpha = 0.0001;
     group.addChildren([item, bound]);
     group.pivot = bound.bounds.topLeft;
@@ -647,7 +666,7 @@ export function drawer() {
       var { deleteButton } = group.data;
 
       if (show && deleteButton == null) {
-        const icon = new paper.Raster('img/ui-x.png');
+        const icon = new paper.Raster('static/img/ui-x.png');
         icon.scaling = 0.03;
 
         const buttonBacking = new paper.Path.Circle(0, 0, 0.9);
@@ -782,8 +801,10 @@ export function drawer() {
       const prevTool = this.activeTool;
       this.activeTool = toolData;
       this.toolMap[toolData.type] = toolData;
-      if (prevTool) prevTool.definition.updateTool(prevTool, toolData, isToolTypeSwitch);
-      else if (toolData) toolData.definition.updateTool(prevTool, toolData, isToolTypeSwitch);
+      if (prevTool)
+        prevTool.definition.updateTool(prevTool, toolData, isToolTypeSwitch);
+      else if (toolData)
+        toolData.definition.updateTool(prevTool, toolData, isToolTypeSwitch);
     },
     deleteSelection() {
       Object.keys(this.selected).forEach((objectId) => {
@@ -839,7 +860,8 @@ export function drawer() {
         const isActive = this.isCanvasFocused && !this.isSomethingSelected();
         if (this.toolIsActive != isActive) {
           this.toolIsActive = isActive;
-          if (this.activeTool) this.activeTool.definition.enablePreview(isActive);
+          if (this.activeTool)
+            this.activeTool.definition.enablePreview(isActive);
         }
       }
     },
@@ -893,7 +915,7 @@ export function drawer() {
 
   //  cloudLayer.activate();
   //  for (var i = 0; i < 20; i ++) {
-  //    var cloud = new paper.Raster('img/cloud1.png');
+  //    var cloud = new paper.Raster('static/img/cloud1.png');
   //    cloud.position = new paper.Point((i % 2 + 2) * 120, (i % 2 + 3) * 120);
   //  }
 
@@ -910,7 +932,8 @@ export function drawer() {
   tool.onMouseDown = function onMouseDown(event) {
     if (isSpaceDown) return;
     toolState.onDown(event);
-    if (toolState.toolIsActive) toolState.activeTool.definition.onMouseDown(event);
+    if (toolState.toolIsActive)
+      toolState.activeTool.definition.onMouseDown(event);
   };
   tool.onMouseMove = function onMouseMove(event) {
     if (toolState.toolIsActive) {
@@ -919,12 +942,14 @@ export function drawer() {
   };
   tool.onMouseDrag = function onMouseDrag(event) {
     if (isSpaceDown) return;
-    if (toolState.toolIsActive) toolState.activeTool.definition.onMouseDrag(event);
+    if (toolState.toolIsActive)
+      toolState.activeTool.definition.onMouseDrag(event);
   };
   tool.onMouseUp = function onMouseUp(event) {
     if (isSpaceDown) return;
     toolState.onUp(event);
-    if (toolState.toolIsActive) toolState.activeTool.definition.onMouseUp(event);
+    if (toolState.toolIsActive)
+      toolState.activeTool.definition.onMouseUp(event);
   };
 
   function drawBackground() {
@@ -961,8 +986,9 @@ export function drawer() {
       return undefined;
     }
 
-    const confirmationMessage = 'It looks like you have been editing something. '
-      + 'If you leave before saving, your changes will be lost.';
+    const confirmationMessage =
+      'It looks like you have been editing something. ' +
+      'If you leave before saving, your changes will be lost.';
     (e || window.event).returnValue = confirmationMessage; // Gecko + IE
     return confirmationMessage; // Gecko + Webkit, Safari, Chrome etc.
   });
@@ -1011,11 +1037,13 @@ export function drawer() {
     }
     return false;
   }
+
   function clearAutosave() {
     if (localStorage) {
       localStorage.removeItem('autosave');
     }
   }
+
   editor.clearAutosave = clearAutosave;
 
   function saveMapToFile() {
@@ -1178,12 +1206,14 @@ export function drawer() {
   // selectedColor: string
 
   function createButton(item, buttonSize, onClick, options?: any) {
-    const highlightedColor = !options || options.highlightedColor == null
-      ? colors.sand.color
-      : options.highlightedColor;
-    const selectedColor = !options || options.selectedColor == null
-      ? colors.npc.color
-      : options.selectedColor;
+    const highlightedColor =
+      !options || options.highlightedColor == null
+        ? colors.sand.color
+        : options.highlightedColor;
+    const selectedColor =
+      !options || options.selectedColor == null
+        ? colors.npc.color
+        : options.selectedColor;
 
     const group = new paper.Group();
 
@@ -1193,16 +1223,17 @@ export function drawer() {
     group.addChildren([button, item]);
 
     function updateColor() {
-      button.fillColor = group.data.selected || group.data.pressed
-        ? selectedColor
-        : highlightedColor;
+      button.fillColor =
+        group.data.selected || group.data.pressed
+          ? selectedColor
+          : highlightedColor;
       button.fillColor.alpha = group.data.selected
         ? 1
         : group.data.pressed
-          ? 0.5
-          : group.data.hovered
-            ? 1
-            : 0.0001;
+        ? 0.5
+        : group.data.hovered
+        ? 1
+        : 0.0001;
     }
     updateColor();
 
@@ -1344,7 +1375,7 @@ export function drawer() {
     text.fillColor = colors.text.color;
     modalContents.addChild(text);
 
-    const statusBar = new paper.Raster('img/ui-phonestatus.png');
+    const statusBar = new paper.Raster('static/img/ui-phonestatus.png');
     statusBar.scaling = 0.35;
     statusBar.position = new paper.Point(group.data.width / 2 - 10, -93);
     modalContents.addChild(statusBar);
@@ -1390,54 +1421,56 @@ export function drawer() {
       helpText.fontSize = 16;
       helpText.fontFamily = 'TTNorms, sans-serif';
       helpText.fillColor = colors.oceanText.color;
-      helpText.content = 'space+drag\n'
-        + 'alt+scroll\n'
-        + '\\\n'
-        + 'shift+drag\n'
-        + '[ ]\n'
-        + 'p\n'
-        + 'alt+click\n'
-        + 'delete\n'
-        + 'ctrl + z\n'
-        + 'ctrl + y\n'
-        + '\n'
-        + 'v\n'
-        + 'b\n'
-        + 'n\n'
-        + 'm\n'
-        + '\n'
-        + 'ctrl + s\n'
-        + 'ctrl + o\n'
-        + 'esc\n'
-        + '?\n'
-        + '';
+      helpText.content =
+        'space+drag\n' +
+        'alt+scroll\n' +
+        '\\\n' +
+        'shift+drag\n' +
+        '[ ]\n' +
+        'p\n' +
+        'alt+click\n' +
+        'delete\n' +
+        'ctrl + z\n' +
+        'ctrl + y\n' +
+        '\n' +
+        'v\n' +
+        'b\n' +
+        'n\n' +
+        'm\n' +
+        '\n' +
+        'ctrl + s\n' +
+        'ctrl + o\n' +
+        'esc\n' +
+        '?\n' +
+        '';
 
       const helpText2 = new paper.PointText(new paper.Point(100, -10));
       helpText2.justification = 'left';
       helpText2.fontSize = 16;
       helpText2.fontFamily = 'TTNorms, sans-serif';
       helpText2.fillColor = colors.text.color;
-      helpText2.content = 'pan\n'
-        + 'zoom\n'
-        + 'toggle grid\n'
-        + 'draw line\n'
-        + 'adjust brush size\n'
-        + 'square/circle brush\n'
-        + 'color pick\n'
-        + 'delete selection\n'
-        + 'undo\n'
-        + 'redo\n'
-        + '\n'
-        + 'terrain tool \n'
-        + 'path tool\n'
-        + 'building tool\n'
-        + 'amenities tool\n'
-        + '\n'
-        + 'save\n'
-        + 'open map file\n'
-        + 'main menu\n'
-        + 'hotkeys\n'
-        + '';
+      helpText2.content =
+        'pan\n' +
+        'zoom\n' +
+        'toggle grid\n' +
+        'draw line\n' +
+        'adjust brush size\n' +
+        'square/circle brush\n' +
+        'color pick\n' +
+        'delete selection\n' +
+        'undo\n' +
+        'redo\n' +
+        '\n' +
+        'terrain tool \n' +
+        'path tool\n' +
+        'building tool\n' +
+        'amenities tool\n' +
+        '\n' +
+        'save\n' +
+        'open map file\n' +
+        'main menu\n' +
+        'hotkeys\n' +
+        '';
 
       const helpTextRaster = helpText.rasterize();
       const helpText2Raster = helpText2.rasterize();
@@ -1556,7 +1589,7 @@ export function drawer() {
 
       const saveButton = createMenuButton(
         'Save as Image',
-        'img/menu-save.png',
+        'static/img/menu-save.png',
         0,
         () => {
           saveMapToFile();
@@ -1564,7 +1597,7 @@ export function drawer() {
       );
       const loadButton = createMenuButton(
         'Load Map',
-        'img/menu-open.png',
+        'static/img/menu-open.png',
         1,
         () => {
           loadMapFromFile();
@@ -1572,7 +1605,7 @@ export function drawer() {
       );
       const newButton = createMenuButton(
         'New Map',
-        'img/menu-new.png',
+        'static/img/menu-new.png',
         2,
         () => {
           const r = confirm(
@@ -1587,7 +1620,7 @@ export function drawer() {
 
       const twitterButton = createMenuButton(
         'Twitter',
-        'img/menu-twitt.png',
+        'static/img/menu-twitt.png',
         0,
         () => {
           window.open('https://twitter.com/island_designer', '_blank');
@@ -1640,10 +1673,10 @@ export function drawer() {
     leftToolMenuPosition.y += leftToolMenuIconHeight;
   }
 
-  const redoButton = undoMenuButton('img/menu-redo.png', () => {
+  const redoButton = undoMenuButton('static/img/menu-redo.png', () => {
     redo();
   });
-  const undoButton = undoMenuButton('img/menu-undo.png', () => {
+  const undoButton = undoMenuButton('static/img/menu-undo.png', () => {
     undo();
   });
   const undoMenu = createMenu(
@@ -1676,8 +1709,9 @@ export function drawer() {
     positionUndoMenu();
   });
   function positionUndoMenu() {
-    undoMenu.position = new paper.Point(paper.view.bounds.width * paper.view.scaling.x, 0)
-      + new paper.Point(-50, 30);
+    undoMenu.position =
+      new paper.Point(paper.view.bounds.width * paper.view.scaling.x, 0) +
+      new paper.Point(-50, 30);
   }
   positionUndoMenu();
 
@@ -1967,7 +2001,8 @@ export function drawer() {
     def.scaling = def.scaling || new paper.Point(0.029, 0.029);
     def.menuScaling = def.menuScaling || new paper.Point(0.18, 0.18);
     def.size = def.size;
-    def.offset = def.offset || new paper.Point(-def.size.width / 2, -def.size.height);
+    def.offset =
+      def.offset || new paper.Point(-def.size.width / 2, -def.size.height);
     def.onSelect = function (isSelected) {};
     // imnmediately load the assets
     if (def.img) {
@@ -2041,8 +2076,9 @@ export function drawer() {
     def.scaling = def.scaling || new paper.Point(0.014, 0.014);
     def.menuScaling = def.menuScaling || new paper.Point(0.2, 0.2);
     def.size = new paper.Size(1, 1);
-    def.offset = def.offset
-      || new paper.Point(-def.size.width / 2, -def.size.height + 0.2);
+    def.offset =
+      def.offset ||
+      new paper.Point(-def.size.width / 2, -def.size.height + 0.2);
     def.onSelect = function (isSelected) {};
     // imnmediately load the assets
     if (def.svg) {
@@ -2134,8 +2170,9 @@ export function drawer() {
     def.scaling = def.scaling || new paper.Point(0.016, 0.016);
     def.menuScaling = def.menuScaling || new paper.Point(0.65, 0.65);
     def.size = new paper.Size(1, 1);
-    def.offset = def.offset
-      || new paper.Point(-def.size.width / 2, -def.size.height + 0.2);
+    def.offset =
+      def.offset ||
+      new paper.Point(-def.size.width / 2, -def.size.height + 0.2);
     def.onSelect = function (isSelected) {};
     if (def.img) {
       const img = new paper.Raster(def.img);
@@ -2294,8 +2331,9 @@ export function drawer() {
       }
     },
     updateTool(subclass, prevToolData, nextToolData, isToolTypeSwitch) {
-      const sameToolType = prevToolData
-        && prevToolData.definition.type === nextToolData.definition.type;
+      const sameToolType =
+        prevToolData &&
+        prevToolData.definition.type === nextToolData.definition.type;
       if (!sameToolType) {
         if (prevToolData) {
           prevToolData.definition.onSelect(false);
@@ -2306,20 +2344,24 @@ export function drawer() {
         prevToolData.definition.onSelect(true, true);
       }
       {
-        const prevTool = prevToolData && prevToolData.tool ? prevToolData.tool.type : null;
-        const nextTool = nextToolData && nextToolData.tool ? nextToolData.tool.type : null;
+        const prevTool =
+          prevToolData && prevToolData.tool ? prevToolData.tool.type : null;
+        const nextTool =
+          nextToolData && nextToolData.tool ? nextToolData.tool.type : null;
         const sameTool = sameToolType && prevTool === nextTool;
         if (!sameTool) {
-          if (prevToolData && prevToolData.tool && prevToolData.tool.onSelect) prevToolData.tool.onSelect(false);
-          if (nextToolData && nextToolData.tool && nextToolData.tool.onSelect) nextToolData.tool.onSelect(true);
+          if (prevToolData && prevToolData.tool && prevToolData.tool.onSelect)
+            prevToolData.tool.onSelect(false);
+          if (nextToolData && nextToolData.tool && nextToolData.tool.onSelect)
+            nextToolData.tool.onSelect(true);
           // todo: decouple view from logic
           if (
-            subclass.iconMenu
-            && (nextToolData.type == 'structures'
-              || nextToolData.type == 'amenities'
-              || nextToolData.type == 'construction'
-              || nextToolData.type == 'tree'
-              || nextToolData.type == 'flower')
+            subclass.iconMenu &&
+            (nextToolData.type == 'structures' ||
+              nextToolData.type == 'amenities' ||
+              nextToolData.type == 'construction' ||
+              nextToolData.type == 'tree' ||
+              nextToolData.type == 'flower')
           ) {
             subclass.iconMenu.data.update(nextTool);
             updateObjectPreview();
@@ -2719,9 +2761,9 @@ export function drawer() {
 
     // todo: separate viewfrom logic
     if (
-      (toolState.activeTool
-        && toolState.activeTool.type == toolCategoryDefinition.terrain.type)
-      || toolState.activeTool.type == toolCategoryDefinition.path.type
+      (toolState.activeTool &&
+        toolState.activeTool.type == toolCategoryDefinition.terrain.type) ||
+      toolState.activeTool.type == toolCategoryDefinition.path.type
     ) {
       if (toolState.activeTool.definition.iconMenu) {
         let toolCategory;
@@ -2895,7 +2937,7 @@ export function drawer() {
   }
 
   // mapOverlayLayer.activate();
-  // var tracemap = new paper.Raster('img/tracemap.png');
+  // var tracemap = new paper.Raster('static/img/tracemap.png');
   // tracemap.locked = true;
   // tracemap.position = new paper.Point(55.85, 52.2);
   // tracemap.scaling = new paper.Point(0.082, .082);
@@ -2959,7 +3001,8 @@ export function drawer() {
         } else {
           p = new paper.CompoundPath({
             children: pathData.map(
-              (pathData) => new paper.Path(pathData.map((p) => new paper.Point(p))),
+              (pathData) =>
+                new paper.Path(pathData.map((p) => new paper.Point(p))),
             ),
           });
         }
@@ -3173,9 +3216,10 @@ export function drawer() {
   // };
   resizeCoordinates();
 
-  const mapRatio = (horizontalBlocks * horizontalDivisions)
-    / (verticalBlocks * verticalDivisions)
-    / verticalRatio;
+  const mapRatio =
+    (horizontalBlocks * horizontalDivisions) /
+    (verticalBlocks * verticalDivisions) /
+    verticalRatio;
   function resizeCoordinates() {
     const screenRatio = paper.view.size.width / paper.view.size.height;
     const horizontallyContrained = screenRatio <= mapRatio;
@@ -3309,26 +3353,26 @@ export function drawer() {
     const gridNegativeMarginBottom = blockEdge ? 4 : 0;
     const segment = horizontal
       ? [
-        new paper.Point(i, -gridNegativeMarginTop),
-        new paper.Point(
-          i,
-          verticalBlocks * verticalDivisions
-              + gridNegativeMarginTop
-              + gridNegativeMarginBottom,
-        ),
-      ]
+          new paper.Point(i, -gridNegativeMarginTop),
+          new paper.Point(
+            i,
+            verticalBlocks * verticalDivisions +
+              gridNegativeMarginTop +
+              gridNegativeMarginBottom,
+          ),
+        ]
       : [
-        new paper.Point(-gridNegativeMarginLeft, i),
-        new paper.Point(
-          horizontalBlocks * horizontalDivisions
-              + gridNegativeMarginLeft
-              + gridNegativeMarginRight,
-          i,
-        ),
-      ];
+          new paper.Point(-gridNegativeMarginLeft, i),
+          new paper.Point(
+            horizontalBlocks * horizontalDivisions +
+              gridNegativeMarginLeft +
+              gridNegativeMarginRight,
+            i,
+          ),
+        ];
 
-    line = new paper.Path(segment);
-    line.strokeColor = '#ffffff';
+    const line = new paper.Path(segment);
+    line.strokeColor = new paper.Color('#ffffff');
     line.strokeWidth = blockEdge ? 0.2 : 0.1;
     line.strokeCap = 'round';
     // line.dashArray = blockEdge ? [4, 6] : null;
@@ -3385,30 +3429,34 @@ export function drawer() {
   setBrushLineForce(false);
 
   function cycleBrushHead() {
-    const heads = Object.keys(brushTypes).sort((a, b) => (a == b ? 0 : a < b ? -1 : 1));
+    const heads = Object.keys(brushTypes).sort((a, b) =>
+      a == b ? 0 : a < b ? -1 : 1,
+    );
     const index = heads.indexOf(brushType);
     brushType = heads[(index + 1) % heads.length];
     updateBrush();
   }
 
-  function getObjectCenteredCoordinate(rawCoordinate, objectDefinition) {
+  function getObjectCenteredCoordinate(
+    rawCoordinate: paper.Point,
+    objectDefinition,
+  ) {
     // hack for even sized brushes
     const sizeX = objectDefinition.size.width / 2;
     const sizeY = objectDefinition.size.height / 2;
-    return (
-      rawCoordinate
-      - new paper.Point(sizeX, sizeY)
-      + new paper.Point(0.5, 0.5)
-    ).floor();
+    return rawCoordinate
+      .subtract(new paper.Point(sizeX, sizeY))
+      .add(new paper.Point(0.5, 0.5))
+      .floor();
   }
 
   function getBrushCenteredCoordinate(rawCoordinate: paper.Point): paper.Point {
     // hack for even sized brushes
     if (brushSize % 2 == 0) {
-      return (
-        (rawCoordinate + new paper.Point(0.5, 0.5)).floor()
-        - new paper.Point(0.5, 0.5)
-      );
+      return rawCoordinate
+        .add(new paper.Point(0.5, 0.5))
+        .floor()
+        .subtract(new paper.Point(0.5, 0.5));
     }
     return rawCoordinate.floor();
   }
@@ -3426,7 +3474,7 @@ export function drawer() {
 
     const prevPosOutline = brushOutline.position;
 
-    brush.layer = uiLayer;
+    // brush.layer = uiLayer;
     brush.segments = brushSegments;
     brush.pivot = new paper.Point(brushSize / 2 - 0.5, brushSize / 2 - 0.5);
     brush.position = getBrushCenteredCoordinate(prevPosOutline);
@@ -3587,11 +3635,14 @@ export function drawer() {
     objects: {},
   };
 
+  console.log('prout', tryLoadAutosaveMap());
+
   if (!tryLoadAutosaveMap()) {
     loadTemplate();
   }
 
   function loadTemplate() {
+    console.log('on load', template);
     clearMap();
     setNewMapData(decodeMap(template));
   }
@@ -3764,8 +3815,8 @@ export function drawer() {
       var bestColor;
 
       if (
-        toolState.activeTool.type == toolCategoryDefinition.terrain.type
-        || toolState.activeTool.type == toolCategoryDefinition.path.type
+        toolState.activeTool.type == toolCategoryDefinition.terrain.type ||
+        toolState.activeTool.type == toolCategoryDefinition.path.type
       ) {
         var bestColor = colors.water;
 
@@ -3773,7 +3824,8 @@ export function drawer() {
         Object.keys(state.drawing).forEach((colorKey) => {
           let toolCategory;
 
-          const definition = layerDefinition[colorKey] || pathDefinition[colorKey];
+          const definition =
+            layerDefinition[colorKey] || pathDefinition[colorKey];
           if (!definition) {
             console.log('Unknown color in drawing!');
             return;
@@ -3836,16 +3888,17 @@ export function drawer() {
     // go backwards so when I add indices I don't affect the index order
     for (let i = path.segments.length - 1; i >= 0; i--) {
       const p0 = path.segments[i];
-      const p1 = path.segments[(i - 1 + path.segments.length) % path.segments.length];
+      const p1 =
+        path.segments[(i - 1 + path.segments.length) % path.segments.length];
       const normal = path.clockwise
         ? new paper.Point(
-          p0.point.y - p1.point.y,
-          p1.point.x - p0.point.x,
-        ).normalize()
+            p0.point.y - p1.point.y,
+            p1.point.x - p0.point.x,
+          ).normalize()
         : new paper.Point(
-          p1.point.y - p0.point.y,
-          p0.point.x - p1.point.x,
-        ).normalize();
+            p1.point.y - p0.point.y,
+            p0.point.x - p1.point.x,
+          ).normalize();
       const dot = normal.dot(sweepDirection);
 
       if (dot > 0) {
@@ -4152,23 +4205,27 @@ export function drawer() {
   function correctPath(path, receivingPath) {
     path.segments.forEach((segment) => {
       const { point } = segment;
-      const isSegmentInvalid = getDistanceFromWholeNumber(point.x) > 0.1
-        || getDistanceFromWholeNumber(point.y) > 0.1;
+      const isSegmentInvalid =
+        getDistanceFromWholeNumber(point.x) > 0.1 ||
+        getDistanceFromWholeNumber(point.y) > 0.1;
       if (!isSegmentInvalid) return;
 
-      const prevIndex = (segment.index - 1 + path.segments.length) % path.segments.length;
+      const prevIndex =
+        (segment.index - 1 + path.segments.length) % path.segments.length;
       const nextIndex = (segment.index + 1) % path.segments.length;
       const prevPoint = path.segments[prevIndex].point;
       const nextPoint = path.segments[nextIndex].point;
 
       // todo: this assumes the problem point is always at .5, which may not be true in degenerate cases
-      const possiblePoint1 = point
-        - new paper.Point(
+      const possiblePoint1 =
+        point -
+        new paper.Point(
           0.5 * Math.sign(prevPoint.x - point.x),
           0.5 * Math.sign(prevPoint.y - point.y),
         );
-      const possiblePoint2 = point
-        - new paper.Point(
+      const possiblePoint2 =
+        point -
+        new paper.Point(
           0.5 * Math.sign(nextPoint.x - point.x),
           0.5 * Math.sign(nextPoint.y - point.y),
         );
@@ -4179,16 +4236,18 @@ export function drawer() {
           possiblePoint1,
         )
       ) {
-        var crossPoint = possiblePoint2
-          - new paper.Point(
+        var crossPoint =
+          possiblePoint2 -
+          new paper.Point(
             Math.sign(possiblePoint2.x - point.x),
             Math.sign(possiblePoint2.y - point.y),
           );
         path.insert(nextIndex, crossPoint);
         segment.point = possiblePoint1;
       } else {
-        var crossPoint = possiblePoint1
-          - new paper.Point(
+        var crossPoint =
+          possiblePoint1 -
+          new paper.Point(
             Math.sign(possiblePoint1.x - point.x),
             Math.sign(possiblePoint1.y - point.y),
           );
