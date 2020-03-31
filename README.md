@@ -2,7 +2,7 @@
 
 Click here to create your own island map!
 
-https://eugeneration.github.io/HappyIslandDesigner/
+https://flynnfarrow.github.io/HappyIslandDesigner/
 
 ## Introduction
 
@@ -45,7 +45,11 @@ The UI will be cut off if you hold your phone in landscape mode.
 
 The autosave file might be corrupted. Open the browser console (hit `F12`) and run this command `editor.clearAutosave()` to remove your autosave file.
 
-## Future Enahancements
+### Why does this tool exist?
+
+This tool exists to help Animal Crossing New Horizons fans customize their island as much as they want! I recommend you run this tool once your at your island and your just before the naming ceremony (as were planning to add a name generator to HID!).
+
+## Future Enhancements
 
 * Choose from multiple starting templates
 * All the icons
@@ -65,4 +69,8 @@ I am in dire need of icons for all the buildings/plants. If any of you have nice
 ### Maps
 
 People could help me by recreating these [24 maps](https://i.imgur.com/ltSsS3Q.jpg) and sending me the map data, either by sending me a non-compressed version of the image file or pressing '/' and grabbing the map data that will be output in the browser console. Then I can offer all of these templates in that menu.
+
+### Credits
+
+(in beta)
 
