@@ -10,6 +10,8 @@ Once I saw that you could customize your island in the AC direct, I was inspired
 
 Click here for [technical details](/README-technical.md).
 
+Click here for [local development info](/README-localdev).
+
 ## Features
 
 * autosave
