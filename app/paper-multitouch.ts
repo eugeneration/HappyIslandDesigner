@@ -80,7 +80,7 @@ export function multitouch() {
         const gestureData = getTwoFingerGestureData(
           ev,
           ev.targetTouches[0],
-          ev.targetTouches[1]
+          ev.targetTouches[1],
         );
         gestureCache = {
           start: gestureData,
@@ -112,7 +112,7 @@ export function multitouch() {
         const gestureData = getTwoFingerGestureData(
           ev,
           ev.targetTouches[0],
-          ev.targetTouches[1]
+          ev.targetTouches[1],
         );
         gestureCache = {
           start: gestureData,
@@ -165,14 +165,14 @@ export function multitouch() {
         if (delta1 && delta2) {
           const pan = new Point(
             delta1.clientX + delta2.clientX,
-            delta1.clientY + delta2.clientY
+            delta1.clientY + delta2.clientY,
           );
 
           // TODO: verify that the finger identifiers are the same!
           const gestureData = getTwoFingerGestureData(
             ev,
             fingerData1.touch,
-            fingerData2.touch
+            fingerData2.touch,
           );
 
           // calculate the difference between current touch values and the start values
@@ -189,8 +189,8 @@ export function multitouch() {
           paper.view.scale(
             1 + scalingDelta,
             paper.view.viewToProject(
-              new Point(gestureCache.prev.centerX, gestureCache.prev.centerY)
-            )
+              new Point(gestureCache.prev.centerX, gestureCache.prev.centerY),
+            ),
           );
         }
       }
@@ -199,7 +199,7 @@ export function multitouch() {
       for (var i = 0; i < ev.changedTouches.length; i++) {
         tpCache[ev.changedTouches[i].identifier].prev = getFingerData(
           ev,
-          ev.changedTouches[i]
+          ev.changedTouches[i],
         );
       }
     }

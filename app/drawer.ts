@@ -1,4 +1,6 @@
 import paper from 'paper';
+import animatePaper from 'paper-animate';
+
 import { EventEmitter } from './EventEmitter';
 import { template } from './template';
 import { AsyncObjectDefinition } from './helpers/AsyncObjectDefinition';
@@ -305,13 +307,10 @@ export function drawer() {
   function createMenu(items, options) {
     const itemsCount = Object.keys(items).length;
     const spacing = options.spacing == null ? 50 : options.spacing;
-    const perColumn =
-      options.perColumn == null ? itemsCount : options.perColumn;
-    const extraColumns =
-      options.extraColumns == null ? 0 : options.extraColumns;
+    const perColumn = options.perColumn == null ? itemsCount : options.perColumn;
+    const extraColumns = options.extraColumns == null ? 0 : options.extraColumns;
     const extraRows = options.extraRows == null ? 0 : options.extraRows;
-    const columnSpacing =
-      options.columnSpacing == null ? 60 : options.columnSpacing;
+    const columnSpacing = options.columnSpacing == null ? 60 : options.columnSpacing;
     const horizontal = options.horizontal == null ? false : options.horizontal;
     const noPointer = options.noPointer == null ? false : options.noPointer;
     const margin = options.margin == null ? 35 : options.margin;
@@ -322,20 +321,19 @@ export function drawer() {
 
     const menuLongPosition = -margin;
     const menuShortPosition = -0.5 * columnSpacing;
-    const menuLongDimension =
-      2 * margin + spacing * (perColumn - 1 + extraRows);
+    const menuLongDimension = 2 * margin + spacing * (perColumn - 1 + extraRows);
     const menuShortDimension = columnSpacing * columns;
     const backing = new paper.Path.Rectangle(
       new paper.Rectangle(
         horizontal ? menuLongPosition : menuShortPosition,
         horizontal ? menuShortPosition : menuLongPosition,
         horizontal ? menuLongDimension : menuShortDimension,
-        horizontal ? menuShortDimension : menuLongDimension
+        horizontal ? menuShortDimension : menuLongDimension,
       ),
       new paper.Size(
         Math.min(columnSpacing / 2, 30),
-        Math.min(columnSpacing / 2, 30)
-      )
+        Math.min(columnSpacing / 2, 30),
+      ),
     );
     backing.fillColor = colors.paper.color;
 
@@ -358,7 +356,7 @@ export function drawer() {
       const buttonShortDimension = columnSpacing * (column + extraColumns);
       item.position = new paper.Point(
         horizontal ? buttonLongDimension : buttonShortDimension,
-        horizontal ? buttonShortDimension : buttonLongDimension
+        horizontal ? buttonShortDimension : buttonLongDimension,
       );
       iconMenu.addChild(item);
       i++;
@@ -405,11 +403,11 @@ export function drawer() {
           brushPreview.segments = brushSegments;
           brushPreview.bounds.height = Math.min(
             30,
-            5 * brushPreview.bounds.height
+            5 * brushPreview.bounds.height,
           );
           brushPreview.bounds.width = Math.min(
             30,
-            5 * brushPreview.bounds.width
+            5 * brushPreview.bounds.width,
           );
           brushPreview.position = new paper.Point(0, 0);
         }
@@ -461,7 +459,7 @@ export function drawer() {
         0,
         backingWidth,
         153,
-        backingWidth / 2
+        backingWidth / 2,
       );
       brushSizeBacking.strokeColor = colors.paperOverlay2.color;
       brushSizeBacking.strokeWidth = 2;
@@ -472,7 +470,7 @@ export function drawer() {
         0,
         backingWidth,
         82,
-        backingWidth / 2
+        backingWidth / 2,
       );
       brushLineBacking.strokeColor = colors.paperOverlay2.color;
       brushLineBacking.strokeWidth = 2;
@@ -513,9 +511,7 @@ export function drawer() {
 
   function decodeObjectGroups(objectGroups, encodingVersion) {
     if (encodingVersion == 0) {
-      return objectMap(objectGroups, (encodedData) =>
-        decodeObject(encodedData, version)
-      );
+      return objectMap(objectGroups, (encodedData) => decodeObject(encodedData, version));
     }
 
     const objects = {};
@@ -531,7 +527,7 @@ export function drawer() {
             type,
             position: [positionArray[i], positionArray[i + 1]],
           },
-          encodingVersion
+          encodingVersion,
         );
       }
     });
@@ -546,13 +542,12 @@ export function drawer() {
     };
     // for legacy or renamed objects, rename them
     if (
-      toolCategoryDefinition[encodedData.category].tools &&
-      toolCategoryDefinition[encodedData.category].tools.value
+      toolCategoryDefinition[encodedData.category].tools
+      && toolCategoryDefinition[encodedData.category].tools.value
     ) {
-      const objectDefinition =
-        toolCategoryDefinition[encodedData.category].tools.value[
-          objectData.type
-        ];
+      const objectDefinition = toolCategoryDefinition[encodedData.category].tools.value[
+        objectData.type
+      ];
       if (objectDefinition.legacy) {
         objectData.type = objectDefinition.legacy;
       }
@@ -605,7 +600,7 @@ export function drawer() {
 
     const bound = new paper.Path.Rectangle(
       new paper.Rectangle(item.position, objectDefinition.size),
-      new paper.Size(0.15, 0.15)
+      new paper.Size(0.15, 0.15),
     );
     bound.strokeColor = 'white';
     bound.strokeColor.alpha = 0;
@@ -787,10 +782,8 @@ export function drawer() {
       const prevTool = this.activeTool;
       this.activeTool = toolData;
       this.toolMap[toolData.type] = toolData;
-      if (prevTool)
-        prevTool.definition.updateTool(prevTool, toolData, isToolTypeSwitch);
-      else if (toolData)
-        toolData.definition.updateTool(prevTool, toolData, isToolTypeSwitch);
+      if (prevTool) prevTool.definition.updateTool(prevTool, toolData, isToolTypeSwitch);
+      else if (toolData) toolData.definition.updateTool(prevTool, toolData, isToolTypeSwitch);
     },
     deleteSelection() {
       Object.keys(this.selected).forEach((objectId) => {
@@ -846,8 +839,7 @@ export function drawer() {
         const isActive = this.isCanvasFocused && !this.isSomethingSelected();
         if (this.toolIsActive != isActive) {
           this.toolIsActive = isActive;
-          if (this.activeTool)
-            this.activeTool.definition.enablePreview(isActive);
+          if (this.activeTool) this.activeTool.definition.enablePreview(isActive);
         }
       }
     },
@@ -875,7 +867,7 @@ export function drawer() {
   //  cloudLayer.scale(2, paper.view.projectToView(new paper.Point(0, 0)));
   //  cloudLayer.bounds.topLeft = paper.view.projectToView(new paper.Point(0, 0));
   function onFrame() {
-    if (!view.matrix.equals(prevViewMatrix)) {
+    if (!paper.view.matrix.equals(prevViewMatrix)) {
       const inverted = paper.view.matrix.inverted();
       backgroundLayer.matrix = inverted;
 
@@ -918,8 +910,7 @@ export function drawer() {
   tool.onMouseDown = function onMouseDown(event) {
     if (isSpaceDown) return;
     toolState.onDown(event);
-    if (toolState.toolIsActive)
-      toolState.activeTool.definition.onMouseDown(event);
+    if (toolState.toolIsActive) toolState.activeTool.definition.onMouseDown(event);
   };
   tool.onMouseMove = function onMouseMove(event) {
     if (toolState.toolIsActive) {
@@ -928,25 +919,23 @@ export function drawer() {
   };
   tool.onMouseDrag = function onMouseDrag(event) {
     if (isSpaceDown) return;
-    if (toolState.toolIsActive)
-      toolState.activeTool.definition.onMouseDrag(event);
+    if (toolState.toolIsActive) toolState.activeTool.definition.onMouseDrag(event);
   };
   tool.onMouseUp = function onMouseUp(event) {
     if (isSpaceDown) return;
     toolState.onUp(event);
-    if (toolState.toolIsActive)
-      toolState.activeTool.definition.onMouseUp(event);
+    if (toolState.toolIsActive) toolState.activeTool.definition.onMouseUp(event);
   };
 
   function drawBackground() {
     const topLeft = new paper.Point(0, 0); // + paper.view.bounds.topLeft;
     const center = new paper.Point(
       paper.view.bounds.width,
-      (paper.view.bounds.height * paper.view.scaling.y) / 2
+      (paper.view.bounds.height * paper.view.scaling.y) / 2,
     ); // + paper.view.bounds.topLeft * 2;
     const bottomRight = new paper.Point(
       paper.view.bounds.width * paper.view.scaling.x,
-      paper.view.bounds.height * paper.view.scaling.y
+      paper.view.bounds.height * paper.view.scaling.y,
     ); // + paper.view.bounds.topLeft * 2;
 
     backgroundRect.segments = [
@@ -954,7 +943,7 @@ export function drawer() {
       new paper.Point(paper.view.size.width * paper.view.scaling.x, 0),
       new paper.Point(
         paper.view.size.width * paper.view.scaling.x,
-        paper.view.size.height * paper.view.scaling.y
+        paper.view.size.height * paper.view.scaling.y,
       ),
       new paper.Point(0, paper.view.size.height * paper.view.scaling.y),
     ];
@@ -972,9 +961,8 @@ export function drawer() {
       return undefined;
     }
 
-    const confirmationMessage =
-      'It looks like you have been editing something. ' +
-      'If you leave before saving, your changes will be lost.';
+    const confirmationMessage = 'It looks like you have been editing something. '
+      + 'If you leave before saving, your changes will be lost.';
     (e || window.event).returnValue = confirmationMessage; // Gecko + IE
     return confirmationMessage; // Gecko + Webkit, Safari, Chrome etc.
   });
@@ -982,7 +970,7 @@ export function drawer() {
   function downloadText(filename, text) {
     downloadDataURL(
       filename,
-      `data:text/plain;charset=utf-8,${encodeURIComponent(text)}`
+      `data:text/plain;charset=utf-8,${encodeURIComponent(text)}`,
     );
   }
 
@@ -1006,7 +994,7 @@ export function drawer() {
       return true;
     }
     console.log(
-      'Cannot autosave: your browser does not support local storage.'
+      'Cannot autosave: your browser does not support local storage.',
     );
     return false;
   }
@@ -1042,7 +1030,7 @@ export function drawer() {
 
     const iconsRaster = mapIconLayer.rasterize();
     const iconsPositionDelta = mapIconLayer.globalToLocal(
-      mapIconLayer.bounds.topLeft
+      mapIconLayer.bounds.topLeft,
     );
 
     const gridClone = gridRaster.clone();
@@ -1058,7 +1046,7 @@ export function drawer() {
     mapBoundsClippingMask.clipMask = true;
 
     const text = new paper.PointText(
-      mapBounds.bottomRight - new paper.Point(2, 2)
+      mapBounds.bottomRight - new paper.Point(2, 2),
     );
     text.justification = 'right';
     text.content = 'made at eugeneration.github.io/HappyIslandDesigner';
@@ -1111,7 +1099,7 @@ export function drawer() {
         const filename = `HappyIslandDesigner_${Date.now()}.png`;
         downloadDataURL(filename, mapRasterData);
       },
-      false
+      false,
     );
 
     autosaveMap();
@@ -1148,7 +1136,7 @@ export function drawer() {
 
             setNewMapData(map);
           },
-          false
+          false,
         );
       };
       reader.readAsDataURL(file);
@@ -1178,7 +1166,7 @@ export function drawer() {
       false,
       false,
       0,
-      null
+      null,
     );
     elem.dispatchEvent(eventMouse);
   }
@@ -1190,14 +1178,12 @@ export function drawer() {
   // selectedColor: string
 
   function createButton(item, buttonSize, onClick, options?: any) {
-    const highlightedColor =
-      !options || options.highlightedColor == null
-        ? colors.sand.color
-        : options.highlightedColor;
-    const selectedColor =
-      !options || options.selectedColor == null
-        ? colors.npc.color
-        : options.selectedColor;
+    const highlightedColor = !options || options.highlightedColor == null
+      ? colors.sand.color
+      : options.highlightedColor;
+    const selectedColor = !options || options.selectedColor == null
+      ? colors.npc.color
+      : options.selectedColor;
 
     const group = new paper.Group();
 
@@ -1207,17 +1193,16 @@ export function drawer() {
     group.addChildren([button, item]);
 
     function updateColor() {
-      button.fillColor =
-        group.data.selected || group.data.pressed
-          ? selectedColor
-          : highlightedColor;
+      button.fillColor = group.data.selected || group.data.pressed
+        ? selectedColor
+        : highlightedColor;
       button.fillColor.alpha = group.data.selected
         ? 1
         : group.data.pressed
-        ? 0.5
-        : group.data.hovered
-        ? 1
-        : 0.0001;
+          ? 0.5
+          : group.data.hovered
+            ? 1
+            : 0.0001;
     }
     updateColor();
 
@@ -1284,11 +1269,11 @@ export function drawer() {
     const topLeft = new paper.Point(0, 0); // + paper.view.bounds.topLeft;
     const center = new paper.Point(
       (paper.view.bounds.width * paper.view.scaling.x) / 2,
-      (paper.view.bounds.height * paper.view.scaling.y) / 2
+      (paper.view.bounds.height * paper.view.scaling.y) / 2,
     ); // + paper.view.bounds.topLeft * 2;
     const bottomRight = new paper.Point(
       paper.view.bounds.width * paper.view.scaling.x,
-      paper.view.bounds.height * paper.view.scaling.y
+      paper.view.bounds.height * paper.view.scaling.y,
     ); // + paper.view.bounds.topLeft * 2;
 
     modalLayer.activate();
@@ -1296,7 +1281,7 @@ export function drawer() {
     const group = new paper.Group();
 
     const darkFill = new paper.Path.Rectangle(
-      new paper.Rectangle(topLeft, bottomRight)
+      new paper.Rectangle(topLeft, bottomRight),
     );
     darkFill.fillColor = colors.offBlack.color;
     darkFill.fillColor.alpha = 0.3;
@@ -1307,9 +1292,9 @@ export function drawer() {
         center.x - width / 2,
         center.y - height / 2,
         width,
-        height
+        height,
       ),
-      new paper.Size(60, 60)
+      new paper.Size(60, 60),
     );
     modal.fillColor = colors.paper.color;
     modal.onMouseEnter = function (event) {
@@ -1334,11 +1319,11 @@ export function drawer() {
       const topLeft = new paper.Point(0, 0); // + paper.view.bounds.topLeft;
       const center = new paper.Point(
         (paper.view.bounds.width * paper.view.scaling.x) / 2,
-        (paper.view.bounds.height * paper.view.scaling.y) / 2
+        (paper.view.bounds.height * paper.view.scaling.y) / 2,
       ); // + paper.view.bounds.topLeft * 2;
       const bottomRight = new paper.Point(
         paper.view.bounds.width * paper.view.scaling.x,
-        paper.view.bounds.height * paper.view.scaling.y
+        paper.view.bounds.height * paper.view.scaling.y,
       ); // + paper.view.bounds.topLeft * 2;
 
       // var topLeft = paper.view.viewToProject(paper.view.projectToView(new paper.Point(0, 0)));// + paper.view.bounds.topLeft;
@@ -1351,7 +1336,7 @@ export function drawer() {
     });
 
     const text = new paper.PointText(
-      new paper.Point(group.data.width / 2, -50)
+      new paper.Point(group.data.width / 2, -50),
     );
     text.justification = 'center';
     (text.content = name), (text.fontSize = 20);
@@ -1365,7 +1350,7 @@ export function drawer() {
     modalContents.addChild(statusBar);
 
     const time = new paper.PointText(
-      new paper.Point(group.data.width / 2, -90)
+      new paper.Point(group.data.width / 2, -90),
     );
     time.justification = 'center';
     time.fontSize = 12;
@@ -1405,56 +1390,54 @@ export function drawer() {
       helpText.fontSize = 16;
       helpText.fontFamily = 'TTNorms, sans-serif';
       helpText.fillColor = colors.oceanText.color;
-      helpText.content =
-        'space+drag\n' +
-        'alt+scroll\n' +
-        '\\\n' +
-        'shift+drag\n' +
-        '[ ]\n' +
-        'p\n' +
-        'alt+click\n' +
-        'delete\n' +
-        'ctrl + z\n' +
-        'ctrl + y\n' +
-        '\n' +
-        'v\n' +
-        'b\n' +
-        'n\n' +
-        'm\n' +
-        '\n' +
-        'ctrl + s\n' +
-        'ctrl + o\n' +
-        'esc\n' +
-        '?\n' +
-        '';
+      helpText.content = 'space+drag\n'
+        + 'alt+scroll\n'
+        + '\\\n'
+        + 'shift+drag\n'
+        + '[ ]\n'
+        + 'p\n'
+        + 'alt+click\n'
+        + 'delete\n'
+        + 'ctrl + z\n'
+        + 'ctrl + y\n'
+        + '\n'
+        + 'v\n'
+        + 'b\n'
+        + 'n\n'
+        + 'm\n'
+        + '\n'
+        + 'ctrl + s\n'
+        + 'ctrl + o\n'
+        + 'esc\n'
+        + '?\n'
+        + '';
 
       const helpText2 = new paper.PointText(new paper.Point(100, -10));
       helpText2.justification = 'left';
       helpText2.fontSize = 16;
       helpText2.fontFamily = 'TTNorms, sans-serif';
       helpText2.fillColor = colors.text.color;
-      helpText2.content =
-        'pan\n' +
-        'zoom\n' +
-        'toggle grid\n' +
-        'draw line\n' +
-        'adjust brush size\n' +
-        'square/circle brush\n' +
-        'color pick\n' +
-        'delete selection\n' +
-        'undo\n' +
-        'redo\n' +
-        '\n' +
-        'terrain tool \n' +
-        'path tool\n' +
-        'building tool\n' +
-        'amenities tool\n' +
-        '\n' +
-        'save\n' +
-        'open map file\n' +
-        'main menu\n' +
-        'hotkeys\n' +
-        '';
+      helpText2.content = 'pan\n'
+        + 'zoom\n'
+        + 'toggle grid\n'
+        + 'draw line\n'
+        + 'adjust brush size\n'
+        + 'square/circle brush\n'
+        + 'color pick\n'
+        + 'delete selection\n'
+        + 'undo\n'
+        + 'redo\n'
+        + '\n'
+        + 'terrain tool \n'
+        + 'path tool\n'
+        + 'building tool\n'
+        + 'amenities tool\n'
+        + '\n'
+        + 'save\n'
+        + 'open map file\n'
+        + 'main menu\n'
+        + 'hotkeys\n'
+        + '';
 
       const helpTextRaster = helpText.rasterize();
       const helpText2Raster = helpText2.rasterize();
@@ -1463,7 +1446,7 @@ export function drawer() {
 
       const versionCode = new paper.PointText(
         helpMenu.data.width / 2,
-        helpMenu.data.height
+        helpMenu.data.height,
       );
       versionCode.justification = 'center';
       versionCode.fontSize = 12;
@@ -1499,7 +1482,7 @@ export function drawer() {
         img,
         index,
         onMouseDown: () => void,
-        onMouseEnter?: () => void
+        onMouseEnter?: () => void,
       ) {
         const buttonGroup = new paper.Group();
 
@@ -1509,7 +1492,7 @@ export function drawer() {
 
         const hitTarget = new paper.Path.Rectangle(
           button.position - hitSizeHalf,
-          hitSize
+          hitSize,
         );
         hitTarget.fillColor = colors.invisible.color;
 
@@ -1577,7 +1560,7 @@ export function drawer() {
         0,
         () => {
           saveMapToFile();
-        }
+        },
       );
       const loadButton = createMenuButton(
         'Load Map',
@@ -1585,7 +1568,7 @@ export function drawer() {
         1,
         () => {
           loadMapFromFile();
-        }
+        },
       );
       const newButton = createMenuButton(
         'New Map',
@@ -1593,13 +1576,13 @@ export function drawer() {
         2,
         () => {
           const r = confirm(
-            'Clear your map? You will lose all unsaved changes.'
+            'Clear your map? You will lose all unsaved changes.',
           );
           if (r == true) {
             loadTemplate();
           } else {
           }
-        }
+        },
       );
 
       const twitterButton = createMenuButton(
@@ -1608,7 +1591,7 @@ export function drawer() {
         0,
         () => {
           window.open('https://twitter.com/island_designer', '_blank');
-        }
+        },
       );
       twitterButton.position = new paper.Point(0, 210);
 
@@ -1674,7 +1657,7 @@ export function drawer() {
       margin: 23,
       horizontal: true,
       noPointer: true,
-    }
+    },
   );
 
   function undoMenuButton(path, onPress) {
@@ -1693,9 +1676,8 @@ export function drawer() {
     positionUndoMenu();
   });
   function positionUndoMenu() {
-    undoMenu.position =
-      new paper.Point(paper.view.bounds.width * paper.view.scaling.x, 0) +
-      new paper.Point(-50, 30);
+    undoMenu.position = new paper.Point(paper.view.bounds.width * paper.view.scaling.x, 0)
+      + new paper.Point(-50, 30);
   }
   positionUndoMenu();
 
@@ -1754,7 +1736,7 @@ export function drawer() {
       extraObject() {
         const baseGround = new paper.Path.Rectangle(
           new paper.Rectangle(0, 0, 12, 10),
-          new paper.Size(1, 1)
+          new paper.Size(1, 1),
         );
         baseGround.fillColor = colors.campground.color;
         baseGround.position = new paper.Point(1, 7);
@@ -1770,7 +1752,7 @@ export function drawer() {
       extraObject() {
         const baseGround = new paper.Path.Rectangle(
           new paper.Rectangle(0, 0, 12, 10),
-          new paper.Size(1, 1)
+          new paper.Size(1, 1),
         );
         baseGround.fillColor = colors.townsquare.color;
         baseGround.position = new paper.Point(3, 5);
@@ -1985,8 +1967,7 @@ export function drawer() {
     def.scaling = def.scaling || new paper.Point(0.029, 0.029);
     def.menuScaling = def.menuScaling || new paper.Point(0.18, 0.18);
     def.size = def.size;
-    def.offset =
-      def.offset || new paper.Point(-def.size.width / 2, -def.size.height);
+    def.offset = def.offset || new paper.Point(-def.size.width / 2, -def.size.height);
     def.onSelect = function (isSelected) {};
     // imnmediately load the assets
     if (def.img) {
@@ -2060,9 +2041,8 @@ export function drawer() {
     def.scaling = def.scaling || new paper.Point(0.014, 0.014);
     def.menuScaling = def.menuScaling || new paper.Point(0.2, 0.2);
     def.size = new paper.Size(1, 1);
-    def.offset =
-      def.offset ||
-      new paper.Point(-def.size.width / 2, -def.size.height + 0.2);
+    def.offset = def.offset
+      || new paper.Point(-def.size.width / 2, -def.size.height + 0.2);
     def.onSelect = function (isSelected) {};
     // imnmediately load the assets
     if (def.svg) {
@@ -2154,9 +2134,8 @@ export function drawer() {
     def.scaling = def.scaling || new paper.Point(0.016, 0.016);
     def.menuScaling = def.menuScaling || new paper.Point(0.65, 0.65);
     def.size = new paper.Size(1, 1);
-    def.offset =
-      def.offset ||
-      new paper.Point(-def.size.width / 2, -def.size.height + 0.2);
+    def.offset = def.offset
+      || new paper.Point(-def.size.width / 2, -def.size.height + 0.2);
     def.onSelect = function (isSelected) {};
     if (def.img) {
       const img = new paper.Raster(def.img);
@@ -2315,9 +2294,8 @@ export function drawer() {
       }
     },
     updateTool(subclass, prevToolData, nextToolData, isToolTypeSwitch) {
-      const sameToolType =
-        prevToolData &&
-        prevToolData.definition.type === nextToolData.definition.type;
+      const sameToolType = prevToolData
+        && prevToolData.definition.type === nextToolData.definition.type;
       if (!sameToolType) {
         if (prevToolData) {
           prevToolData.definition.onSelect(false);
@@ -2328,24 +2306,20 @@ export function drawer() {
         prevToolData.definition.onSelect(true, true);
       }
       {
-        const prevTool =
-          prevToolData && prevToolData.tool ? prevToolData.tool.type : null;
-        const nextTool =
-          nextToolData && nextToolData.tool ? nextToolData.tool.type : null;
+        const prevTool = prevToolData && prevToolData.tool ? prevToolData.tool.type : null;
+        const nextTool = nextToolData && nextToolData.tool ? nextToolData.tool.type : null;
         const sameTool = sameToolType && prevTool === nextTool;
         if (!sameTool) {
-          if (prevToolData && prevToolData.tool && prevToolData.tool.onSelect)
-            prevToolData.tool.onSelect(false);
-          if (nextToolData && nextToolData.tool && nextToolData.tool.onSelect)
-            nextToolData.tool.onSelect(true);
+          if (prevToolData && prevToolData.tool && prevToolData.tool.onSelect) prevToolData.tool.onSelect(false);
+          if (nextToolData && nextToolData.tool && nextToolData.tool.onSelect) nextToolData.tool.onSelect(true);
           // todo: decouple view from logic
           if (
-            subclass.iconMenu &&
-            (nextToolData.type == 'structures' ||
-              nextToolData.type == 'amenities' ||
-              nextToolData.type == 'construction' ||
-              nextToolData.type == 'tree' ||
-              nextToolData.type == 'flower')
+            subclass.iconMenu
+            && (nextToolData.type == 'structures'
+              || nextToolData.type == 'amenities'
+              || nextToolData.type == 'construction'
+              || nextToolData.type == 'tree'
+              || nextToolData.type == 'flower')
           ) {
             subclass.iconMenu.data.update(nextTool);
             updateObjectPreview();
@@ -2403,11 +2377,11 @@ export function drawer() {
               icon.scaling = def.menuScaling;
               return createButton(icon, 20, (event, button) => {
                 toolState.switchTool(
-                  toolState.toolMapValue(categoryDefinition, def, {})
+                  toolState.toolMapValue(categoryDefinition, def, {}),
                 );
               });
             }),
-            this.menuOptions
+            this.menuOptions,
           );
           this.iconMenu.data.setPointer(this.yPos);
           this.iconMenu.pivot = new paper.Point(0, 0);
@@ -2507,7 +2481,7 @@ export function drawer() {
               const colorData = colors[colorKey];
               const paintCircle = new paper.Path.Circle(
                 new paper.Point(0, 0),
-                16
+                16,
               );
               paintCircle.fillColor = colorData.color;
               paintCircle.locked = true;
@@ -2516,7 +2490,7 @@ export function drawer() {
                 this.data.paintColorData = colorData;
               });
             }),
-            { spacing: 45, extraColumns: 1 }
+            { spacing: 45, extraColumns: 1 },
           );
           this.iconMenu.data.setPointer(60);
           this.iconMenu.pivot = new paper.Point(0, 0);
@@ -2581,14 +2555,14 @@ export function drawer() {
               if (colorKey == colors.pathEraser.key) {
                 buttonIcon = new paper.Group();
                 const eraserImg = new paper.Raster(
-                  `${imgPath + toolPrefix}eraser.png`
+                  `${imgPath + toolPrefix}eraser.png`,
                 );
                 eraserImg.scaling = new paper.Point(0.35, 0.35);
                 buttonIcon.addChildren([eraserImg]);
               } else {
                 const paintCircle = new paper.Path.Circle(
                   new paper.Point(0, 0),
-                  16
+                  16,
                 );
                 paintCircle.fillColor = colorData.color;
                 paintCircle.locked = true;
@@ -2599,7 +2573,7 @@ export function drawer() {
                 updatePaintColor(colorData);
                 this.data.paintColorData = colorData;
               });
-            }
+            },
           );
           this.iconMenu = createMenu(pathColorButtons, {
             spacing: 45,
@@ -2717,7 +2691,7 @@ export function drawer() {
   });
   addToLeftToolMenu(); // spacer
 
-  var toolBtn = new paper.Raster(`${imgPath}menu-help.png`);
+  const toolBtn = new paper.Raster(`${imgPath}menu-help.png`);
   toolBtn.scaling = new paper.Point(0.3, 0.3);
   toolBtn.position = new paper.Point(0, 4);
   const button = createButton(toolBtn, 20, () => {});
@@ -2745,9 +2719,9 @@ export function drawer() {
 
     // todo: separate viewfrom logic
     if (
-      (toolState.activeTool &&
-        toolState.activeTool.type == toolCategoryDefinition.terrain.type) ||
-      toolState.activeTool.type == toolCategoryDefinition.path.type
+      (toolState.activeTool
+        && toolState.activeTool.type == toolCategoryDefinition.terrain.type)
+      || toolState.activeTool.type == toolCategoryDefinition.path.type
     ) {
       if (toolState.activeTool.definition.iconMenu) {
         let toolCategory;
@@ -2985,8 +2959,7 @@ export function drawer() {
         } else {
           p = new paper.CompoundPath({
             children: pathData.map(
-              (pathData) =>
-                new paper.Path(pathData.map((p) => new paper.Point(p)))
+              (pathData) => new paper.Path(pathData.map((p) => new paper.Point(p))),
             ),
           });
         }
@@ -2996,7 +2969,7 @@ export function drawer() {
       } else {
         p = new paper.CompoundPath({
           children: pathData.map(
-            (pathData) => new paper.Path(decodePath(pathData))
+            (pathData) => new paper.Path(decodePath(pathData)),
           ),
         });
       }
@@ -3115,7 +3088,7 @@ export function drawer() {
       const objectData = getObjectData(toolState.activeTool.tool);
       const command = objectCreateCommand(
         objectData,
-        getObjectCenteredCoordinate(coordinate, toolState.activeTool.tool)
+        getObjectCenteredCoordinate(coordinate, toolState.activeTool.tool),
       );
       applyCommand(command, true);
       addToHistory(command);
@@ -3150,7 +3123,7 @@ export function drawer() {
 
   function dropObject(coordinate, object, prevPos) {
     addToHistory(
-      objectPositionCommand(object.data.id, prevPos, object.position)
+      objectPositionCommand(object.data.id, prevPos, object.position),
     );
   }
 
@@ -3200,10 +3173,9 @@ export function drawer() {
   // };
   resizeCoordinates();
 
-  const mapRatio =
-    (horizontalBlocks * horizontalDivisions) /
-    (verticalBlocks * verticalDivisions) /
-    verticalRatio;
+  const mapRatio = (horizontalBlocks * horizontalDivisions)
+    / (verticalBlocks * verticalDivisions)
+    / verticalRatio;
   function resizeCoordinates() {
     const screenRatio = paper.view.size.width / paper.view.size.height;
     const horizontallyContrained = screenRatio <= mapRatio;
@@ -3264,7 +3236,7 @@ export function drawer() {
   function mapToView(canvasCoordinate) {
     return new paper.Point(
       remapInvX(canvasCoordinate.x),
-      remapInvY(canvasCoordinate.y)
+      remapInvY(canvasCoordinate.y),
     );
   }
 
@@ -3287,7 +3259,7 @@ export function drawer() {
       var line = createGridLine(
         i,
         true,
-        i != 0 && i % horizontalDivisions == 0
+        i != 0 && i % horizontalDivisions == 0,
       );
       grid.push(line);
     }
@@ -3301,7 +3273,7 @@ export function drawer() {
     for (var i = 0; i < horizontalBlocks; i++) {
       var gridLabel = new paper.PointText(
         (i + 0.5) * horizontalDivisions,
-        verticalBlocks * verticalDivisions + 4
+        verticalBlocks * verticalDivisions + 4,
       );
       gridLabel.justification = 'center';
       gridLabel.fontFamily = 'TTNorms, sans-serif';
@@ -3314,7 +3286,7 @@ export function drawer() {
     for (var i = 0; i < verticalBlocks; i++) {
       var gridLabel = new paper.PointText(
         -4,
-        (i + 0.5) * verticalDivisions + 1
+        (i + 0.5) * verticalDivisions + 1,
       );
       gridLabel.justification = 'center';
       gridLabel.fontFamily = 'TTNorms, sans-serif';
@@ -3337,23 +3309,23 @@ export function drawer() {
     const gridNegativeMarginBottom = blockEdge ? 4 : 0;
     const segment = horizontal
       ? [
-          new paper.Point(i, -gridNegativeMarginTop),
-          new paper.Point(
-            i,
-            verticalBlocks * verticalDivisions +
-              gridNegativeMarginTop +
-              gridNegativeMarginBottom
-          ),
-        ]
+        new paper.Point(i, -gridNegativeMarginTop),
+        new paper.Point(
+          i,
+          verticalBlocks * verticalDivisions
+              + gridNegativeMarginTop
+              + gridNegativeMarginBottom,
+        ),
+      ]
       : [
-          new paper.Point(-gridNegativeMarginLeft, i),
-          new paper.Point(
-            horizontalBlocks * horizontalDivisions +
-              gridNegativeMarginLeft +
-              gridNegativeMarginRight,
-            i
-          ),
-        ];
+        new paper.Point(-gridNegativeMarginLeft, i),
+        new paper.Point(
+          horizontalBlocks * horizontalDivisions
+              + gridNegativeMarginLeft
+              + gridNegativeMarginRight,
+          i,
+        ),
+      ];
 
     line = new paper.Path(segment);
     line.strokeColor = '#ffffff';
@@ -3413,9 +3385,7 @@ export function drawer() {
   setBrushLineForce(false);
 
   function cycleBrushHead() {
-    const heads = Object.keys(brushTypes).sort((a, b) =>
-      a == b ? 0 : a < b ? -1 : 1
-    );
+    const heads = Object.keys(brushTypes).sort((a, b) => (a == b ? 0 : a < b ? -1 : 1));
     const index = heads.indexOf(brushType);
     brushType = heads[(index + 1) % heads.length];
     updateBrush();
@@ -3426,19 +3396,20 @@ export function drawer() {
     const sizeX = objectDefinition.size.width / 2;
     const sizeY = objectDefinition.size.height / 2;
     return (
-      rawCoordinate -
-      new paper.Point(sizeX, sizeY) +
-      new paper.Point(0.5, 0.5)
+      rawCoordinate
+      - new paper.Point(sizeX, sizeY)
+      + new paper.Point(0.5, 0.5)
     ).floor();
   }
 
   function getBrushCenteredCoordinate(rawCoordinate: paper.Point): paper.Point {
     // hack for even sized brushes
-    if (brushSize % 2 == 0)
+    if (brushSize % 2 == 0) {
       return (
-        (rawCoordinate + new paper.Point(0.5, 0.5)).floor() -
-        new paper.Point(0.5, 0.5)
+        (rawCoordinate + new paper.Point(0.5, 0.5)).floor()
+        - new paper.Point(0.5, 0.5)
       );
+    }
     return rawCoordinate.floor();
   }
 
@@ -3513,11 +3484,12 @@ export function drawer() {
     brushOutline.position = coordinate;
     brush.position = getBrushCenteredCoordinate(coordinate);
 
-    if (objectPreview)
+    if (objectPreview) {
       objectPreview.position = getObjectCenteredCoordinate(
         coordinate,
-        objectPreview.definition
+        objectPreview.definition,
       );
+    }
     if (objectPreviewOutline) objectPreviewOutline.position = coordinate;
   }
 
@@ -3792,8 +3764,8 @@ export function drawer() {
       var bestColor;
 
       if (
-        toolState.activeTool.type == toolCategoryDefinition.terrain.type ||
-        toolState.activeTool.type == toolCategoryDefinition.path.type
+        toolState.activeTool.type == toolCategoryDefinition.terrain.type
+        || toolState.activeTool.type == toolCategoryDefinition.path.type
       ) {
         var bestColor = colors.water;
 
@@ -3801,8 +3773,7 @@ export function drawer() {
         Object.keys(state.drawing).forEach((colorKey) => {
           let toolCategory;
 
-          const definition =
-            layerDefinition[colorKey] || pathDefinition[colorKey];
+          const definition = layerDefinition[colorKey] || pathDefinition[colorKey];
           if (!definition) {
             console.log('Unknown color in drawing!');
             return;
@@ -3865,17 +3836,16 @@ export function drawer() {
     // go backwards so when I add indices I don't affect the index order
     for (let i = path.segments.length - 1; i >= 0; i--) {
       const p0 = path.segments[i];
-      const p1 =
-        path.segments[(i - 1 + path.segments.length) % path.segments.length];
+      const p1 = path.segments[(i - 1 + path.segments.length) % path.segments.length];
       const normal = path.clockwise
         ? new paper.Point(
-            p0.point.y - p1.point.y,
-            p1.point.x - p0.point.x
-          ).normalize()
+          p0.point.y - p1.point.y,
+          p1.point.x - p0.point.x,
+        ).normalize()
         : new paper.Point(
-            p1.point.y - p0.point.y,
-            p0.point.x - p1.point.x
-          ).normalize();
+          p1.point.y - p0.point.y,
+          p0.point.x - p1.point.x,
+        ).normalize();
       const dot = normal.dot(sweepDirection);
 
       if (dot > 0) {
@@ -3977,14 +3947,14 @@ export function drawer() {
             if (prevDelta != null && delta != prevDelta) {
               path = getDrawPath(prevDrawCoordinate);
               drawPaths.push(
-                sweepPath(path, prevDrawLineCoordinate - prevDrawCoordinate)
+                sweepPath(path, prevDrawLineCoordinate - prevDrawCoordinate),
               );
               prevDrawLineCoordinate = prevDrawCoordinate;
             }
             prevDelta = delta;
           }
           prevDrawCoordinate = p;
-        }
+        },
       );
       path = getDrawPath(p);
       drawPaths.push(sweepPath(path, prevDrawLineCoordinate - p));
@@ -4001,7 +3971,7 @@ export function drawer() {
             drawPaths.push(getDrawPath(p));
             prevDrawCoordinate = p;
           }
-        }
+        },
       );
     }
     let linePath;
@@ -4080,7 +4050,7 @@ export function drawer() {
       mergedDiff[k] = {
         isAdd: diffCollection[k].isAdd,
         path: uniteCompoundPath(
-          new paper.CompoundPath({ children: diffCollection[k].path })
+          new paper.CompoundPath({ children: diffCollection[k].path }),
         ),
       };
     });
@@ -4141,14 +4111,16 @@ export function drawer() {
     }
 
     const editLayers = {};
-    if (definition.addLayers)
+    if (definition.addLayers) {
       definition.addLayers.forEach((colorKey) => {
         editLayers[colorKey] = true;
       });
-    if (definition.cutLayers)
+    }
+    if (definition.cutLayers) {
       definition.cutLayers.forEach((colorKey) => {
         editLayers[colorKey] = false;
       });
+    }
 
     const diff = {};
     Object.keys(editLayers).forEach((colorKey) => {
@@ -4180,51 +4152,45 @@ export function drawer() {
   function correctPath(path, receivingPath) {
     path.segments.forEach((segment) => {
       const { point } = segment;
-      const isSegmentInvalid =
-        getDistanceFromWholeNumber(point.x) > 0.1 ||
-        getDistanceFromWholeNumber(point.y) > 0.1;
+      const isSegmentInvalid = getDistanceFromWholeNumber(point.x) > 0.1
+        || getDistanceFromWholeNumber(point.y) > 0.1;
       if (!isSegmentInvalid) return;
 
-      const prevIndex =
-        (segment.index - 1 + path.segments.length) % path.segments.length;
+      const prevIndex = (segment.index - 1 + path.segments.length) % path.segments.length;
       const nextIndex = (segment.index + 1) % path.segments.length;
       const prevPoint = path.segments[prevIndex].point;
       const nextPoint = path.segments[nextIndex].point;
 
       // todo: this assumes the problem point is always at .5, which may not be true in degenerate cases
-      const possiblePoint1 =
-        point -
-        new paper.Point(
+      const possiblePoint1 = point
+        - new paper.Point(
           0.5 * Math.sign(prevPoint.x - point.x),
-          0.5 * Math.sign(prevPoint.y - point.y)
+          0.5 * Math.sign(prevPoint.y - point.y),
         );
-      const possiblePoint2 =
-        point -
-        new paper.Point(
+      const possiblePoint2 = point
+        - new paper.Point(
           0.5 * Math.sign(nextPoint.x - point.x),
-          0.5 * Math.sign(nextPoint.y - point.y)
+          0.5 * Math.sign(nextPoint.y - point.y),
         );
 
       if (
         pointApproximates(
           receivingPath.getNearestPoint(possiblePoint1),
-          possiblePoint1
+          possiblePoint1,
         )
       ) {
-        var crossPoint =
-          possiblePoint2 -
-          new paper.Point(
+        var crossPoint = possiblePoint2
+          - new paper.Point(
             Math.sign(possiblePoint2.x - point.x),
-            Math.sign(possiblePoint2.y - point.y)
+            Math.sign(possiblePoint2.y - point.y),
           );
         path.insert(nextIndex, crossPoint);
         segment.point = possiblePoint1;
       } else {
-        var crossPoint =
-          possiblePoint1 -
-          new paper.Point(
+        var crossPoint = possiblePoint1
+          - new paper.Point(
             Math.sign(possiblePoint1.x - point.x),
-            Math.sign(possiblePoint1.y - point.y)
+            Math.sign(possiblePoint1.y - point.y),
           );
         path.insert(prevIndex + 1, crossPoint);
         segment.point = possiblePoint2;

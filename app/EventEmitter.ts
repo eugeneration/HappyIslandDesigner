@@ -2,6 +2,7 @@ type Callback = (data?: any) => void;
 
 export class EventEmitter {
   callbacks: Record<string, Callback[]> = {};
+
   constructor() {}
 
   on(event: string, cb: Callback) {
@@ -10,7 +11,7 @@ export class EventEmitter {
   }
 
   emit(event: string, data?: any) {
-    let cbs = this.callbacks[event];
+    const cbs = this.callbacks[event];
     if (cbs) {
       cbs.forEach((cb) => cb(data));
     }

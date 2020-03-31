@@ -5,7 +5,7 @@ export function doForCellsOnLinePerInterval(
   x1,
   y1,
   interval,
-  setPixel
+  setPixel,
 ) {
   if (Math.abs(x0 - x1) + Math.abs(y0 - y1) < 0.2) {
     setPixel(x0, y0);

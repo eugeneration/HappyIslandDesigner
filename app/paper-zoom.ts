@@ -9,8 +9,7 @@
 view.on('twofingermove', (event) => {
   changeZoomCentered(event.deltaScale * 500, event.center);
   view.center = view.viewToProject(
-    view.projectToView(view.center)
-      .subtract(event.deltaPosition),
+    view.projectToView(view.center).subtract(event.deltaPosition),
   );
 });
 
@@ -38,13 +37,9 @@ function onMiddleClickDown(event) {
   console.log(event);
 }
 
-function onMiddleClickDrag(event) {
+function onMiddleClickDrag(event) {}
 
-}
-
-function onMiddleClickUp(event) {
-
-}
+function onMiddleClickUp(event) {}
 
 let isSpaceDown = false;
 let mouseNativeStart = null;
@@ -78,8 +73,7 @@ view.on('mousedrag', (event) => {
     // Move into view coordinates to subract delta,
     //  then back into project coords.
     view.center = view.viewToProject(
-      view.projectToView(viewCenterStart)
-        .subtract(nativeDelta),
+      view.projectToView(viewCenterStart).subtract(nativeDelta),
     );
   }
 });
@@ -95,11 +89,17 @@ view.on('mouseup', (event) => {
 setZoomRange([view.size * 2, view.size * 0.05]);
 
 function changeCenterPosition(deltaX, deltaY, factor) {
-  view.center += new Point(deltaX, -deltaY) * factor / view.zoom;
+  view.center += (new Point(deltaX, -deltaY) * factor) / view.zoom;
   // limit movement
   view.center = new Point(
-    Math.min(Math.max(view.center.x, view.scaling.x * view.bounds.width * 0), view.scaling.x * view.bounds.width),
-    Math.min(Math.max(view.center.y, view.scaling.y * view.bounds.height * 0), view.scaling.y * view.bounds.height),
+    Math.min(
+      Math.max(view.center.x, view.scaling.x * view.bounds.width * 0),
+      view.scaling.x * view.bounds.width,
+    ),
+    Math.min(
+      Math.max(view.center.y, view.scaling.y * view.bounds.height * 0),
+      view.scaling.y * view.bounds.height,
+    ),
   );
 }
 
@@ -107,14 +107,18 @@ function setZoomRange(range /* paper.Size[] */) /* number[] */ {
   const { view } = project;
   const aSize = range.shift();
   const bSize = range.shift();
-  const a = aSize && Math.min(
-    view.bounds.height / aSize.height,
-    view.bounds.width / aSize.width,
-  );
-  const b = bSize && Math.min(
-    view.bounds.height / bSize.height,
-    view.bounds.width / bSize.width,
-  );
+  const a =
+    aSize &&
+    Math.min(
+      view.bounds.height / aSize.height,
+      view.bounds.width / aSize.width,
+    );
+  const b =
+    bSize &&
+    Math.min(
+      view.bounds.height / bSize.height,
+      view.bounds.width / bSize.width,
+    );
   const min = Math.min(a, b);
   if (min) {
     _minZoom = min;
@@ -154,9 +158,7 @@ function changeZoomCentered(delta, mousePos) {
   const viewPos = view.viewToProject(mousePos);
 
   const factor = 1 + Math.abs(delta) / 500;
-  let newZoom = delta > 0
-    ? view.zoom * factor
-    : view.zoom / factor;
+  let newZoom = delta > 0 ? view.zoom * factor : view.zoom / factor;
   newZoom = setZoomConstrained(newZoom);
 
   if (!newZoom) {
@@ -165,7 +167,8 @@ function changeZoomCentered(delta, mousePos) {
 
   const zoomScale = oldZoom / newZoom;
   const centerAdjust = viewPos.subtract(oldCenter);
-  const offset = viewPos.subtract(centerAdjust.multiply(zoomScale))
+  const offset = viewPos
+    .subtract(centerAdjust.multiply(zoomScale))
     .subtract(oldCenter);
 
   view.center = view.center.add(offset);
