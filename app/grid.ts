@@ -6,6 +6,7 @@ import {
   horizontalDivisions,
 } from './constants';
 import { colors } from './colors';
+import { layers } from './layers';
 
 // ===============================================
 // GRID overlay
@@ -27,23 +28,23 @@ function createGridLine(i, horizontal, blockEdge) {
   const gridNegativeMarginBottom = blockEdge ? 4 : 0;
   const segment = horizontal
     ? [
-      new paper.Point(i, -gridNegativeMarginTop),
-      new paper.Point(
-        i,
-        verticalBlocks * verticalDivisions
-            + gridNegativeMarginTop
-            + gridNegativeMarginBottom,
-      ),
-    ]
+        new paper.Point(i, -gridNegativeMarginTop),
+        new paper.Point(
+          i,
+          verticalBlocks * verticalDivisions +
+            gridNegativeMarginTop +
+            gridNegativeMarginBottom,
+        ),
+      ]
     : [
-      new paper.Point(-gridNegativeMarginLeft, i),
-      new paper.Point(
-        horizontalBlocks * horizontalDivisions
-            + gridNegativeMarginLeft
-            + gridNegativeMarginRight,
-        i,
-      ),
-    ];
+        new paper.Point(-gridNegativeMarginLeft, i),
+        new paper.Point(
+          horizontalBlocks * horizontalDivisions +
+            gridNegativeMarginLeft +
+            gridNegativeMarginRight,
+          i,
+        ),
+      ];
 
   const line = new paper.Path(segment);
   line.strokeColor = new paper.Color('#ffffff');
@@ -54,11 +55,8 @@ function createGridLine(i, horizontal, blockEdge) {
   return line;
 }
 
-export function createGrid(
-  mapOverlayLayer: paper.Layer,
-  mapLayer: paper.Layer,
-) {
-  mapOverlayLayer.activate();
+export function createGrid() {
+  layers.mapOverlayLayer.activate();
   if (gridRaster) gridRaster.remove();
   const grid: paper.Path[] = [];
   for (let i = 0; i < horizontalBlocks * horizontalDivisions; i++) {
@@ -108,6 +106,86 @@ export function createGrid(
 
   gridRaster = gridGroup.rasterize(paper.view.resolution * 10);
   gridGroup.remove();
-  mapLayer.activate();
+  layers.mapLayer.activate();
   gridRaster.locked = true;
+}
+
+// todo: merge this with the other preview code
+let drawPreview;
+function drawGridLinePreview(viewPosition) {
+  const rawCoordinate = new paper.Point(
+    layers.mapLayer.globalToLocal(viewPosition),
+  );
+  const coordinate = getBrushCenteredCoordinate(rawCoordinate);
+
+  layers.mapLayer.activate();
+  if (drawPreview) {
+    drawPreview.remove();
+  }
+  if (startGridCoordinate == null) startDrawGrid(viewPosition);
+  drawPreview = drawLine(coordinate, startGridCoordinate);
+  if (drawPreview) {
+    drawPreview.locked = true;
+    drawPreview.opacity = 0.6;
+    drawPreview.fillColor = paintColor.color;
+  }
+}
+
+function stopGridLinePreview() {
+  if (drawPreview) drawPreview.remove();
+}
+
+function startDrawGrid(viewPosition) {
+  layers.mapLayer.activate();
+  let coordinate = new paper.Point(layers.mapLayer.globalToLocal(viewPosition));
+  coordinate = getBrushCenteredCoordinate(coordinate);
+  startGridCoordinate = coordinate;
+  prevGridCoordinate = coordinate;
+  drawGrid(viewPosition);
+}
+
+function drawGrid(viewPosition) {
+  layers.mapLayer.activate();
+  const rawCoordinate = new paper.Point(
+    layers.mapLayer.globalToLocal(viewPosition),
+  );
+  const coordinate = getBrushCenteredCoordinate(rawCoordinate);
+
+  if (prevGridCoordinate == null) startDrawGrid(viewPosition);
+  const path = drawLine(coordinate, prevGridCoordinate);
+  if (path) {
+    const diff = getDiff(path, paintColor.key);
+
+    Object.keys(diff).forEach((colorKey) => {
+      const colorDiff = diff[colorKey];
+      if (!diffCollection.hasOwnProperty(colorKey)) {
+        diffCollection[colorKey] = { isAdd: colorDiff.isAdd, path: [] };
+      }
+      diffCollection[colorKey].path.push(colorDiff.path);
+      if (diffCollection[colorKey].isAdd != colorDiff.isAdd) {
+        console.error(`Simultaneous add and remove for ${colorKey}`);
+      }
+    });
+    applyDiff(true, diff);
+  }
+
+  prevGridCoordinate = coordinate;
+}
+
+function endDrawGrid(viewPosition) {
+  const mergedDiff = {};
+  prevGridCoordinate = null;
+  startGridCoordinate = null;
+  Object.keys(diffCollection).forEach((k) => {
+    mergedDiff[k] = {
+      isAdd: diffCollection[k].isAdd,
+      path: uniteCompoundPath(
+        new paper.CompoundPath({ children: diffCollection[k].path }),
+      ),
+    };
+  });
+  diffCollection = {};
+  if (Object.keys(mergedDiff).length > 0) {
+    addToHistory(drawCommand(mergedDiff));
+  }
 }

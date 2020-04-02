@@ -1,7 +1,8 @@
 /* eslint-disable no-case-declarations */
 import paper from 'paper';
 import { emitter } from './emitter';
-import { init } from './init';
+import { colors } from './colors';
+import { toolState } from './tools/state';
 
 function centerBrushOffset(width, height) {
   return new paper.Point(width * 0.5 * cellWidth, height * 0.5 * cellHeight);
@@ -23,6 +24,7 @@ const brushSweep = true;
 const brushLine = false;
 let brushLineForce = false;
 let brushType = brushTypes.rounded;
+let paintColor = colors.level1;
 
 export function initBrush() {
   brush = new paper.Path();
@@ -32,15 +34,6 @@ export function initBrush() {
 export function setBrushLineForce(isLine) {
   brushLineForce = isLine;
   emitter.emit('updateBrushLineForce', brushLineForce);
-}
-
-export function cycleBrushHead() {
-  const heads = Object.keys(brushTypes).sort((a, b) =>
-    a == b ? 0 : a < b ? -1 : 1,
-  );
-  const index = heads.indexOf(brushType);
-  brushType = heads[(index + 1) % heads.length];
-  updateBrush();
 }
 
 function getObjectCenteredCoordinate(
@@ -99,7 +92,7 @@ export function updateObjectPreview() {
 }
 
 export function updateCoordinateLabel(event) {
-  const coordinate = mapOverlayLayer.globalToLocal(event.point);
+  const coordinate = layers.mapOverlayLayer.globalToLocal(event.point);
   // coordinateLabel.content = '' + event.point + '\n' + coordinate.toString();
   // coordinateLabel.position = rawCoordinate;
 
@@ -186,6 +179,33 @@ function getBrushSegments(size) {
   }
 }
 
+export function updatePaintColor(colorData) {
+  paintColor = colorData;
+  brush.fillColor = colorData.color;
+  // activeColor.fillColor = paintColor;
+
+  // todo: separate viewfrom logic
+  if (
+    (toolState.activeTool &&
+      toolState.activeTool.type === toolCategoryDefinition.terrain.type) ||
+    toolState.activeTool.type === toolCategoryDefinition.path.type
+  ) {
+    if (toolState.activeTool.definition.iconMenu) {
+      let toolCategory;
+      if (layerDefinition[colorData.key]) {
+        toolCategory = toolCategoryDefinition.terrain.type;
+      } else if (pathDefinition[colorData.key]) {
+        toolCategory = toolCategoryDefinition.path.type;
+      }
+      if (toolState.activeTool.type !== toolCategory) {
+        toolState.switchToolType(toolCategory);
+      }
+
+      toolState.activeTool.definition.iconMenu.data.update(colorData.key);
+    }
+  }
+}
+
 export function updateBrush() {
   brushSegments = getBrushSegments(brushSize);
 
@@ -208,6 +228,15 @@ export function updateBrush() {
   brushOutline.locked = true;
 
   emitter.emit('updateBrush');
+}
+
+export function cycleBrushHead() {
+  const heads = Object.keys(brushTypes).sort((a, b) =>
+    a == b ? 0 : a < b ? -1 : 1,
+  );
+  const index = heads.indexOf(brushType);
+  brushType = heads[(index + 1) % heads.length];
+  updateBrush();
 }
 
 export function decrementBrush() {

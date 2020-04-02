@@ -1,9 +1,12 @@
+import { emitter } from './emitter';
+
 /* eslint-disable default-case */
 export type State = {
   index: number;
   history: any[];
   drawing: Record<string, paper.Path>;
   objects: Record<string, any>;
+  actionsSinceSave: number;
 };
 
 export const state: State = {
@@ -12,10 +15,10 @@ export const state: State = {
   history: [],
   drawing: {},
   objects: {},
+  actionsSinceSave: 0,
 };
 
 const maxHistoryIndex = 99; // max length is one greater than this
-let actionsSinceSave = 0;
 let actionsCount = 0;
 const autosaveActionsInterval = 20;
 const autosaveInactivityTimer = 10000;
@@ -144,7 +147,7 @@ export function addToHistory(command) {
 
   // autosave
   actionsCount += 1;
-  actionsSinceSave += 1;
+  state.actionsSinceSave += 1;
   clearTimeout(autosaveTimeout);
   if (actionsCount % autosaveActionsInterval === 0) {
     // every few actions

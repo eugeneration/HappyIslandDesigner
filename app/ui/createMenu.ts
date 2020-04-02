@@ -1,6 +1,6 @@
 import paper from 'paper';
-import { colors } from './colors';
-import { objectMap } from './helpers/objectMap';
+import { colors } from '../colors';
+import { objectMap } from '../helpers/objectMap';
 
 export type Options = {
   columnSpacing?: number;
@@ -19,7 +19,8 @@ export function createMenu(items, options: Options): paper.Group {
   const perColumn = options.perColumn == null ? itemsCount : options.perColumn;
   const extraColumns = options.extraColumns == null ? 0 : options.extraColumns;
   const extraRows = options.extraRows == null ? 0 : options.extraRows;
-  const columnSpacing = options.columnSpacing == null ? 60 : options.columnSpacing;
+  const columnSpacing =
+    options.columnSpacing == null ? 60 : options.columnSpacing;
   const horizontal = options.horizontal == null ? false : options.horizontal;
   const noPointer = options.noPointer == null ? false : options.noPointer;
   const margin = options.margin == null ? 35 : options.margin;
