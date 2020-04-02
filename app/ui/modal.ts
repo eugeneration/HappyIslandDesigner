@@ -74,9 +74,9 @@ export function renderModal(
       paper.view.bounds.height * paper.view.scaling.y,
     ); // + paper.view.bounds.topLeft * 2;
 
-    // var topLeft = paper.view.viewToProject(paper.view.projectToView(new paper.Point(0, 0)));// + paper.view.bounds.topLeft;
-    // var center = paper.view.viewToProject(paper.view.projectToView(new paper.Point(paper.view.bounds.width / 2, paper.view.bounds.height / 2)));// + paper.view.bounds.topLeft * 2;
-    // var bottomRight = paper.view.viewToProject(paper.view.projectToView(new paper.Point(paper.view.bounds.width, paper.view.bounds.height)));// + paper.view.bounds.topLeft * 2;
+    // let topLeft = paper.view.viewToProject(paper.view.projectToView(new paper.Point(0, 0)));// + paper.view.bounds.topLeft;
+    // let center = paper.view.viewToProject(paper.view.projectToView(new paper.Point(paper.view.bounds.width / 2, paper.view.bounds.height / 2)));// + paper.view.bounds.topLeft * 2;
+    // let bottomRight = paper.view.viewToProject(paper.view.projectToView(new paper.Point(paper.view.bounds.width, paper.view.bounds.height)));// + paper.view.bounds.topLeft * 2;
 
     darkFill.bounds = new paper.Rectangle(topLeft, bottomRight);
     modal.position = center;

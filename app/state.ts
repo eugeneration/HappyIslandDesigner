@@ -1,4 +1,7 @@
 import { emitter } from './emitter';
+import { applyCreateObject } from './ui/createObject';
+import { applyMoveCommand } from './paint';
+import { autosaveMap } from './save';
 
 /* eslint-disable default-case */
 export type State = {
@@ -48,7 +51,7 @@ export function canUndo() {
   return state == null ? 0 : state.index >= 0;
 }
 
-function applyCommand(command, isApply) {
+export function applyCommand(command, isApply) {
   if (isApply == null) {
     throw 'exception: applyCommand called without an apply direction';
   }

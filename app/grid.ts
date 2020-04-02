@@ -5,11 +5,13 @@ import {
   horizontalBlocks,
   horizontalDivisions,
 } from './constants';
-import { colors } from './colors';
-import { layers } from './layers';
 import { addToHistory, drawCommand } from './state';
-import { getCurrentPaintColor } from './brush';
+import { colors } from './colors';
+import { drawLine } from './paint';
+import { getCurrentPaintColor, getBrushCenteredCoordinate } from './brush';
+import { layers } from './layers';
 import { uniteCompoundPath } from './helpers/unitCompoundPath';
+import { getDiff } from './helpers/getDiff';
 
 // ===============================================
 // GRID overlay
@@ -129,7 +131,10 @@ export function drawGrid(viewPosition) {
   );
   const coordinate = getBrushCenteredCoordinate(rawCoordinate);
 
-  if (prevGridCoordinate == null) startDrawGrid(viewPosition);
+  if (prevGridCoordinate == null) {
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    startDrawGrid(viewPosition);
+  }
   const path = drawLine(coordinate, prevGridCoordinate);
   if (path) {
     const diff = getDiff(path, getCurrentPaintColor().key);
@@ -140,7 +145,7 @@ export function drawGrid(viewPosition) {
         diffCollection[colorKey] = { isAdd: colorDiff.isAdd, path: [] };
       }
       diffCollection[colorKey].path.push(colorDiff.path);
-      if (diffCollection[colorKey].isAdd != colorDiff.isAdd) {
+      if (diffCollection[colorKey].isAdd !== colorDiff.isAdd) {
         console.error(`Simultaneous add and remove for ${colorKey}`);
       }
     });

@@ -96,14 +96,14 @@ export function multitouch() {
 
       // Finish all paths
       myPaths = [];
-      for (var i = 0; i < 12; i++) {
+      for (let i = 0; i < 12; i++) {
         const myPath = new Path();
         myPath.strokeColor = new Color(0, 1, 0);
         myPath.strokeWidth = 2;
         myPaths.push(myPath);
       }
 
-      for (var i = 0; i < ev.changedTouches.length; i++) {
+      for (let i = 0; i < ev.changedTouches.length; i++) {
         const delta = getDeltaStart(getFingerData(ev, ev.changedTouches[i]));
         delete tpCache[ev.changedTouches[i].identifier];
       }
@@ -133,9 +133,9 @@ export function multitouch() {
       ev.preventDefault();
 
       // Draw path for each touch
-      for (var i = 0; i < ev.changedTouches.length; i++) {
-        var x1;
-        var y1;
+      for (let i = 0; i < ev.changedTouches.length; i++) {
+        let x1;
+        let y1;
         x1 = ev.changedTouches[i].pageX;
         y1 = ev.changedTouches[i].pageY;
 
@@ -176,7 +176,8 @@ export function multitouch() {
           );
 
           // calculate the difference between current touch values and the start values
-          const scalePixelChange = gestureData.distance - gestureCache.prev.distance;
+          const scalePixelChange =
+            gestureData.distance - gestureCache.prev.distance;
           const angleChange = gestureData.angle - gestureCache.prev.angle;
 
           // calculate how much this should affect the actual object
@@ -195,7 +196,7 @@ export function multitouch() {
       }
       //    console.log(ev);
 
-      for (var i = 0; i < ev.changedTouches.length; i++) {
+      for (let i = 0; i < ev.changedTouches.length; i++) {
         tpCache[ev.changedTouches[i].identifier].prev = getFingerData(
           ev,
           ev.changedTouches[i],

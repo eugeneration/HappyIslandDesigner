@@ -452,9 +452,9 @@ export function init() {
   flowerDef.load();
 
   // function squircle (size){ // squircle=square+circle
-  //  var hsize = size / 2; // half size
+  //  let hsize = size / 2; // half size
   //
-  //  var squircle = new paper.Path();
+  //  let squircle = new paper.Path();
   //
   //  squircle.add(
   //    new Segment(new paper.Point(0,0), new paper.Point(0,0), new paper.Point(0,hsize)),
@@ -467,16 +467,16 @@ export function init() {
   //  return squircle;
   // }
   // layers.fixedLayer.activate();
-  // var box = squircle(100);
+  // let box = squircle(100);
   // box.fillColor = colors.npc;
   // box.position = new paper.Point(300, 300);
   // box.selected = true;
   //
-  // var d = new paper.Path.Rectangle(300, 300, 10, 10);
+  // let d = new paper.Path.Rectangle(300, 300, 10, 10);
   // d.fillColor = colors.npc;
 
-  // var activeToolIndicator = new paper.Path.Rectangle(0, 100, 5, 40);
-  // var activeToolIndicator = new paper.Path.Circle(30, 120, 20);
+  // let activeToolIndicator = new paper.Path.Rectangle(0, 100, 5, 40);
+  // let activeToolIndicator = new paper.Path.Circle(30, 120, 20);
   // activeToolIndicator.fillColor = colors.npc;
 
   Object.keys(toolCategoryDefinition).forEach((toolType) => {

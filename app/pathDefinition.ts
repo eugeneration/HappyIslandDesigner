@@ -5,6 +5,7 @@ export const pathDefinition: {
     priority?: number;
     addLayers?: Color['key'][];
     cutLayers: Color['key'][];
+    requireLayer?: Color['key'];
   };
 } = {};
 

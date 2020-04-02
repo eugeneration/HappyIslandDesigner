@@ -90,11 +90,12 @@ export function deleteObject(event, object) {
   addToHistory(command);
 }
 
-function applyCreateObject(isCreate, createCommand) {
+let atomicObjectId = 0;
+export function applyCreateObject(isCreate, createCommand) {
   if (isCreate) {
     createObjectAsync(createCommand.data, (object) => {
       object.position = createCommand.position;
-      object.data.id = atomicObjectId++;
+      object.data.id = atomicObjectId += 1;
       // immediately grab the structure with the start position of creation
       state.objects[object.data.id] = object;
     });
@@ -132,7 +133,7 @@ export function createObject(objectDefinition, itemData) {
     addToHistory(command);
   };
   group.showDeleteButton = function (show) {
-    var { deleteButton } = group.data;
+    const { deleteButton } = group.data;
 
     if (show && deleteButton == null) {
       const icon = new paper.Raster('static/img/ui-x.png');
@@ -144,7 +145,7 @@ export function createObject(objectDefinition, itemData) {
         group.onDelete();
         event.stopPropagation();
       });
-      var deleteButton = new paper.Group();
+      const deleteButton = new paper.Group();
       deleteButton.applyMatrix = false;
       deleteButton.addChildren([buttonBacking, button]);
       group.addChild(deleteButton);

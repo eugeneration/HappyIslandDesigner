@@ -11,5 +11,8 @@ module.exports = {
     'no-param-reassign': ['error', { props: false }],
     'default-case': 'off',
     'no-case-declarations': 'off',
+    'prefer-destructuring': 'off',
+    'operator-linebreak': 'off',
+    'func-names': 'off',
   },
 };

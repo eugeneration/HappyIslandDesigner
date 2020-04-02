@@ -68,7 +68,7 @@ export function setBrushLineForce(isLine) {
   emitter.emit('updateBrushLineForce', brushLineForce);
 }
 
-function getObjectCenteredCoordinate(
+export function getObjectCenteredCoordinate(
   rawCoordinate: paper.Point,
   objectDefinition,
 ) {
@@ -81,7 +81,9 @@ function getObjectCenteredCoordinate(
     .floor();
 }
 
-function getBrushCenteredCoordinate(rawCoordinate: paper.Point): paper.Point {
+export function getBrushCenteredCoordinate(
+  rawCoordinate: paper.Point,
+): paper.Point {
   // hack for even sized brushes
   if (brushSize % 2 === 0) {
     return rawCoordinate
@@ -263,9 +265,7 @@ export function updateBrush() {
 }
 
 export function cycleBrushHead() {
-  const heads = Object.keys(brushTypes).sort((a, b) =>
-    a == b ? 0 : a < b ? -1 : 1,
-  );
+  const heads = Object.keys(brushTypes).sort((a, b) => (a == b ? 0 : a < b ? -1 : 1));
   const index = heads.indexOf(brushType);
   brushType = heads[(index + 1) % heads.length];
   updateBrush();

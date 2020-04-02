@@ -9,7 +9,6 @@ function createMenuButton(
   img: string,
   index: number,
   onMouseDown: () => void,
-  onMouseEnter?: () => void,
 ) {
   const buttonGroup = new paper.Group();
 
@@ -30,11 +29,11 @@ function createMenuButton(
   buttonGroup.addChildren([hitTarget, button]);
   buttonGroup.position = new paper.Point(20 + index * 70, 0);
 
-  buttonGroup.onMouseDown = function (event) {
+  buttonGroup.onMouseDown = function () {
     onMouseDown();
   };
 
-  buttonGroup.onMouseEnter = function (event) {
+  buttonGroup.onMouseEnter = function () {
     mainMenu.data.text.content = name;
 
     button.position = new paper.Point(0, 0);
@@ -69,7 +68,7 @@ function createMenuButton(
       },
     ]);
   };
-  buttonGroup.onMouseLeave = function (event) {
+  buttonGroup.onMouseLeave = function () {
     button.animate({
       properties: {
         scale: 1,
