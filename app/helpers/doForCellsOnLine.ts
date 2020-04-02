@@ -14,7 +14,9 @@ export function doForCellsOnLine(
   while (true) {
     setPixel(x0, y0); // Do what you need to for this
 
-    if (x0 === x1 && y0 === y1) break;
+    if (x0 === x1 && y0 === y1) {
+      break;
+    }
     const e2 = 2 * err;
     if (e2 > -dy) {
       err -= dy;

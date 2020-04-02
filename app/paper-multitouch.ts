@@ -176,8 +176,7 @@ export function multitouch() {
           );
 
           // calculate the difference between current touch values and the start values
-          const scalePixelChange =
-            gestureData.distance - gestureCache.prev.distance;
+          const scalePixelChange = gestureData.distance - gestureCache.prev.distance;
           const angleChange = gestureData.angle - gestureCache.prev.angle;
 
           // calculate how much this should affect the actual object

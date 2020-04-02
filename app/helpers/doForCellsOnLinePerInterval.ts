@@ -14,7 +14,7 @@ export function doForCellsOnLinePerInterval(
 
   let p0 = new paper.Point(x0, y0);
   const p1 = new paper.Point(x1, y1);
-  const delta = p1 - p0;
+  const delta = p1.subtract(p0);
   const slope = delta.normalize() * interval;
 
   let prevCellPoint = null;

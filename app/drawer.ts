@@ -1,11 +1,43 @@
 import paper from 'paper';
 import animatePaper from 'paper-animate';
 
-import { EventEmitter } from './EventEmitter';
 import { template } from './template';
-import { AsyncObjectDefinition } from './helpers/AsyncObjectDefinition';
 import { objectMap } from './helpers/objectMap';
 import { doForCellsOnLine } from './helpers/doForCellsOnLine';
+import { createGrid, toggleGrid, getGridRaster } from './grid';
+import { getColorDataFromEncodedName, colors } from './colors';
+import { layerDefinition } from './layerDefinition';
+import {
+  horizontalBlocks,
+  horizontalDivisions,
+  verticalBlocks,
+  verticalDivisions,
+  verticalRatio,
+} from './constants';
+import { pathDefinition } from './pathDefinition';
+import * as structureDef from './tools/structure';
+import * as amenitiesDef from './tools/amenities';
+import * as constructionDef from './tools/construction';
+import * as treeDef from './tools/tree';
+import * as flowerDef from './tools/flower';
+import { sweepPath } from './helpers/sweepPath';
+import { createMenu } from './createMenu';
+import {
+  state,
+  clearMap,
+  setNewMapData,
+  objectCreateCommand,
+  objectDeleteCommand,
+  addToHistory,
+  redo,
+  undo,
+  canUndo,
+  canRedo,
+  objectPositionCommand,
+  drawCommand,
+} from './state';
+import { emitter } from './emitter';
+import { updateBrush, setBrushLineForce, initBrush } from './brush';
 
 const editor = {
   autosaveMap: null,
@@ -32,355 +64,9 @@ export function drawer() {
   mapOverlayLayer.applyMatrix = false;
   mapOverlayLayer.pivot = new paper.Point(0, 0);
 
-  const emitter = new EventEmitter();
-
-  // if you want to rename a color, you must add a name parameter with the old name
-  // otherwise backwards compatibility for encoding/decoding will break
-  const colors: {
-    [key: string]: { color: paper.Color; key: string; name: string };
-  } = {
-    invisible: {
-      color: new paper.Color('rgba(0, 0, 0, 0.00001)'),
-      key: '',
-      name: '',
-    },
-
-    // terrain color
-    water: { color: new paper.Color('#83e1c3'), key: '', name: '' },
-    sand: { color: new paper.Color('#eee9a9'), key: '', name: '' },
-    level1: { color: new paper.Color('#347941'), key: '', name: '' },
-    level2: { color: new paper.Color('#35a043'), key: '', name: '' },
-    level3: { color: new paper.Color('#4ac34e'), key: '', name: '' },
-    rock: { color: new paper.Color('#737a89'), key: '', name: '' },
-    campground: { color: new paper.Color('#b0a280'), key: '', name: '' },
-    townsquare: { color: new paper.Color('#E2AA78'), key: '', name: '' },
-
-    // paths
-    pathDirt: { color: new paper.Color('#d5ac71'), key: '', name: '' },
-    pathSand: { color: new paper.Color('#f9df96'), key: '', name: '' },
-    pathStone: { color: new paper.Color('#999a8c'), key: '', name: '' },
-    pathBrick: { color: new paper.Color('#e38f68'), key: '', name: '' },
-    pathEraser: { color: new paper.Color('#f1b2c1'), key: '', name: '' },
-
-    // structures
-    special: { color: new paper.Color('#ffffff'), key: '', name: '' },
-    dock: { color: new paper.Color('#a9926e'), key: '', name: '' },
-    amenity: { color: new paper.Color('#514d40'), key: '', name: '' },
-    amenityWhite: { color: new paper.Color('#efedd5'), key: '', name: '' },
-    human: { color: new paper.Color('#F078B0'), key: '', name: '' },
-    npc: { color: new paper.Color('#f8bd26'), key: '', name: '' },
-    selected: { color: new paper.Color('#ed772f'), key: '', name: '' },
-    pin: { color: new paper.Color('#e75a2e'), key: '', name: '' },
-
-    // Map drawer UI
-    selection: { color: new paper.Color('#50EEFF'), key: '', name: '' },
-
-    // UI
-    white: { color: new paper.Color('#f9f7ed'), key: '', name: '' },
-    paper: { color: new paper.Color('#f5f3e5'), key: '', name: '' }, // general white
-    paperOverlay: { color: new paper.Color('#ecebd5'), key: '', name: '' },
-    paperOverlay2: { color: new paper.Color('#e4e2d0'), key: '', name: '' },
-
-    // colors from nookPhone (colors are hued towards red/yellow)
-    purple: { color: new paper.Color('#be84f0'), key: '', name: '' },
-    blue: { color: new paper.Color('#8c97ec'), key: '', name: '' },
-    lightBlue: { color: new paper.Color('#b4bdfd'), key: '', name: '' },
-    orange: { color: new paper.Color('#df8670'), key: '', name: '' },
-    magenta: { color: new paper.Color('#f550ab'), key: '', name: '' },
-    pink: { color: new paper.Color('#f09eb3'), key: '', name: '' },
-    cyan: { color: new paper.Color('#63d5bf'), key: '', name: '' },
-    turquoise: { color: new paper.Color('#86e0bb'), key: '', name: '' },
-    green: { color: new paper.Color('#8dd08a'), key: '', name: '' },
-    lime: { color: new paper.Color('#d2e541'), key: '', name: '' },
-    red: { color: new paper.Color('#ee666e'), key: '', name: '' },
-    offBlack: { color: new paper.Color('#4b3b32'), key: '', name: '' },
-    offWhite: { color: new paper.Color('#f6f2e0'), key: '', name: '' },
-    lightText: { color: new paper.Color('#dcd8ca'), key: '', name: '' },
-    text: { color: new paper.Color('#726a5a'), key: '', name: '' },
-    yellow: { color: new paper.Color('#f5d830'), key: '', name: '' },
-    lightYellow: { color: new paper.Color('#f7e676'), key: '', name: '' },
-    lightBrown: { color: new paper.Color('#bfab76'), key: '', name: '' },
-
-    // generic colors
-    firetruck: { color: new paper.Color('#ef3c1d'), key: '', name: '' },
-    flamingo: { color: new paper.Color('#f8ad82'), key: '', name: '' },
-    brick: { color: new paper.Color('#ab4f46'), key: '', name: '' },
-
-    safetyOrange: { color: new paper.Color('#f56745'), key: '', name: '' },
-    lifeguardOrange: { color: new paper.Color('#f59447'), key: '', name: '' },
-
-    frogYellow: { color: new paper.Color('#f7d00e'), key: '', name: '' },
-    lightBannerYellow: { color: new paper.Color('#fdf252'), key: '', name: '' },
-    darkBannerYellow: { color: new paper.Color('#c7b451'), key: '', name: '' },
-
-    tentGreen: { color: new paper.Color('#22b759'), key: '', name: '' },
-    darkBlueGreen: { color: new paper.Color('#11a972'), key: '', name: '' },
-    lightGreen: { color: new paper.Color('#5aeb89'), key: '', name: '' },
-    jaybird: { color: new paper.Color('#42bbf3'), key: '', name: '' },
-
-    darkGreyBlue: { color: new paper.Color('#7c8da6'), key: '', name: '' },
-    lightGreyBlue: { color: new paper.Color('#9cbbce'), key: '', name: '' },
-
-    highlightCircle: { color: new paper.Color('#2adbb8'), key: '', name: '' },
-
-    // Water UI
-    oceanPanel: { color: new paper.Color('#39ba9c'), key: '', name: '' }, // game trailer had this color panel
-    oceanPanelDark: { color: new paper.Color('#39ba9c'), key: '', name: '' },
-    oceanText: { color: new paper.Color('#57b499'), key: '', name: '' }, // text on ocean
-    oceanDarker: { color: new paper.Color('#77d6bd'), key: '', name: '' }, // dark overlay
-    oceanDark: { color: new paper.Color('#70cfb6'), key: '', name: '' }, // dark overlay
-    oceanLighter: { color: new paper.Color('#d7fef1'), key: '', name: '' }, // light overlay
-    oceanLight: { color: new paper.Color('#a3f8dd'), key: '', name: '' }, // light overlay
-    oceanWave: { color: new paper.Color('#63d4b2'), key: '', name: '' },
-  };
-  Object.keys(colors).forEach((colorKey) => {
-    const colorData = colors[colorKey];
-    if (!colorData.name) {
-      // if it has a custom encoded name, make sure to use that
-      colorData.name = colorKey;
-    }
-    colorData.key = colorKey;
-  });
-
-  function getColorDataFromEncodedName(encodedColorName) {
-    if (!encodedColorName) return null;
-    return Object.values(colors).find((c) => c.name == encodedColorName);
-  }
-
-  const pathDefinition = {};
-  pathDefinition[colors.pathDirt.key] = {
-    priority: 100,
-    addLayers: [colors.pathDirt.key],
-    cutLayers: [
-      colors.pathBrick.key,
-      colors.pathSand.key,
-      colors.pathStone.key,
-    ],
-    // requireLayer: colors.sand.key, // sand is always drawn below everything else
-  };
-  pathDefinition[colors.pathStone.key] = {
-    priority: 100,
-    addLayers: [colors.pathStone.key],
-    cutLayers: [colors.pathBrick.key, colors.pathDirt.key, colors.pathSand.key],
-    // requireLayer: colors.sand.key, // sand is always drawn below everything else
-  };
-  pathDefinition[colors.pathBrick.key] = {
-    priority: 100,
-    addLayers: [colors.pathBrick.key],
-    cutLayers: [colors.pathDirt.key, colors.pathSand.key, colors.pathStone.key],
-    // requireLayer: colors.sand.key, // sand is always drawn below everything else
-  };
-  pathDefinition[colors.pathSand.key] = {
-    priority: 100,
-    addLayers: [colors.pathSand.key],
-    cutLayers: [
-      colors.pathBrick.key,
-      colors.pathDirt.key,
-      colors.pathStone.key,
-    ],
-    // requireLayer: colors.sand.key, // sand is always drawn below everything else
-  };
-  pathDefinition[colors.pathEraser.key] = {
-    cutLayers: [
-      colors.pathBrick.key,
-      colors.pathDirt.key,
-      colors.pathSand.key,
-      colors.pathStone.key,
-    ],
-  };
-
-  const layerDefinition = {};
-  // layerDefinition[colors.water] = {
-  //  elevation: -5,
-  //  addLayers: [colors.water],
-  //  cutLayers: [colors.rock],
-  //  limit: true,
-  // };
-  layerDefinition[colors.level3.key] = {
-    priority: 50,
-    elevation: 40,
-    addLayers: [
-      colors.sand.key,
-      colors.level1.key,
-      colors.level2.key,
-      colors.level3.key,
-    ],
-    cutLayers: [colors.rock.key, colors.water.key],
-  };
-  layerDefinition[colors.level2.key] = {
-    priority: 40,
-    elevation: 30,
-    addLayers: [colors.sand.key, colors.level1.key, colors.level2.key],
-    cutLayers: [colors.rock.key, colors.level3.key, colors.water.key],
-  };
-  layerDefinition[colors.level1.key] = {
-    priority: 30,
-    elevation: 20,
-    addLayers: [colors.sand.key, colors.level1.key],
-    cutLayers: [
-      colors.rock.key,
-      colors.level2.key,
-      colors.level3.key,
-      colors.water.key,
-    ],
-  };
-  layerDefinition[colors.rock.key] = {
-    priority: 20,
-    elevation: 5,
-    addLayers: [colors.rock.key, colors.sand.key],
-    cutLayers: [
-      colors.level1.key,
-      colors.level2.key,
-      colors.level3.key,
-      colors.water.key,
-    ],
-  };
-  layerDefinition[colors.sand.key] = {
-    priority: 10,
-    elevation: 10,
-    addLayers: [colors.sand.key],
-    cutLayers: [
-      colors.rock.key,
-      colors.level1.key,
-      colors.level2.key,
-      colors.level3.key,
-      colors.water.key,
-    ],
-  };
-  layerDefinition[colors.water.key] = {
-    priority: 0,
-    elevation: 0,
-    addLayers: [],
-    cutLayers: [
-      colors.sand.key,
-      colors.rock.key,
-      colors.level1.key,
-      colors.level2.key,
-      colors.level3.key,
-      colors.water.key,
-    ],
-  };
-  // layerDefinition[colors.eraser.key] = {
-  //  elevation: 0,
-  //  addLayers: [],
-  //  cutLayers: [colors.sand.key, colors.rock.key, colors.level1.key, colors.level2.key, colors.level3.key, colors.water.key],
-  // };
-
   // load assets
-  const svgPath = 'static/svg/';
   const imgPath = 'static/img/';
-  const treePrefix = 'tree-';
   const toolPrefix = 'tool-';
-  let numSvgToLoad = 0;
-  let numSvgLoaded = 0;
-  function OnLoaded() {
-    numSvgLoaded++;
-    if (numSvgToLoad == numSvgLoaded) {
-      // all done loading
-    }
-  }
-
-  const domParser = new DOMParser();
-  const loadSvg = function (filename, itemCallback) {
-    numSvgToLoad++;
-    paper.project.importSVG(`${svgPath + filename}.svg`, {
-      onLoad(item, svg) {
-        item.remove();
-        item.position = new paper.Point(0, 0);
-        itemCallback(item);
-        OnLoaded();
-      },
-    });
-  };
-
-  // menuOptions
-  // spacing: float
-  // columnSpacing: float
-  // perColumn: int
-  // horizontal: bool
-  // menuWidth: float
-  // noPointer: bool
-  // margin : float
-  // extraColumns: bool
-  // extraRows: bool
-
-  function createMenu(items, options) {
-    const itemsCount = Object.keys(items).length;
-    const spacing = options.spacing == null ? 50 : options.spacing;
-    const perColumn =
-      options.perColumn == null ? itemsCount : options.perColumn;
-    const extraColumns =
-      options.extraColumns == null ? 0 : options.extraColumns;
-    const extraRows = options.extraRows == null ? 0 : options.extraRows;
-    const columnSpacing =
-      options.columnSpacing == null ? 60 : options.columnSpacing;
-    const horizontal = options.horizontal == null ? false : options.horizontal;
-    const noPointer = options.noPointer == null ? false : options.noPointer;
-    const margin = options.margin == null ? 35 : options.margin;
-    let i = 0;
-    const iconMenu = new paper.Group();
-
-    const columns = Math.ceil(itemsCount / perColumn) + extraColumns;
-
-    const menuLongPosition = -margin;
-    const menuShortPosition = -0.5 * columnSpacing;
-    const menuLongDimension =
-      2 * margin + spacing * (perColumn - 1 + extraRows);
-    const menuShortDimension = columnSpacing * columns;
-    const backing = new paper.Path.Rectangle(
-      new paper.Rectangle(
-        horizontal ? menuLongPosition : menuShortPosition,
-        horizontal ? menuShortPosition : menuLongPosition,
-        horizontal ? menuLongDimension : menuShortDimension,
-        horizontal ? menuShortDimension : menuLongDimension,
-      ),
-      new paper.Size(
-        Math.min(columnSpacing / 2, 30),
-        Math.min(columnSpacing / 2, 30),
-      ),
-    );
-    backing.fillColor = colors.paper.color;
-
-    let triangle: paper.Path.RegularPolygon;
-    if (!noPointer) {
-      triangle = new paper.Path.RegularPolygon(new paper.Point(0, 0), 3, 14);
-      triangle.fillColor = colors.paper.color;
-      triangle.rotate(-90);
-      triangle.scale(0.5, 1);
-      // respond to horizontal
-      triangle.position -= new paper.Point(30 + 3.5, 0);
-    } else {
-      triangle = new paper.Path();
-    }
-    iconMenu.addChildren([backing, triangle]);
-
-    const buttonMap = objectMap(items, (item, name) => {
-      const column = Math.floor(i / perColumn);
-      const buttonLongDimension = spacing * (i - column * perColumn);
-      const buttonShortDimension = columnSpacing * (column + extraColumns);
-      item.position = new paper.Point(
-        horizontal ? buttonLongDimension : buttonShortDimension,
-        horizontal ? buttonShortDimension : buttonLongDimension,
-      );
-      iconMenu.addChild(item);
-      i++;
-      return item;
-    });
-
-    iconMenu.data = {
-      buttonMap,
-      update(selectedButton) {
-        Object.keys(buttonMap).forEach((name) => {
-          buttonMap[name].data.select(name == selectedButton);
-        });
-      },
-      setPointer(distance) {
-        triangle.position += new paper.Point(0, distance);
-      },
-    };
-
-    return iconMenu;
-  }
 
   let brushSizeUI;
   function showBrushSizeUI(isShown) {
@@ -421,7 +107,7 @@ export function drawer() {
 
       function brushButton(path, onPress) {
         const icon = new paper.Raster(path);
-        icon.scaling = 0.45;
+        icon.scaling = new paper.Point(0.45, 0.45);
         return createButton(icon, 20, onPress, {
           highlightedColor: colors.paperOverlay.color,
           selectedColor: colors.paperOverlay2.color,
@@ -429,7 +115,7 @@ export function drawer() {
       }
       function brushLineButton(path, onPress) {
         const icon = new paper.Raster(path);
-        icon.scaling = 0.45;
+        icon.scaling = new paper.Point(0.45, 0.45);
         return createButton(icon, 20, onPress, {
           highlightedColor: colors.paperOverlay.color,
           selectedColor: colors.yellow.color,
@@ -801,10 +487,11 @@ export function drawer() {
       const prevTool = this.activeTool;
       this.activeTool = toolData;
       this.toolMap[toolData.type] = toolData;
-      if (prevTool)
+      if (prevTool) {
         prevTool.definition.updateTool(prevTool, toolData, isToolTypeSwitch);
-      else if (toolData)
+      } else if (toolData) {
         toolData.definition.updateTool(prevTool, toolData, isToolTypeSwitch);
+      }
     },
     deleteSelection() {
       Object.keys(this.selected).forEach((objectId) => {
@@ -860,8 +547,9 @@ export function drawer() {
         const isActive = this.isCanvasFocused && !this.isSomethingSelected();
         if (this.toolIsActive != isActive) {
           this.toolIsActive = isActive;
-          if (this.activeTool)
+          if (this.activeTool) {
             this.activeTool.definition.enablePreview(isActive);
+          }
         }
       }
     },
@@ -932,8 +620,9 @@ export function drawer() {
   tool.onMouseDown = function onMouseDown(event) {
     if (isSpaceDown) return;
     toolState.onDown(event);
-    if (toolState.toolIsActive)
+    if (toolState.toolIsActive) {
       toolState.activeTool.definition.onMouseDown(event);
+    }
   };
   tool.onMouseMove = function onMouseMove(event) {
     if (toolState.toolIsActive) {
@@ -942,14 +631,16 @@ export function drawer() {
   };
   tool.onMouseDrag = function onMouseDrag(event) {
     if (isSpaceDown) return;
-    if (toolState.toolIsActive)
+    if (toolState.toolIsActive) {
       toolState.activeTool.definition.onMouseDrag(event);
+    }
   };
   tool.onMouseUp = function onMouseUp(event) {
     if (isSpaceDown) return;
     toolState.onUp(event);
-    if (toolState.toolIsActive)
+    if (toolState.toolIsActive) {
       toolState.activeTool.definition.onMouseUp(event);
+    }
   };
 
   function drawBackground() {
@@ -1061,6 +752,8 @@ export function drawer() {
       mapIconLayer.bounds.topLeft,
     );
 
+    const gridRaster = getGridRaster();
+
     const gridClone = gridRaster.clone();
 
     const mapBounds = gridRaster.bounds.clone();
@@ -1169,7 +862,7 @@ export function drawer() {
       };
       reader.readAsDataURL(file);
     };
-    fileInput = document.createElement('input');
+    const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.style.display = 'none';
     fileInput.onchange = readFile;
@@ -1755,622 +1448,7 @@ export function drawer() {
   // TOOLS
 
   // =======================================
-  // STRUCTURE TOOL
-
-  const asyncAmenitiesDefinition = new AsyncObjectDefinition();
-  asyncAmenitiesDefinition.value = {
-    dock: {
-      colorData: colors.dock,
-      size: new paper.Size(7, 2),
-      menuScaling: new paper.Point(0.2, 0.2),
-      offset: new paper.Point(-3.5, -1.85),
-    },
-    airport: {},
-    center: {
-      extraObject() {
-        const baseGround = new paper.Path.Rectangle(
-          new paper.Rectangle(0, 0, 12, 10),
-          new paper.Size(1, 1),
-        );
-        baseGround.fillColor = colors.campground.color;
-        baseGround.position = new paper.Point(1, 7);
-        return baseGround;
-      },
-    },
-    townhallSprite: {
-      img: 'static/sprite/building-townhall.png',
-      menuScaling: new paper.Point(0.17, 0.17),
-      scaling: new paper.Point(0.023, 0.023),
-      size: new paper.Size(6, 4),
-      offset: new paper.Point(-3, -3.6),
-      extraObject() {
-        const baseGround = new paper.Path.Rectangle(
-          new paper.Rectangle(0, 0, 12, 10),
-          new paper.Size(1, 1),
-        );
-        baseGround.fillColor = colors.townsquare.color;
-        baseGround.position = new paper.Point(3, 5);
-        return baseGround;
-      },
-    },
-    campsiteSprite: {
-      img: 'static/sprite/building-campsite.png',
-      menuScaling: new paper.Point(0.17, 0.17),
-      scaling: new paper.Point(0.017, 0.017),
-      size: new paper.Size(4, 3),
-      offset: new paper.Point(-2, -2.6),
-    },
-    museumSprite: {
-      img: 'static/sprite/building-museum.png',
-      menuScaling: new paper.Point(0.17, 0.17),
-      scaling: new paper.Point(0.028, 0.028),
-      size: new paper.Size(7, 4),
-      offset: new paper.Point(-3.5, -4),
-    },
-    nookSprite: {
-      img: 'static/sprite/building-nook.png',
-      menuScaling: new paper.Point(0.17, 0.17),
-      scaling: new paper.Point(0.02, 0.02),
-      size: new paper.Size(7, 4),
-      offset: new paper.Point(-3.6, -3.6),
-    },
-    ableSprite: {
-      img: 'static/sprite/building-able.png',
-      menuScaling: new paper.Point(0.16, 0.16),
-      scaling: new paper.Point(0.021, 0.021),
-      size: new paper.Size(5, 4),
-      offset: new paper.Point(-2.5, -3.9),
-    },
-    lighthouseSprite: {
-      img: 'static/sprite/structure-lighthouse.png',
-      size: new paper.Size([2, 2]),
-      scaling: new paper.Point(0.015, 0.015),
-      menuScaling: new paper.Point(0.14, 0.14),
-      offset: new paper.Point(-1, -1.85),
-    },
-    lighthouse: {
-      colorData: colors.pin,
-      size: new paper.Size([2, 2]),
-      menuScaling: new paper.Point(0.3, 0.3),
-      offset: new paper.Point(-1, -1.6),
-    },
-    airportBlue: {
-      img: 'static/sprite/structure/airport.png',
-      size: new paper.Size([10, 6]),
-      scaling: new paper.Point(0.03, 0.03),
-      menuScaling: new paper.Point(0.14, 0.14),
-      offset: new paper.Point(-5, -5.5),
-    },
-    airportRed: {
-      img: 'static/sprite/structure/airport-red.png',
-      size: new paper.Size([10, 6]),
-      scaling: new paper.Point(0.03, 0.03),
-      menuScaling: new paper.Point(0.14, 0.14),
-      offset: new paper.Point(-5, -5.5),
-    },
-    airportYellow: {
-      img: 'static/sprite/structure/airport-yellow.png',
-      size: new paper.Size([10, 6]),
-      scaling: new paper.Point(0.03, 0.03),
-      menuScaling: new paper.Point(0.14, 0.14),
-      offset: new paper.Point(-5, -5.5),
-    },
-    airportGreen: {
-      img: 'static/sprite/structure/airport-green.png',
-      size: new paper.Size([10, 6]),
-      scaling: new paper.Point(0.03, 0.03),
-      menuScaling: new paper.Point(0.14, 0.14),
-      offset: new paper.Point(-5, -5.5),
-    },
-
-    // legacy
-    bridgeVerticalSprite: {
-      legacyCategory: 'construction',
-      img: 'static/sprite/structure-bridge-vertical.png',
-    },
-    bridgeHorizontalSprite: {
-      legacyCategory: 'construction',
-      img: 'static/sprite/structure-bridge-horizontal.png',
-    },
-    rampSprite: {
-      legacy: 'stairsStoneLeft',
-      legacyCategory: 'construction',
-      img: 'static/sprite/structure-ramp.png',
-    },
-  };
-  Object.keys(asyncAmenitiesDefinition.value).forEach((type) => {
-    const def = asyncAmenitiesDefinition.value[type];
-    def.category = 'amenities';
-    def.type = type;
-    def.scaling = def.scaling || new paper.Point(0.03, 0.03);
-    def.menuScaling = def.menuScaling || new paper.Point(0.14, 0.14);
-    def.size = def.size || new paper.Size([8, 8]);
-    def.offset = def.offset || new paper.Point(-4, -7.6);
-    def.onSelect = function (isSelected) {};
-    // imnmediately load the assets
-    if (def.img) {
-      const img = new paper.Raster(def.img);
-      def.icon = img;
-      def.icon.onLoad = function () {
-        asyncAmenitiesDefinition.onLoad();
-      };
-      img.remove();
-    } else {
-      loadSvg(`amenity-${type}`, (item) => {
-        // item.pivot += new paper.Point(-2, -3.6);
-        def.icon = item;
-        asyncAmenitiesDefinition.onLoad();
-      });
-    }
-  });
-
-  const asyncConstructionDefinition = new AsyncObjectDefinition();
-  asyncConstructionDefinition.value = {
-    bridgeStoneHorizontal: {
-      img: 'static/sprite/construction/bridge-stone-horizontal.png',
-      size: new paper.Size(6, 4),
-    },
-    bridgeStoneVertical: {
-      img: 'static/sprite/construction/bridge-stone-vertical.png',
-      size: new paper.Size(4, 6),
-    },
-    bridgeStoneTLBR: {
-      img: 'static/sprite/construction/bridge-stone-tlbr.png',
-      size: new paper.Size(6, 6),
-    },
-    bridgeStoneTRBL: {
-      img: 'static/sprite/construction/bridge-stone-trbl.png',
-      size: new paper.Size(6, 6),
-    },
-    bridgeWoodHorizontal: {
-      img: 'static/sprite/construction/bridge-wood-horizontal.png',
-      size: new paper.Size(6, 4),
-    },
-    bridgeWoodVertical: {
-      img: 'static/sprite/construction/bridge-wood-vertical.png',
-      size: new paper.Size(4, 6),
-    },
-    bridgeWoodTLBR: {
-      img: 'static/sprite/construction/bridge-wood-tlbr.png',
-      size: new paper.Size(6, 6),
-    },
-    bridgeWoodTRBL: {
-      img: 'static/sprite/construction/bridge-wood-trbl.png',
-      size: new paper.Size(6, 6),
-    },
-    bridgeVerticalSprite: {
-      img: 'static/sprite/structure-bridge-vertical.png',
-      menuScaling: new paper.Point(0.17, 0.17),
-      scaling: new paper.Point(0.026, 0.026),
-      size: new paper.Size(4, 6),
-      offset: new paper.Point(-1.5, -5),
-    },
-    stairsStoneUp: {
-      img: 'static/sprite/construction/stairs-stone-up.png',
-      size: new paper.Size(2, 4),
-    },
-    stairsStoneDown: {
-      img: 'static/sprite/construction/stairs-stone-down.png',
-      size: new paper.Size(2, 4),
-    },
-    stairsStoneLeft: {
-      img: 'static/sprite/construction/stairs-stone-left.png',
-      size: new paper.Size(4, 2),
-    },
-    stairsStoneRight: {
-      img: 'static/sprite/construction/stairs-stone-right.png',
-      size: new paper.Size(4, 2),
-    },
-    stairsWoodUp: {
-      img: 'static/sprite/construction/stairs-wood-up.png',
-      size: new paper.Size(2, 4),
-    },
-    stairsWoodDown: {
-      img: 'static/sprite/construction/stairs-wood-down.png',
-      size: new paper.Size(2, 4),
-    },
-    stairsWoodLeft: {
-      img: 'static/sprite/construction/stairs-wood-left.png',
-      size: new paper.Size(4, 2),
-    },
-    stairsWoodRight: {
-      img: 'static/sprite/construction/stairs-wood-right.png',
-      size: new paper.Size(4, 2),
-    },
-    // legacy
-    bridgeHorizontalSprite: {
-      img: 'static/sprite/structure-bridge-horizontal.png',
-      menuScaling: new paper.Point(0.17, 0.17),
-      scaling: new paper.Point(0.026, 0.026),
-      size: new paper.Size(5, 3),
-      offset: new paper.Point(-2.8, -2.7),
-    },
-    rampSprite: {
-      legacy: 'stairsStoneRight',
-      img: 'static/sprite/structure-ramp.png',
-      menuScaling: new paper.Point(0.17, 0.17),
-      scaling: new paper.Point(0.026, 0.026),
-      size: new paper.Size(5, 3),
-      offset: new paper.Point(-2.8, -2.7),
-    },
-  };
-  Object.keys(asyncConstructionDefinition.value).forEach((type) => {
-    const def = asyncConstructionDefinition.value[type];
-    def.category = 'construction';
-    def.type = type;
-    def.scaling = def.scaling || new paper.Point(0.029, 0.029);
-    def.menuScaling = def.menuScaling || new paper.Point(0.18, 0.18);
-    def.size = def.size;
-    def.offset =
-      def.offset || new paper.Point(-def.size.width / 2, -def.size.height);
-    def.onSelect = function (isSelected) {};
-    // imnmediately load the assets
-    if (def.img) {
-      const img = new paper.Raster(def.img);
-      def.icon = img;
-      def.icon.onLoad = function () {
-        asyncConstructionDefinition.onLoad();
-      };
-      img.remove();
-    }
-  });
-
-  const asyncTreeDefinition = new AsyncObjectDefinition();
-  asyncTreeDefinition.value = {
-    tree: {
-      img: 'static/sprite/tree/tree.png',
-    },
-    treeApple: {
-      img: 'static/sprite/tree/tree-apple.png',
-    },
-    treeCherry: {
-      img: 'static/sprite/tree/tree-cherry.png',
-    },
-    treeOrange: {
-      img: 'static/sprite/tree/tree-orange.png',
-    },
-    treePear: {
-      img: 'static/sprite/tree/tree-pear.png',
-    },
-    treePeach: {
-      img: 'static/sprite/tree/tree-peach.png',
-    },
-    treeAutumn: {
-      img: 'static/sprite/tree/tree-autumn.png',
-    },
-    treeSakura: {
-      img: 'static/sprite/tree/tree-sakura.png',
-    },
-    pine: {
-      rename: [0, 'flatPine'],
-      img: 'static/sprite/tree/pine.png',
-    },
-    palm: {
-      rename: [0, 'flatPalm'],
-      img: 'static/sprite/tree/palm.png',
-    },
-    bamboo: {
-      img: 'static/sprite/tree-bamboo.png',
-      menuScaling: new paper.Point(0.26, 0.26),
-      scaling: new paper.Point(0.02, 0.02),
-      offset: new paper.Point(-0.6, -0.75),
-    },
-
-    flatBush: {
-      svg: 'bush',
-    },
-    flatTree: {
-      svg: 'fruit',
-    },
-    flatPalm: {
-      svg: 'palm',
-    },
-    flatPine: {
-      svg: 'pine',
-    },
-  };
-  Object.keys(asyncTreeDefinition.value).forEach((type) => {
-    const def = asyncTreeDefinition.value[type];
-    def.category = 'tree';
-    def.type = type;
-    def.scaling = def.scaling || new paper.Point(0.014, 0.014);
-    def.menuScaling = def.menuScaling || new paper.Point(0.2, 0.2);
-    def.size = new paper.Size(1, 1);
-    def.offset =
-      def.offset ||
-      new paper.Point(-def.size.width / 2, -def.size.height + 0.2);
-    def.onSelect = function (isSelected) {};
-    // imnmediately load the assets
-    if (def.svg) {
-      def.colorData = colors.level3;
-      def.scaling = new paper.Point(0.03, 0.03);
-      def.menuScaling = new paper.Point(0.6, 0.6);
-      def.size = def.size || new paper.Size([1, 1]);
-      def.offset = def.offset || new paper.Point(-1, -0.75);
-      def.onSelect = function (isSelected) {};
-      // imnmediately load the assets
-      {
-        loadSvg(`tree-${def.svg}`, (item) => {
-          // item.pivot += new paper.Point(-2, -3.6);
-          def.icon = item;
-          asyncTreeDefinition.onLoad();
-        });
-      }
-    } else if (def.img) {
-      const img = new paper.Raster(def.img);
-      def.icon = img;
-      def.icon.onLoad = function () {
-        asyncTreeDefinition.onLoad();
-      };
-      img.remove();
-    }
-  });
-
-  const asyncFlowerDefinition = new AsyncObjectDefinition();
-  asyncFlowerDefinition.value = {
-    chrysanthemumWhite: {
-      img: 'static/sprite/flower/chrysanthemum-white.png',
-    },
-    hyacinthRed: {
-      img: 'static/sprite/flower/hyacinth-red.png',
-    },
-    hyacinthWhite: {
-      img: 'static/sprite/flower/hyacinth-white.png',
-    },
-    lilyWhite: {
-      img: 'static/sprite/flower/lily-white.png',
-    },
-    pansyPurple: {
-      img: 'static/sprite/flower/pansy-purple.png',
-    },
-    pansyRed: {
-      img: 'static/sprite/flower/pansy-red.png',
-    },
-    pansyYellow: {
-      img: 'static/sprite/flower/pansy-yellow.png',
-    },
-    poppyOrange: {
-      img: 'static/sprite/flower/poppy-orange.png',
-    },
-    poppyRed: {
-      img: 'static/sprite/flower/poppy-red.png',
-    },
-    poppyWhite: {
-      img: 'static/sprite/flower/poppy-white.png',
-    },
-    tulipRed: {
-      img: 'static/sprite/flower/tulip-red.png',
-    },
-    tulipWhite: {
-      img: 'static/sprite/flower/tulip-white.png',
-    },
-    tulipYellow: {
-      img: 'static/sprite/flower/tulip-yellow.png',
-    },
-    //    weedBush: {
-    //      img: 'static/sprite/flower/weed-bush.png',
-    //    },
-    //    weedBrush: {
-    //      img: 'static/sprite/flower/weed-brush.png',
-    //    },
-    weedClover: {
-      img: 'static/sprite/flower/weed-clover.png',
-    },
-    //    weedCattail: {
-    //      img: 'static/sprite/flower/weed-cattail.png',
-    //    },
-    //    weedDandelion: {
-    //      img: 'static/sprite/flower/weed-dandelion.png',
-    //    },
-  };
-  Object.keys(asyncFlowerDefinition.value).forEach((type) => {
-    const def = asyncFlowerDefinition.value[type];
-    def.category = 'flower';
-    def.type = type;
-    def.scaling = def.scaling || new paper.Point(0.016, 0.016);
-    def.menuScaling = def.menuScaling || new paper.Point(0.65, 0.65);
-    def.size = new paper.Size(1, 1);
-    def.offset =
-      def.offset ||
-      new paper.Point(-def.size.width / 2, -def.size.height + 0.2);
-    def.onSelect = function (isSelected) {};
-    if (def.img) {
-      const img = new paper.Raster(def.img);
-      def.icon = img;
-      def.icon.onLoad = function () {
-        asyncFlowerDefinition.onLoad();
-      };
-      img.remove();
-    }
-  });
-
-  const asyncStructureDefinition = new AsyncObjectDefinition();
-  asyncStructureDefinition.value = {
-    tentRound: {},
-    tentTriangle: {},
-    tentTrapezoid: {},
-    hut: {},
-    house: {},
-    building: {},
-    tentSprite: {
-      img: 'static/sprite/building-tent.png',
-      menuScaling: new paper.Point(0.17, 0.17),
-      scaling: new paper.Point(0.022, 0.022),
-      size: new paper.Size([5, 4]),
-      offset: new paper.Point(-2.5, -3.6),
-    },
-    playerhouseSprite: {
-      img: 'static/sprite/building-playerhouse.png',
-      menuScaling: new paper.Point(0.17, 0.17),
-      scaling: new paper.Point(0.022, 0.022),
-      size: new paper.Size([5, 4]),
-      offset: new paper.Point(-2.5, -3.6),
-    },
-    houseSprite: {
-      img: 'static/sprite/building-house.png',
-      menuScaling: new paper.Point(0.17, 0.17),
-      scaling: new paper.Point(0.02, 0.02),
-    },
-    //    houseFlatSprite: {
-    //      img: 'static/sprite/building-flathouse.png',
-    //      menuScaling: new paper.Point(.17, .17),
-    //      scaling: new paper.Point(.014, .014),
-    //    },
-    //    houseOutlineFlatSprite: {
-    //      img: 'static/sprite/building-flathouseoutline.png',
-    //      menuScaling: new paper.Point(.17, .17),
-    //      scaling: new paper.Point(.014, .014),
-    //    },
-    treePineSprite: {
-      legacy: 'pine',
-      legacyCategory: 'tree',
-      img: 'static/sprite/tree-pine.png',
-    },
-    treePalmSprite: {
-      legacy: 'palm',
-      legacyCategory: 'tree',
-      img: 'static/sprite/tree-palm.png',
-    },
-    treeFruitSprite: {
-      legacy: 'treeOrange',
-      legacyCategory: 'tree',
-      img: 'static/sprite/tree-fruit.png',
-    },
-    // legacy
-    bush: {
-      img: 'static/sprite/tree-fruit.png',
-      legacy: 'flatBush',
-      legacyCategory: 'tree',
-    },
-    fruit: {
-      img: 'static/sprite/tree-fruit.png',
-      legacy: 'flatTree',
-      legacyCategory: 'tree',
-    },
-    palm: {
-      img: 'static/sprite/tree-fruit.png',
-      legacy: 'flatPalm',
-      legacyCategory: 'tree',
-    },
-    pine: {
-      img: 'static/sprite/tree-fruit.png',
-      legacy: 'flatPine',
-      legacyCategory: 'tree',
-    },
-  };
-  // set up the definitions programatically because they are all the same
-  Object.keys(asyncStructureDefinition.value).forEach((structureType) => {
-    const def = asyncStructureDefinition.value[structureType];
-    def.category = 'structures';
-    def.type = structureType;
-
-    {
-      def.colorData = colors.npc;
-      def.scaling = def.scaling || new paper.Point(0.032, 0.032);
-      def.menuScaling = def.menuScaling || new paper.Point(0.3, 0.3);
-      def.size = def.size || new paper.Size(4, 4);
-      def.offset = def.offset || new paper.Point(-2, -3.6);
-      def.onSelect = function (isSelected) {};
-      // imnmediately load the assets
-      if (def.img) {
-        const img = new paper.Raster(def.img);
-        def.icon = img;
-        def.icon.onLoad = function () {
-          asyncStructureDefinition.onLoad();
-        };
-        img.remove();
-      } else {
-        loadSvg(`structure-${structureType}`, (item) => {
-          // item.pivot += new paper.Point(-2, -3.6);
-          def.icon = item;
-          asyncStructureDefinition.onLoad();
-        });
-      }
-    }
-  });
-
-  // var asyncTreeDefinition = Object.create(asyncObjectDefinition);
-  // asyncTreeDefinition.value = {
-  //
-  // }
-
-  // =======================================
   // BASE LEVEL TOOLS
-
-  const baseToolCategoryDefinition = {
-    onSelect(subclass, isSelected, isReselected) {
-      subclass.icon.data.select(isSelected);
-
-      if (isReselected) this.toggleMenu(subclass);
-      else this.openMenu(subclass, isSelected);
-
-      if (!isSelected) subclass.enablePreview(isSelected);
-    },
-    onMouseMove(subclass, event) {
-      updateCoordinateLabel(event);
-    },
-    onMouseDown(subclass, event) {
-      updateCoordinateLabel(event);
-    },
-    onMouseDrag(subclass, event) {
-      updateCoordinateLabel(event);
-    },
-    onMouseUp(subclass, event) {
-      updateCoordinateLabel(event);
-    },
-    onKeyDown(subclass, event) {},
-    enablePreview(subclass, isEnabled) {},
-    toggleMenu(subclass) {
-      if (subclass.openMenu) {
-        subclass.openMenu(!(subclass.iconMenu && subclass.iconMenu.visible));
-      }
-    },
-    openMenu(subclass, isSelected) {
-      if (subclass.openMenu) {
-        subclass.openMenu(isSelected);
-      }
-    },
-    updateTool(subclass, prevToolData, nextToolData, isToolTypeSwitch) {
-      const sameToolType =
-        prevToolData &&
-        prevToolData.definition.type === nextToolData.definition.type;
-      if (!sameToolType) {
-        if (prevToolData) {
-          prevToolData.definition.onSelect(false);
-        }
-        nextToolData.definition.onSelect(true);
-      } else if (isToolTypeSwitch) {
-        // user pressed the tool menu button - toggle the menu visibility
-        prevToolData.definition.onSelect(true, true);
-      }
-      {
-        const prevTool =
-          prevToolData && prevToolData.tool ? prevToolData.tool.type : null;
-        const nextTool =
-          nextToolData && nextToolData.tool ? nextToolData.tool.type : null;
-        const sameTool = sameToolType && prevTool === nextTool;
-        if (!sameTool) {
-          if (prevToolData && prevToolData.tool && prevToolData.tool.onSelect)
-            prevToolData.tool.onSelect(false);
-          if (nextToolData && nextToolData.tool && nextToolData.tool.onSelect)
-            nextToolData.tool.onSelect(true);
-          // todo: decouple view from logic
-          if (
-            subclass.iconMenu &&
-            (nextToolData.type == 'structures' ||
-              nextToolData.type == 'amenities' ||
-              nextToolData.type == 'construction' ||
-              nextToolData.type == 'tree' ||
-              nextToolData.type == 'flower')
-          ) {
-            subclass.iconMenu.data.update(nextTool);
-            updateObjectPreview();
-          }
-        }
-      }
-    },
-  };
-
   const baseObjectCategoryDefinition = {
     base: baseToolCategoryDefinition,
     // type: 'tree', // filled in by base class
@@ -2440,7 +1518,13 @@ export function drawer() {
     },
   };
 
-  var toolCategoryDefinition = {
+  amenitiesDef.load();
+  structureDef.load();
+  constructionDef.load();
+  treeDef.load();
+  flowerDef.load();
+
+  const toolCategoryDefinition = {
     //    pointer: {
     //      base: baseToolCategoryDefinition,
     //      type: 'pointer',
@@ -2635,14 +1719,14 @@ export function drawer() {
     structures: Object.assign(Object.create(baseObjectCategoryDefinition), {
       type: 'structures',
       icon: 'structure',
-      tools: asyncStructureDefinition,
+      tools: structureDef.asyncStructureDefinition,
       menuOptions: { spacing: 50, perColumn: 9 },
       yPos: 160,
     }),
     amenities: Object.assign(Object.create(baseObjectCategoryDefinition), {
       type: 'amenities',
       icon: 'amenities',
-      tools: asyncAmenitiesDefinition,
+      tools: amenitiesDef.asyncAmenitiesDefinition,
       menuOptions: { spacing: 50, perColumn: 8 },
       yPos: 208,
     }),
@@ -2650,7 +1734,7 @@ export function drawer() {
     construction: Object.assign(Object.create(baseObjectCategoryDefinition), {
       type: 'construction',
       icon: 'construction',
-      tools: asyncConstructionDefinition,
+      tools: constructionDef.asyncConstructionDefinition,
       menuOptions: { spacing: 50, perColumn: 9 },
       yPos: 260,
     }),
@@ -2658,14 +1742,14 @@ export function drawer() {
     tree: Object.assign(Object.create(baseObjectCategoryDefinition), {
       type: 'tree',
       icon: 'tree',
-      tools: asyncTreeDefinition,
+      tools: treeDef.asyncTreeDefinition,
       menuOptions: { spacing: 50, perColumn: 8 },
       yPos: 310,
     }),
     flower: Object.assign(Object.create(baseObjectCategoryDefinition), {
       type: 'flower',
       icon: 'flower',
-      tools: asyncFlowerDefinition,
+      tools: flowerDef.asyncFlowerDefinition,
       menuOptions: { spacing: 50, perColumn: 9 },
       yPos: 360,
     }),
@@ -2685,6 +1769,81 @@ export function drawer() {
       def.base.updateTool(def, prevToolData, nextToolData, isToolTypeSwitch);
     };
   });
+  const baseToolCategoryDefinition = {
+    onSelect(subclass, isSelected, isReselected) {
+      subclass.icon.data.select(isSelected);
+
+      if (isReselected) this.toggleMenu(subclass);
+      else this.openMenu(subclass, isSelected);
+
+      if (!isSelected) subclass.enablePreview(isSelected);
+    },
+    onMouseMove(subclass, event) {
+      updateCoordinateLabel(event);
+    },
+    onMouseDown(subclass, event) {
+      updateCoordinateLabel(event);
+    },
+    onMouseDrag(subclass, event) {
+      updateCoordinateLabel(event);
+    },
+    onMouseUp(subclass, event) {
+      updateCoordinateLabel(event);
+    },
+    onKeyDown(subclass, event) {},
+    enablePreview(subclass, isEnabled) {},
+    toggleMenu(subclass) {
+      if (subclass.openMenu) {
+        subclass.openMenu(!(subclass.iconMenu && subclass.iconMenu.visible));
+      }
+    },
+    openMenu(subclass, isSelected) {
+      if (subclass.openMenu) {
+        subclass.openMenu(isSelected);
+      }
+    },
+    updateTool(subclass, prevToolData, nextToolData, isToolTypeSwitch) {
+      const sameToolType =
+        prevToolData &&
+        prevToolData.definition.type === nextToolData.definition.type;
+      if (!sameToolType) {
+        if (prevToolData) {
+          prevToolData.definition.onSelect(false);
+        }
+        nextToolData.definition.onSelect(true);
+      } else if (isToolTypeSwitch) {
+        // user pressed the tool menu button - toggle the menu visibility
+        prevToolData.definition.onSelect(true, true);
+      }
+      {
+        const prevTool =
+          prevToolData && prevToolData.tool ? prevToolData.tool.type : null;
+        const nextTool =
+          nextToolData && nextToolData.tool ? nextToolData.tool.type : null;
+        const sameTool = sameToolType && prevTool === nextTool;
+        if (!sameTool) {
+          if (prevToolData && prevToolData.tool && prevToolData.tool.onSelect) {
+            prevToolData.tool.onSelect(false);
+          }
+          if (nextToolData && nextToolData.tool && nextToolData.tool.onSelect) {
+            nextToolData.tool.onSelect(true);
+          }
+          // todo: decouple view from logic
+          if (
+            subclass.iconMenu &&
+            (nextToolData.type == 'structures' ||
+              nextToolData.type == 'amenities' ||
+              nextToolData.type == 'construction' ||
+              nextToolData.type == 'tree' ||
+              nextToolData.type == 'flower')
+          ) {
+            subclass.iconMenu.data.update(nextTool);
+            updateObjectPreview();
+          }
+        }
+      }
+    },
+  };
 
   // function squircle (size){ // squircle=square+circle
   //  var hsize = size / 2; // half size
@@ -2960,7 +2119,7 @@ export function drawer() {
   }
 
   function decodePath(positionArray) {
-    const points = [];
+    const points: paper.Point[] = [];
     for (let i = 0; i < positionArray.length; i += 2) {
       points.push(new paper.Point(positionArray[i], positionArray[i + 1]));
     }
@@ -3023,7 +2182,7 @@ export function drawer() {
     return decodedDrawing;
   }
 
-  function encodeMap(compress) {
+  function encodeMap() {
     // colors translated from keys => encoded name
     const o = {
       version: 1,
@@ -3177,25 +2336,12 @@ export function drawer() {
   }
 
   // ===============================================
-  // PIXEL FITTING
-  // TODO: have a way to convert back to the original path
-  // - save the original strokes, the pixelation is basically a filter on top
-  function fitToPixels() {}
-
-  // ===============================================
   // SHAPE DRAWING
 
   // Draw a specified shape on the pixel grid
 
   // ===============================================
   // PIXEL COORDINATE HELPERS
-
-  const mapMargin = 0.1;
-  const horizontalBlocks = 7;
-  const verticalBlocks = 6;
-  const horizontalDivisions = 16;
-  const verticalDivisions = 16;
-  const verticalRatio = 1; // 0.767;
 
   let cellWidth = 0;
   let cellHeight = 0;
@@ -3273,125 +2419,8 @@ export function drawer() {
     mapIconLayer.scaling = new paper.Point(cellWidth, cellHeight);
   }
 
-  function viewToMap(viewCoordinate) {
-    return new Coordinate(remapX(viewCoordinate.x), remapY(viewCoordinate.y));
-  }
-
-  function mapToView(canvasCoordinate) {
-    return new paper.Point(
-      remapInvX(canvasCoordinate.x),
-      remapInvY(canvasCoordinate.y),
-    );
-  }
-
-  // ===============================================
-  // GRID overlay
-
   mapOverlayLayer.activate();
-  let gridRaster;
-  createGrid();
-
-  function toggleGrid() {
-    gridRaster.visible = !gridRaster.visible;
-  }
-
-  function createGrid() {
-    mapOverlayLayer.activate();
-    if (gridRaster) gridRaster.remove();
-    const grid = [];
-    for (var i = 0; i < horizontalBlocks * horizontalDivisions; i++) {
-      var line = createGridLine(
-        i,
-        true,
-        i != 0 && i % horizontalDivisions == 0,
-      );
-      grid.push(line);
-    }
-    for (var i = 0; i < verticalBlocks * verticalDivisions; i++) {
-      var line = createGridLine(i, false, i != 0 && i % verticalDivisions == 0);
-      grid.push(line);
-    }
-    const gridGroup = new paper.Group(grid);
-
-    // it starts counting from the second block
-    for (var i = 0; i < horizontalBlocks; i++) {
-      var gridLabel = new paper.PointText(
-        (i + 0.5) * horizontalDivisions,
-        verticalBlocks * verticalDivisions + 4,
-      );
-      gridLabel.justification = 'center';
-      gridLabel.fontFamily = 'TTNorms, sans-serif';
-      gridLabel.fontSize = 3;
-      gridLabel.fillColor = colors.oceanText.color;
-      gridLabel.content = 1 + i;
-      gridGroup.addChild(gridLabel);
-    }
-
-    for (var i = 0; i < verticalBlocks; i++) {
-      var gridLabel = new paper.PointText(
-        -4,
-        (i + 0.5) * verticalDivisions + 1,
-      );
-      gridLabel.justification = 'center';
-      gridLabel.fontFamily = 'TTNorms, sans-serif';
-      gridLabel.fontSize = 3;
-      gridLabel.fillColor = colors.oceanText.color;
-      gridLabel.content = String.fromCharCode(65 + i); // A = 65
-      gridGroup.addChild(gridLabel);
-    }
-
-    gridRaster = gridGroup.rasterize(paper.view.resolution * 10);
-    gridGroup.remove();
-    mapLayer.activate();
-    gridRaster.locked = true;
-  }
-
-  function createGridLine(i, horizontal, blockEdge) {
-    const gridNegativeMarginLeft = blockEdge ? 4 : 0;
-    const gridNegativeMarginRight = blockEdge ? 4 : 0;
-    const gridNegativeMarginTop = blockEdge ? 0 : 0;
-    const gridNegativeMarginBottom = blockEdge ? 4 : 0;
-    const segment = horizontal
-      ? [
-          new paper.Point(i, -gridNegativeMarginTop),
-          new paper.Point(
-            i,
-            verticalBlocks * verticalDivisions +
-              gridNegativeMarginTop +
-              gridNegativeMarginBottom,
-          ),
-        ]
-      : [
-          new paper.Point(-gridNegativeMarginLeft, i),
-          new paper.Point(
-            horizontalBlocks * horizontalDivisions +
-              gridNegativeMarginLeft +
-              gridNegativeMarginRight,
-            i,
-          ),
-        ];
-
-    const line = new paper.Path(segment);
-    line.strokeColor = new paper.Color('#ffffff');
-    line.strokeWidth = blockEdge ? 0.2 : 0.1;
-    line.strokeCap = 'round';
-    // line.dashArray = blockEdge ? [4, 6] : null;
-    line.opacity = blockEdge ? 0.5 : 0.2;
-    return line;
-  }
-
-  /* function updateSegments() {
-      for (var i = 0; i < horizontalBlocks * horizontalDivisions; i++) {
-          var segmentPoints = getSegment(i, true);
-          grid[i].segments[0].point = segmentPoints[0];
-          grid[i].segments[1].point = segmentPoints[1];
-      }
-      for (var v = 0; v < verticalBlocks * verticalDivisions; v++) {
-          var segmentPoints = getSegment(v, false);
-          grid[i + v].segments[0].point = segmentPoints[0];
-          grid[i + v].segments[1].point = segmentPoints[1];
-      }
-  } */
+  createGrid(mapOverlayLayer, mapLayer);
 
   // ===============================================
   // COORDINATE LABEL
@@ -3400,217 +2429,9 @@ export function drawer() {
   // var coordinateLabel = new paper.PointText(new paper.Point(0, 0));
   // coordinateLabel.fontSize = 3;
 
-  function centerBrushOffset(width, height) {
-    return new paper.Point(width * 0.5 * cellWidth, height * 0.5 * cellHeight);
-  }
-
-  var brushSize = 2;
-  let brushSegments;
-  var brush = new paper.Path();
-  var brushOutline = new paper.Path();
-
-  let objectPreview;
-  let objectPreviewOutline;
-
-  const brushTypes = {
-    rounded: 'rounded',
-    square: 'square',
-  };
-  const brushSweep = true;
-  var brushLine = false;
-  var brushLineForce = false;
-  let brushType = brushTypes.rounded;
+  initBrush();
   updateBrush();
-
-  function setBrushLineForce(isLine) {
-    brushLineForce = isLine;
-    emitter.emit('updateBrushLineForce', brushLineForce);
-  }
   setBrushLineForce(false);
-
-  function cycleBrushHead() {
-    const heads = Object.keys(brushTypes).sort((a, b) =>
-      a == b ? 0 : a < b ? -1 : 1,
-    );
-    const index = heads.indexOf(brushType);
-    brushType = heads[(index + 1) % heads.length];
-    updateBrush();
-  }
-
-  function getObjectCenteredCoordinate(
-    rawCoordinate: paper.Point,
-    objectDefinition,
-  ) {
-    // hack for even sized brushes
-    const sizeX = objectDefinition.size.width / 2;
-    const sizeY = objectDefinition.size.height / 2;
-    return rawCoordinate
-      .subtract(new paper.Point(sizeX, sizeY))
-      .add(new paper.Point(0.5, 0.5))
-      .floor();
-  }
-
-  function getBrushCenteredCoordinate(rawCoordinate: paper.Point): paper.Point {
-    // hack for even sized brushes
-    if (brushSize % 2 == 0) {
-      return rawCoordinate
-        .add(new paper.Point(0.5, 0.5))
-        .floor()
-        .subtract(new paper.Point(0.5, 0.5));
-    }
-    return rawCoordinate.floor();
-  }
-
-  function decrementBrush() {
-    brushSize = Math.max(brushSize - 1, 1);
-    updateBrush();
-  }
-  function incrementBrush() {
-    brushSize = Math.max(brushSize + 1, 1);
-    updateBrush();
-  }
-  function updateBrush() {
-    brushSegments = getBrushSegments(brushSize);
-
-    const prevPosOutline = brushOutline.position;
-
-    // brush.layer = uiLayer;
-    brush.segments = brushSegments;
-    brush.pivot = new paper.Point(brushSize / 2 - 0.5, brushSize / 2 - 0.5);
-    brush.position = getBrushCenteredCoordinate(prevPosOutline);
-    brush.opacity = 0.6;
-    brush.closed = true;
-    brush.fillColor = paintColor.color;
-    brush.locked = true;
-
-    brushOutline.segments = brushSegments;
-    brushOutline.position = prevPosOutline;
-    brushOutline.closed = true;
-    brushOutline.strokeColor = new paper.Color('#fff');
-    brushOutline.strokeWidth = 0.1;
-    brushOutline.locked = true;
-
-    emitter.emit('updateBrush');
-  }
-
-  function updateObjectPreview() {
-    if (toolState.activeTool && toolState.activeTool.tool) {
-      let prevPos;
-      let prevPosOutline;
-      if (objectPreview && objectPreviewOutline) {
-        objectPreview.remove();
-        objectPreviewOutline.remove();
-        prevPos = objectPreview.position;
-        prevPosOutline = objectPreviewOutline.position;
-      } else {
-        prevPos = new paper.Point(0, 0);
-        prevPosOutline = new paper.Point(0, 0);
-      }
-
-      const objectData = getObjectData(toolState.activeTool.tool);
-      createObjectPreviewAsync(objectData, (object) => {
-        objectPreview = object;
-        object.locked = true;
-        object.elements.bound.strokeColor.alpha = 0.6;
-        object.opacity = 0.5;
-
-        objectPreviewOutline = object.elements.bound.clone();
-        objectPreviewOutline.strokeColor.alpha = 1;
-
-        // todo: have a function that gets the most recent position of the mouse at any time
-        objectPreview.position = prevPos;
-        objectPreviewOutline.position = prevPosOutline;
-      });
-    }
-  }
-
-  function updateCoordinateLabel(event) {
-    const coordinate = mapOverlayLayer.globalToLocal(event.point);
-    // coordinateLabel.content = '' + event.point + '\n' + coordinate.toString();
-    // coordinateLabel.position = rawCoordinate;
-
-    brushOutline.position = coordinate;
-    brush.position = getBrushCenteredCoordinate(coordinate);
-
-    if (objectPreview) {
-      objectPreview.position = getObjectCenteredCoordinate(
-        coordinate,
-        objectPreview.definition,
-      );
-    }
-    if (objectPreviewOutline) objectPreviewOutline.position = coordinate;
-  }
-
-  function getBrushSegments(size) {
-    // square
-    const sizeX = size;
-    const sizeY = size;
-    const offset = new paper.Point(0, 0);
-    if (size == 0) {
-      return [
-        new paper.Point(0, 0),
-        new paper.Point(0, 1),
-        new paper.Point(1, 0),
-      ];
-    }
-    switch (brushType) {
-      default:
-      case brushTypes.square:
-        return [
-          offset.add(new paper.Point(0, 0)),
-          offset.add(new paper.Point(0, sizeY)),
-          offset.add(new paper.Point(sizeX, sizeY)),
-          offset.add(new paper.Point(sizeX, 0)),
-        ];
-      case brushTypes.rounded:
-        // return diamond if 2
-        if (size == 1) {
-          return [
-            new paper.Point(0, 0),
-            new paper.Point(0, 1),
-            new paper.Point(1, 1),
-            new paper.Point(1, 0),
-
-            // new paper.Point(0, 0),
-            // new paper.Point(0, 10),
-            // new paper.Point(10, 10),
-            // new paper.Point(10, 9),
-            // new paper.Point(1, 9),
-            // new paper.Point(1, 1),
-            // new paper.Point(10, 1),
-            // new paper.Point(10, 0),
-          ];
-        }
-        // return diamond if 2
-        if (size == 2) {
-          return [
-            new paper.Point(1, 0),
-            new paper.Point(2, 1),
-            new paper.Point(1, 2),
-            new paper.Point(0, 1),
-          ];
-        }
-
-        // add straight edges if odd number
-        var ratio = 0.67;
-        var diagonalSize = Math.floor((size / 2) * ratio);
-        var straightSize = size - 2 * diagonalSize;
-
-        var minPoint = diagonalSize;
-        var maxPoint = diagonalSize + straightSize;
-
-        return [
-          offset.add(new paper.Point(minPoint, 0)),
-          offset.add(new paper.Point(maxPoint, 0)),
-          offset.add(new paper.Point(size, minPoint)),
-          offset.add(new paper.Point(size, maxPoint)),
-          offset.add(new paper.Point(maxPoint, size)),
-          offset.add(new paper.Point(minPoint, size)),
-          offset.add(new paper.Point(0, maxPoint)),
-          offset.add(new paper.Point(0, minPoint)),
-        ];
-    }
-  }
 
   // ===============================================
   // STATE AND HISTORY
@@ -3622,20 +2443,6 @@ export function drawer() {
   //
 
   mapLayer.activate();
-  var state: {
-    index: number;
-    history: any[];
-    drawing: Record<string, paper.Path>;
-    objects: Record<string, any>;
-  } = {
-    index: -1,
-    // TODO: max history
-    history: [],
-    drawing: {},
-    objects: {},
-  };
-
-  console.log('prout', tryLoadAutosaveMap());
 
   if (!tryLoadAutosaveMap()) {
     loadTemplate();
@@ -3645,167 +2452,6 @@ export function drawer() {
     console.log('on load', template);
     clearMap();
     setNewMapData(decodeMap(template));
-  }
-
-  const maxHistoryIndex = 99; // max length is one greater than this
-
-  function addToHistory(command) {
-    state.index += 1;
-    // remove future history if went back in time and made an edit
-    if (state.index < state.history.length) {
-      var removeNum = state.history.length - state.index;
-      state.history.splice(-removeNum, removeNum);
-    }
-
-    // limit the amount of saved history to reduce memory
-    if (state.index > maxHistoryIndex) {
-      var removeNum = state.index - maxHistoryIndex;
-      state.history.splice(0, removeNum);
-      state.index -= removeNum;
-    }
-    state.history[state.index] = command;
-
-    // autosave
-    actionsCount++;
-    actionsSinceSave++;
-    clearTimeout(autosaveTimeout);
-    if (actionsCount % autosaveActionsInterval == 0) {
-      // every few actions
-      autosaveMap();
-    } else {
-      // or if a new action hasn't been made in a while
-      autosaveTimeout = setTimeout(() => {
-        autosaveMap();
-      }, autosaveInactivityTimer);
-    }
-
-    emitter.emit('historyUpdate', 'add');
-  }
-  var actionsSinceSave = 0;
-  var actionsCount = 0;
-  var autosaveActionsInterval = 20;
-  var autosaveInactivityTimer = 10000;
-  let autosaveTimeout;
-
-  function clearMap() {
-    Object.keys(state.drawing).forEach((p) => {
-      state.drawing[p].remove();
-    });
-    state.drawing = {};
-    Object.keys(state.objects).forEach((p) => {
-      state.objects[p].remove();
-    });
-    state.objects = {};
-  }
-
-  function setNewMapData(mapData) {
-    // state.objects = mapData.objects; // objects are loaded asynchronously
-    state.drawing = mapData.drawing;
-  }
-
-  function smoothMap() {
-    Object.values(state.drawing).forEach((path) => {
-      path.smooth({ type: 'catmull-rom', factor: 0.9 });
-    });
-  }
-
-  function canRedo() {
-    return state == null ? 0 : state.index < state.history.length - 1;
-  }
-
-  function canUndo() {
-    return state == null ? 0 : state.index >= 0;
-  }
-
-  function undo() {
-    if (canUndo()) {
-      applyCommand(state.history[state.index], false);
-      state.index -= 1;
-      emitter.emit('historyUpdate', 'undo');
-    } else {
-      console.log('Nothing to undo');
-    }
-  }
-
-  function redo() {
-    if (canRedo()) {
-      state.index += 1;
-      applyCommand(state.history[state.index], true);
-      emitter.emit('historyUpdate', 'redo');
-    } else {
-      console.log('Nothing to redo');
-    }
-  }
-
-  function applyCommand(command, isApply) {
-    if (isApply == null) {
-      throw 'exception: applyCommand called without an apply direction';
-    }
-    // if (draw command)
-    switch (command.type) {
-      case 'draw':
-        applyDiff(isApply, command.data);
-        break;
-      case 'object':
-        switch (command.action) {
-          case 'create':
-            applyCreateObject(isApply, command);
-            break;
-          case 'delete':
-            applyCreateObject(!isApply, command);
-            break;
-          case 'position':
-            applyMoveCommand(isApply, command);
-            break;
-          case 'color':
-            break;
-        }
-        break;
-    }
-  }
-
-  function drawCommand(drawData) {
-    return {
-      type: 'draw',
-      data: drawData,
-    };
-  }
-
-  function objectCommand(action, position, objectData) {
-    return {
-      type: 'object',
-      action,
-      data: objectData,
-      position,
-    };
-  }
-
-  function objectCreateCommand(objectData, position) {
-    return objectCommand('create', position.clone(), objectData);
-  }
-
-  function objectDeleteCommand(objectData, position) {
-    return objectCommand('delete', position.clone(), objectData);
-  }
-
-  function objectPositionCommand(objectId, prevPosition, position) {
-    return {
-      type: 'object',
-      action: 'position',
-      id: objectId,
-      position: position.clone(),
-      prevPosition: prevPosition.clone(),
-    };
-  }
-
-  function objectColorCommand(objectId, prevColor, color) {
-    return {
-      type: 'object',
-      action: 'color',
-      id: objectId,
-      color,
-      prevColor,
-    };
   }
 
   function getColorAtCoordinate(coordinate) {
@@ -3858,119 +2504,6 @@ export function drawer() {
 
   let diffCollection = {};
 
-  function halfTriangleSegments(x0, y0, x1, y1, offsetX, offsetY) {
-    const xMid = (x0 + x1) / 2;
-    const yMid = (y0 + y1) / 2;
-    return [
-      [x0 + offsetX, y0 + offsetY],
-      [
-        xMid + offsetX - Math.sign(offsetX) * 0.5,
-        yMid + offsetY - Math.sign(offsetY) * 0.5,
-      ],
-      [x1 + offsetX, y1 + offsetY],
-    ];
-  }
-
-  // assumes convex simple polygon with clockwise orientation
-  // otherwise I have to simplify the polygon after stretching points
-  function sweepPath(path, sweepVector) {
-    // find the lines w/ segment normals > 0
-    const allFrontEdges = [];
-    let frontEdge = [];
-    const sweepDirection = sweepVector.normalize();
-
-    if (sweepVector.x == 0 && sweepVector.y == 0) return path;
-
-    let isFirstFront = false;
-    let isLastFront = false;
-
-    let potentialPoints = [];
-    // go backwards so when I add indices I don't affect the index order
-    for (let i = path.segments.length - 1; i >= 0; i--) {
-      const p0 = path.segments[i];
-      const p1 =
-        path.segments[(i - 1 + path.segments.length) % path.segments.length];
-      const normal = path.clockwise
-        ? new paper.Point(
-            p0.point.y - p1.point.y,
-            p1.point.x - p0.point.x,
-          ).normalize()
-        : new paper.Point(
-            p1.point.y - p0.point.y,
-            p0.point.x - p1.point.x,
-          ).normalize();
-      const dot = normal.dot(sweepDirection);
-
-      if (dot > 0) {
-        if (i == path.segments.length - 1) isFirstFront = true;
-        if (i == 0) isLastFront = true;
-
-        if (potentialPoints.length > 0) {
-          frontEdge.concat(potentialPoints);
-          potentialPoints = [];
-        }
-        if (frontEdge.length == 0) {
-          // if this is the first point found in this edge, also add the start point
-          frontEdge.push(p0);
-        }
-        frontEdge.push(p1);
-      }
-      // include lines w/ normals == 0 if connected to line > 0
-      else if (dot == 0) {
-        if (frontEdge.length > 0) {
-          potentialPoints.push(p1);
-        }
-      } else {
-        if (frontEdge.length > 0) {
-          allFrontEdges.push(frontEdge);
-          frontEdge = [];
-        }
-        if (potentialPoints.length > 0) {
-          potentialPoints = [];
-        }
-      }
-    }
-    if (frontEdge.length > 0) {
-      allFrontEdges.push(frontEdge);
-    }
-
-    if (allFrontEdges.length == 0) {
-      console.log('Did not find any points to sweep!');
-      return path;
-    }
-
-    // check if there was a wrap around
-    const isWrapped = isFirstFront && isLastFront;
-    const skipFirst = allFrontEdges[0].length > 1;
-    const skipLast = allFrontEdges[allFrontEdges.length - 1].length > 1;
-
-    let first = true;
-    allFrontEdges.forEach((frontEdge) => {
-      // duplicate the first and last point in the edge
-      // segments are in reverse index order
-
-      const s0 = frontEdge[0];
-      const s1 = frontEdge[frontEdge.length - 1];
-      const s0Clone = s0.clone();
-      const s1Clone = s1.clone();
-      if (!(isWrapped && skipFirst && first)) {
-        path.insert(s0.index + 1, s0Clone);
-      }
-      if (!(isWrapped && skipLast && s1.index == path.segments.length - 1)) {
-        path.insert(s1.index, s1Clone);
-      }
-      frontEdge.forEach((s) => {
-        // there is a duplicate when it wraps around
-        if (isWrapped && first) {
-          first = false;
-        } else {
-          s.point += sweepVector;
-        }
-      });
-    });
-    return path;
-  }
-
   // start/end: lattice Point
   // return: unioned Path/CompoundPath
 
@@ -3982,17 +2515,17 @@ export function drawer() {
   function drawLine(start, end) {
     const drawPaths = [];
     if (brushSweep) {
-      let p = null;
+      const p = null;
       let prevDelta = null;
       var prevDrawCoordinate = null;
-      let prevDrawLineCoordinate = null;
+      let prevDrawLineCoordinate: paper.Point | null = null;
       doForCellsOnLine(
         Math.round(start.x),
         Math.round(start.y),
         Math.round(end.x),
         Math.round(end.y),
         (x, y) => {
-          p = new paper.Point(x, y);
+          const p = new paper.Point(x, y);
           if (prevDrawLineCoordinate == null) {
             prevDrawLineCoordinate = p;
           } else if (p != prevDrawCoordinate) {
@@ -4009,7 +2542,7 @@ export function drawer() {
           prevDrawCoordinate = p;
         },
       );
-      path = getDrawPath(p);
+      const path = getDrawPath(p);
       drawPaths.push(sweepPath(path, prevDrawLineCoordinate - p));
     } else {
       // stamping
@@ -4041,7 +2574,7 @@ export function drawer() {
   let drawPreview;
   function drawGridLinePreview(viewPosition) {
     const rawCoordinate = new paper.Point(mapLayer.globalToLocal(viewPosition));
-    coordinate = getBrushCenteredCoordinate(rawCoordinate);
+    const coordinate = getBrushCenteredCoordinate(rawCoordinate);
 
     mapLayer.activate();
     if (drawPreview) {
@@ -4072,7 +2605,7 @@ export function drawer() {
   function drawGrid(viewPosition) {
     mapLayer.activate();
     const rawCoordinate = new paper.Point(mapLayer.globalToLocal(viewPosition));
-    coordinate = getBrushCenteredCoordinate(rawCoordinate);
+    const coordinate = getBrushCenteredCoordinate(rawCoordinate);
 
     if (prevGridCoordinate == null) startDrawGrid(viewPosition);
     const path = drawLine(coordinate, prevGridCoordinate);
@@ -4202,7 +2735,7 @@ export function drawer() {
     return diff;
   }
 
-  function correctPath(path, receivingPath) {
+  function correctPath(path: paper.Path, receivingPath) {
     path.segments.forEach((segment) => {
       const { point } = segment;
       const isSegmentInvalid =
@@ -4217,18 +2750,18 @@ export function drawer() {
       const nextPoint = path.segments[nextIndex].point;
 
       // todo: this assumes the problem point is always at .5, which may not be true in degenerate cases
-      const possiblePoint1 =
-        point -
+      const possiblePoint1 = point.subtract(
         new paper.Point(
           0.5 * Math.sign(prevPoint.x - point.x),
           0.5 * Math.sign(prevPoint.y - point.y),
-        );
-      const possiblePoint2 =
-        point -
+        ),
+      );
+      const possiblePoint2 = point.subtract(
         new paper.Point(
           0.5 * Math.sign(nextPoint.x - point.x),
           0.5 * Math.sign(nextPoint.y - point.y),
-        );
+        ),
+      );
 
       if (
         pointApproximates(
@@ -4236,21 +2769,21 @@ export function drawer() {
           possiblePoint1,
         )
       ) {
-        var crossPoint =
-          possiblePoint2 -
+        var crossPoint = possiblePoint2.subtract(
           new paper.Point(
             Math.sign(possiblePoint2.x - point.x),
             Math.sign(possiblePoint2.y - point.y),
-          );
+          ),
+        );
         path.insert(nextIndex, crossPoint);
         segment.point = possiblePoint1;
       } else {
-        var crossPoint =
-          possiblePoint1 -
+        var crossPoint = possiblePoint1.subtract(
           new paper.Point(
             Math.sign(possiblePoint1.x - point.x),
             Math.sign(possiblePoint1.y - point.y),
-          );
+          ),
+        );
         path.insert(prevIndex + 1, crossPoint);
         segment.point = possiblePoint2;
       }

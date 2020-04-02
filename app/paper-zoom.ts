@@ -107,15 +107,13 @@ function setZoomRange(range /* paper.Size[] */) /* number[] */ {
   const { view } = project;
   const aSize = range.shift();
   const bSize = range.shift();
-  const a =
-    aSize &&
-    Math.min(
+  const a = aSize
+    && Math.min(
       view.bounds.height / aSize.height,
       view.bounds.width / aSize.width,
     );
-  const b =
-    bSize &&
-    Math.min(
+  const b = bSize
+    && Math.min(
       view.bounds.height / bSize.height,
       view.bounds.width / bSize.width,
     );
