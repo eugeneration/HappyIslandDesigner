@@ -7,11 +7,19 @@ import {
 } from './constants';
 import { colors } from './colors';
 import { layers } from './layers';
+import { addToHistory, drawCommand } from './state';
+import { getCurrentPaintColor } from './brush';
+import { uniteCompoundPath } from './helpers/unitCompoundPath';
 
 // ===============================================
 // GRID overlay
 
 let gridRaster: paper.Raster;
+
+let startGridCoordinate;
+let prevGridCoordinate;
+let diffCollection = {};
+let drawPreview;
 
 export function getGridRaster() {
   return gridRaster;
@@ -110,41 +118,11 @@ export function createGrid() {
   gridRaster.locked = true;
 }
 
-// todo: merge this with the other preview code
-let drawPreview;
-function drawGridLinePreview(viewPosition) {
-  const rawCoordinate = new paper.Point(
-    layers.mapLayer.globalToLocal(viewPosition),
-  );
-  const coordinate = getBrushCenteredCoordinate(rawCoordinate);
-
-  layers.mapLayer.activate();
-  if (drawPreview) {
-    drawPreview.remove();
-  }
-  if (startGridCoordinate == null) startDrawGrid(viewPosition);
-  drawPreview = drawLine(coordinate, startGridCoordinate);
-  if (drawPreview) {
-    drawPreview.locked = true;
-    drawPreview.opacity = 0.6;
-    drawPreview.fillColor = paintColor.color;
-  }
-}
-
-function stopGridLinePreview() {
+export function stopGridLinePreview() {
   if (drawPreview) drawPreview.remove();
 }
 
-function startDrawGrid(viewPosition) {
-  layers.mapLayer.activate();
-  let coordinate = new paper.Point(layers.mapLayer.globalToLocal(viewPosition));
-  coordinate = getBrushCenteredCoordinate(coordinate);
-  startGridCoordinate = coordinate;
-  prevGridCoordinate = coordinate;
-  drawGrid(viewPosition);
-}
-
-function drawGrid(viewPosition) {
+export function drawGrid(viewPosition) {
   layers.mapLayer.activate();
   const rawCoordinate = new paper.Point(
     layers.mapLayer.globalToLocal(viewPosition),
@@ -154,7 +132,7 @@ function drawGrid(viewPosition) {
   if (prevGridCoordinate == null) startDrawGrid(viewPosition);
   const path = drawLine(coordinate, prevGridCoordinate);
   if (path) {
-    const diff = getDiff(path, paintColor.key);
+    const diff = getDiff(path, getCurrentPaintColor().key);
 
     Object.keys(diff).forEach((colorKey) => {
       const colorDiff = diff[colorKey];
@@ -172,7 +150,35 @@ function drawGrid(viewPosition) {
   prevGridCoordinate = coordinate;
 }
 
-function endDrawGrid(viewPosition) {
+export function startDrawGrid(viewPosition) {
+  layers.mapLayer.activate();
+  let coordinate = new paper.Point(layers.mapLayer.globalToLocal(viewPosition));
+  coordinate = getBrushCenteredCoordinate(coordinate);
+  startGridCoordinate = coordinate;
+  prevGridCoordinate = coordinate;
+  drawGrid(viewPosition);
+}
+
+export function drawGridLinePreview(viewPosition) {
+  const rawCoordinate = new paper.Point(
+    layers.mapLayer.globalToLocal(viewPosition),
+  );
+  const coordinate = getBrushCenteredCoordinate(rawCoordinate);
+
+  layers.mapLayer.activate();
+  if (drawPreview) {
+    drawPreview.remove();
+  }
+  if (startGridCoordinate == null) startDrawGrid(viewPosition);
+  drawPreview = drawLine(coordinate, startGridCoordinate);
+  if (drawPreview) {
+    drawPreview.locked = true;
+    drawPreview.opacity = 0.6;
+    drawPreview.fillColor = getCurrentPaintColor().color;
+  }
+}
+
+export function endDrawGrid() {
   const mergedDiff = {};
   prevGridCoordinate = null;
   startGridCoordinate = null;

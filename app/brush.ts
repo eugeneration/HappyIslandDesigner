@@ -3,6 +3,12 @@ import paper from 'paper';
 import { emitter } from './emitter';
 import { colors } from './colors';
 import { toolState } from './tools/state';
+import { toolCategoryDefinition } from './tools';
+import { layers } from './layers';
+import { layerDefinition } from './layerDefinition';
+import { pathDefinition } from './pathDefinition';
+import { getObjectData } from './helpers/getObjectData';
+import { createObjectPreviewAsync } from './ui/createObject';
 
 function centerBrushOffset(width, height) {
   return new paper.Point(width * 0.5 * cellWidth, height * 0.5 * cellHeight);
@@ -20,8 +26,6 @@ const brushTypes = {
   rounded: 'rounded',
   square: 'square',
 };
-const brushSweep = true;
-const brushLine = false;
 let brushLineForce = false;
 let brushType = brushTypes.rounded;
 let paintColor = colors.level1;
@@ -29,6 +33,34 @@ let paintColor = colors.level1;
 export function initBrush() {
   brush = new paper.Path();
   brushOutline = new paper.Path();
+}
+
+export function getCurrentBrush() {
+  return brush;
+}
+
+export function getCurrentBrushOutline() {
+  return brushOutline;
+}
+
+export function getCurrentPaintColor() {
+  return paintColor;
+}
+
+export function getCurrentBrushLineForce() {
+  return brushLineForce;
+}
+
+export function getCurrentBrushSize() {
+  return brushSize;
+}
+
+export function getCurrentObjectPreview() {
+  return objectPreview;
+}
+
+export function getCurrentObjectPreviewOutline() {
+  return objectPreviewOutline;
 }
 
 export function setBrushLineForce(isLine) {

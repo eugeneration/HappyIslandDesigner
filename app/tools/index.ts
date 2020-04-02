@@ -2,6 +2,10 @@ import {
   updateCoordinateLabel,
   updateObjectPreview,
   updatePaintColor,
+  getCurrentBrush,
+  getCurrentBrushOutline,
+  getCurrentObjectPreviewOutline,
+  getCurrentObjectPreview,
 } from '../brush';
 
 import * as amenitiesDef from './amenities';
@@ -16,6 +20,12 @@ import { createMenu } from '../ui/createMenu';
 import { createButton } from '../ui/createButton';
 import { addToLeftToolMenu } from '../ui/leftMenu';
 import { layers } from '../layers';
+import { objectMap } from '../helpers/objectMap';
+import { createObjectIcon } from '../ui/createObject';
+import { layerDefinition } from '../layerDefinition';
+import { showBrushSizeUI } from '../ui/brushMenu';
+import { getObjectData } from '../helpers/getObjectData';
+import { pathDefinition } from '../pathDefinition';
 
 const toolPrefix = 'tool-';
 
@@ -128,6 +138,9 @@ export const baseObjectCategoryDefinition = {
   },
   enablePreview(isEnabled) {
     this.base.enablePreview(this, isEnabled);
+    const objectPreviewOutline = getCurrentObjectPreviewOutline();
+    const objectPreview = getCurrentObjectPreview();
+
     if (objectPreviewOutline) objectPreviewOutline.visible = isEnabled;
     if (objectPreview) objectPreview.visible = isEnabled;
   },
@@ -164,7 +177,16 @@ export const baseObjectCategoryDefinition = {
   },
 };
 
-export const toolCategoryDefinition = {
+export const toolCategoryDefinition: Record<
+  | 'terrain'
+  | 'path'
+  | 'structures'
+  | 'amenities'
+  | 'construction'
+  | 'tree'
+  | 'flower',
+  any
+> = {
   //    pointer: {
   //      base: baseToolCategoryDefinition,
   //      type: 'pointer',
@@ -246,8 +268,8 @@ export function init() {
     },
     enablePreview(isEnabled) {
       this.base.enablePreview(this, isEnabled);
-      brushOutline.visible = isEnabled;
-      brush.visible = isEnabled;
+      getCurrentBrushOutline().visible = isEnabled;
+      getCurrentBrush().visible = isEnabled;
     },
     openMenu(isSelected) {
       if (this.iconMenu == null) {
@@ -318,8 +340,8 @@ export function init() {
     },
     enablePreview(isEnabled) {
       this.base.enablePreview(this, isEnabled);
-      brushOutline.visible = isEnabled;
-      brush.visible = isEnabled;
+      getCurrentBrushOutline().visible = isEnabled;
+      getCurrentBrush().visible = isEnabled;
     },
     openMenu(isSelected) {
       if (this.iconMenu == null) {

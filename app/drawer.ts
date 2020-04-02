@@ -23,13 +23,10 @@ import {
   clearMap,
   setNewMapData,
   objectCreateCommand,
-  objectDeleteCommand,
-  addToHistory,
   redo,
   undo,
   canUndo,
   canRedo,
-  objectPositionCommand,
 } from './state';
 import { emitter } from './emitter';
 import {
@@ -51,6 +48,7 @@ import { showMainMenu } from './ui/mainMenu';
 import { getDistanceFromWholeNumber } from './helpers/getDistanceFromWholeNumber';
 import { pointApproximates } from './helpers/pointApproximates';
 import { initLayers, layers } from './layers';
+import { uniteCompoundPath } from './helpers/unitCompoundPath';
 
 const editor = {
   autosaveMap: null,
@@ -62,135 +60,7 @@ export function drawer() {
   initLayers();
   backgroundLayer.applyMatrix = false;
 
-  let brushSizeUI;
-  function showBrushSizeUI(isShown) {
-    if (brushSizeUI == null) {
-      const group = new paper.Group();
-      group.applyMatrix = false;
-      const brushPreview = new paper.Path();
-      if (brushSegments) {
-        brushPreview.segments = brushSegments;
-      }
-      brushPreview.fillColor = paintColor.color;
-      brushPreview.strokeColor = colors.lightText.color;
-      brushPreview.strokeWidth = 0.1;
-
-      const brushSizeText = new paper.PointText(0, 28);
-      brushSizeText.fontFamily = 'TTNorms, sans-serif';
-      brushSizeText.fontSize = 14;
-      brushSizeText.fillColor = colors.text.color;
-      brushSizeText.justification = 'center';
-
-      emitter.on('updateBrush', update);
-      function update() {
-        if (brushSegments) {
-          brushPreview.segments = brushSegments;
-          brushPreview.bounds.height = Math.min(
-            30,
-            5 * brushPreview.bounds.height,
-          );
-          brushPreview.bounds.width = Math.min(
-            30,
-            5 * brushPreview.bounds.width,
-          );
-          brushPreview.position = new paper.Point(0, 0);
-        }
-        brushSizeText.content = brushSize;
-      }
-      update();
-
-      function brushButton(path, onPress) {
-        const icon = new paper.Raster(path);
-        icon.scaling = new paper.Point(0.45, 0.45);
-        return createButton(icon, 20, onPress, {
-          highlightedColor: colors.paperOverlay.color,
-          selectedColor: colors.paperOverlay2.color,
-        });
-      }
-      function brushLineButton(path, onPress) {
-        const icon = new paper.Raster(path);
-        icon.scaling = new paper.Point(0.45, 0.45);
-        return createButton(icon, 20, onPress, {
-          highlightedColor: colors.paperOverlay.color,
-          selectedColor: colors.yellow.color,
-        });
-      }
-
-      const increaseButton = brushButton(
-        'static/img/ui-plus.png',
-        incrementBrush,
-      );
-      const decreaseButton = brushButton(
-        'static/img/ui-minus.png',
-        decrementBrush,
-      );
-      increaseButton.position = new paper.Point(0, 70);
-      decreaseButton.position = new paper.Point(0, 110);
-
-      const drawLineButton = brushLineButton(
-        'static/img/menu-drawline.png',
-        () => {
-          setBrushLineForce(true);
-        },
-      );
-      const drawBrushButton = brushLineButton(
-        'static/img/menu-drawbrush.png',
-        () => {
-          setBrushLineForce(false);
-        },
-      );
-      emitter.on('updateBrushLineForce', updateBrushLineButton);
-      function updateBrushLineButton(isBrushLine) {
-        drawLineButton.data.select(isBrushLine);
-        drawBrushButton.data.select(!isBrushLine);
-      }
-      updateBrushLineButton(brushLineForce);
-
-      drawLineButton.position = new paper.Point(0, 210);
-      drawBrushButton.position = new paper.Point(0, 170);
-
-      const backingWidth = 42;
-      const brushSizeBacking = new paper.Path.Rectangle(
-        -backingWidth / 2,
-        0,
-        backingWidth,
-        153,
-        backingWidth / 2,
-      );
-      brushSizeBacking.strokeColor = colors.paperOverlay2.color;
-      brushSizeBacking.strokeWidth = 2;
-      brushSizeBacking.position += new paper.Point(0, -22);
-
-      const brushLineBacking = new paper.Path.Rectangle(
-        -backingWidth / 2,
-        0,
-        backingWidth,
-        82,
-        backingWidth / 2,
-      );
-      brushLineBacking.strokeColor = colors.paperOverlay2.color;
-      brushLineBacking.strokeWidth = 2;
-      brushLineBacking.position += new paper.Point(0, 149);
-
-      group.addChildren([
-        brushPreview,
-        brushSizeText,
-        brushSizeBacking,
-        increaseButton,
-        decreaseButton,
-        brushLineBacking,
-        drawLineButton,
-        drawBrushButton,
-      ]);
-      group.pivot = new paper.Point(0, 0);
-      group.position = new paper.Point(105, 55);
-      brushSizeUI = group;
-    }
-    brushSizeUI.bringToFront();
-    brushSizeUI.visible = isShown;
-  }
-
-  let atomicObjectId = 0;
+  const atomicObjectId = 0;
 
   function encodeObjectGroups(objects) {
     const objectGroups = {};
@@ -266,182 +136,6 @@ export function drawer() {
       category: encodedData.category,
       type: encodedData.type,
     };
-  }
-
-  function getObjectData(objectDefinition) {
-    return {
-      category: objectDefinition.category,
-      type: objectDefinition.type,
-    };
-  }
-
-  function createObjectIcon(objectDefinition, itemData) {
-    const item = objectDefinition.icon.clone({ insert: false });
-    if (objectDefinition.colorData) {
-      item.fillColor = objectDefinition.colorData.color;
-    }
-    return item;
-  }
-
-  function createObjectBase(objectDefinition, itemData) {
-    let item = createObjectIcon(objectDefinition, itemData);
-    item.scaling = objectDefinition.scaling;
-
-    if (item.resolution) {
-      item = new paper.Group(item);
-    }
-
-    item.pivot = item.bounds.bottomCenter;
-    item.pivot += objectDefinition.offset;
-    item.position = new paper.Point(0, 0);
-
-    const group = new paper.Group();
-
-    const bound = new paper.Path.Rectangle(
-      new paper.Rectangle(item.position, objectDefinition.size),
-      new paper.Size(0.15, 0.15),
-    );
-    bound.strokeColor = new paper.Color('white');
-    bound.strokeColor.alpha = 0;
-    bound.strokeWidth = 0.1;
-    bound.fillColor = new paper.Color('white');
-    bound.fillColor.alpha = 0.0001;
-    group.addChildren([item, bound]);
-    group.pivot = bound.bounds.topLeft;
-
-    group.elements = {
-      icon: item,
-      bound,
-    };
-    group.data = itemData;
-    group.definition = objectDefinition;
-
-    return group;
-  }
-
-  function createObjectPreview(objectDefinition, itemData) {
-    layers.mapOverlayLayer.activate();
-    const group = createObjectBase(objectDefinition, itemData);
-    return group;
-  }
-
-  function createObject(objectDefinition, itemData) {
-    layers.mapIconLayer.activate();
-
-    const group = createObjectBase(objectDefinition, itemData);
-    if (objectDefinition.extraObject) {
-      group.insertChild(0, objectDefinition.extraObject());
-    }
-
-    group.state = {
-      selected: false,
-      focused: false,
-    };
-    group.onDelete = function () {
-      const command = objectDeleteCommand(group.data, group.position);
-      applyCommand(command, true);
-      addToHistory(command);
-    };
-    group.showDeleteButton = function (show) {
-      var { deleteButton } = group.data;
-
-      if (show && deleteButton == null) {
-        const icon = new paper.Raster('static/img/ui-x.png');
-        icon.scaling = 0.03;
-
-        const buttonBacking = new paper.Path.Circle(0, 0, 0.9);
-        buttonBacking.fillColor = colors.offWhite.color;
-        const button = createButton(icon, 0.8, (event) => {
-          group.onDelete();
-          event.stopPropagation();
-        });
-        var deleteButton = new paper.Group();
-        deleteButton.applyMatrix = false;
-        deleteButton.addChildren([buttonBacking, button]);
-        group.addChild(deleteButton);
-        deleteButton.position = this.elements.bound.bounds.topRight;
-        group.data.deleteButton = deleteButton;
-      }
-      if (!show && deleteButton != null) {
-        deleteButton.remove();
-        group.data.deleteButton = null;
-      }
-    };
-    group.onSelect = function (isSelected) {
-      if (group.state.selected != isSelected) {
-        this.state.selected = isSelected;
-        this.elements.bound.strokeWidth = isSelected ? 0.2 : 0.1;
-        this.elements.bound.strokeColor = isSelected
-          ? colors.selection.color
-          : 'white';
-        this.elements.bound.strokeColor.alpha = group.state.focused ? 1 : 0;
-
-        group.showDeleteButton(isSelected);
-      }
-    };
-    group.onMouseEnter = function (event) {
-      this.state.focused = true;
-      this.elements.bound.strokeColor.alpha = this.state.selected ? 1 : 0.6;
-    };
-    group.onMouseLeave = function (event) {
-      this.state.focused = false;
-      this.elements.bound.strokeColor.alpha = this.state.selected ? 1 : 0;
-    };
-    group.onMouseDown = function (event) {
-      // if (paper.Key.isDown('alt')) {
-      //  toolState.switchTool(toolState.toolMapValue(
-      //    toolCategoryDefinition[this.definition.category],
-      //    this.definition,
-      //    {}));
-      //  return;
-      // }
-
-      this.elements.bound.strokeColor.alpha = 1;
-      const coordinate = layers.mapOverlayLayer.globalToLocal(event.point);
-      this.data.prevPosition = this.position;
-      this.data.wasMoved = false;
-      this.data.clickPivot = coordinate - this.pivot;
-      grabObject(coordinate, this);
-    };
-    group.onMouseDrag = function (event) {
-      const coordinate = layers.mapOverlayLayer.globalToLocal(event.point);
-      this.position = (coordinate - this.data.clickPivot).round();
-      if (this.position.getDistance(this.data.prevPosition, true) > 0.1) {
-        this.data.wasMoved = true;
-      }
-      dragObject(coordinate, this);
-    };
-    group.onMouseUp = function (event) {
-      this.elements.bound.strokeColor.alpha = this.state.selected ? 1 : 0.6;
-      const { prevPosition } = this.data;
-      if (!prevPosition) return;
-      const coordinate = layers.mapOverlayLayer.globalToLocal(event.point);
-
-      // if the object was clicked, not dragged
-      if (!this.data.wasMoved) {
-        toolState.selectObject(this);
-      }
-
-      delete this.data.prevPosition;
-      delete this.data.clickPivot;
-      if (prevPosition != coordinate.position) {
-        dropObject(coordinate, this, prevPosition);
-      }
-    };
-
-    return group;
-  }
-
-  function createObjectPreviewAsync(objectData, callback) {
-    toolCategoryDefinition[objectData.category].tools.getAsyncValue((tools) => {
-      callback(createObjectPreview(tools[objectData.type], objectData));
-    });
-  }
-
-  function createObjectAsync(objectData, callback) {
-    toolCategoryDefinition[objectData.category].tools.getAsyncValue((tools) => {
-      callback(createObject(tools[objectData.type], objectData));
-    });
   }
 
   layers.mapLayer.activate();
@@ -989,9 +683,6 @@ export function drawer() {
       case '}':
         incrementBrush();
         break;
-      //      case 'l':
-      //        brushSweep = !brushSweep;
-      //        break;
       case 'p':
         cycleBrushHead();
         break;
@@ -1177,136 +868,6 @@ export function drawer() {
   // ===============================================
   // PATH DRAWING
 
-  const paintTools = {
-    grid: 'grid',
-    marquee: 'marquee',
-    marqueeDiagonal: 'marqueeDiagonal',
-    freeform: 'freeform',
-  };
-  let paintTool = paintTools.grid;
-
-  // Create a new paper.Path once, when the script is executed:
-  let myPath;
-
-  function startDraw(event) {
-    switch (paintTool) {
-      case paintTools.grid:
-        startDrawGrid(event.point);
-        break;
-      case paintTools.diagonals:
-        break;
-      case paintTools.freeform:
-        myPath = new paper.Path();
-        myPath.strokeColor = paintColor.color;
-        myPath.strokeWidth = 10;
-        break;
-    }
-  }
-
-  function draw(event) {
-    switch (paintTool) {
-      case paintTools.grid:
-        var isShift = paper.Key.isDown('shift');
-        if (!brushLine && (isShift || brushLineForce)) {
-          startDrawGrid(event.point);
-        } else if (brushLine && !(isShift || brushLineForce)) {
-          drawGrid(event.point);
-          stopGridLinePreview();
-        }
-        brushLine = isShift || brushLineForce;
-
-        if (brushLine) {
-          drawGridLinePreview(event.point);
-        } else {
-          drawGrid(event.point);
-        }
-        break;
-      case paintTools.marquee:
-        break;
-      case paintTools.marqueeDiagonal:
-        break;
-      case paintTools.freeform:
-        // Add a segment to the path at the position of the mouse:
-        myPath.add(event.point);
-        myPath.smooth({
-          type: 'catmull-rom',
-        });
-        break;
-    }
-  }
-
-  function endDraw(event) {
-    switch (paintTool) {
-      case paintTools.grid:
-        var isShift = paper.Key.isDown('shift');
-        if (isShift || brushLineForce) {
-          drawGrid(event.point);
-        }
-        endDrawGrid(event.point);
-        stopGridLinePreview();
-        break;
-      case paintTools.diagonals:
-        break;
-      case paintTools.freeform:
-        break;
-    }
-  }
-
-  function changePaintTool(newPaintTool) {
-    paintTool = newPaintTool;
-  }
-
-  function placeObject(event) {
-    const coordinate = layers.mapOverlayLayer.globalToLocal(event.point);
-    if (toolState.activeTool && toolState.activeTool.tool) {
-      const objectData = getObjectData(toolState.activeTool.tool);
-      const command = objectCreateCommand(
-        objectData,
-        getObjectCenteredCoordinate(coordinate, toolState.activeTool.tool),
-      );
-      applyCommand(command, true);
-      addToHistory(command);
-    }
-  }
-
-  function deleteObject(event, object) {
-    const command = objectDeleteCommand(object.data, object.position);
-    applyCommand(command, true);
-    addToHistory(command);
-  }
-
-  function applyCreateObject(isCreate, createCommand) {
-    if (isCreate) {
-      createObjectAsync(createCommand.data, (object) => {
-        object.position = createCommand.position;
-        object.data.id = atomicObjectId++;
-        // immediately grab the structure with the start position of creation
-        state.objects[object.data.id] = object;
-      });
-    } else {
-      const { id } = createCommand.data;
-      const object = state.objects[id];
-      object.remove();
-      delete state.objects[id];
-    }
-  }
-
-  function grabObject(coordinate, object) {}
-
-  function dragObject(coordinate, object) {}
-
-  function dropObject(coordinate, object, prevPos) {
-    addToHistory(
-      objectPositionCommand(object.data.id, prevPos, object.position),
-    );
-  }
-
-  function applyMoveCommand(isApply, moveCommand) {
-    state.objects[moveCommand.id].position = isApply
-      ? moveCommand.position
-      : moveCommand.prevPosition;
-  }
-
   // ===============================================
   // SHAPE DRAWING
 
@@ -1470,11 +1031,7 @@ export function drawer() {
 
   // var drawPoints = [];
 
-  let startGridCoordinate;
-  let prevGridCoordinate;
   let prevDrawCoordinate;
-
-  const diffCollection = {};
 
   // start/end: lattice Point
   // return: unioned Path/CompoundPath
@@ -1540,17 +1097,6 @@ export function drawer() {
       linePath = uniteCompoundPath(compound);
     }
     return linePath;
-  }
-
-  function uniteCompoundPath(compound) {
-    let p = new paper.Path();
-    compound.children.forEach((c) => {
-      const u = p.unite(c);
-      p.remove();
-      p = u;
-    });
-    compound.remove();
-    return p;
   }
 
   function getDrawPath(coordinate) {

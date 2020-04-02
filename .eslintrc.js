@@ -9,5 +9,7 @@ module.exports = {
     '@typescript-eslint/no-throw-literal': 'off',
     'no-plusplus': ['error', { allowForLoopAfterthoughts: true }],
     'no-param-reassign': ['error', { props: false }],
+    'default-case': 'off',
+    'no-case-declarations': 'off',
   },
 };
