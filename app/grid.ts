@@ -7,7 +7,7 @@ import {
 } from './constants';
 import { addToHistory, drawCommand } from './state';
 import { colors } from './colors';
-import { drawLine } from './paint';
+import { drawLine, applyDiff } from './paint';
 import { getCurrentPaintColor, getBrushCenteredCoordinate } from './brush';
 import { layers } from './layers';
 import { uniteCompoundPath } from './helpers/unitCompoundPath';
@@ -67,7 +67,9 @@ function createGridLine(i, horizontal, blockEdge) {
 
 export function createGrid() {
   layers.mapOverlayLayer.activate();
-  if (gridRaster) gridRaster.remove();
+  if (gridRaster) {
+    gridRaster.remove();
+  }
   const grid: paper.Path[] = [];
   for (let i = 0; i < horizontalBlocks * horizontalDivisions; i++) {
     const line = createGridLine(
@@ -121,7 +123,9 @@ export function createGrid() {
 }
 
 export function stopGridLinePreview() {
-  if (drawPreview) drawPreview.remove();
+  if (drawPreview) {
+    drawPreview.remove();
+  }
 }
 
 export function drawGrid(viewPosition) {
@@ -131,7 +135,7 @@ export function drawGrid(viewPosition) {
   );
   const coordinate = getBrushCenteredCoordinate(rawCoordinate);
 
-  if (prevGridCoordinate == null) {
+  if (!prevGridCoordinate) {
     // eslint-disable-next-line @typescript-eslint/no-use-before-define
     startDrawGrid(viewPosition);
   }
@@ -174,7 +178,9 @@ export function drawGridLinePreview(viewPosition) {
   if (drawPreview) {
     drawPreview.remove();
   }
-  if (startGridCoordinate == null) startDrawGrid(viewPosition);
+  if (!startGridCoordinate) {
+    startDrawGrid(viewPosition);
+  }
   drawPreview = drawLine(coordinate, startGridCoordinate);
   if (drawPreview) {
     drawPreview.locked = true;

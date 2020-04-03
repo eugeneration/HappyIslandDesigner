@@ -9,7 +9,7 @@ export function maxMagnitude(...array: number[]) {
     }
   }
 
-  if (maxIndex == null) {
+  if (maxIndex === null) {
     return null;
   }
   return array[maxIndex];

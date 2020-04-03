@@ -1,9 +1,12 @@
 import { layerDefinition } from '../layerDefinition';
 import { pathDefinition } from '../pathDefinition';
 import { state } from '../state';
+import { correctPath } from './correctPath';
 
-export function getDiff(path, colorKey) {
-  if (!path.children && path.segments.length < 3) return {};
+export function getDiff(path: paper.Path, colorKey) {
+  if (!path.children && path.segments.length < 3) {
+    return {};
+  }
 
   // figure out which layers to add and subtract from
   const definition = layerDefinition[colorKey] || pathDefinition[colorKey];
@@ -18,7 +21,7 @@ export function getDiff(path, colorKey) {
 
   const editLayers = {};
   if (definition.addLayers) {
-    definition.addLayers.forEach((colckorKey) => {
+    definition.addLayers.forEach((ck) => {
       editLayers[ck] = true;
     });
   }

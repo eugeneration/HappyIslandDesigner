@@ -6,8 +6,13 @@ import {
   addToHistory,
   state,
   objectPositionCommand,
+  objectDeleteCommand,
+  applyCommand,
 } from '../state';
 import { toolState } from '../tools/state';
+import { getObjectCenteredCoordinate } from '../brush';
+import { colors } from '../colors';
+import { createButton } from './createButton';
 
 export function createObjectIcon(objectDefinition) {
   const item = objectDefinition.icon.clone({ insert: false });
@@ -95,7 +100,8 @@ export function applyCreateObject(isCreate, createCommand) {
   if (isCreate) {
     createObjectAsync(createCommand.data, (object) => {
       object.position = createCommand.position;
-      object.data.id = atomicObjectId += 1;
+      atomicObjectId += 1;
+      object.data.id = atomicObjectId;
       // immediately grab the structure with the start position of creation
       state.objects[object.data.id] = object;
     });
@@ -107,9 +113,9 @@ export function applyCreateObject(isCreate, createCommand) {
   }
 }
 
-function grabObject(coordinate, object) {}
+function grabObject() {}
 
-function dragObject(coordinate, object) {}
+function dragObject() {}
 
 function dropObject(coordinate, object, prevPos) {
   addToHistory(objectPositionCommand(object.data.id, prevPos, object.position));
@@ -133,9 +139,9 @@ export function createObject(objectDefinition, itemData) {
     addToHistory(command);
   };
   group.showDeleteButton = function (show) {
-    const { deleteButton } = group.data;
+    let { deleteButton } = group.data;
 
-    if (show && deleteButton == null) {
+    if (show && deleteButton === null) {
       const icon = new paper.Raster('static/img/ui-x.png');
       icon.scaling = 0.03;
 
@@ -145,20 +151,21 @@ export function createObject(objectDefinition, itemData) {
         group.onDelete();
         event.stopPropagation();
       });
-      const deleteButton = new paper.Group();
+
+      deleteButton = new paper.Group();
       deleteButton.applyMatrix = false;
       deleteButton.addChildren([buttonBacking, button]);
       group.addChild(deleteButton);
       deleteButton.position = this.elements.bound.bounds.topRight;
       group.data.deleteButton = deleteButton;
     }
-    if (!show && deleteButton != null) {
+    if (!show && deleteButton !== null) {
       deleteButton.remove();
       group.data.deleteButton = null;
     }
   };
   group.onSelect = function (isSelected) {
-    if (group.state.selected != isSelected) {
+    if (group.state.selected !== isSelected) {
       this.state.selected = isSelected;
       this.elements.bound.strokeWidth = isSelected ? 0.2 : 0.1;
       this.elements.bound.strokeColor = isSelected
@@ -169,11 +176,11 @@ export function createObject(objectDefinition, itemData) {
       group.showDeleteButton(isSelected);
     }
   };
-  group.onMouseEnter = function (event) {
+  group.onMouseEnter = function () {
     this.state.focused = true;
     this.elements.bound.strokeColor.alpha = this.state.selected ? 1 : 0.6;
   };
-  group.onMouseLeave = function (event) {
+  group.onMouseLeave = function () {
     this.state.focused = false;
     this.elements.bound.strokeColor.alpha = this.state.selected ? 1 : 0;
   };
@@ -204,7 +211,9 @@ export function createObject(objectDefinition, itemData) {
   group.onMouseUp = function (event) {
     this.elements.bound.strokeColor.alpha = this.state.selected ? 1 : 0.6;
     const { prevPosition } = this.data;
-    if (!prevPosition) return;
+    if (!prevPosition) {
+      return;
+    }
     const coordinate = layers.mapOverlayLayer.globalToLocal(event.point);
 
     // if the object was clicked, not dragged

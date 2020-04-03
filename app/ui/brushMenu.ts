@@ -51,7 +51,7 @@ function updateBrushLineButton(isBrushLine) {
 }
 
 export function showBrushSizeUI(isShown) {
-  if (brushSizeUI == null) {
+  if (!brushSizeUI) {
     const group = new paper.Group();
     group.applyMatrix = false;
     brushPreview = new paper.Path();

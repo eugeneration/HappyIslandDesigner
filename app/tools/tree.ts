@@ -68,8 +68,9 @@ export function load() {
     def.scaling = def.scaling || new paper.Point(0.014, 0.014);
     def.menuScaling = def.menuScaling || new paper.Point(0.2, 0.2);
     def.size = new paper.Size(1, 1);
-    def.offset = def.offset
-      || new paper.Point(-def.size.width / 2, -def.size.height + 0.2);
+    def.offset =
+      def.offset ||
+      new paper.Point(-def.size.width / 2, -def.size.height + 0.2);
     def.onSelect = function () {};
 
     // imnmediately load the assets

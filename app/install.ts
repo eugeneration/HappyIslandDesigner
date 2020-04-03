@@ -1,7 +1,7 @@
 import paper from 'paper';
 import { store } from './store';
 
-export function init() {
+export function install() {
   return new Promise((resolve) => {
     window.onload = function onload() {
       paper.install(window);

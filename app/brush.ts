@@ -139,7 +139,7 @@ export function updateCoordinateLabel(event) {
       objectPreview.definition,
     );
   }
-  if (objectPreviewOutline) objectPreviewOutline.position = coordinate;
+  if (objectPreviewOutline) { objectPreviewOutline.position = coordinate; }
 }
 
 function getBrushSegments(size) {
@@ -265,7 +265,9 @@ export function updateBrush() {
 }
 
 export function cycleBrushHead() {
-  const heads = Object.keys(brushTypes).sort((a, b) => (a == b ? 0 : a < b ? -1 : 1));
+  const heads = Object.keys(brushTypes).sort((a, b) => {
+    return a === b ? 0 : a < b ? -1 : 1;
+  });
   const index = heads.indexOf(brushType);
   brushType = heads[(index + 1) % heads.length];
   updateBrush();

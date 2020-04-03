@@ -1,8 +1,7 @@
 import paper from 'paper';
 import { emitter } from '../emitter';
 import { colors } from '../colors';
-
-export let modalLayer: paper.Layer;
+import { layers } from '../layers';
 
 export function renderModal(
   name: string,
@@ -10,10 +9,6 @@ export function renderModal(
   height: number,
   onDismiss,
 ): paper.Group {
-  if (!modalLayer) {
-    modalLayer = new paper.Layer();
-    modalLayer.applyMatrix = false;
-  }
   const topLeft = new paper.Point(0, 0); // + paper.view.bounds.topLeft;
   const center = new paper.Point(
     (paper.view.bounds.width * paper.view.scaling.x) / 2,
@@ -24,7 +19,7 @@ export function renderModal(
     paper.view.bounds.height * paper.view.scaling.y,
   ); // + paper.view.bounds.topLeft * 2;
 
-  modalLayer.activate();
+  layers.modalLayer.activate();
 
   const group = new paper.Group();
 
@@ -45,7 +40,7 @@ export function renderModal(
     new paper.Size(60, 60),
   );
   modal.fillColor = colors.paper.color;
-  modal.onMouseEnter = function (event) {
+  modal.onMouseEnter = function () {
     group.data.text.content = name;
   };
 
@@ -85,7 +80,8 @@ export function renderModal(
 
   const text = new paper.PointText(new paper.Point(group.data.width / 2, -50));
   text.justification = 'center';
-  (text.content = name), (text.fontSize = 20);
+  text.content = name;
+  text.fontSize = 20;
   text.fontFamily = 'TTNorms, sans-serif';
   text.fillColor = colors.text.color;
   modalContents.addChild(text);

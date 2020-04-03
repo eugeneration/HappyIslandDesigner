@@ -1,17 +1,12 @@
 import paper from 'paper';
 
-import { clearMap, setNewMapData, state, objectCreateCommand } from './state';
+import { state, objectCreateCommand, applyCommand } from './state';
 import { downloadDataURL } from './helpers/download';
 import { layers } from './layers';
 import { colors, getColorDataFromEncodedName } from './colors';
 import { getGridRaster } from './grid';
 import { objectMap } from './helpers/objectMap';
 import { toolCategoryDefinition } from './tools';
-
-const editor = {
-  autosaveMap: null,
-  clearAutosave: null,
-};
 
 function removeFloatingPointError(f) {
   return Math.round((f + Number.EPSILON) * 100) / 100;
@@ -70,9 +65,9 @@ function encodeObjectGroups(objects) {
 
 function decodeObjectGroups(objectGroups, encodingVersion) {
   if (encodingVersion === 0) {
-    return objectMap(objectGroups, (encodedData) =>
-      decodeObject(encodedData, version),
-    );
+    return objectMap(objectGroups, (encodedData) => {
+      return decodeObject(encodedData, version);
+    });
   }
 
   const objects = {};
@@ -118,7 +113,9 @@ function encodeDrawing(drawing) {
     const pathItem = drawing[colorKey];
     let p;
     if (pathItem.children) {
-      p = pathItem.children.map((path) => encodePath(path));
+      p = pathItem.children.map((path) => {
+        return encodePath(path);
+      });
     } else {
       p = encodePath(pathItem);
     }
@@ -142,13 +139,20 @@ function decodeDrawing(encodedDrawing, version) {
     } else if (version === 0) {
       if (typeof pathData[0][0] === 'number') {
         // normal path
-        p = new paper.Path(pathData.map((p) => new paper.Point(p)));
+        p = new paper.Path(
+          pathData.map((p) => {
+            return new paper.Point(p);
+          }),
+        );
       } else {
         p = new paper.CompoundPath({
-          children: pathData.map(
-            (pathData) =>
-              new paper.Path(pathData.map((p) => new paper.Point(p))),
-          ),
+          children: pathData.map((pathData) => {
+            return new paper.Path(
+              pathData.map((p) => {
+                return new paper.Point(p);
+              }),
+            );
+          }),
         });
       }
     } else if (typeof pathData[0] === 'number') {
@@ -156,9 +160,9 @@ function decodeDrawing(encodedDrawing, version) {
       p = new paper.Path(decodePath(pathData));
     } else {
       p = new paper.CompoundPath({
-        children: pathData.map(
-          (pathData) => new paper.Path(decodePath(pathData)),
-        ),
+        children: pathData.map((pathData) => {
+          return new paper.Path(decodePath(pathData));
+        }),
       });
     }
     p.locked = true;
@@ -168,7 +172,7 @@ function decodeDrawing(encodedDrawing, version) {
   return decodedDrawing;
 }
 
-function encodeMap() {
+export function encodeMap() {
   // colors translated from keys => encoded name
   const o = {
     version: 1,
@@ -197,28 +201,12 @@ export function autosaveMap() {
   console.log('Cannot autosave: your browser does not support local storage.');
   return false;
 }
-editor.autosaveMap = autosaveMap;
-
-export function tryLoadAutosaveMap() {
-  document.cookie = '';
-  if (localStorage) {
-    const autosave = localStorage.getItem('autosave');
-    if (autosave != null) {
-      clearMap();
-      setNewMapData(decodeMap(JSON.parse(autosave)));
-      return true;
-    }
-  }
-  return false;
-}
 
 function clearAutosave() {
   if (localStorage) {
     localStorage.removeItem('autosave');
   }
 }
-
-editor.clearAutosave = clearAutosave;
 
 export function saveMapToFile() {
   let mapJson = encodeMap();

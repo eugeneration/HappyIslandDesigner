@@ -23,7 +23,7 @@ export function doForCellsOnLinePerInterval(
 
   do {
     const cellPoint = p0.floor();
-    if (prevCellPoint != cellPoint) {
+    if (prevCellPoint !== cellPoint) {
       setPixel(cellPoint.x, cellPoint.y);
       prevCellPoint = cellPoint;
     }

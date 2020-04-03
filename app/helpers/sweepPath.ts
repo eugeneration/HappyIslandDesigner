@@ -6,7 +6,9 @@ export function sweepPath(path: paper.Path, sweepVector) {
   let frontEdge: paper.Segment[] = [];
   const sweepDirection = sweepVector.normalize();
 
-  if (sweepVector.x === 0 && sweepVector.y === 0) return path;
+  if (sweepVector.x === 0 && sweepVector.y === 0) {
+    return path;
+  }
 
   let isFirstFront = false;
   let isLastFront = false;
@@ -15,21 +17,26 @@ export function sweepPath(path: paper.Path, sweepVector) {
   // go backwards so when I add indices I don't affect the index order
   for (let i = path.segments.length - 1; i >= 0; i--) {
     const p0 = path.segments[i];
-    const p1 = path.segments[(i - 1 + path.segments.length) % path.segments.length];
+    const p1 =
+      path.segments[(i - 1 + path.segments.length) % path.segments.length];
     const normal = path.clockwise
       ? new paper.Point(
-        p0.point.y - p1.point.y,
-        p1.point.x - p0.point.x,
-      ).normalize()
+          p0.point.y - p1.point.y,
+          p1.point.x - p0.point.x,
+        ).normalize()
       : new paper.Point(
-        p1.point.y - p0.point.y,
-        p0.point.x - p1.point.x,
-      ).normalize();
+          p1.point.y - p0.point.y,
+          p0.point.x - p1.point.x,
+        ).normalize();
     const dot = normal.dot(sweepDirection);
 
     if (dot > 0) {
-      if (i === path.segments.length - 1) isFirstFront = true;
-      if (i === 0) isLastFront = true;
+      if (i === path.segments.length - 1) {
+        isFirstFront = true;
+      }
+      if (i === 0) {
+        isLastFront = true;
+      }
 
       if (potentialPoints.length > 0) {
         frontEdge.concat(potentialPoints);
@@ -41,7 +48,7 @@ export function sweepPath(path: paper.Path, sweepVector) {
       }
       frontEdge.push(p1);
     }
-    // include lines w/ normals == 0 if connected to line > 0
+    // include lines w/ normals ===0 if connected to line > 0
     else if (dot === 0) {
       if (frontEdge.length > 0) {
         potentialPoints.push(p1);

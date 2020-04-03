@@ -7,7 +7,9 @@ export function correctPath(path: paper.Path, receivingPath) {
     const isSegmentInvalid =
       getDistanceFromWholeNumber(point.x) > 0.1 ||
       getDistanceFromWholeNumber(point.y) > 0.1;
-    if (!isSegmentInvalid) return;
+    if (!isSegmentInvalid) {
+      return;
+    }
 
     const prevIndex =
       (segment.index - 1 + path.segments.length) % path.segments.length;

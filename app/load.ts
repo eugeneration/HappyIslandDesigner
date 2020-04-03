@@ -1,5 +1,6 @@
 import { clearMap, setNewMapData } from './state';
 import { decodeMap } from './save';
+import { template } from './template';
 
 function clickElem(elem) {
   // Thx user1601638 on Stack Overflow (6/6/2018 - https://stackoverflow.com/questions/13405129/javascript-create-and-save-file )
@@ -22,6 +23,24 @@ function clickElem(elem) {
     null,
   );
   elem.dispatchEvent(eventMouse);
+}
+
+export function loadTemplate() {
+  clearMap();
+  setNewMapData(decodeMap(template));
+}
+
+export function tryLoadAutosaveMap() {
+  document.cookie = '';
+  if (localStorage) {
+    const autosave = localStorage.getItem('autosave');
+    if (autosave !== null) {
+      clearMap();
+      setNewMapData(decodeMap(JSON.parse(autosave)));
+      return true;
+    }
+  }
+  return false;
 }
 
 export function loadMapFromFile() {

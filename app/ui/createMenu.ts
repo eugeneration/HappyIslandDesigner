@@ -15,15 +15,15 @@ export type Options = {
 
 export function createMenu(items, options: Options): paper.Group {
   const itemsCount = Object.keys(items).length;
-  const spacing = options.spacing == null ? 50 : options.spacing;
-  const perColumn = options.perColumn == null ? itemsCount : options.perColumn;
-  const extraColumns = options.extraColumns == null ? 0 : options.extraColumns;
-  const extraRows = options.extraRows == null ? 0 : options.extraRows;
+  const spacing = options.spacing === null ? 50 : options.spacing;
+  const perColumn = options.perColumn === null ? itemsCount : options.perColumn;
+  const extraColumns = options.extraColumns === null ? 0 : options.extraColumns;
+  const extraRows = options.extraRows === null ? 0 : options.extraRows;
   const columnSpacing =
-    options.columnSpacing == null ? 60 : options.columnSpacing;
-  const horizontal = options.horizontal == null ? false : options.horizontal;
-  const noPointer = options.noPointer == null ? false : options.noPointer;
-  const margin = options.margin == null ? 35 : options.margin;
+    options.columnSpacing === null ? 60 : options.columnSpacing;
+  const horizontal = options.horizontal === null ? false : options.horizontal;
+  const noPointer = options.noPointer === null ? false : options.noPointer;
+  const margin = options.margin === null ? 35 : options.margin;
   let i = 0;
   const iconMenu = new paper.Group();
 

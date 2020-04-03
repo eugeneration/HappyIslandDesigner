@@ -76,7 +76,7 @@ export function multitouch() {
         };
       }
 
-      if (ev.targetTouches.length == 2) {
+      if (ev.targetTouches.length === 2) {
         const gestureData = getTwoFingerGestureData(
           ev,
           ev.targetTouches[0],
@@ -108,7 +108,7 @@ export function multitouch() {
         delete tpCache[ev.changedTouches[i].identifier];
       }
 
-      if (ev.targetTouches.length == 2) {
+      if (ev.targetTouches.length === 2) {
         const gestureData = getTwoFingerGestureData(
           ev,
           ev.targetTouches[0],
@@ -122,7 +122,7 @@ export function multitouch() {
         gestureCache = null;
       }
 
-      if (ev.targetTouches.length == 0) {
+      if (ev.targetTouches.length === 0) {
         console.log('all fingers up');
       }
     }
@@ -144,7 +144,7 @@ export function multitouch() {
         paper.view.draw();
       }
 
-      if (ev.targetTouches.length == 1) {
+      if (ev.targetTouches.length === 1) {
         // Check if the two target touches are the same ones that started
         // the 2-touch
         const delta = getDeltaPrev(getFingerData(ev, ev.targetTouches[0]));
@@ -153,7 +153,7 @@ export function multitouch() {
         }
       }
 
-      if (ev.targetTouches.length == 2) {
+      if (ev.targetTouches.length === 2) {
         // Check if the two target touches are the same ones that started
         // the 2-touch
         const fingerData1 = getFingerData(ev, ev.targetTouches[0]);

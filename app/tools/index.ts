@@ -21,11 +21,13 @@ import { createButton } from '../ui/createButton';
 import { addToLeftToolMenu } from '../ui/leftMenu';
 import { layers } from '../layers';
 import { objectMap } from '../helpers/objectMap';
-import { createObjectIcon } from '../ui/createObject';
+import { createObjectIcon, placeObject } from '../ui/createObject';
 import { layerDefinition } from '../layerDefinition';
 import { showBrushSizeUI } from '../ui/brushMenu';
 import { getObjectData } from '../helpers/getObjectData';
 import { pathDefinition } from '../pathDefinition';
+import { getColorAtCoordinate } from '../getColorAtCoordinate';
+import { startDraw, draw, endDraw } from '../paint';
 
 const toolPrefix = 'tool-';
 
@@ -33,10 +35,15 @@ export const baseToolCategoryDefinition = {
   onSelect(subclass, isSelected, isReselected) {
     subclass.icon.data.select(isSelected);
 
-    if (isReselected) this.toggleMenu(subclass);
-    else this.openMenu(subclass, isSelected);
+    if (isReselected) {
+      this.toggleMenu(subclass);
+    } else {
+      this.openMenu(subclass, isSelected);
+    }
 
-    if (!isSelected) subclass.enablePreview(isSelected);
+    if (!isSelected) {
+      subclass.enablePreview(isSelected);
+    }
   },
   onMouseMove(subclass, event) {
     updateCoordinateLabel(event);
@@ -50,8 +57,8 @@ export const baseToolCategoryDefinition = {
   onMouseUp(subclass, event) {
     updateCoordinateLabel(event);
   },
-  onKeyDown(subclass, event) {},
-  enablePreview(subclass, isEnabled) {},
+  onKeyDown() {},
+  enablePreview() {},
   toggleMenu(subclass) {
     if (subclass.openMenu) {
       subclass.openMenu(!(subclass.iconMenu && subclass.iconMenu.visible));
@@ -141,17 +148,23 @@ export const baseObjectCategoryDefinition = {
     const objectPreviewOutline = getCurrentObjectPreviewOutline();
     const objectPreview = getCurrentObjectPreview();
 
-    if (objectPreviewOutline) objectPreviewOutline.visible = isEnabled;
-    if (objectPreview) objectPreview.visible = isEnabled;
+    if (objectPreviewOutline) {
+      objectPreviewOutline.visible = isEnabled;
+    }
+    if (objectPreview) {
+      objectPreview.visible = isEnabled;
+    }
   },
   openMenu(isSelected) {
-    if (this.iconMenu == null) {
+    if (this.iconMenu === null) {
       this.tools.getAsyncValue((definitions) => {
         layers.fixedLayer.activate();
         const categoryDefinition = this;
         this.iconMenu = createMenu(
           objectMap(definitions, (def, name) => {
-            if (def.legacy || def.legacyCategory) return null;
+            if (def.legacy || def.legacyCategory) {
+              return null;
+            }
             const icon = createObjectIcon(def, getObjectData(def));
             icon.scaling = def.menuScaling;
             return createButton(icon, 20, (event, button) => {
@@ -272,7 +285,7 @@ export function init() {
       getCurrentBrush().visible = isEnabled;
     },
     openMenu(isSelected) {
-      if (this.iconMenu == null) {
+      if (this.iconMenu === null) {
         layers.fixedLayer.activate();
         updatePaintColor(this.data.paintColorData);
         this.iconMenu = createMenu(
@@ -284,7 +297,7 @@ export function init() {
             );
             paintCircle.fillColor = colorData.color;
             paintCircle.locked = true;
-            return createButton(paintCircle, 20, (event, button) => {
+            return createButton(paintCircle, 20, () => {
               updatePaintColor(colorData);
               this.data.paintColorData = colorData;
             });
@@ -298,7 +311,7 @@ export function init() {
         this.iconMenu.data.update(this.data.paintColorData.key);
       }
       this.iconMenu.visible = isSelected;
-      const adjusterUI = showBrushSizeUI(isSelected);
+      showBrushSizeUI(isSelected);
     },
   };
 
@@ -344,7 +357,7 @@ export function init() {
       getCurrentBrush().visible = isEnabled;
     },
     openMenu(isSelected) {
-      if (this.iconMenu == null) {
+      if (this.iconMenu === null) {
         layers.fixedLayer.activate();
         updatePaintColor(this.data.paintColorData);
         const pathColorButtons = objectMap(
@@ -352,7 +365,7 @@ export function init() {
           (definition, colorKey) => {
             let buttonIcon;
             const colorData = colors[colorKey];
-            if (colorKey == colors.pathEraser.key) {
+            if (colorKey === colors.pathEraser.key) {
               buttonIcon = new paper.Group();
               const eraserImg = new paper.Raster(
                 `${imgPath + toolPrefix}eraser.png`,
@@ -369,7 +382,7 @@ export function init() {
               buttonIcon = paintCircle;
             }
 
-            return createButton(buttonIcon, 20, (event, button) => {
+            return createButton(buttonIcon, 20, () => {
               updatePaintColor(colorData);
               this.data.paintColorData = colorData;
             });
@@ -387,7 +400,7 @@ export function init() {
         this.iconMenu.data.update(this.data.paintColorData.key);
       }
       this.iconMenu.visible = isSelected;
-      const adjusterUI = showBrushSizeUI(isSelected);
+      showBrushSizeUI(isSelected);
     },
   };
 

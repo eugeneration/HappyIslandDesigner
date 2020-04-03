@@ -18,6 +18,8 @@ import {
 import { doForCellsOnLine } from './helpers/doForCellsOnLine';
 import { sweepPath } from './helpers/sweepPath';
 import { uniteCompoundPath } from './helpers/unitCompoundPath';
+import { layers } from './layers';
+import { colors } from './colors';
 
 const paintTools = {
   grid: 'grid',
@@ -135,11 +137,11 @@ export function drawLine(start, end) {
       Math.round(end.y),
       (x, y) => {
         p = new paper.Point(x, y);
-        if (prevDrawLineCoordinate == null) {
+        if (prevDrawLineCoordinate === null) {
           prevDrawLineCoordinate = p;
         } else if (p !== prevDrawCoordinate) {
           const delta = p.subtract(prevDrawCoordinate);
-          if (prevDelta != null && delta !== prevDelta) {
+          if (prevDelta !== null && delta !== prevDelta) {
             const path = getDrawPath(prevDrawCoordinate);
             drawPaths.push(
               sweepPath(
@@ -180,4 +182,38 @@ export function drawLine(start, end) {
     linePath = uniteCompoundPath(compound);
   }
   return linePath;
+}
+
+export function addPath(isAdd, path, colorKey) {
+  layers.mapLayer.activate();
+  if (!state.drawing.hasOwnProperty(colorKey)) {
+    state.drawing[colorKey] = new paper.Path();
+    state.drawing[colorKey].locked = true;
+  }
+  const combined = isAdd
+    ? state.drawing[colorKey].unite(path)
+    : state.drawing[colorKey].subtract(path);
+  combined.locked = true;
+  combined.fillColor = colors[colorKey].color;
+  combined.insertAbove(state.drawing[colorKey]);
+
+  state.drawing[colorKey].remove();
+  path.remove();
+
+  state.drawing[colorKey] = combined;
+}
+
+export function applyDiff(isApply, diff) {
+  // todo: weird location
+  if (isApply) {
+    prevDrawCoordinate = null;
+  }
+  Object.keys(diff).forEach((colorKey) => {
+    const colorDiff = diff[colorKey];
+    let { isAdd } = colorDiff;
+    if (!isApply) {
+      isAdd = !isAdd;
+    } // do the reverse operation
+    addPath(isAdd, colorDiff.path, colorKey);
+  });
 }

@@ -1,8 +1,11 @@
 import paper from 'paper';
+
 import { renderModal } from './modal';
 import { colors } from '../colors';
+import { saveMapToFile } from '../save';
+import { loadMapFromFile, loadTemplate } from '../load';
 
-let mainMenu;
+let mainMenu: paper.Group;
 
 function createMenuButton(
   name: string,
@@ -84,8 +87,10 @@ function createMenuButton(
 }
 
 export function showMainMenu(isShown: boolean) {
-  if (mainMenu == null) {
-    if (!isShown) return;
+  if (!mainMenu) {
+    if (!isShown) {
+      return;
+    }
     mainMenu = renderModal('Main Menu', 260, 370, () => {
       showMainMenu(false);
     });
@@ -111,10 +116,10 @@ export function showMainMenu(isShown: boolean) {
       'static/img/menu-new.png',
       2,
       () => {
+        // eslint-disable-next-line no-alert
         const r = confirm('Clear your map? You will lose all unsaved changes.');
-        if (r == true) {
+        if (r === true) {
           loadTemplate();
-        } else {
         }
       },
     );

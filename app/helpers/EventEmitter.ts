@@ -4,14 +4,18 @@ export class EventEmitter {
   callbacks: Record<string, Callback[]> = {};
 
   on(event: string, cb: Callback) {
-    if (!this.callbacks[event]) this.callbacks[event] = [];
+    if (!this.callbacks[event]) {
+      this.callbacks[event] = [];
+    }
     this.callbacks[event].push(cb);
   }
 
   emit(event: string, data?: any) {
     const cbs = this.callbacks[event];
     if (cbs) {
-      cbs.forEach((cb) => cb(data));
+      cbs.forEach((cb) => {
+        return cb(data);
+      });
     }
   }
 }

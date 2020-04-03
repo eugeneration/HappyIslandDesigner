@@ -100,7 +100,8 @@ export function load() {
     def.type = type;
     def.scaling = def.scaling || new paper.Point(0.029, 0.029);
     def.menuScaling = def.menuScaling || new paper.Point(0.18, 0.18);
-    def.offset = def.offset || new paper.Point(-def.size.width / 2, -def.size.height);
+    def.offset =
+      def.offset || new paper.Point(-def.size.width / 2, -def.size.height);
     def.onSelect = function () {};
     // imnmediately load the assets
     if (def.img) {

@@ -83,16 +83,18 @@ export const toolState = {
     this.isDown = false;
 
     const isActive = this.isCanvasFocused && !this.isSomethingSelected();
-    if (this.toolIsActive != isActive) {
+    if (this.toolIsActive !== isActive) {
       this.toolIsActive = isActive;
-      if (this.activeTool) this.activeTool.definition.enablePreview(isActive);
+      if (this.activeTool) {
+        this.activeTool.definition.enablePreview(isActive);
+      }
     }
   },
   focusOnCanvas(isFocused) {
     this.isCanvasFocused = isFocused;
     if (!this.isDown) {
       const isActive = this.isCanvasFocused && !this.isSomethingSelected();
-      if (this.toolIsActive != isActive) {
+      if (this.toolIsActive !== isActive) {
         this.toolIsActive = isActive;
         if (this.activeTool) {
           this.activeTool.definition.enablePreview(isActive);

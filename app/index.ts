@@ -1,11 +1,10 @@
-import * as store from './store';
-import { init } from './init';
+import { install } from './install';
 import { multitouch } from './paper-multitouch';
 import { drawer } from './drawer';
 import './index.scss';
 
 (async () => {
-  await init();
+  await install();
 
   multitouch();
 

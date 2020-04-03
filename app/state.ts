@@ -44,15 +44,15 @@ export function setNewMapData(mapData) {
 }
 
 export function canRedo() {
-  return state == null ? 0 : state.index < state.history.length - 1;
+  return state === null ? 0 : state.index < state.history.length - 1;
 }
 
 export function canUndo() {
-  return state == null ? 0 : state.index >= 0;
+  return state === null ? 0 : state.index >= 0;
 }
 
 export function applyCommand(command, isApply) {
-  if (isApply == null) {
+  if (isApply === null) {
     throw 'exception: applyCommand called without an apply direction';
   }
   // if (draw command)

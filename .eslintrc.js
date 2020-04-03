@@ -14,5 +14,14 @@ module.exports = {
     'prefer-destructuring': 'off',
     'operator-linebreak': 'off',
     'func-names': 'off',
+    'implicit-arrow-linebreak': 'off',
+
+    'arrow-parens': ['error', 'always'],
+    'arrow-body-style': ['error', 'always'],
+    'function-paren-newline': 'off',
+    'max-len': ['error', { ignoreComments: true }],
+
+    'import/no-cycle': 'warn',
+    curly: ['error', 'all'],
   },
 };

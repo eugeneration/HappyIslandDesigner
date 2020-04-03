@@ -2,36 +2,39 @@ import paper from 'paper';
 import { colors } from '../colors';
 
 export function createButton(item, buttonSize, onClick, options?: any) {
-  const highlightedColor =
-    !options || options.highlightedColor == null
+  const highlightedColor: paper.Color =
+    !options || !options.highlightedColor
       ? colors.sand.color
       : options.highlightedColor;
-  const selectedColor =
-    !options || options.selectedColor == null
+  const selectedColor: paper.Color =
+    !options || !options.selectedColor
       ? colors.npc.color
       : options.selectedColor;
 
   const group = new paper.Group();
 
-  const button = new paper.Path.Circle(0, 0, buttonSize);
+  const button = new paper.Path.Circle(new paper.Point(0, 0), buttonSize);
 
   group.applyMatrix = false;
   group.addChildren([button, item]);
 
-  function updateColor() {
-    button.fillColor =
+  function updateColor(btn: paper.Path.Circle) {
+    btn.fillColor =
       group.data.selected || group.data.pressed
         ? selectedColor
         : highlightedColor;
-    button.fillColor.alpha = group.data.selected
-      ? 1
-      : group.data.pressed
-      ? 0.5
-      : group.data.hovered
-      ? 1
-      : 0.0001;
+
+    if (group.data.selected) {
+      btn.fillColor.alpha = 1;
+    } else if (group.data.pressed) {
+      btn.fillColor.alpha = 0.5;
+    } else if (group.data.hovered) {
+      btn.fillColor.alpha = 1;
+    } else {
+      btn.fillColor.alpha = 0.0001;
+    }
   }
-  updateColor();
+  updateColor(button);
 
   group.data = {
     selected: false,
@@ -40,38 +43,50 @@ export function createButton(item, buttonSize, onClick, options?: any) {
     disabled: false,
     select(isSelected) {
       group.data.selected = isSelected;
-      updateColor();
+      updateColor(button);
     },
     hover(isHover) {
       group.data.hovered = isHover;
-      updateColor();
+      updateColor(button);
     },
     press(isPressed) {
       group.data.pressed = isPressed;
-      updateColor();
+      updateColor(button);
     },
     disable(isDisabled) {
       group.data.disabled = isDisabled;
       item.opacity = isDisabled ? 0.5 : 1;
-      if (isDisabled) group.data.hover(false);
+      if (isDisabled) {
+        group.data.hover(false);
+      }
     },
   };
-  group.onMouseEnter = function (event) {
-    if (group.data.disabled) return;
+  group.onMouseEnter = function () {
+    if (group.data.disabled) {
+      return;
+    }
     group.data.hover(true);
   };
-  group.onMouseLeave = function (event) {
-    if (group.data.disabled) return;
+  group.onMouseLeave = function () {
+    if (group.data.disabled) {
+      return;
+    }
     group.data.press(false);
     group.data.hover(false);
   };
-  group.onMouseDown = function (event) {
-    if (group.data.disabled) return;
+  group.onMouseDown = function () {
+    if (group.data.disabled) {
+      return;
+    }
     group.data.press(true);
   };
   group.onMouseUp = function (event) {
-    if (group.data.disabled) return;
-    if (group.data.pressed) onClick(event, group);
+    if (group.data.disabled) {
+      return;
+    }
+    if (group.data.pressed) {
+      onClick(event, group);
+    }
     group.data.press(false);
   };
   return group;

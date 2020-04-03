@@ -112,6 +112,6 @@ Object.keys(colors).forEach((colorKey) => {
 });
 
 export function getColorDataFromEncodedName(encodedColorName: string) {
-  if (!encodedColorName) return null;
-  return Object.values(colors).find((c) => c.name === encodedColorName);
+  if (!encodedColorName) { return null; }
+  return Object.values(colors).find((c) => { return c.name === encodedColorName; });
 }

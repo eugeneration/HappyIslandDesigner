@@ -17,8 +17,12 @@ $(view.element).mousewheel((event) => {
   const mousePosition = new Point(event.offsetX, event.offsetY);
 
   if (event.altKey || event.ctrlKey) {
-    if (event.altKey) event.deltaY += event.deltaX;
-    if (event.ctrlKey) event.deltaY *= 6;
+    if (event.altKey) {
+      event.deltaY += event.deltaX;
+    }
+    if (event.ctrlKey) {
+      event.deltaY *= 6;
+    }
     changeZoomCentered(event.deltaY * event.deltaFactor, mousePosition);
   } else {
     changeCenterPosition(event.deltaX, event.deltaY, event.deltaFactor);
@@ -46,17 +50,23 @@ let mouseNativeStart = null;
 let viewCenterStart = null;
 
 view.on('keydown', (event) => {
-  if (event.key == 'space') isSpaceDown = true;
+  if (event.key === 'space') {
+    isSpaceDown = true;
+  }
 });
 
 view.on('keyup', (event) => {
-  if (event.key == 'space') isSpaceDown = false;
+  if (event.key === 'space') {
+    isSpaceDown = false;
+  }
 });
 
 // This function is called whenever the user
 // clicks the mouse in the view:
 view.on('mousedown', (event) => {
-  if (!isSpaceDown) return;
+  if (!isSpaceDown) {
+    return;
+  }
   viewCenterStart = view.center;
   // Have to use native mouse offset, because ev.delta
   //  changes as the view is scrolled.
@@ -64,7 +74,9 @@ view.on('mousedown', (event) => {
 });
 
 view.on('mousedrag', (event) => {
-  if (!isSpaceDown) return;
+  if (!isSpaceDown) {
+    return;
+  }
   if (viewCenterStart) {
     const nativeDelta = new Point(
       event.event.offsetX - mouseNativeStart.x,
@@ -107,13 +119,15 @@ function setZoomRange(range /* paper.Size[] */) /* number[] */ {
   const { view } = project;
   const aSize = range.shift();
   const bSize = range.shift();
-  const a = aSize
-    && Math.min(
+  const a =
+    aSize &&
+    Math.min(
       view.bounds.height / aSize.height,
       view.bounds.width / aSize.width,
     );
-  const b = bSize
-    && Math.min(
+  const b =
+    bSize &&
+    Math.min(
       view.bounds.height / bSize.height,
       view.bounds.width / bSize.width,
     );
@@ -139,7 +153,7 @@ function setZoomConstrained(zoom) {
     zoom = Math.min(zoom, _maxZoom);
   }
   const { view } = project;
-  if (zoom != view.zoom) {
+  if (zoom !== view.zoom) {
     view.zoom = zoom;
     return zoom;
   }

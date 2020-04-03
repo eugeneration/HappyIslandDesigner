@@ -1,28 +1,9 @@
 import paper from 'paper';
 import animatePaper from 'paper-animate';
 
-import { template } from './template';
 import { createGrid, toggleGrid } from './grid';
-import { layerDefinition } from './layerDefinition';
-import {
-  horizontalBlocks,
-  horizontalDivisions,
-  verticalBlocks,
-  verticalDivisions,
-  verticalRatio,
-  imgPath,
-} from './constants';
-import { pathDefinition } from './pathDefinition';
 import { createMenu } from './ui/createMenu';
-import {
-  state,
-  clearMap,
-  setNewMapData,
-  redo,
-  undo,
-  canUndo,
-  canRedo,
-} from './state';
+import { state, redo, undo, canUndo, canRedo } from './state';
 import { emitter } from './emitter';
 import {
   updateBrush,
@@ -33,20 +14,26 @@ import {
   decrementBrush,
   cycleBrushHead,
 } from './brush';
-import { modalLayer } from './ui/modal';
 import { showHelpMenu } from './ui/help';
 import { toolState } from './tools/state';
 import { toolCategoryDefinition, init } from './tools';
 import { createButton } from './ui/createButton';
-import { addToLeftToolMenu, createLeftMenu } from './ui/leftMenu';
+import { createLeftMenu } from './ui/leftMenu';
 import { showMainMenu } from './ui/mainMenu';
 import { initLayers, layers } from './layers';
 import { colors } from './colors';
+import { loadTemplate, tryLoadAutosaveMap, loadMapFromFile } from './load';
+import { backgroundInit, drawBackground } from './background';
+import { saveMapToFile, encodeMap } from './save';
+import { resizeCoordinates } from './resizeCoordinates';
+
+function initializeApp() {
+  toolState.switchToolType(toolCategoryDefinition.terrain.type);
+  updatePaintColor(colors.level1);
+}
 
 export function drawer() {
-  const backgroundLayer = paper.project.activeLayer;
   initLayers();
-  backgroundLayer.applyMatrix = false;
 
   layers.mapLayer.activate();
 
@@ -67,7 +54,6 @@ export function drawer() {
 
   let prevViewMatrix = paper.view.matrix.clone();
 
-  const inverted = paper.view.matrix.inverted();
   layers.fixedLayer.activate();
 
   //  layers.cloudLayer.matrix = paper.view.matrix.inverted();
@@ -76,10 +62,10 @@ export function drawer() {
   function onFrame() {
     if (!paper.view.matrix.equals(prevViewMatrix)) {
       const inverted = paper.view.matrix.inverted();
-      backgroundLayer.matrix = inverted;
+      layers.backgroundLayer.matrix = inverted;
 
       layers.fixedLayer.matrix = inverted;
-      modalLayer.matrix = inverted;
+      layers.modalLayer.matrix = inverted;
       prevViewMatrix = paper.view.matrix.clone();
 
       //      // clouds shift w/ parallax while scrolling
@@ -98,24 +84,19 @@ export function drawer() {
   // ===============================================
   // BACKGROUND
 
+  backgroundInit();
+
   //  layers.cloudLayer.activate();
   //  for (let i = 0; i < 20; i ++) {
   //    let cloud = new paper.Raster('static/img/cloud1.png');
   //    cloud.position = new paper.Point((i % 2 + 2) * 120, (i % 2 + 3) * 120);
   //  }
 
-  backgroundLayer.activate();
-  const backgroundRect = new paper.Path();
-  backgroundRect.fillColor = colors.water.color;
-  backgroundRect.onMouseEnter = function (event) {
-    toolState.focusOnCanvas(true);
-  };
-  backgroundRect.onMouseLeave = function (event) {
-    toolState.focusOnCanvas(false);
-  };
-
+  let isSpaceDown = false;
   tool.onMouseDown = function onMouseDown(event) {
-    if (isSpaceDown) return;
+    if (isSpaceDown) {
+      return;
+    }
     toolState.onDown(event);
     if (toolState.toolIsActive) {
       toolState.activeTool.definition.onMouseDown(event);
@@ -127,41 +108,22 @@ export function drawer() {
     }
   };
   tool.onMouseDrag = function onMouseDrag(event) {
-    if (isSpaceDown) return;
+    if (isSpaceDown) {
+      return;
+    }
     if (toolState.toolIsActive) {
       toolState.activeTool.definition.onMouseDrag(event);
     }
   };
   tool.onMouseUp = function onMouseUp(event) {
-    if (isSpaceDown) return;
+    if (isSpaceDown) {
+      return;
+    }
     toolState.onUp(event);
     if (toolState.toolIsActive) {
       toolState.activeTool.definition.onMouseUp(event);
     }
   };
-
-  function drawBackground() {
-    const topLeft = new paper.Point(0, 0); // + paper.view.bounds.topLeft;
-    const center = new paper.Point(
-      paper.view.bounds.width,
-      (paper.view.bounds.height * paper.view.scaling.y) / 2,
-    ); // + paper.view.bounds.topLeft * 2;
-    const bottomRight = new paper.Point(
-      paper.view.bounds.width * paper.view.scaling.x,
-      paper.view.bounds.height * paper.view.scaling.y,
-    ); // + paper.view.bounds.topLeft * 2;
-
-    backgroundRect.segments = [
-      new paper.Point(0, 0),
-      new paper.Point(paper.view.size.width * paper.view.scaling.x, 0),
-      new paper.Point(
-        paper.view.size.width * paper.view.scaling.x,
-        paper.view.size.height * paper.view.scaling.y,
-      ),
-      new paper.Point(0, paper.view.size.height * paper.view.scaling.y),
-    ];
-    layers.mapLayer.activate();
-  }
 
   // ===============================================
   // MAIN UI
@@ -200,6 +162,11 @@ export function drawer() {
   //  new paper.Point(0, 0),
   // ];
 
+  function undoMenuButton(path, onPress) {
+    const icon = new paper.Raster(path);
+    icon.scaling = new paper.Point(0.45, 0.45);
+    return createButton(icon, 20, onPress);
+  }
   const redoButton = undoMenuButton('static/img/menu-redo.png', () => {
     redo();
   });
@@ -220,26 +187,22 @@ export function drawer() {
     },
   );
 
-  function undoMenuButton(path, onPress) {
-    const icon = new paper.Raster(path);
-    icon.scaling = 0.45;
-    return createButton(icon, 20, onPress);
-  }
-  emitter.on('historyUpdate', updateUndoButtonState);
   function updateUndoButtonState() {
     undoButton.data.disable(!canUndo());
     redoButton.data.disable(!canRedo());
   }
+  emitter.on('historyUpdate', updateUndoButtonState);
   updateUndoButtonState();
 
+  function positionUndoMenu() {
+    undoMenu.position = new paper.Point(
+      paper.view.bounds.width * paper.view.scaling.x,
+      0,
+    ).add(new paper.Point(-50, 30));
+  }
   emitter.on('resize', () => {
     positionUndoMenu();
   });
-  function positionUndoMenu() {
-    undoMenu.position =
-      new paper.Point(paper.view.bounds.width * paper.view.scaling.x, 0) +
-      new paper.Point(-50, 30);
-  }
   positionUndoMenu();
 
   // layout for mobile version
@@ -283,16 +246,7 @@ export function drawer() {
 
   // =======================================
   // BASE LEVEL TOOLS
-  addToLeftToolMenu(); // spacer
-
-  const toolBtn = new paper.Raster(`${imgPath}menu-help.png`);
-  toolBtn.scaling = new paper.Point(0.3, 0.3);
-  toolBtn.position = new paper.Point(0, 4);
-  const button = createButton(toolBtn, 20, () => {});
-  button.onMouseUp = function () {
-    showHelpMenu(true);
-  };
-  addToLeftToolMenu(button);
+  // addToLeftToolMenu(); // spacer
 
   // let activeColor = new paper.Path.Circle([20, 20], 16);
   // activeColor.fillColor = paintColor;
@@ -304,13 +258,11 @@ export function drawer() {
 
   layers.fixedLayer.activate();
 
-  const toolsPosition = new paper.Point(40, 80);
+  // const toolsPosition = new paper.Point(40, 80);
 
   // let pointerToolButton = new paper.Raster('../img/pointer.png');
   // pointerToolButton.position = toolsPosition + new paper.Point(0, 0);
   // pointerToolButton.scaling = new paper.Point(0.2, 0.2);
-
-  let isSpaceDown = false;
 
   function onKeyUp(event) {
     switch (event.key) {
@@ -405,13 +357,17 @@ export function drawer() {
         let isMainMenuShown = !!(mainMenu != null && mainMenu.opacity > 0.8);
         showMainMenu(!isMainMenuShown);
         isHelpMenuShown = !!(helpMenu != null && helpMenu.opacity > 0.8);
-        if (isHelpMenuShown === true) showHelpMenu(false);
+        if (isHelpMenuShown === true) {
+          showHelpMenu(false);
+        }
         break;
       case '?':
         let isHelpMenuShown = !!(helpMenu != null && helpMenu.opacity > 0.8);
         isMainMenuShown = !!(mainMenu != null && mainMenu.opacity > 0.8);
         showHelpMenu(!isHelpMenuShown);
-        if (isMainMenuShown === true) showMainMenu(false);
+        if (isMainMenuShown === true) {
+          showMainMenu(false);
+        }
         break;
       case '\\':
         toggleGrid();
@@ -472,11 +428,6 @@ export function drawer() {
   // ===============================================
   // PIXEL COORDINATE HELPERS
 
-  let cellWidth = 0;
-  let cellHeight = 0;
-  let marginX = 0;
-  let marginY = 0;
-
   // let remapX = function(i) {
   //  return i
   // };
@@ -490,62 +441,6 @@ export function drawer() {
   //  return i
   // };
 
-  const mapRatio =
-    (horizontalBlocks * horizontalDivisions) /
-    (verticalBlocks * verticalDivisions) /
-    verticalRatio;
-  function resizeCoordinates() {
-    const screenRatio = paper.view.size.width / paper.view.size.height;
-    const horizontallyContrained = screenRatio <= mapRatio;
-
-    const viewWidth = paper.view.size.width * paper.view.scaling.x;
-    const viewHeight = paper.view.size.height * paper.view.scaling.y;
-
-    // todo - clean this up with less code duplication
-    if (horizontallyContrained) {
-      marginX = paper.view.size.width * 0.1;
-
-      const width = viewWidth - marginX * 2;
-      const blockWidth = width / horizontalBlocks;
-      cellWidth = blockWidth / horizontalDivisions;
-      cellHeight = cellWidth * verticalRatio;
-      const blockHeight = cellHeight * verticalDivisions;
-      const height = blockHeight * verticalBlocks;
-
-      marginY = (viewHeight - height) / 2;
-
-      // let xView = paper.view.size.width - marginX;
-      // let xCoord = horizontalBlocks * horizontalDivisions;
-
-      // let yView = height + marginX;
-      // let yCoord = verticalBlocks * verticalDivisions;
-
-      // remapX = createRemap(marginX, xView, 0, xCoord);
-      // remapY = createRemap(marginY, yView, 0, yCoord);
-      // remapInvX = createRemap(0, xCoord, marginX, xView);
-      // remapInvY = createRemap(0, yCoord, marginY, yView);
-    } else {
-      marginY = viewHeight * 0.1;
-
-      const height = viewHeight - marginY * 2;
-      const blockHeight = height / verticalBlocks;
-      cellHeight = blockHeight / verticalDivisions;
-      cellWidth = cellHeight / verticalRatio;
-      const blockWidth = cellWidth * horizontalDivisions;
-      const width = blockWidth * horizontalBlocks;
-
-      marginX = (viewWidth - width) / 2;
-    }
-
-    layers.mapLayer.position = new paper.Point(marginX, marginY);
-    layers.mapLayer.scaling = new paper.Point(cellWidth, cellHeight);
-
-    layers.mapOverlayLayer.position = new paper.Point(marginX, marginY);
-    layers.mapOverlayLayer.scaling = new paper.Point(cellWidth, cellHeight);
-
-    layers.mapIconLayer.position = new paper.Point(marginX, marginY);
-    layers.mapIconLayer.scaling = new paper.Point(cellWidth, cellHeight);
-  }
   resizeCoordinates();
 
   layers.mapOverlayLayer.activate();
@@ -577,100 +472,5 @@ export function drawer() {
     loadTemplate();
   }
 
-  function loadTemplate() {
-    console.log('on load', template);
-    clearMap();
-    setNewMapData(decodeMap(template));
-  }
-
-  function getColorAtCoordinate(coordinate) {
-    // choose the highest elevation color
-    // todo - this logic should be elsewhere
-    if (toolState.activeTool) {
-      let bestColor;
-
-      if (
-        toolState.activeTool.type == toolCategoryDefinition.terrain.type ||
-        toolState.activeTool.type == toolCategoryDefinition.path.type
-      ) {
-        let bestColor = colors.water;
-
-        let bestPriority = 0;
-        Object.keys(state.drawing).forEach((colorKey) => {
-          let toolCategory;
-
-          const definition =
-            layerDefinition[colorKey] || pathDefinition[colorKey];
-          if (!definition) {
-            console.log('Unknown color in drawing!');
-            return;
-          }
-          const priority = (definition && definition.priority) || 0;
-
-          const layer = state.drawing[colorKey];
-          if (layer) {
-            if (layer.contains(coordinate)) {
-              if (priority > bestPriority) {
-                bestPriority = priority;
-                bestColor = colors[colorKey];
-              }
-            }
-          }
-        });
-      }
-      return bestColor;
-    }
-  }
-
-  // ===============================================
-  // DRAWING METHODS
-
-  // let drawPoints = [];
-
-  // use for the vertex based drawing method for later
-  /*
-  function drawGridCoordinate(coordinate) {
-    let newDrawPoints = transformSegments(brushSegments, coordinate);
-
-    if (!newDrawPoints.equals(drawPoints)) {
-      drawPoints = newDrawPoints;
-      addDrawPoints(drawPoints, paintColor);
-    }
-  } */
-
-  function applyDiff(isApply, diff) {
-    // todo: weird location
-    if (isApply) prevDrawCoordinate = null;
-    Object.keys(diff).forEach((colorKey) => {
-      const colorDiff = diff[colorKey];
-      let { isAdd } = colorDiff;
-      if (!isApply) isAdd = !isAdd; // do the reverse operation
-      addPath(isAdd, colorDiff.path, colorKey);
-    });
-  }
-
-  function addPath(isAdd, path, colorKey) {
-    layers.mapLayer.activate();
-    if (!state.drawing.hasOwnProperty(colorKey)) {
-      state.drawing[colorKey] = new paper.Path();
-      state.drawing[colorKey].locked = true;
-    }
-    const combined = isAdd
-      ? state.drawing[colorKey].unite(path)
-      : state.drawing[colorKey].subtract(path);
-    combined.locked = true;
-    combined.fillColor = colors[colorKey].color;
-    combined.insertAbove(state.drawing[colorKey]);
-
-    state.drawing[colorKey].remove();
-    path.remove();
-
-    state.drawing[colorKey] = combined;
-  }
-
-  function initializeApp() {
-    toolState.switchToolType(toolCategoryDefinition.terrain.type);
-    updatePaintColor(colors.level1);
-  }
   initializeApp();
 }

@@ -67,8 +67,9 @@ export function load() {
     def.scaling = def.scaling || new paper.Point(0.016, 0.016);
     def.menuScaling = def.menuScaling || new paper.Point(0.65, 0.65);
     def.size = new paper.Size(1, 1);
-    def.offset = def.offset
-      || new paper.Point(-def.size.width / 2, -def.size.height + 0.2);
+    def.offset =
+      def.offset ||
+      new paper.Point(-def.size.width / 2, -def.size.height + 0.2);
     def.onSelect = function () {};
     if (def.img) {
       const img = new paper.Raster(def.img);
