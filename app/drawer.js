@@ -395,7 +395,7 @@
       visibleIcon.scaling = 0.5;
       visibleIcon.position += new Point(2, 0);
       invisibleIcon.scaling = 0.5;
-      invisibleIcon.position += new Point(2, 4);
+      invisibleIcon.position += new Point(2, 0);
       var toggleIcon = new Group();
       toggleIcon.applyMatrix = false;
       toggleIcon.addChildren([visibleIcon, invisibleIcon]);
@@ -1468,7 +1468,7 @@
             loadTemplate();
           } else { }
         });
-      var switchButton = createMenuButton('Load Game Map', 'img/menu-switch.png', 0, 1,
+      var switchButton = createMenuButton('Upload Screenshot', 'img/menu-switch.png', 0, 1,
         function() { showSwitchModal(true) });
 
       var twitterButton = createMenuButton('Twitter', 'img/menu-twitt.png', 0,
