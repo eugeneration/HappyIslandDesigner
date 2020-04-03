@@ -1567,6 +1567,11 @@
           point.scaling = 1 / mapImageGroup.scaling.x;
           point.position = rawCoordinate;
           point.data.startPoint = rawCoordinate;
+
+          point.onMouseDown = function(event) {
+
+          }
+
           mapImagePoints.addChild(point);
 
           mapImage.data.pointIndex = mapImage.data.points.length;
@@ -1618,6 +1623,32 @@
 
           if (mapImage.data.points.length == 4) {
             var resultSize = new Size(700, 600);
+
+            // reorder the points to clockwise starting from top left
+            {
+              var points = mapImage.data.points;
+              points.sort(function (a, b) {return a.position.y - b.position.y})
+
+              function slope(a, b) {
+                return (a.y - b.y) / (a.x - b.x);
+              }
+
+              // the top/bottom edge must contain the top point and has slope closest to zero
+              function getHorizontalEdge(point, otherPoints) {
+                otherPoints.sort(function(a, b) {return Math.abs(slope(a.position, point.position)) - Math.abs(slope(b.position, point.position))});
+                var edgePoint = otherPoints[0];
+                var edge = [edgePoint, point];
+                edge.sort(function(a, b){return a.position.x - b.position.x});
+                return edge;
+              }
+
+              var topEdge = getHorizontalEdge(points[0], points.slice(1, -1));
+              var bottomEdge = getHorizontalEdge(points[3], points.slice(1, -1));
+
+              mapImage.data.points = [
+                topEdge[0], topEdge[1], bottomEdge[1], bottomEdge[0]
+              ];
+            }
 
             var perspectiveTransformMatrix = PerspT(
               mapImage.data.points.reduce(function(acc, point) {
