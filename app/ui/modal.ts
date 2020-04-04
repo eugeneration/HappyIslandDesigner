@@ -42,6 +42,7 @@ export function renderModal(
   modal.fillColor = colors.paper.color;
   modal.onMouseEnter = function () {
     group.data.text.content = name;
+    console.log('prouuut');
   };
 
   const modalContents = new paper.Group();
@@ -59,22 +60,18 @@ export function renderModal(
   };
 
   emitter.on('resize', () => {
-    const topLeft = new paper.Point(0, 0); // + paper.view.bounds.topLeft;
-    const center = new paper.Point(
+    const newTopLeft = new paper.Point(0, 0); // + paper.view.bounds.topLeft;
+    const newCenter = new paper.Point(
       (paper.view.bounds.width * paper.view.scaling.x) / 2,
       (paper.view.bounds.height * paper.view.scaling.y) / 2,
     ); // + paper.view.bounds.topLeft * 2;
-    const bottomRight = new paper.Point(
+    const newBottomRight = new paper.Point(
       paper.view.bounds.width * paper.view.scaling.x,
       paper.view.bounds.height * paper.view.scaling.y,
     ); // + paper.view.bounds.topLeft * 2;
 
-    // let topLeft = paper.view.viewToProject(paper.view.projectToView(new paper.Point(0, 0)));// + paper.view.bounds.topLeft;
-    // let center = paper.view.viewToProject(paper.view.projectToView(new paper.Point(paper.view.bounds.width / 2, paper.view.bounds.height / 2)));// + paper.view.bounds.topLeft * 2;
-    // let bottomRight = paper.view.viewToProject(paper.view.projectToView(new paper.Point(paper.view.bounds.width, paper.view.bounds.height)));// + paper.view.bounds.topLeft * 2;
-
-    darkFill.bounds = new paper.Rectangle(topLeft, bottomRight);
-    modal.position = center;
+    darkFill.bounds = new paper.Rectangle(newTopLeft, newBottomRight);
+    modal.position = newCenter;
     modalContents.position = modal.bounds.topLeft.add(new paper.Point(40, 135));
   });
 

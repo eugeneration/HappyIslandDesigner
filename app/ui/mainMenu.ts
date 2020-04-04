@@ -1,9 +1,11 @@
 import paper from 'paper';
+import * as animatePaper from 'paper-animate';
 
 import { renderModal } from './modal';
 import { colors } from '../colors';
 import { saveMapToFile } from '../save';
 import { loadMapFromFile, loadTemplate } from '../load';
+import { layers } from '../layers';
 
 let mainMenu: paper.Group;
 
@@ -23,7 +25,7 @@ function createMenuButton(
   button.locked = true;
 
   const hitTarget = new paper.Path.Rectangle(
-    button.position - hitSizeHalf,
+    button.position.subtract(hitSizeHalf),
     hitSize,
   );
   hitTarget.fillColor = colors.invisible.color;
@@ -40,7 +42,7 @@ function createMenuButton(
     mainMenu.data.text.content = name;
 
     button.position = new paper.Point(0, 0);
-    button.animate([
+    animatePaper.animate(button, [
       {
         properties: {
           position: { y: '-5' },
@@ -72,7 +74,7 @@ function createMenuButton(
     ]);
   };
   buttonGroup.onMouseLeave = function () {
-    button.animate({
+    animatePaper.animate(button, {
       properties: {
         scale: 1,
       },

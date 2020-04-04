@@ -1,5 +1,4 @@
 import paper from 'paper';
-import animatePaper from 'paper-animate';
 
 import { createGrid } from './grid';
 import { createMenu } from './ui/createMenu';
