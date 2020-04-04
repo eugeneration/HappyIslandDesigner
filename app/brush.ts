@@ -1,7 +1,7 @@
 /* eslint-disable no-case-declarations */
 import paper from 'paper';
 import { emitter } from './emitter';
-import { colors } from './colors';
+import { colors, Color } from './colors';
 import { toolState } from './tools/state';
 import { toolCategoryDefinition } from './tools';
 import { layers } from './layers';
@@ -211,9 +211,9 @@ function getBrushSegments(size) {
   }
 }
 
-export function updatePaintColor(colorData) {
+export function updatePaintColor(colorData: Color) {
   paintColor = colorData;
-  brush.fillColor = colorData.color;
+  brush.fillColor = colorData.color.clone();
   // activeColor.fillColor = paintColor;
 
   // todo: separate viewfrom logic

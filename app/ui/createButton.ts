@@ -1,15 +1,15 @@
 import paper from 'paper';
 import { colors } from '../colors';
 
-export function createButton(item, buttonSize, onClick, options?: any) {
+export function createButton(item, buttonSize: number, onClick, options?: any) {
   const highlightedColor: paper.Color =
     !options || !options.highlightedColor
-      ? colors.sand.color
-      : options.highlightedColor;
+      ? colors.sand.color.clone()
+      : options.highlightedColor.clone();
   const selectedColor: paper.Color =
     !options || !options.selectedColor
-      ? colors.npc.color
-      : options.selectedColor;
+      ? colors.npc.color.clone()
+      : options.selectedColor.clone();
 
   const group = new paper.Group();
 

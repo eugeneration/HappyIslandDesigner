@@ -22,10 +22,10 @@ export function initLayers() {
   layers.cloudLayer = new paper.Layer();
   layers.modalLayer = new paper.Layer();
 
+  layers.backgroundLayer.applyMatrix = false;
   layers.cloudLayer.applyMatrix = false;
   layers.fixedLayer.applyMatrix = false;
   layers.modalLayer.applyMatrix = false;
-  layers.backgroundLayer.applyMatrix = false;
 
   layers.mapLayer.applyMatrix = false;
   layers.mapLayer.pivot = new paper.Point(0, 0);

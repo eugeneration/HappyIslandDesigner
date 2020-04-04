@@ -42,15 +42,18 @@ export function createLeftMenu() {
   ];
   leftToolMenu.addChild(leftToolMenuBacking);
 
-  leftToolMenuPosition = new paper.Point(0, 100);
+  leftToolMenuPosition = new paper.Point(0, 40);
 
   // add gap
   leftToolMenuPosition.y += 60;
+}
 
-  const toolBtn = new paper.Raster(`${imgPath}menu-help.png`);
-  toolBtn.scaling = new paper.Point(0.3, 0.3);
-  toolBtn.position = new paper.Point(0, 4);
-  const button = createButton(toolBtn, 20, () => {});
+export function addHelpButton() {
+  const btn = new paper.Raster(`${imgPath}menu-help.png`);
+  btn.scaling = new paper.Point(0.3, 0.3);
+  btn.position = new paper.Point(0, 30);
+
+  const button = createButton(btn, 20, () => {});
   button.onMouseUp = function () {
     showHelpMenu(true);
   };

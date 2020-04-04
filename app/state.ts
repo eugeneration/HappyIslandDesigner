@@ -25,7 +25,7 @@ const maxHistoryIndex = 99; // max length is one greater than this
 let actionsCount = 0;
 const autosaveActionsInterval = 20;
 const autosaveInactivityTimer = 10000;
-let autosaveTimeout;
+let autosaveTimeout: NodeJS.Timeout;
 
 export function clearMap() {
   Object.keys(state.drawing).forEach((p) => {
@@ -51,10 +51,7 @@ export function canUndo() {
   return state.index >= 0;
 }
 
-export function applyCommand(command, isApply) {
-  if (isApply === null) {
-    throw 'exception: applyCommand called without an apply direction';
-  }
+export function applyCommand(command, isApply: boolean) {
   // if (draw command)
   switch (command.type) {
     case 'draw':

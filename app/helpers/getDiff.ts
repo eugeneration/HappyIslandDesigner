@@ -3,7 +3,7 @@ import { pathDefinition } from '../pathDefinition';
 import { state } from '../state';
 import { correctPath } from './correctPath';
 
-export function getDiff(path: paper.Path, colorKey) {
+export function getDiff(path: paper.Path, colorKey: string) {
   if (!path.children && path.segments.length < 3) {
     return {};
   }
@@ -11,13 +11,13 @@ export function getDiff(path: paper.Path, colorKey) {
   // figure out which layers to add and subtract from
   const definition = layerDefinition[colorKey] || pathDefinition[colorKey];
 
-  // limit the path to the union of the shape on each layer
-  if (definition.requireLayer) {
-    const union = path.intersect(state.drawing[definition.requireLayer]);
-    path.remove();
-    // eslint-disable-next-line no-param-reassign
-    path = union;
-  }
+  // // limit the path to the union of the shape on each layer
+  // if (definition.requireLayer) {
+  //   const union = path.intersect(state.drawing[definition.requireLayer]);
+  //   path.remove();
+  //   // eslint-disable-next-line no-param-reassign
+  //   path = union;
+  // }
 
   const editLayers = {};
   if (definition.addLayers) {

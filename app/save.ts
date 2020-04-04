@@ -66,7 +66,7 @@ function encodeObjectGroups(objects) {
 function decodeObjectGroups(objectGroups, encodingVersion) {
   if (encodingVersion === 0) {
     return objectMap(objectGroups, (encodedData) => {
-      return decodeObject(encodedData, version);
+      return decodeObject(encodedData, paper.version);
     });
   }
 

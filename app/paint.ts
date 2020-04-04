@@ -122,7 +122,7 @@ function getDrawPath(coordinate) {
   return p;
 }
 
-export function drawLine(start, end) {
+export function drawLine(start: paper.Point, end: paper.Point): paper.Path {
   const drawPaths: paper.Path[] = [];
   if (brushSweep) {
     prevDrawCoordinate = null;
@@ -174,10 +174,10 @@ export function drawLine(start, end) {
       },
     );
   }
-  let linePath;
+  let linePath: paper.Path;
   if (drawPaths.length === 1) {
     linePath = drawPaths[0];
-  } else if (drawPaths.length > 1) {
+  } else {
     const compound = new paper.CompoundPath({ children: drawPaths });
     linePath = uniteCompoundPath(compound);
   }

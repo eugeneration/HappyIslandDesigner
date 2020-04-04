@@ -240,7 +240,7 @@ export const toolCategoryDefinition: Record<
   //  },
 };
 
-export function init() {
+export function initTools() {
   baseObjectCategoryDefinition.layer = layers.mapIconLayer;
 
   toolCategoryDefinition.terrain = {

@@ -40,3 +40,8 @@ canvas[resize],
   height: 60px;
   box-shadow: 0px 1px 5px rgba(0, 0, 0, 0.2);
 }
+
+@font-face {
+  font-family: 'TTNorms';
+  src: url('/static/font/TTNorms-Bold.woff') format('woff');
+}

@@ -18,10 +18,10 @@ import { getDiff } from './helpers/getDiff';
 
 let gridRaster: paper.Raster;
 
-let startGridCoordinate;
-let prevGridCoordinate;
+let startGridCoordinate: paper.Point | null;
+let prevGridCoordinate: paper.Point | null;
 let diffCollection = {};
-let drawPreview;
+let drawPreview: paper.Path;
 
 export function getGridRaster() {
   return gridRaster;
@@ -31,7 +31,7 @@ export function toggleGrid() {
   gridRaster.visible = !gridRaster.visible;
 }
 
-function createGridLine(i, horizontal, blockEdge) {
+function createGridLine(i: number, horizontal: boolean, blockEdge: boolean) {
   const gridNegativeMarginLeft = blockEdge ? 4 : 0;
   const gridNegativeMarginRight = blockEdge ? 4 : 0;
   const gridNegativeMarginTop = blockEdge ? 0 : 0;
@@ -128,7 +128,7 @@ export function stopGridLinePreview() {
   }
 }
 
-export function drawGrid(viewPosition) {
+export function drawGrid(viewPosition: paper.Point) {
   layers.mapLayer.activate();
   const rawCoordinate = new paper.Point(
     layers.mapLayer.globalToLocal(viewPosition),
@@ -139,7 +139,7 @@ export function drawGrid(viewPosition) {
     // eslint-disable-next-line @typescript-eslint/no-use-before-define
     startDrawGrid(viewPosition);
   }
-  const path = drawLine(coordinate, prevGridCoordinate);
+  const path = drawLine(coordinate, prevGridCoordinate!);
   if (path) {
     const diff = getDiff(path, getCurrentPaintColor().key);
 
@@ -159,7 +159,7 @@ export function drawGrid(viewPosition) {
   prevGridCoordinate = coordinate;
 }
 
-export function startDrawGrid(viewPosition) {
+export function startDrawGrid(viewPosition: paper.Point) {
   layers.mapLayer.activate();
   let coordinate = new paper.Point(layers.mapLayer.globalToLocal(viewPosition));
   coordinate = getBrushCenteredCoordinate(coordinate);
@@ -168,7 +168,7 @@ export function startDrawGrid(viewPosition) {
   drawGrid(viewPosition);
 }
 
-export function drawGridLinePreview(viewPosition) {
+export function drawGridLinePreview(viewPosition: paper.Point) {
   const rawCoordinate = new paper.Point(
     layers.mapLayer.globalToLocal(viewPosition),
   );
@@ -181,7 +181,7 @@ export function drawGridLinePreview(viewPosition) {
   if (!startGridCoordinate) {
     startDrawGrid(viewPosition);
   }
-  drawPreview = drawLine(coordinate, startGridCoordinate);
+  drawPreview = drawLine(coordinate, startGridCoordinate!);
   if (drawPreview) {
     drawPreview.locked = true;
     drawPreview.opacity = 0.6;
