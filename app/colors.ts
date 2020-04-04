@@ -92,7 +92,8 @@ export const colors: {
   highlightCircle: { color: new paper.Color('#2adbb8'), key: '', name: '' },
 
   // Water UI
-  oceanPanel: { color: new paper.Color('#39ba9c'), key: '', name: '' }, // game trailer had this color panel
+  // game trailer had this color panel
+  oceanPanel: { color: new paper.Color('#39ba9c'), key: '', name: '' },
   oceanPanelDark: { color: new paper.Color('#39ba9c'), key: '', name: '' },
   oceanText: { color: new paper.Color('#57b499'), key: '', name: '' }, // text on ocean
   oceanDarker: { color: new paper.Color('#77d6bd'), key: '', name: '' }, // dark overlay
@@ -112,6 +113,10 @@ Object.keys(colors).forEach((colorKey) => {
 });
 
 export function getColorDataFromEncodedName(encodedColorName: string) {
-  if (!encodedColorName) { return null; }
-  return Object.values(colors).find((c) => { return c.name === encodedColorName; });
+  if (!encodedColorName) {
+    return null;
+  }
+  return Object.values(colors).find((c) => {
+    return c.name === encodedColorName;
+  });
 }

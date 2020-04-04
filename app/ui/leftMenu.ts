@@ -3,6 +3,7 @@ import { colors } from '../colors';
 import { showHelpMenu } from './help';
 import { createButton } from './createButton';
 import { imgPath } from '../constants';
+import { layers } from '../layers';
 
 let leftToolMenuPosition: paper.Point;
 let leftToolMenu: paper.Group;
@@ -25,6 +26,8 @@ export function addToLeftToolMenu(icon?: any) {
 }
 
 export function createLeftMenu() {
+  layers.fixedLayer.activate();
+
   leftToolMenu = new paper.Group();
   leftToolMenu.applyMatrix = false;
   leftToolMenu.position = new paper.Point(30, 0);

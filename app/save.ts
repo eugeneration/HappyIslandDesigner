@@ -202,7 +202,7 @@ export function autosaveMap() {
   return false;
 }
 
-function clearAutosave() {
+export function clearAutosave() {
   if (localStorage) {
     localStorage.removeItem('autosave');
   }

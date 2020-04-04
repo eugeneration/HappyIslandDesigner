@@ -1,6 +1,6 @@
 import { emitter } from './emitter';
 import { applyCreateObject } from './ui/createObject';
-import { applyMoveCommand } from './paint';
+import { applyMoveCommand, applyDiff } from './paint';
 import { autosaveMap } from './save';
 
 /* eslint-disable default-case */
@@ -44,11 +44,11 @@ export function setNewMapData(mapData) {
 }
 
 export function canRedo() {
-  return state === null ? 0 : state.index < state.history.length - 1;
+  return state.index < state.history.length - 1;
 }
 
 export function canUndo() {
-  return state === null ? 0 : state.index >= 0;
+  return state.index >= 0;
 }
 
 export function applyCommand(command, isApply) {

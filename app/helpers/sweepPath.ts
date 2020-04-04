@@ -47,9 +47,8 @@ export function sweepPath(path: paper.Path, sweepVector) {
         frontEdge.push(p0);
       }
       frontEdge.push(p1);
-    }
-    // include lines w/ normals ===0 if connected to line > 0
-    else if (dot === 0) {
+    } else if (dot === 0) {
+      // include lines w/ normals ===0 if connected to line > 0
       if (frontEdge.length > 0) {
         potentialPoints.push(p1);
       }

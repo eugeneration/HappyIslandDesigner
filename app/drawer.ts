@@ -3,7 +3,9 @@ import animatePaper from 'paper-animate';
 
 import { createGrid, toggleGrid } from './grid';
 import { createMenu } from './ui/createMenu';
-import { state, redo, undo, canUndo, canRedo } from './state';
+import {
+ state, redo, undo, canUndo, canRedo,
+} from './state';
 import { emitter } from './emitter';
 import {
   updateBrush,

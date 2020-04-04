@@ -161,13 +161,13 @@ export const baseObjectCategoryDefinition = {
         layers.fixedLayer.activate();
         const categoryDefinition = this;
         this.iconMenu = createMenu(
-          objectMap(definitions, (def, name) => {
+          objectMap(definitions, (def) => {
             if (def.legacy || def.legacyCategory) {
               return null;
             }
             const icon = createObjectIcon(def, getObjectData(def));
             icon.scaling = def.menuScaling;
-            return createButton(icon, 20, (event, button) => {
+            return createButton(icon, 20, () => {
               toolState.switchTool(
                 toolState.toolMapValue(categoryDefinition, def, {}),
               );

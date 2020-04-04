@@ -1,3 +1,4 @@
+/* eslint-disable no-param-reassign */
 export function doForCellsOnLine(
   x0: number,
   y0: number,

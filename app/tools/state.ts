@@ -79,7 +79,7 @@ export const toolState = {
       this.deselectAll();
     }
   },
-  onUp(event) {
+  onUp() {
     this.isDown = false;
 
     const isActive = this.isCanvasFocused && !this.isSomethingSelected();

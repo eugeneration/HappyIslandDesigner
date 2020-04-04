@@ -10,10 +10,6 @@ import { pathDefinition } from './pathDefinition';
 import { getObjectData } from './helpers/getObjectData';
 import { createObjectPreviewAsync } from './ui/createObject';
 
-function centerBrushOffset(width, height) {
-  return new paper.Point(width * 0.5 * cellWidth, height * 0.5 * cellHeight);
-}
-
 let brushSize = 2;
 let brushSegments;
 let brush: paper.Path;
@@ -139,7 +135,9 @@ export function updateCoordinateLabel(event) {
       objectPreview.definition,
     );
   }
-  if (objectPreviewOutline) { objectPreviewOutline.position = coordinate; }
+  if (objectPreviewOutline) {
+    objectPreviewOutline.position = coordinate;
+  }
 }
 
 function getBrushSegments(size) {
@@ -266,7 +264,13 @@ export function updateBrush() {
 
 export function cycleBrushHead() {
   const heads = Object.keys(brushTypes).sort((a, b) => {
-    return a === b ? 0 : a < b ? -1 : 1;
+    if (a === b) {
+      return 0;
+    }
+    if (a < b) {
+      return -1;
+    }
+    return 1;
   });
   const index = heads.indexOf(brushType);
   brushType = heads[(index + 1) % heads.length];

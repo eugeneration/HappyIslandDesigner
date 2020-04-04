@@ -116,7 +116,7 @@ export function showMainMenu(isShown: boolean) {
       'static/img/menu-new.png',
       2,
       () => {
-        // eslint-disable-next-line no-alert
+        // eslint-disable-next-line no-alert, no-restricted-globals
         const r = confirm('Clear your map? You will lose all unsaved changes.');
         if (r === true) {
           loadTemplate();
