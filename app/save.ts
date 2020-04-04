@@ -1,4 +1,6 @@
 import paper from 'paper';
+import LZString from 'lz-string';
+import steg from './vendors/steganography';
 
 import { state, objectCreateCommand, applyCommand } from './state';
 import { downloadDataURL } from './helpers/download';
