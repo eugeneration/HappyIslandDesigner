@@ -214,7 +214,7 @@ export function saveMapToFile() {
   let mapJson = encodeMap();
   mapJson = LZString.compress(mapJson);
 
-  const saveMargins = new paper.Point(10, 10);
+  const saveMargins = new paper.Size(10, 10);
 
   layers.uiLayer.activate();
   const mapRaster = layers.mapLayer.rasterize();
@@ -233,7 +233,7 @@ export function saveMapToFile() {
 
   const mapBounds = gridRaster.bounds.clone();
   mapBounds.size.add(saveMargins);
-  mapBounds.point.subtract(saveMargins.divide(2));
+  mapBounds.point.subtract(saveMargins.divide(2).height);
   const mapBoundsClippingMask = new paper.Path.Rectangle(mapBounds);
 
   const background = mapBoundsClippingMask.clone();
