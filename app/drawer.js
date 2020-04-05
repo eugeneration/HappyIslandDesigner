@@ -1487,14 +1487,9 @@
       if (!isShown) return;
       switchMenu = renderModal('Load Game Map', view.size.width - 40, view.size.height - 40, function() {showSwitchModal(false)});
 
-      var mapImageGroup = new Group();
-      mapImageGroup.applyMatrix = false;
-      switchMenu.data.contents.addChildren([mapImageGroup]);
-
-
       var uploadGroup = new Group();
       uploadGroup.applyMatrix = false;
-      mapImageGroup.addChild(uploadGroup);
+      switchMenu.data.contents.addChild(uploadGroup);
       {
         var instructionImage = new Raster('img/screenshot-instructions.png');
         instructionImage.scaling = 0.5;
@@ -1524,12 +1519,18 @@
       uploadGroup.position = new Point(switchMenu.data.width / 2, switchMenu.data.height / 2);
 
 
+      var mapImageGroup = new Group();
+      mapImageGroup.applyMatrix = false;
+      switchMenu.data.contents.addChildren([mapImageGroup]);
+
       var mapImage;
       function loadMapImage(image) {
         if (mapImage) mapImage.remove();
 
         mapImage = new Raster(image);
         mapImage.onLoad = function() {
+          uploadGroup.visible = false;
+
           //var maxImageWidth = 700;
           //var maxImageHeight = 700;
           //var originalSize = new Size(mapImage.size);
@@ -1547,14 +1548,48 @@
 
           mapImage.bounds.topLeft = new Point(0, 0);
 
-          var mapImagePoints = new Group();
-          mapImageGroup.addChildren([mapImage, mapImagePoints]);
-
           var maxImageWidth = switchMenu.data.width;
           var maxImageHeight = switchMenu.data.height;
           mapImageGroup.scale(Math.min(maxImageWidth / newSize.width, maxImageHeight / newSize.height));
-          mapImageGroup.bounds.topLeft = new Point(0, 0)
+          mapImageGroup.bounds.topLeft = new Point(0, 0);
 
+          var inverseScale = 1 / mapImageGroup.scaling.x;
+
+          var closeIcon = new Raster('img/ui-x.png');
+          closeIcon.scaling = .5;
+          var closeButton = createButton(closeIcon, 24, function(){mapImage.data.remove()}, {
+            alpha: 0.9,
+            highlightedColor: colors.paperOverlay.color,
+            selectedColor: colors.paperOverlay2.color,
+          });
+          closeButton.scaling = inverseScale;
+          closeButton.position = mapImage.bounds.topRight;
+
+          var confirmIcon = new Raster('img/ui-check-white.png');
+          confirmIcon.scaling = 0.5;
+          var confirmButton = createButton(confirmIcon, 30, function() {
+            mapImage.data.perspectiveWarp();
+            updateMapOverlay(mapImage.data.perspectiveWarpImage);
+            switchMenu.data.show(false);
+          }, {
+            alpha: .9,
+            highlightedColor: colors.jaybird.color,
+            selectedColor: colors.blue.color,
+            disabledColor: colors.text.color,
+          });
+          confirmButton.data.disable(true);
+          confirmButton.bounds.topCenter = mapImage.bounds.bottomCenter + new Point(0, 72 * inverseScale);
+          confirmButton.scaling = inverseScale;
+          emitter.on('screenshot_update_point', function(pointCount) {
+            if (pointCount == 4) {
+              confirmButton.data.disable(false);
+            } else {
+              confirmButton.data.disable(true);
+            }
+          });
+
+          var mapImagePoints = new Group();
+          mapImageGroup.addChildren([mapImage, mapImagePoints, closeButton, confirmButton]);
 
           mapImage.data.hoveredPoint = null;
           mapImage.data.grabbedPoint = null;
@@ -1888,37 +1923,15 @@
               onComplete();
             }.bind(this));
           };
-          mapImage.data.perspectiveMatrix = function() {
-
+          mapImage.data.remove = function() {
+            emitter.emit('screenshot_update_point', 0);
+            mapImageGroup.removeChildren();
+            uploadGroup.visible = true;
           }
         };
       }
 
-
-
-      var confirmIcon = new Raster('img/ui-check-white.png');
-      confirmIcon.scaling = 0.5;
-      var confirmButton = createButton(confirmIcon, 30, function() {
-        mapImage.data.perspectiveWarp();
-        updateMapOverlay(mapImage.data.perspectiveWarpImage);
-        switchMenu.data.show(false);
-      }, {
-        alpha: .9,
-        highlightedColor: colors.jaybird.color,
-        selectedColor: colors.blue.color,
-        disabledColor: colors.text.color,
-      });
-      confirmButton.data.disable(true);
-      confirmButton.bounds.bottomCenter = new Point(switchMenu.data.width / 2, switchMenu.data.height);
-      emitter.on('screenshot_update_point', function(pointCount) {
-        if (pointCount == 4) {
-          confirmButton.data.disable(false);
-        } else {
-          confirmButton.data.disable(true);
-        }
-      })
-
-      switchMenu.data.contents.addChildren([mapImageGroup, confirmButton]);
+      switchMenu.data.contents.addChildren([mapImageGroup]);
       switchMenu.opacity = 0;
     }
     switchMenu.data.show(isShown);
