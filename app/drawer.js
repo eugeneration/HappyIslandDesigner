@@ -448,14 +448,7 @@
     screenshotOverlayUI.visible = isShown;
   }
 
-  mapOverlayLayer.activate();
-  var screenshot = new Raster('phonecamera1.jpg');
-  screenshot.scaling = new Point(0.02, 0.02);
-  screenshot.onLoad = function() {
-    screenshot.bounds.topLeft = new Point(0, 0);
-  };
-  screenshot.opacity = 0;
-  screenshot.locked = true;
+  var screenshot = null;  
   function startScreenshotOverlay() {
     screenshot.opacity = 0.5;
     showScreenshotOverlayUI(true);
@@ -483,7 +476,6 @@
   function swapScreenshotLayer() {
     if (!screenshot) return;
   }
-  startScreenshotOverlay();
 
 
   var brushSizeUI;
@@ -1667,6 +1659,10 @@
             point.position = point.data.startPoint - point.data.grabPivot + delta * 0.2;
 
             mapImage.data.zoom.update(event, mapImageGroup.localToGlobal(point.position));
+
+            if (this.data.outline) {
+              this.data.updateOutline(); 
+            }
           }
         }
         mapImage.onMouseUp = function(event) {
@@ -1679,37 +1675,62 @@
           if (this.data.grabbedPoint) {
             this.data.grabbedPoint.data.select(false);
             this.data.grabbedPoint = null;
-            return;
           }
 
           if (mapImage.data.points.length == 4) {
+            this.data.perspectiveWarp();
+          }
+        }
+        mapImage.data.sortPoints = function() {
+          // reorder the points to clockwise starting from top left
+          {
+            var points = mapImage.data.points;
+            points.sort(function (a, b) {return a.position.y - b.position.y})
+
+            function slope(a, b) {
+              return (a.y - b.y) / (a.x - b.x);
+            }
+
+            // the top/bottom edge must contain the top point and has slope closest to zero
+            function getHorizontalEdge(point, otherPoints) {
+              otherPoints.sort(function(a, b) {return Math.abs(slope(a.position, point.position)) - Math.abs(slope(b.position, point.position))});
+              var edgePoint = otherPoints[0];
+              var edge = [edgePoint, point];
+              edge.sort(function(a, b){return a.position.x - b.position.x});
+              return edge;
+            }
+
+            var topEdge = getHorizontalEdge(points[0], points.slice(1, -1));
+            var bottomEdge = getHorizontalEdge(points[3], points.slice(1, -1));
+
+            mapImage.data.points = [
+              topEdge[0], topEdge[1], bottomEdge[1], bottomEdge[0]
+            ];
+          }
+        }
+        mapImage.data.updateOutline = function() {
+          if (this.outline) {
+            this.outline.data.update();
+            return;
+          }
+
+          var outline = new Path();
+          outline.data.update = function() {
+            this.sortPoints();
+            outline.segments = this.points.map(function(p) { return p.position});
+          }.bind(this);
+          outline.data.update();
+          outline.fillColor = colors.yellow.color;
+          outline.opacity = 0.3;  
+          mapImageGroup.addChild(outline);
+          this.outline = outline;
+        }
+        mapImage.data.perspectiveWarp = function(onComplete) {
+          return new Promise(function(onComplete) {
             var resultSize = new Size(700, 600);
 
-            // reorder the points to clockwise starting from top left
-            {
-              var points = mapImage.data.points;
-              points.sort(function (a, b) {return a.position.y - b.position.y})
-
-              function slope(a, b) {
-                return (a.y - b.y) / (a.x - b.x);
-              }
-
-              // the top/bottom edge must contain the top point and has slope closest to zero
-              function getHorizontalEdge(point, otherPoints) {
-                otherPoints.sort(function(a, b) {return Math.abs(slope(a.position, point.position)) - Math.abs(slope(b.position, point.position))});
-                var edgePoint = otherPoints[0];
-                var edge = [edgePoint, point];
-                edge.sort(function(a, b){return a.position.x - b.position.x});
-                return edge;
-              }
-
-              var topEdge = getHorizontalEdge(points[0], points.slice(1, -1));
-              var bottomEdge = getHorizontalEdge(points[3], points.slice(1, -1));
-
-              mapImage.data.points = [
-                topEdge[0], topEdge[1], bottomEdge[1], bottomEdge[0]
-              ];
-            }
+            this.sortPoints();
+            this.updateOutline();
 
             var perspectiveTransformMatrix = PerspT(
               mapImage.data.points.reduce(function(acc, point) {
@@ -1722,13 +1743,17 @@
 
             var mapImageData = mapImage.getImageData(0, 0, mapImage.width, mapImage.height);
 
-            var perspectiveWarpImage = new Raster(resultSize);
-            mapImageGroup.addChild(perspectiveWarpImage);
-            perspectiveWarpImage.position = mapImage.position;
-            perspectiveWarpImage.smoothing = false;
-            perspectiveWarpImage.scaling = 1 / mapImageGroup.scaling.x;
+            if (!this.perspectiveWarpImage) {
+              this.perspectiveWarpImage = new Raster(resultSize);
+              mapImageGroup.addChild(this.perspectiveWarpImage);
+              this.perspectiveWarpImage.position = mapImage.position;
+              //this.perspectiveWarpImage.scaling = 1 / mapImageGroup.scaling.x;
 
-            var context = perspectiveWarpImage.context;
+              this.perspectiveWarpImage.scaling = 16 * 7 / resultSize.width;
+              this.perspectiveWarpImage.bounds.topCenter = mapImage.bounds.bottomCenter;
+            }
+
+            var context = this.perspectiveWarpImage.context;
 
             var xScale = 7 / 5;
             var yScale = 6 / 4;
@@ -1758,17 +1783,19 @@
               }
             }
             context.putImageData(imageData, 0, 0);
-
-            perspectiveWarpImage.scaling *= 0.5;
-            perspectiveWarpImage.bounds.topCenter = mapImage.bounds.bottomCenter;
-          }
-        }
+            onComplete();
+          }.bind(this));
+        };
       };
+
 
 
       var confirmIcon = new Raster('img/ui-check-white.png');
       confirmIcon.scaling = 0.5;
-      var confirmButton = createButton(confirmIcon, 30, function() {}, {
+      var confirmButton = createButton(confirmIcon, 30, function() {
+        updateMapOverlay(mapImage.data.perspectiveWarpImage);
+        switchMenu.data.show(false);
+      }, {
         alpha: .9,
         highlightedColor: colors.jaybird.color,
         selectedColor: colors.blue.color,
@@ -1788,6 +1815,19 @@
       switchMenu.opacity = 0;
     }
     switchMenu.data.show(isShown);
+  }
+
+  function updateMapOverlay(raster) {
+    if (screenshot) {
+      screenshot.remove();
+    }
+    screenshot = raster;
+    screenshot.locked = true;
+    screenshot.opacity = 0;
+    mapOverlayLayer.addChild(screenshot);
+    screenshot.bounds.topLeft = new Point(0, 0);
+
+    startScreenshotOverlay();
   }
 
   var leftToolMenu = new Group();
