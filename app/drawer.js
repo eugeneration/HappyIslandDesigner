@@ -1116,11 +1116,13 @@
   // alpha: number
   // highlightedColor: string
   // selectedColor: string
+  // disabledColor: string
 
   function createButton(item, buttonSize, onClick, options) {
     var alpha = (!options || options.alpha == null) ? 0.0001 : options.alpha;
     var highlightedColor = (!options || options.highlightedColor == null) ? colors.sand.color : options.highlightedColor;
     var selectedColor = (!options || options.selectedColor == null) ? colors.npc.color : options.selectedColor;
+    var disabledColor = (!options || options.disabledColor == null) ? null : options.disabledColor;
 
     var group = new Group();
 
@@ -1130,10 +1132,13 @@
     group.addChildren([button, item]);
 
     function updateColor() {
-      button.fillColor = group.data.selected || group.data.pressed
-        ? selectedColor
+      button.fillColor = 
+        (group.data.disabled && disabledColor) ? disabledColor
+        : (group.data.selected || group.data.pressed) ? selectedColor
         : highlightedColor;
-      button.fillColor.alpha = group.data.selected ? 1
+      button.fillColor.alpha = 
+        group.data.disabled ? 0.5
+        : group.data.selected ? 1
         : group.data.pressed ? 0.5 
         : (group.data.hovered ? 1 : alpha);
     }
@@ -1158,7 +1163,7 @@
       },
       disable: function(isDisabled) {
         group.data.disabled = isDisabled;
-        item.opacity = isDisabled ? 0.5 : 1;
+        updateColor();
         if (isDisabled) group.data.hover(false);
       },
     }
@@ -1518,10 +1523,71 @@
         mapImageGroup.scale(Math.min(maxImageWidth / newSize.width, maxImageHeight / newSize.height));
         mapImageGroup.bounds.topLeft = new Point(0, 0)
 
+
+        mapImage.data.hoveredPoint = null;
+        mapImage.data.grabbedPoint = null;
+        mapImage.data.updateHoveredPoint = function(position) {
+          var point = this.points.find(function(point) {
+            return point.position.getDistance(position) < 80;
+          });
+          if (point != this.hoveredPoint) {
+            var oldPoint = this.hoveredPoint;
+            if (oldPoint) {
+              oldPoint.data.hover(false);
+            }
+          }
+
+          this.hoveredPoint = point;
+          if (point) {
+            point.data.hover(true);
+          }
+          return point;
+        }
+
         mapImage.data.pointIndex = 0;
         mapImage.data.points = [];
-        mapImage.onMouseDown = function(event) {
+
+        mapImage.onMouseMove = function(event) {
+          // retain the same point after grab has begun
+          if (this.data.grabbedPoint) return;
           var rawCoordinate = mapImageGroup.globalToLocal(event.point);
+          this.data.updateHoveredPoint(rawCoordinate);
+        }
+        mapImage.onMouseDown = function(event) {
+
+          var rawCoordinate = mapImageGroup.globalToLocal(event.point);
+
+          var zoom = document.createElement("canvas");
+          zoom.height = 200;
+          zoom.width = 200;
+          zoom.style.position = 'absolute';
+          zoom.style.display = "block";
+          document.body.appendChild(zoom);
+          mapImage.data.zoom = zoom;
+          zoom.update = function(event, pointGlobalPosition) {
+            var zoomLevel = .8;
+            var zoomSize = 100;
+            var zoom = mapImage.data.zoom;
+            var pointCanvasPosition = view.viewToProject(pointGlobalPosition);
+            zoom.getContext("2d").drawImage(view.element,
+              pointCanvasPosition.x - zoomLevel * zoomSize * 0.5, pointCanvasPosition.y - zoomLevel * zoomSize * 0.5, zoomLevel * zoomSize, zoomLevel * zoomSize,
+              0, 0, zoomSize * 2, zoomSize * 2);
+            zoom.style.top = event.event.pageY - 10 - zoomSize * 2 + "px";
+            zoom.style.left = event.event.pageX - 10 - zoomSize * 2 + "px";
+          }
+          // wait for the point to appear before grabbing canvas
+          zoom.update(event, event.point);
+          setTimeout(function() {zoom.update(event, event.point)}, 100);
+
+          if (this.data.hoveredPoint) {
+            this.data.grabbedPoint = this.data.hoveredPoint;
+            this.data.grabbedPoint.data.select(true);
+            this.data.grabbedPoint.data.startPoint = rawCoordinate;
+            this.data.grabbedPoint.data.grabPivot = rawCoordinate - this.data.grabbedPoint.position;
+            return;
+          }
+
+          if (mapImage.data.points.length >= 4) { return; }
 
           var point = new Group();
           point.pivot = new Point(0, 0);
@@ -1567,51 +1633,40 @@
           point.scaling = 1 / mapImageGroup.scaling.x;
           point.position = rawCoordinate;
           point.data.startPoint = rawCoordinate;
+          point.data.grabPivot = new Point(0, 0);
+          point.locked = true;
 
-          point.onMouseDown = function(event) {
-
+          point.data.updateColor = function() {
+            point.children.forEach(function(path) {
+              path.strokeColor =
+                point.data.selected ? colors.yellow.color
+                : point.data.hovered ? colors.lightYellow.color : colors.yellow.color;
+            })
+          }
+          point.data.hover = function(isHovered) {
+            point.data.hovered = isHovered;
+            point.data.updateColor();
+          }
+          point.data.select = function(isSelected) {
+            point.data.selected = isSelected;
+            point.data.updateColor();
           }
 
           mapImagePoints.addChild(point);
 
           mapImage.data.pointIndex = mapImage.data.points.length;
           mapImage.data.points[mapImage.data.pointIndex] = point;
-
-          var zoom = document.createElement("canvas");
-          zoom.height = 200;
-          zoom.width = 200;
-          zoom.style.position = 'absolute';
-          zoom.style.display = "block";
-          document.body.appendChild(zoom);
-          mapImage.data.zoom = zoom;
-
-  //        // todo: NOT DRY, repeats code below
-  //        var pointCanvasPosition = view.viewToProject(point.position);
-  //        var zoomLevel = 2;
-  //        var zoomSize = 100;
-  //        zoom.getContext("2d").drawImage(view.element,
-  //          pointCanvasPosition.x * zoomLevel - zoomSize * 0.5, pointCanvasPosition.y * zoomLevel  - zoomSize * 0.5, zoomSize, zoomSize,
-  //          0, 0, zoomSize * 2, zoomSize * 2);
-  //        zoom.style.top = event.event.pageY + 10 + "px";
-  //        zoom.style.left = event.event.pageX + 10 + "px";
+          emitter.emit('screenshot_update_point', mapImage.data.points.length);
         }
         mapImage.onMouseDrag = function(event) {
           var rawCoordinate = mapImageGroup.globalToLocal(event.point);
           
-          var point = mapImage.data.points[mapImage.data.pointIndex];
+          var point = mapImage.data.grabbedPoint || mapImage.data.points[mapImage.data.pointIndex];
           if (point) {
             var delta = rawCoordinate - point.data.startPoint;
-            point.position = point.data.startPoint + delta * 0.2;
+            point.position = point.data.startPoint - point.data.grabPivot + delta * 0.2;
 
-            var pointCanvasPosition = view.viewToProject(mapImageGroup.localToGlobal(point.position));
-            var zoomLevel = 2;
-            var zoomSize = 100;
-            var zoom = mapImage.data.zoom;
-            zoom.getContext("2d").drawImage(view.element,
-              pointCanvasPosition.x * zoomLevel - zoomSize * 0.5, pointCanvasPosition.y * zoomLevel  - zoomSize * 0.5, zoomSize, zoomSize,
-              0, 0, zoomSize * 2, zoomSize * 2);
-            zoom.style.top = event.event.pageY - 10 - zoomSize * 2 + "px";
-            zoom.style.left = event.event.pageX - 10 - zoomSize * 2 + "px";
+            mapImage.data.zoom.update(event, mapImageGroup.localToGlobal(point.position));
           }
         }
         mapImage.onMouseUp = function(event) {
@@ -1619,6 +1674,12 @@
 
           if (mapImage.data.zoom) {
             mapImage.data.zoom.remove();
+          }
+
+          if (this.data.grabbedPoint) {
+            this.data.grabbedPoint.data.select(false);
+            this.data.grabbedPoint = null;
+            return;
           }
 
           if (mapImage.data.points.length == 4) {
@@ -1697,13 +1758,33 @@
               }
             }
             context.putImageData(imageData, 0, 0);
+
+            perspectiveWarpImage.scaling *= 0.5;
+            perspectiveWarpImage.bounds.topCenter = mapImage.bounds.bottomCenter;
           }
         }
       };
 
-      var button = createButton();
 
-      switchMenu.data.contents.addChildren([mapImageGroup]);
+      var confirmIcon = new Raster('img/ui-check-white.png');
+      confirmIcon.scaling = 0.5;
+      var confirmButton = createButton(confirmIcon, 30, function() {}, {
+        alpha: .9,
+        highlightedColor: colors.jaybird.color,
+        selectedColor: colors.blue.color,
+        disabledColor: colors.text.color,
+      });
+      confirmButton.data.disable(true);
+      confirmButton.bounds.bottomCenter = new Point(switchMenu.data.width / 2, switchMenu.data.height);
+      emitter.on('screenshot_update_point', function(pointCount) {
+        if (pointCount == 4) {
+          confirmButton.data.disable(false);
+        } else {
+          confirmButton.data.disable(true);
+        }
+      })
+
+      switchMenu.data.contents.addChildren([mapImageGroup, confirmButton]);
       switchMenu.opacity = 0;
     }
     switchMenu.data.show(isShown);
