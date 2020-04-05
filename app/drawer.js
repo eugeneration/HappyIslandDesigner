@@ -1052,6 +1052,27 @@
   }
 
   function loadMapFromFile() {
+    loadImage(function(image) {
+      var mapJSONString = steg.decode(image.src, {
+        height: image.height,
+        width: image.width,
+      });
+      clearMap();
+
+      var json;
+      try {
+        var json = JSON.parse(mapJSONString);
+      } catch(e) {
+        var json = JSON.parse(LZString.decompress(mapJSONString))
+      }
+      var map = decodeMap(json);
+
+      setNewMapData(map);
+    });
+  }
+
+
+  function loadImage(onLoad) {
     readFile = function(e) {
       var file = e.target.files[0];
       if (!file) {
@@ -1063,30 +1084,12 @@
 
         var image = new Image();
         image.src = dataURL;
-        image.addEventListener('load',
-          function() {
-            var mapJSONString = steg.decode(dataURL, {
-              height: image.height,
-              width: image.width,
-            });
-            clearMap();
-
-            var json;
-            try {
-              var json = JSON.parse(mapJSONString);
-            } catch(e) {
-              var json = JSON.parse(LZString.decompress(mapJSONString))
-            }
-            var map = decodeMap(json);
-
-            setNewMapData(map);
-          }, false);
+        image.addEventListener('load', function(){onLoad(image)}, false);
       }
       reader.readAsDataURL(file);
     }
     loadFile(readFile);
   }
-
   function loadFile(onLoad) {
     fileInput = document.createElement("input");
     fileInput.type='file';
@@ -1488,370 +1491,408 @@
       mapImageGroup.applyMatrix = false;
       switchMenu.data.contents.addChildren([mapImageGroup]);
 
-      var mapImage = new Raster('phonecamera1.jpg');
-      mapImage.onLoad = function() {
-        //var maxImageWidth = 700;
-        //var maxImageHeight = 700;
-        //var originalSize = new Size(mapImage.size);
-        //var scale = Math.min(maxImageWidth / mapImage.width, maxImageHeight / mapImage.height);
-        //console.log(maxImageWidth / mapImage.width, maxImageHeight / mapImage.height);
-        //var newSize = originalSize * scale;
-        //console.log(originalSize, scale, newSize)
-        //mapImage.scale(scale);
-        //var resampled = mapImage.rasterize(view.resolution / view.pixelRatio);
-        //resampled.smoothing=false;
-        //mapImage.remove();
-        //mapImage = resampled;
 
-        var newSize = mapImage.size;
+      var uploadGroup = new Group();
+      uploadGroup.applyMatrix = false;
+      mapImageGroup.addChild(uploadGroup);
+      {
+        var instructionImage = new Raster('img/screenshot-instructions.png');
+        instructionImage.scaling = 0.5;
 
-        mapImage.bounds.topLeft = new Point(0, 0);
+        var instructions = new PointText();
+        instructions.justification = 'center';
+        instructions.fontFamily = 'TTNorms, sans-serif';
+        instructions.fontSize = 24;
+        instructions.fillColor = colors.text.color;
+        instructions.content = "1. Upload a photo/screenshot of your map\n\n2. Mark the four corners of the grid";
+        instructions.position += new Point(0, 150);
 
-        var mapImagePoints = new Group();
-        mapImageGroup.addChildren([mapImage, mapImagePoints]);
+        var uploadIcon = new Raster('img/ui-upload-white.png');
+        uploadIcon.scaling = 0.4;
+        var uploadButton = createButton(uploadIcon, 30, function() {
+          loadImage(loadMapImage);
+        }, {
+          alpha: .9,
+          highlightedColor: colors.jaybird.color,
+          selectedColor: colors.blue.color,
+          disabledColor: colors.text.color,
+        });
+        uploadButton.position += new Point(0, 300);
 
-        var maxImageWidth = switchMenu.data.width;
-        var maxImageHeight = switchMenu.data.height;
-        mapImageGroup.scale(Math.min(maxImageWidth / newSize.width, maxImageHeight / newSize.height));
-        mapImageGroup.bounds.topLeft = new Point(0, 0)
+        uploadGroup.addChildren([instructionImage, instructions, uploadButton]);
+      }
+      uploadGroup.position = new Point(switchMenu.data.width / 2, switchMenu.data.height / 2);
 
 
-        mapImage.data.hoveredPoint = null;
-        mapImage.data.grabbedPoint = null;
-        mapImage.data.updateHoveredPoint = function(position) {
-          var point = this.points.find(function(point) {
-            return point.position.getDistance(position) < 80;
-          });
-          if (point != this.hoveredPoint) {
-            var oldPoint = this.hoveredPoint;
-            if (oldPoint) {
-              oldPoint.data.hover(false);
-            }
-          }
+      var mapImage;
+      function loadMapImage(image) {
+        if (mapImage) mapImage.remove();
 
-          this.hoveredPoint = point;
-          if (point) {
-            point.data.hover(true);
-          }
-          return point;
-        }
+        mapImage = new Raster(image);
+        mapImage.onLoad = function() {
+          //var maxImageWidth = 700;
+          //var maxImageHeight = 700;
+          //var originalSize = new Size(mapImage.size);
+          //var scale = Math.min(maxImageWidth / mapImage.width, maxImageHeight / mapImage.height);
+          //console.log(maxImageWidth / mapImage.width, maxImageHeight / mapImage.height);
+          //var newSize = originalSize * scale;
+          //console.log(originalSize, scale, newSize)
+          //mapImage.scale(scale);
+          //var resampled = mapImage.rasterize(view.resolution / view.pixelRatio);
+          //resampled.smoothing=false;
+          //mapImage.remove();
+          //mapImage = resampled;
 
-        mapImage.data.pointIndex = 0;
-        mapImage.data.points = [];
+          var newSize = mapImage.size;
 
-        mapImage.onMouseMove = function(event) {
-          // retain the same point after grab has begun
-          if (this.data.grabbedPoint) return;
-          var rawCoordinate = mapImageGroup.globalToLocal(event.point);
-          this.data.updateHoveredPoint(rawCoordinate);
-        }
-        mapImage.onMouseDown = function(event) {
+          mapImage.bounds.topLeft = new Point(0, 0);
 
-          var rawCoordinate = mapImageGroup.globalToLocal(event.point);
+          var mapImagePoints = new Group();
+          mapImageGroup.addChildren([mapImage, mapImagePoints]);
 
-          var zoom = document.createElement("canvas");
-          zoom.height = 200;
-          zoom.width = 200;
-          zoom.style.position = 'absolute';
-          zoom.style.display = "block";
-          document.body.appendChild(zoom);
-          mapImage.data.zoom = zoom;
-          zoom.update = function(event, pointGlobalPosition) {
-            var zoomLevel = .8;
-            var zoomSize = 100;
-            var zoom = mapImage.data.zoom;
-            var pointCanvasPosition = view.viewToProject(pointGlobalPosition);
-            zoom.getContext("2d").drawImage(view.element,
-              pointCanvasPosition.x - zoomLevel * zoomSize * 0.5, pointCanvasPosition.y - zoomLevel * zoomSize * 0.5, zoomLevel * zoomSize, zoomLevel * zoomSize,
-              0, 0, zoomSize * 2, zoomSize * 2);
-            zoom.style.top = event.event.pageY - 10 - zoomSize * 2 + "px";
-            zoom.style.left = event.event.pageX - 10 - zoomSize * 2 + "px";
-          }
-          // wait for the point to appear before grabbing canvas
-          zoom.update(event, event.point);
-          setTimeout(function() {zoom.update(event, event.point)}, 100);
+          var maxImageWidth = switchMenu.data.width;
+          var maxImageHeight = switchMenu.data.height;
+          mapImageGroup.scale(Math.min(maxImageWidth / newSize.width, maxImageHeight / newSize.height));
+          mapImageGroup.bounds.topLeft = new Point(0, 0)
 
-          if (this.data.hoveredPoint) {
-            this.data.grabbedPoint = this.data.hoveredPoint;
-            this.data.grabbedPoint.data.select(true);
-            this.data.grabbedPoint.data.startPoint = rawCoordinate;
-            this.data.grabbedPoint.data.grabPivot = rawCoordinate - this.data.grabbedPoint.position;
-            return;
-          }
 
-          if (mapImage.data.points.length >= 4) { return; }
-
-          var point = new Group();
-          point.pivot = new Point(0, 0);
-          point.applyMatrix = false;
-          point.addChildren([
-            new Path.Circle({
-              center: [0, 0],
-              radius: 1,
-              fillColor: colors.yellow.color,
-            }),
-            new Path({
-              segments: [[0, 3], [0, 8]],
-              strokeWidth: 1,
-              strokeColor: colors.yellow.color,
-              strokeCap: 'round',
-            }),
-            new Path({
-              segments: [[3, 0], [8, 0]],
-              strokeWidth: 1,
-              strokeColor: colors.yellow.color,
-              strokeCap: 'round',
-            }),
-            new Path({
-              segments: [[0, -3], [0, -8]],
-              strokeWidth: 1,
-              strokeColor: colors.yellow.color,
-              strokeCap: 'round',
-            }),
-            new Path({
-              segments: [[-3, 0], [-8, 0]],
-              strokeWidth: 1,
-              strokeColor: colors.yellow.color,
-              strokeCap: 'round',
-            }),
-            new Path.Circle({
-              center: [0, 0],
-              radius: 15,
-              fillColor: colors.invisible.color,
-              strokeColor: colors.yellow.color,
-              strokeWidth: 2,
-            }),
-          ]);
-          point.scaling = 1 / mapImageGroup.scaling.x;
-          point.position = rawCoordinate;
-          point.data.startPoint = rawCoordinate;
-          point.data.grabPivot = new Point(0, 0);
-          point.locked = true;
-
-          point.data.updateColor = function() {
-            point.children.forEach(function(path) {
-              path.strokeColor =
-                point.data.selected ? colors.yellow.color
-                : point.data.hovered ? colors.lightYellow.color : colors.yellow.color;
-            })
-          }
-          point.data.hover = function(isHovered) {
-            point.data.hovered = isHovered;
-            point.data.updateColor();
-          }
-          point.data.select = function(isSelected) {
-            point.data.selected = isSelected;
-            point.data.updateColor();
-          }
-
-          mapImagePoints.addChild(point);
-
-          mapImage.data.pointIndex = mapImage.data.points.length;
-          mapImage.data.points[mapImage.data.pointIndex] = point;
-          emitter.emit('screenshot_update_point', mapImage.data.points.length);
-        }
-        mapImage.onMouseDrag = function(event) {
-          var rawCoordinate = mapImageGroup.globalToLocal(event.point);
-          
-          var point = mapImage.data.grabbedPoint || mapImage.data.points[mapImage.data.pointIndex];
-          if (point) {
-            var delta = rawCoordinate - point.data.startPoint;
-            point.position = point.data.startPoint - point.data.grabPivot + delta * 0.2;
-
-            mapImage.data.zoom.update(event, mapImageGroup.localToGlobal(point.position));
-
-            if (this.data.outline) {
-              this.data.updateOutline(); 
-            }
-          }
-        }
-        mapImage.onMouseUp = function(event) {
-          var rawCoordinate = mapImageGroup.globalToLocal(event.point);
-
-          if (mapImage.data.zoom) {
-            mapImage.data.zoom.remove();
-          }
-
-          if (this.data.grabbedPoint) {
-            this.data.grabbedPoint.data.select(false);
-            this.data.grabbedPoint = null;
-          }
-
-          if (mapImage.data.points.length == 4) {
-            this.data.updateOutline();
-            //this.data.perspectiveWarp();
-          }
-        }
-        mapImage.data.sortPoints = function() {
-          // reorder the points to clockwise starting from top left
-          {
-            var points = mapImage.data.points;
-            points.sort(function (a, b) {return a.position.y - b.position.y})
-
-            function slope(a, b) {
-              return (a.y - b.y) / (a.x - b.x);
+          mapImage.data.hoveredPoint = null;
+          mapImage.data.grabbedPoint = null;
+          mapImage.data.updateHoveredPoint = function(position) {
+            var point = this.points.find(function(point) {
+              return point.position.getDistance(position) < 80;
+            });
+            if (point != this.hoveredPoint) {
+              var oldPoint = this.hoveredPoint;
+              if (oldPoint) {
+                oldPoint.data.hover(false);
+              }
             }
 
-            // the top/bottom edge must contain the top point and has slope closest to zero
-            function getHorizontalEdge(point, otherPoints) {
-              otherPoints.sort(function(a, b) {return Math.abs(slope(a.position, point.position)) - Math.abs(slope(b.position, point.position))});
-              var edgePoint = otherPoints[0];
-              var edge = [edgePoint, point];
-              edge.sort(function(a, b){return a.position.x - b.position.x});
-              return edge;
+            this.hoveredPoint = point;
+            if (point) {
+              point.data.hover(true);
+            }
+            return point;
+          }
+
+          mapImage.data.pointIndex = 0;
+          mapImage.data.points = [];
+
+          mapImage.onMouseMove = function(event) {
+            // retain the same point after grab has begun
+            if (this.data.grabbedPoint) return;
+            var rawCoordinate = mapImageGroup.globalToLocal(event.point);
+            this.data.updateHoveredPoint(rawCoordinate);
+          }
+          mapImage.onMouseDown = function(event) {
+
+            var rawCoordinate = mapImageGroup.globalToLocal(event.point);
+
+            var zoom = document.createElement("canvas");
+            zoom.height = 200;
+            zoom.width = 200;
+            zoom.style.position = 'absolute';
+            zoom.style.display = "block";
+            document.body.appendChild(zoom);
+            mapImage.data.zoom = zoom;
+            zoom.update = function(event, pointGlobalPosition) {
+              var zoomLevel = .8;
+              var zoomSize = 100;
+              var zoom = mapImage.data.zoom;
+              var pointCanvasPosition = view.viewToProject(pointGlobalPosition);
+              zoom.getContext("2d").drawImage(view.element,
+                pointCanvasPosition.x - zoomLevel * zoomSize * 0.5, pointCanvasPosition.y - zoomLevel * zoomSize * 0.5, zoomLevel * zoomSize, zoomLevel * zoomSize,
+                0, 0, zoomSize * 2, zoomSize * 2);
+              zoom.style.top = event.event.pageY - 10 - zoomSize * 2 + "px";
+              zoom.style.left = event.event.pageX - 10 - zoomSize * 2 + "px";
+            }
+            // wait for the point to appear before grabbing canvas
+            zoom.update(event, event.point);
+            setTimeout(function() {zoom.update(event, event.point)}, 100);
+
+            if (this.data.hoveredPoint) {
+              this.data.grabbedPoint = this.data.hoveredPoint;
+              this.data.grabbedPoint.data.select(true);
+              this.data.grabbedPoint.data.startPoint = rawCoordinate;
+              this.data.grabbedPoint.data.grabPivot = rawCoordinate - this.data.grabbedPoint.position;
+              return;
             }
 
-            var topEdge = getHorizontalEdge(points[0], points.slice(1, -1));
-            var bottomEdge = getHorizontalEdge(points[3], points.slice(1, -1));
+            if (mapImage.data.points.length >= 4) { return; }
 
-            mapImage.data.points = [
-              topEdge[0], topEdge[1], bottomEdge[1], bottomEdge[0]
-            ];
+            var point = new Group();
+            point.pivot = new Point(0, 0);
+            point.applyMatrix = false;
+            point.addChildren([
+              new Path.Circle({
+                center: [0, 0],
+                radius: 1,
+                fillColor: colors.yellow.color,
+              }),
+              new Path({
+                segments: [[0, 3], [0, 8]],
+                strokeWidth: 1,
+                strokeColor: colors.yellow.color,
+                strokeCap: 'round',
+              }),
+              new Path({
+                segments: [[3, 0], [8, 0]],
+                strokeWidth: 1,
+                strokeColor: colors.yellow.color,
+                strokeCap: 'round',
+              }),
+              new Path({
+                segments: [[0, -3], [0, -8]],
+                strokeWidth: 1,
+                strokeColor: colors.yellow.color,
+                strokeCap: 'round',
+              }),
+              new Path({
+                segments: [[-3, 0], [-8, 0]],
+                strokeWidth: 1,
+                strokeColor: colors.yellow.color,
+                strokeCap: 'round',
+              }),
+              new Path.Circle({
+                center: [0, 0],
+                radius: 15,
+                fillColor: colors.invisible.color,
+                strokeColor: colors.yellow.color,
+                strokeWidth: 2,
+              }),
+            ]);
+            point.scaling = 1 / mapImageGroup.scaling.x;
+            point.position = rawCoordinate;
+            point.data.startPoint = rawCoordinate;
+            point.data.grabPivot = new Point(0, 0);
+            point.locked = true;
+
+            point.data.updateColor = function() {
+              point.children.forEach(function(path) {
+                path.strokeColor =
+                  point.data.selected ? colors.yellow.color
+                  : point.data.hovered ? colors.lightYellow.color : colors.yellow.color;
+              })
+            }
+            point.data.hover = function(isHovered) {
+              point.data.hovered = isHovered;
+              point.data.updateColor();
+            }
+            point.data.select = function(isSelected) {
+              point.data.selected = isSelected;
+              point.data.updateColor();
+            }
+
+            mapImagePoints.addChild(point);
+
+            mapImage.data.pointIndex = mapImage.data.points.length;
+            mapImage.data.points[mapImage.data.pointIndex] = point;
+            emitter.emit('screenshot_update_point', mapImage.data.points.length);
           }
-        }
-        mapImage.data.updateOutline = function() {
-          if (this.outline) {
-            this.outline.data.update();
-            return;
+          mapImage.onMouseDrag = function(event) {
+            var rawCoordinate = mapImageGroup.globalToLocal(event.point);
+            
+            var point = mapImage.data.grabbedPoint || mapImage.data.points[mapImage.data.pointIndex];
+            if (point) {
+              var delta = rawCoordinate - point.data.startPoint;
+              point.position = point.data.startPoint - point.data.grabPivot + delta * 0.2;
+
+              mapImage.data.zoom.update(event, mapImageGroup.localToGlobal(point.position));
+
+              if (this.data.outline) {
+                this.data.updateOutline(); 
+              }
+            }
           }
+          mapImage.onMouseUp = function(event) {
+            var rawCoordinate = mapImageGroup.globalToLocal(event.point);
 
-          var outline = new Group();
-          outline.locked = true;
+            if (mapImage.data.zoom) {
+              mapImage.data.zoom.remove();
+            }
 
-          var rect = new Path();
-          rect.fillColor = colors.yellow.color;
-          rect.opacity = 0.3;  
-          outline.data.rect = rect;
-          outline.addChild(rect);
+            if (this.data.grabbedPoint) {
+              this.data.grabbedPoint.data.select(false);
+              this.data.grabbedPoint = null;
+            }
 
-          var lines = new Group();
-          outline.data.lines = lines;
-          outline.addChild(lines);
+            if (mapImage.data.points.length == 4) {
+              this.data.updateOutline();
+              //this.data.perspectiveWarp();
+            }
+          }
+          mapImage.data.sortPoints = function() {
+            // reorder the points to clockwise starting from top left
+            {
+              var points = mapImage.data.points;
+              points.sort(function (a, b) {return a.position.y - b.position.y})
 
-          outline.data.update = function() {
-            this.sortPoints();
-            outline.data.rect.segments = this.points.map(function(p) { return p.position});
+              function slope(a, b) {
+                return (a.y - b.y) / (a.x - b.x);
+              }
+
+              // the top/bottom edge must contain the top point and has slope closest to zero
+              function getHorizontalEdge(point, otherPoints) {
+                otherPoints.sort(function(a, b) {return Math.abs(slope(a.position, point.position)) - Math.abs(slope(b.position, point.position))});
+                var edgePoint = otherPoints[0];
+                var edge = [edgePoint, point];
+                edge.sort(function(a, b){return a.position.x - b.position.x});
+                return edge;
+              }
+
+              var topEdge = getHorizontalEdge(points[0], points.slice(1, -1));
+              var bottomEdge = getHorizontalEdge(points[3], points.slice(1, -1));
+
+              mapImage.data.points = [
+                topEdge[0], topEdge[1], bottomEdge[1], bottomEdge[0]
+              ];
+            }
+          }
+          mapImage.data.updateOutline = function() {
+            if (this.outline) {
+              this.outline.data.update();
+              return;
+            }
+
+            var outline = new Group();
+            outline.locked = true;
+
+            var rect = new Path();
+            rect.fillColor = colors.yellow.color;
+            rect.opacity = 0.3;  
+            outline.data.rect = rect;
+            outline.addChild(rect);
+
+            var lines = new Group();
+            outline.data.lines = lines;
+            outline.addChild(lines);
+
+            outline.data.update = function() {
+              this.sortPoints();
+              outline.data.rect.segments = this.points.map(function(p) { return p.position});
 
 
-            if (!this.flashingInterval) {
-              this.flashingInterval = setInterval(function() {
-                if (!switchMenu.data.isShown()) {
-                  clearInterval(this.flashingInterval);
-                  this.flashingInterval = null;
-                  return;
+              if (!this.flashingInterval) {
+                this.flashingInterval = setInterval(function() {
+                  if (!switchMenu.data.isShown()) {
+                    clearInterval(this.flashingInterval);
+                    this.flashingInterval = null;
+                    return;
+                  }
+                  lines.opacity = lines.opacity == 0 ? 1 : 0;
+                }.bind(this), 500);
+              }
+
+              var perspectiveTransformMatrix = PerspT(
+                [0, 0,
+                5, 0,
+                5, 4,
+                0, 4],
+                mapImage.data.points.reduce(function(acc, point) {
+                  acc.push(point.position.x, point.position.y); return acc;
+                }, []));
+              function calculateLines(p0, p1, axis, numLines) {
+                var lines = [];
+                for (var i = 0; i < numLines; i++) {
+                  var offset = new Point(axis.y, axis.x) * 1.1;
+
+                  var pp0 = p0 + axis * i - offset;
+                  var pp1 = p1 + axis * i + offset;
+                  lines.push([
+                    perspectiveTransformMatrix.transform(pp0.x, pp0.y),
+                    perspectiveTransformMatrix.transform(pp1.x, pp1.y)]);
                 }
-                lines.opacity = lines.opacity == 0 ? 1 : 0;
-              }.bind(this), 500);
-            }
-
-            var perspectiveTransformMatrix = PerspT(
-              [0, 0,
-              5, 0,
-              5, 4,
-              0, 4],
-              mapImage.data.points.reduce(function(acc, point) {
-                acc.push(point.position.x, point.position.y); return acc;
-              }, []));
-            function calculateLines(p0, p1, axis, numLines) {
-              var lines = [];
-              for (var i = 0; i < numLines; i++) {
-                var offset = new Point(axis.y, axis.x) * 1.1;
-
-                var pp0 = p0 + axis * i - offset;
-                var pp1 = p1 + axis * i + offset;
-                lines.push([
-                  perspectiveTransformMatrix.transform(pp0.x, pp0.y),
-                  perspectiveTransformMatrix.transform(pp1.x, pp1.y)]);
+                return lines;
               }
-              return lines;
-            }
-            function drawLinePath(points, index) {
-              if (!outline.data.lines.children[index]) {
-                var line = new Path.Line(points);
-                line.strokeWidth = 1.5 / mapImageGroup.scaling.x;
-                line.strokeColor = colors.white.color;
-                line.strokeColor.alpha = 0.3;
-                outline.data.lines.addChild(line);
+              function drawLinePath(points, index) {
+                if (!outline.data.lines.children[index]) {
+                  var line = new Path.Line(points);
+                  line.strokeWidth = 1.5 / mapImageGroup.scaling.x;
+                  line.strokeColor = colors.white.color;
+                  line.strokeColor.alpha = 0.3;
+                  outline.data.lines.addChild(line);
+                }
+                outline.data.lines.children[index].segments = points;
               }
-              outline.data.lines.children[index].segments = points;
-            }
-            var index = 0;
-            calculateLines(new Point(0, 0), new Point(0, 4),
-              new Point(1, 0), 6)
-              .forEach(function(line) {drawLinePath(line, index); index++})
-            calculateLines(new Point(0, 0), new Point(5, 0),
-              new Point(0, 1), 5)
-              .forEach(function(line) {drawLinePath(line, index); index++})
-          }.bind(this);
-          outline.data.update();
+              var index = 0;
+              calculateLines(new Point(0, 0), new Point(0, 4),
+                new Point(1, 0), 6)
+                .forEach(function(line) {drawLinePath(line, index); index++})
+              calculateLines(new Point(0, 0), new Point(5, 0),
+                new Point(0, 1), 5)
+                .forEach(function(line) {drawLinePath(line, index); index++})
+            }.bind(this);
+            outline.data.update();
 
-          mapImageGroup.addChild(outline);
-          this.outline = outline;
-        }
-        mapImage.data.perspectiveMatrix = function() {
+            mapImageGroup.addChild(outline);
+            this.outline = outline;
+          }
+          mapImage.data.perspectiveWarp = function(onComplete) {
+            return new Promise(function(onComplete) {
+              var resultSize = new Size(700, 600);
 
-        }
-        mapImage.data.perspectiveWarp = function(onComplete) {
-          return new Promise(function(onComplete) {
-            var resultSize = new Size(700, 600);
+              this.sortPoints();
 
-            this.sortPoints();
+              var perspectiveTransformMatrix = PerspT(
+                mapImage.data.points.reduce(function(acc, point) {
+                  acc.push(point.position.x, point.position.y); return acc;
+                }, []),
+                [0, 0,
+                resultSize.width, 0,
+                resultSize.width, resultSize.height,
+                0, resultSize.height]);
 
-            var perspectiveTransformMatrix = PerspT(
-              mapImage.data.points.reduce(function(acc, point) {
-                acc.push(point.position.x, point.position.y); return acc;
-              }, []),
-              [0, 0,
-              resultSize.width, 0,
-              resultSize.width, resultSize.height,
-              0, resultSize.height]);
+              var mapImageData = mapImage.getImageData(0, 0, mapImage.width, mapImage.height);
 
-            var mapImageData = mapImage.getImageData(0, 0, mapImage.width, mapImage.height);
+              if (!this.perspectiveWarpImage) {
+                this.perspectiveWarpImage = new Raster(resultSize);
+                mapImageGroup.addChild(this.perspectiveWarpImage);
+                this.perspectiveWarpImage.position = mapImage.position;
+                //this.perspectiveWarpImage.scaling = 1 / mapImageGroup.scaling.x;
 
-            if (!this.perspectiveWarpImage) {
-              this.perspectiveWarpImage = new Raster(resultSize);
-              mapImageGroup.addChild(this.perspectiveWarpImage);
-              this.perspectiveWarpImage.position = mapImage.position;
-              //this.perspectiveWarpImage.scaling = 1 / mapImageGroup.scaling.x;
-
-              this.perspectiveWarpImage.scaling = 16 * 7 / resultSize.width;
-              this.perspectiveWarpImage.bounds.topCenter = mapImage.bounds.bottomCenter;
-            }
-
-            var context = this.perspectiveWarpImage.context;
-
-            var xScale = 7 / 5;
-            var yScale = 6 / 4;
-
-            var imageData = context.createImageData(resultSize.width, resultSize.height)
-            for (var y = 0; y < resultSize.height; y++) {
-              var rowIndex = y * resultSize.width;
-              for (var x = 0; x < resultSize.width; x++) {
-                var index = (rowIndex + x) * 4;
-
-                // the points we want is actually an acre outside the bounds
-
-                var mapPosX = x * xScale - resultSize.width / 5;
-                var mapPosY = y * yScale - resultSize.height / 4;
-
-                var srcPt = perspectiveTransformMatrix.transformInverse(mapPosX, mapPosY);
-                var srcIndex = (Math.round(srcPt[0]) + Math.round(srcPt[1]) * mapImage.width) * 4;
-                
-
-                //console.log(x, y, '->', Math.round(srcPt[0]), Math.round(srcPt[1]), srcIndex);
-                //var srcIndex = ((x) + (y + 10) * mapImage.width) * 4;
-
-                imageData.data[index] = mapImageData.data[srcIndex];
-                imageData.data[index+1] = mapImageData.data[srcIndex+1];
-                imageData.data[index+2] = mapImageData.data[srcIndex+2];
-                imageData.data[index+3] = mapImageData.data[srcIndex+3];
+                this.perspectiveWarpImage.scaling = 16 * 7 / resultSize.width;
+                this.perspectiveWarpImage.bounds.topCenter = mapImage.bounds.bottomCenter;
               }
-            }
-            context.putImageData(imageData, 0, 0);
-            onComplete();
-          }.bind(this));
+
+              var context = this.perspectiveWarpImage.context;
+
+              var xScale = 7 / 5;
+              var yScale = 6 / 4;
+
+              var imageData = context.createImageData(resultSize.width, resultSize.height)
+              for (var y = 0; y < resultSize.height; y++) {
+                var rowIndex = y * resultSize.width;
+                for (var x = 0; x < resultSize.width; x++) {
+                  var index = (rowIndex + x) * 4;
+
+                  // the points we want is actually an acre outside the bounds
+
+                  var mapPosX = x * xScale - resultSize.width / 5;
+                  var mapPosY = y * yScale - resultSize.height / 4;
+
+                  var srcPt = perspectiveTransformMatrix.transformInverse(mapPosX, mapPosY);
+                  var srcIndex = (Math.round(srcPt[0]) + Math.round(srcPt[1]) * mapImage.width) * 4;
+                  
+
+                  //console.log(x, y, '->', Math.round(srcPt[0]), Math.round(srcPt[1]), srcIndex);
+                  //var srcIndex = ((x) + (y + 10) * mapImage.width) * 4;
+
+                  imageData.data[index] = mapImageData.data[srcIndex];
+                  imageData.data[index+1] = mapImageData.data[srcIndex+1];
+                  imageData.data[index+2] = mapImageData.data[srcIndex+2];
+                  imageData.data[index+3] = mapImageData.data[srcIndex+3];
+                }
+              }
+              context.putImageData(imageData, 0, 0);
+              onComplete();
+            }.bind(this));
+          };
+          mapImage.data.perspectiveMatrix = function() {
+
+          }
         };
-      };
+      }
 
 
 
