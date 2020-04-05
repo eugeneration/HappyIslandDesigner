@@ -1678,7 +1678,8 @@
           }
 
           if (mapImage.data.points.length == 4) {
-            this.data.perspectiveWarp();
+            this.data.updateOutline();
+            //this.data.perspectiveWarp();
           }
         }
         mapImage.data.sortPoints = function() {
@@ -1714,23 +1715,87 @@
             return;
           }
 
-          var outline = new Path();
+          var outline = new Group();
+          outline.locked = true;
+
+          var rect = new Path();
+          rect.fillColor = colors.yellow.color;
+          rect.opacity = 0.3;  
+          outline.data.rect = rect;
+          outline.addChild(rect);
+
+          var lines = new Group();
+          outline.data.lines = lines;
+          outline.addChild(lines);
+
           outline.data.update = function() {
             this.sortPoints();
-            outline.segments = this.points.map(function(p) { return p.position});
+            outline.data.rect.segments = this.points.map(function(p) { return p.position});
+
+
+            if (!this.flashingInterval) {
+              this.flashingInterval = setInterval(function() {
+                if (!switchMenu.data.isShown()) {
+                  clearInterval(this.flashingInterval);
+                  this.flashingInterval = null;
+                  return;
+                }
+                lines.opacity = lines.opacity == 0 ? 1 : 0;
+              }.bind(this), 500);
+            }
+
+            var perspectiveTransformMatrix = PerspT(
+              [0, 0,
+              5, 0,
+              5, 4,
+              0, 4],
+              mapImage.data.points.reduce(function(acc, point) {
+                acc.push(point.position.x, point.position.y); return acc;
+              }, []));
+            function calculateLines(p0, p1, axis, numLines) {
+              var lines = [];
+              for (var i = 0; i < numLines; i++) {
+                var offset = new Point(axis.y, axis.x) * 1.1;
+
+                var pp0 = p0 + axis * i - offset;
+                var pp1 = p1 + axis * i + offset;
+                lines.push([
+                  perspectiveTransformMatrix.transform(pp0.x, pp0.y),
+                  perspectiveTransformMatrix.transform(pp1.x, pp1.y)]);
+              }
+              return lines;
+            }
+            function drawLinePath(points, index) {
+              if (!outline.data.lines.children[index]) {
+                var line = new Path.Line(points);
+                line.strokeWidth = 1.5 / mapImageGroup.scaling.x;
+                line.strokeColor = colors.white.color;
+                line.strokeColor.alpha = 0.3;
+                outline.data.lines.addChild(line);
+              }
+              outline.data.lines.children[index].segments = points;
+            }
+            var index = 0;
+            calculateLines(new Point(0, 0), new Point(0, 4),
+              new Point(1, 0), 6)
+              .forEach(function(line) {drawLinePath(line, index); index++})
+            calculateLines(new Point(0, 0), new Point(5, 0),
+              new Point(0, 1), 5)
+              .forEach(function(line) {drawLinePath(line, index); index++})
           }.bind(this);
           outline.data.update();
-          outline.fillColor = colors.yellow.color;
-          outline.opacity = 0.3;  
+
           mapImageGroup.addChild(outline);
           this.outline = outline;
+        }
+        mapImage.data.perspectiveMatrix = function() {
+
         }
         mapImage.data.perspectiveWarp = function(onComplete) {
           return new Promise(function(onComplete) {
             var resultSize = new Size(700, 600);
 
             this.sortPoints();
-            this.updateOutline();
 
             var perspectiveTransformMatrix = PerspT(
               mapImage.data.points.reduce(function(acc, point) {
@@ -1793,6 +1858,7 @@
       var confirmIcon = new Raster('img/ui-check-white.png');
       confirmIcon.scaling = 0.5;
       var confirmButton = createButton(confirmIcon, 30, function() {
+        mapImage.data.perspectiveWarp();
         updateMapOverlay(mapImage.data.perspectiveWarpImage);
         switchMenu.data.show(false);
       }, {
