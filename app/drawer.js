@@ -1640,111 +1640,130 @@
 
             var rawCoordinate = mapImageGroup.globalToLocal(event.point);
 
-            var zoom = document.createElement("canvas");
-            zoom.height = 200;
-            zoom.width = 200;
-            zoom.style.position = 'absolute';
-            zoom.style.display = "block";
-            document.body.appendChild(zoom);
-            mapImage.data.zoom = zoom;
-            zoom.update = function(event, pointGlobalPosition) {
-              var zoomLevel = .8;
-              var zoomSize = 100;
-              var zoom = mapImage.data.zoom;
-              var pointCanvasPosition = view.viewToProject(pointGlobalPosition);
-              zoom.getContext("2d").drawImage(view.element,
-                pointCanvasPosition.x - zoomLevel * zoomSize * 0.5, pointCanvasPosition.y - zoomLevel * zoomSize * 0.5, zoomLevel * zoomSize, zoomLevel * zoomSize,
-                0, 0, zoomSize * 2, zoomSize * 2);
-              zoom.style.top = event.event.pageY - 10 - zoomSize * 2 + "px";
-              zoom.style.left = event.event.pageX - 10 - zoomSize * 2 + "px";
-            }
-            // wait for the point to appear before grabbing canvas
-            zoom.update(event, event.point);
-            setTimeout(function() {zoom.update(event, event.point)}, 100);
-
+            this.data.updateHoveredPoint(rawCoordinate);
             if (this.data.hoveredPoint) {
               this.data.grabbedPoint = this.data.hoveredPoint;
               this.data.grabbedPoint.data.select(true);
               this.data.grabbedPoint.data.startPoint = rawCoordinate;
               this.data.grabbedPoint.data.grabPivot = rawCoordinate - this.data.grabbedPoint.position;
-              return;
             }
 
-            if (mapImage.data.points.length >= 4) { return; }
+            if (mapImage.data.points.length < 4 && !this.data.grabbedPoint) {
 
-            var point = new Group();
-            point.pivot = new Point(0, 0);
-            point.applyMatrix = false;
-            point.addChildren([
-              new Path.Circle({
-                center: [0, 0],
-                radius: 1,
-                fillColor: colors.yellow.color,
-              }),
-              new Path({
-                segments: [[0, 3], [0, 8]],
-                strokeWidth: 1,
-                strokeColor: colors.yellow.color,
-                strokeCap: 'round',
-              }),
-              new Path({
-                segments: [[3, 0], [8, 0]],
-                strokeWidth: 1,
-                strokeColor: colors.yellow.color,
-                strokeCap: 'round',
-              }),
-              new Path({
-                segments: [[0, -3], [0, -8]],
-                strokeWidth: 1,
-                strokeColor: colors.yellow.color,
-                strokeCap: 'round',
-              }),
-              new Path({
-                segments: [[-3, 0], [-8, 0]],
-                strokeWidth: 1,
-                strokeColor: colors.yellow.color,
-                strokeCap: 'round',
-              }),
-              new Path.Circle({
-                center: [0, 0],
-                radius: 15,
-                fillColor: colors.invisible.color,
-                strokeColor: colors.yellow.color,
-                strokeWidth: 2,
-              }),
-            ]);
-            point.scaling = 1 / mapImageGroup.scaling.x;
-            point.position = rawCoordinate;
-            point.data.startPoint = rawCoordinate;
-            point.data.grabPivot = new Point(0, 0);
-            point.locked = true;
+              var point = new Group();
+              point.pivot = new Point(0, 0);
+              point.applyMatrix = false;
+              point.addChildren([
+                new Path.Circle({
+                  center: [0, 0],
+                  radius: 1,
+                  fillColor: colors.yellow.color,
+                }),
+                new Path({
+                  segments: [[0, 3], [0, 8]],
+                  strokeWidth: 1,
+                  strokeColor: colors.yellow.color,
+                  strokeCap: 'round',
+                }),
+                new Path({
+                  segments: [[3, 0], [8, 0]],
+                  strokeWidth: 1,
+                  strokeColor: colors.yellow.color,
+                  strokeCap: 'round',
+                }),
+                new Path({
+                  segments: [[0, -3], [0, -8]],
+                  strokeWidth: 1,
+                  strokeColor: colors.yellow.color,
+                  strokeCap: 'round',
+                }),
+                new Path({
+                  segments: [[-3, 0], [-8, 0]],
+                  strokeWidth: 1,
+                  strokeColor: colors.yellow.color,
+                  strokeCap: 'round',
+                }),
+                new Path.Circle({
+                  center: [0, 0],
+                  radius: 15,
+                  fillColor: colors.invisible.color,
+                  strokeColor: colors.yellow.color,
+                  strokeWidth: 2,
+                }),
+              ]);
+              point.scaling = 1 / mapImageGroup.scaling.x;
+              point.position = rawCoordinate;
+              point.data.startPoint = rawCoordinate;
+              point.data.grabPivot = new Point(0, 0);
+              point.locked = true;
 
-            point.data.updateColor = function() {
-              point.children.forEach(function(path) {
-                path.strokeColor =
-                  point.data.selected ? colors.yellow.color
-                  : point.data.hovered ? colors.lightYellow.color : colors.yellow.color;
-              })
+              point.data.updateColor = function() {
+                point.children.forEach(function(path) {
+                  path.strokeColor =
+                    point.data.selected ? colors.yellow.color
+                    : point.data.hovered ? colors.lightYellow.color : colors.yellow.color;
+                })
+              }
+              point.data.hover = function(isHovered) {
+                point.data.hovered = isHovered;
+                point.data.updateColor();
+              }
+              point.data.select = function(isSelected) {
+                point.data.selected = isSelected;
+                point.data.updateColor();
+              }
+
+              mapImagePoints.addChild(point);
+
+              mapImage.data.hoveredPoint = point;
+              mapImage.data.grabbedPoint = point;
+              point.data.hover(true);
+              point.data.select(true);
+
+              mapImage.data.pointIndex = mapImage.data.points.length;
+              mapImage.data.points[mapImage.data.pointIndex] = point;
+              emitter.emit('screenshot_update_point', mapImage.data.points.length);
             }
-            point.data.hover = function(isHovered) {
-              point.data.hovered = isHovered;
-              point.data.updateColor();
-            }
-            point.data.select = function(isSelected) {
-              point.data.selected = isSelected;
-              point.data.updateColor();
-            }
 
-            mapImagePoints.addChild(point);
+            if (this.data.grabbedPoint) {
+              var zoom = document.createElement("canvas");
+              zoom.height = 200;
+              zoom.width = 200;
+              zoom.style.position = 'absolute';
+              zoom.style.display = "block";
+              document.body.appendChild(zoom);
+              mapImage.data.zoom = zoom;
+              zoom.update = function(event, pointGlobalPosition) {
+                var zoomLevel = .8 * view.pixelRatio;
+                var zoomSize = 100;
+                var zoom = mapImage.data.zoom;
+                var pointCanvasPosition = fixedLayer.globalToLocal(pointGlobalPosition);
 
-            mapImage.data.pointIndex = mapImage.data.points.length;
-            mapImage.data.points[mapImage.data.pointIndex] = point;
-            emitter.emit('screenshot_update_point', mapImage.data.points.length);
+                zoom.getContext("2d").drawImage(view.element,
+                  pointCanvasPosition.x * view.pixelRatio - zoomLevel * zoomSize * 0.5,
+                  pointCanvasPosition.y * view.pixelRatio - zoomLevel * zoomSize * 0.5,
+                  zoomLevel * zoomSize, zoomLevel * zoomSize,
+                  0, 0, zoomSize * 2, zoomSize * 2);
+
+                if (event.event.touches) {
+                  if (event.event.touches.length > 0) {
+                    zoom.style.top = event.event.touches[0].pageY - 30 - zoomSize * 2 + "px";
+                    zoom.style.left = event.event.touches[0].pageX - zoomSize + "px";
+                  }
+                } else {
+                  zoom.style.top = pointCanvasPosition.y - 10 - zoomSize * 2 + "px";
+                  zoom.style.left = pointCanvasPosition.x - 10 - zoomSize * 2 + "px";
+                }
+              }
+              // wait for the point to appear before grabbing canvas
+              zoom.update(event, event.point);
+              setTimeout(function() {zoom.update(event, event.point)}, 100);
+            }
           }
           mapImage.onMouseDrag = function(event) {
             var rawCoordinate = mapImageGroup.globalToLocal(event.point);
             
-            var point = mapImage.data.grabbedPoint || mapImage.data.points[mapImage.data.pointIndex];
+            var point = mapImage.data.grabbedPoint;
             if (point) {
               var delta = rawCoordinate - point.data.startPoint;
               point.position = point.data.startPoint - point.data.grabPivot + delta * 0.2;
@@ -1766,6 +1785,11 @@
             if (this.data.grabbedPoint) {
               this.data.grabbedPoint.data.select(false);
               this.data.grabbedPoint = null;
+            }
+
+            if (event.event.touches && this.data.hoveredPoint) {
+              this.data.hoveredPoint.data.hover(false);
+              this.data.hoveredPoint = null;
             }
 
             if (mapImage.data.points.length == 4) {
