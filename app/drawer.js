@@ -311,12 +311,177 @@
     return iconMenu;
   }
 
+  function createIncrementComponents(onIncrement, onDecrement) {
+    function incrementButton(path, onPress) {
+      var icon = new Raster(path);
+      icon.scaling = 0.45;
+      return createButton(icon, 20, onPress, {
+        highlightedColor: colors.paperOverlay.color,
+        selectedColor: colors.paperOverlay2.color,
+      });
+    }
+    var increment = incrementButton('img/ui-plus.png', onIncrement);
+    var decrement = incrementButton('img/ui-minus.png', onDecrement);
+
+    text = new PointText(0, 28);
+    text.fontFamily = 'TTNorms, sans-serif';
+    text.fontSize = 14;
+    text.fillColor = colors.text.color;
+    text.justification = 'center';
+
+    return {
+      increment: increment,
+      decrement: decrement,
+      text: text,
+    };
+  }
+
+  function createVerticalIncrementControl(increment, decrement, height, image, imageMargin) {
+
+    var backingWidth = 42;
+    var height = height || 153;
+    var backing = new Path.Rectangle(-backingWidth / 2, 0, backingWidth, height, backingWidth / 2);
+    backing.strokeColor = colors.paperOverlay2.color;
+    backing.strokeWidth = 2;
+
+    decrement.position = new Point(0, height - 20 - 1); // button radius and half stroke width
+    increment.position = decrement.position - new Point(0, 40);
+
+    image.bounds.topCenter = new Point(0, imageMargin);
+
+    var group = new Group();
+    group.addChildren([backing, increment, decrement, image]);
+    return group;
+  }
+
+  function container(components) {
+    var content = new Group();
+    content.applyMatrix = false;
+    content.addChildren(components);
+    var size = 0;
+    var spacing = 12;
+    content.children.forEach(function(component) {
+      component.bounds.topCenter = new Point(0, size);
+      size += component.bounds.height + spacing;
+    });
+
+    var padding = 13;
+    var backing = new Path.Rectangle(new Rectangle(0, 0, 65, content.bounds.height + padding * 2), 30);
+    backing.fillColor = colors.paper.color;
+    backing.bounds.topCenter = new Point(0, -padding);
+
+    var container = new Group();
+    container.applyMatrix = false;
+    container.addChildren([backing, content]);
+
+    return container;
+  }
+
+  var screenshotOverlayUI;
+  function showScreenshotOverlayUI(isShown) {
+    if (!screenshotOverlayUI) {
+      fixedLayer.activate();
+
+      var closeIcon = new Raster('img/ui-x.png');
+      closeIcon.scaling = 0.3;
+      closeButton = createButton(closeIcon, 12, stopScreenshotOverlay, {
+        alpha: 0.7,
+        highlightedColor: colors.paperOverlay.color,
+        selectedColor: colors.paperOverlay2.color,
+      });
+
+      var visibleIcon = new Raster('img/ui-visible.png');
+      var invisibleIcon = new Raster('img/ui-invisible.png');
+      visibleIcon.scaling = 0.5;
+      visibleIcon.position += new Point(2, 0);
+      invisibleIcon.scaling = 0.5;
+      invisibleIcon.position += new Point(2, 0);
+      var toggleIcon = new Group();
+      toggleIcon.applyMatrix = false;
+      toggleIcon.addChildren([visibleIcon, invisibleIcon]);
+      toggleIcon.data.enabled = true;
+      toggleIcon.data.set = function(visible) {
+        toggleIcon.children[0].visible = visible;
+        toggleIcon.children[1].visible = !visible;
+      };
+      toggleIcon.data.set(true);
+      var visibilityButton = createButton(toggleIcon, 20, toggleScreenshotVisible,
+        {
+          // options  
+        });
+      emitter.on('updateScreenshotVisible', function(visible) {
+        toggleIcon.data.set(visible);
+      });
+
+      //var icon = new Raster('img/ui-switch.png');
+      //icon.scaling = 0.5;
+
+      var incrementComponents = createIncrementComponents(
+        function() {incrementScreenshotAlpha(true)},
+        function() {incrementScreenshotAlpha(false)});
+      var text = incrementComponents.text;
+      var incrementControl = createVerticalIncrementControl(
+        incrementComponents.increment,
+        incrementComponents.decrement,
+        130,
+        text,
+        35);
+
+      emitter.on('updateScreenshotAlpha', update);
+      function update(alpha) {
+        text.content = alpha * 100 + '%'
+      }
+      update(0.5);
+
+      screenshotOverlayUI = container([visibilityButton, incrementControl]);
+      screenshotOverlayUI.addChild(closeButton);
+      closeButton.position = screenshotOverlayUI.bounds.topRight + new Point(-5, 5);
+
+      emitter.on('resize', resize);
+      function resize() {
+        screenshotOverlayUI.bounds.bottomRight =
+          screenCoordinates(1, 1, -4, -10);
+      }
+      resize();
+    }
+    screenshotOverlayUI.bringToFront();
+    screenshotOverlayUI.visible = isShown;
+  }
+
+  var screenshot = null;  
+  function startScreenshotOverlay() {
+    screenshot.opacity = 0.5;
+    showScreenshotOverlayUI(true);
+  }
+  function stopScreenshotOverlay() {
+    showScreenshotOverlayUI(false);
+    screenshot.remove(); 
+  }
+  function incrementScreenshotAlpha(increase, amount) {
+    if (!screenshot) return;
+    amount = amount || 0.1;
+    var newOpacity = round(
+      clamp(screenshot.opacity + (increase ? 1 : -1) * 0.1, 0, 1),
+      2);
+    if (newOpacity == 0) return; // don't allow 0 opacity
+
+    screenshot.opacity = newOpacity;
+    emitter.emit('updateScreenshotAlpha', newOpacity);
+  }
+  function toggleScreenshotVisible() {
+    if (!screenshot) return;
+    screenshot.visible = !screenshot.visible;
+    emitter.emit('updateScreenshotVisible', screenshot.visible);
+  }
+  function swapScreenshotLayer() {
+    if (!screenshot) return;
+  }
+
 
   var brushSizeUI;
   function showBrushSizeUI(isShown) {
     if (brushSizeUI == null) {
-      var group = new Group();
-      group.applyMatrix = false;
+
       var brushPreview = new Path();
       if (brushSegments) {
         brushPreview.segments = brushSegments;
@@ -325,12 +490,24 @@
       brushPreview.strokeColor = colors.lightText.color;
       brushPreview.strokeWidth = 0.1;
       
+      var incrementComponents = createIncrementComponents(incrementBrush, decrementBrush);
 
-      brushSizeText = new PointText(0, 28);
-      brushSizeText.fontFamily = 'TTNorms, sans-serif';
-      brushSizeText.fontSize = 14;
-      brushSizeText.fillColor = colors.text.color;
-      brushSizeText.justification = 'center';
+      var brushSizeText = incrementComponents.text;
+      brushSizeText.content = '0';
+      brushSizeText.position = new Point(0, 24);
+
+      var incrementImage = new Group();
+      incrementImage.applyMatrix = false;
+      incrementImage.addChildren([brushPreview, brushSizeText]);
+
+      var incrementControl = createVerticalIncrementControl(
+        incrementComponents.increment,
+        incrementComponents.decrement,
+        153,
+        incrementImage,
+        22);
+
+      incrementControl.position += new Point(0, -22);
 
       emitter.on('updateBrush', update)
       function update() {
@@ -344,14 +521,6 @@
       }
       update();
 
-      function brushButton(path, onPress) {
-        var icon = new Raster(path);
-        icon.scaling = 0.45;
-        return createButton(icon, 20, onPress, {
-          highlightedColor: colors.paperOverlay.color,
-          selectedColor: colors.paperOverlay2.color,
-        });
-      }
       function brushLineButton(path, onPress) {
         var icon = new Raster(path);
         icon.scaling = 0.45;
@@ -360,11 +529,6 @@
           selectedColor: colors.yellow.color,
         });
       }
-
-      var increaseButton = brushButton('img/ui-plus.png', incrementBrush);
-      var decreaseButton = brushButton('img/ui-minus.png', decrementBrush);
-      increaseButton.position = new Point(0, 70);
-      decreaseButton.position = new Point(0, 110);
 
       var drawLineButton = brushLineButton('img/menu-drawline.png', function() {
         setBrushLineForce(true);
@@ -383,18 +547,14 @@
       drawBrushButton.position = new Point(0, 170);
 
       var backingWidth = 42;
-      var brushSizeBacking = new Path.Rectangle(-backingWidth / 2, 0, backingWidth, 153, backingWidth / 2);
-      brushSizeBacking.strokeColor = colors.paperOverlay2.color;
-      brushSizeBacking.strokeWidth = 2;
-      brushSizeBacking.position += new Point(0, -22);
-
       var brushLineBacking = new Path.Rectangle(-backingWidth / 2, 0, backingWidth, 82, backingWidth / 2);
       brushLineBacking.strokeColor = colors.paperOverlay2.color;
       brushLineBacking.strokeWidth = 2;
       brushLineBacking.position += new Point(0, 149);
 
-      group.addChildren([brushPreview, brushSizeText,
-        brushSizeBacking, increaseButton, decreaseButton,
+      var group = new Group();
+      group.applyMatrix = false;
+      group.addChildren([incrementControl,
         brushLineBacking, drawLineButton, drawBrushButton]);
       group.pivot = new Point(0, 0);
       group.position = new Point(105, 55);
@@ -420,6 +580,7 @@
   }
 
   function decodeObjectGroups(objectGroups, encodingVersion) {
+    if (objectGroups == null) return {};
     if (encodingVersion == 0) {
       return objectMap(objectGroups, function(encodedData) {
         return decodeObject(encodedData, version);
@@ -744,6 +905,14 @@
     mapLayer.activate();
   }
 
+  function screenCoordinates(percentX, percentY, offsetX, offsetY) {
+    offsetX = offsetX || 0;
+    offsetY = offsetY || 0;
+    return new Point(
+      percentX * view.size.width * view.scaling.x + offsetX,
+      percentY * view.size.height * view.scaling.y + offsetY);
+  }
+
   function jumpTween(item) {
     item.Tween()
   }
@@ -884,6 +1053,27 @@
   }
 
   function loadMapFromFile() {
+    loadImage(function(image) {
+      var mapJSONString = steg.decode(image.src, {
+        height: image.height,
+        width: image.width,
+      });
+      clearMap();
+
+      var json;
+      try {
+        var json = JSON.parse(mapJSONString);
+      } catch(e) {
+        var json = JSON.parse(LZString.decompress(mapJSONString))
+      }
+      var map = decodeMap(json);
+
+      setNewMapData(map);
+    });
+  }
+
+
+  function loadImage(onLoad) {
     readFile = function(e) {
       var file = e.target.files[0];
       if (!file) {
@@ -895,31 +1085,17 @@
 
         var image = new Image();
         image.src = dataURL;
-        image.addEventListener('load',
-          function() {
-            var mapJSONString = steg.decode(dataURL, {
-              height: image.height,
-              width: image.width,
-            });
-            clearMap();
-
-            var json;
-            try {
-              var json = JSON.parse(mapJSONString);
-            } catch(e) {
-              var json = JSON.parse(LZString.decompress(mapJSONString))
-            }
-            var map = decodeMap(json);
-
-            setNewMapData(map);
-          }, false);
+        image.addEventListener('load', function(){onLoad(image)}, false);
       }
       reader.readAsDataURL(file);
     }
+    loadFile(readFile);
+  }
+  function loadFile(onLoad) {
     fileInput = document.createElement("input");
     fileInput.type='file';
     fileInput.style.display='none';
-    fileInput.onchange=readFile;
+    fileInput.onchange=onLoad;
     clickElem(fileInput);
   }
 
@@ -933,13 +1109,16 @@
   // ===============================================
   // UI ELEMENTS
 
+  // alpha: number
   // highlightedColor: string
   // selectedColor: string
+  // disabledColor: string
 
   function createButton(item, buttonSize, onClick, options) {
-
+    var alpha = (!options || options.alpha == null) ? 0.0001 : options.alpha;
     var highlightedColor = (!options || options.highlightedColor == null) ? colors.sand.color : options.highlightedColor;
     var selectedColor = (!options || options.selectedColor == null) ? colors.npc.color : options.selectedColor;
+    var disabledColor = (!options || options.disabledColor == null) ? null : options.disabledColor;
 
     var group = new Group();
 
@@ -949,12 +1128,13 @@
     group.addChildren([button, item]);
 
     function updateColor() {
-      button.fillColor = group.data.selected || group.data.pressed
-        ? selectedColor
+      button.fillColor = 
+        (group.data.disabled && disabledColor) ? disabledColor
+        : (group.data.selected || group.data.pressed) ? selectedColor
         : highlightedColor;
       button.fillColor.alpha = group.data.selected ? 1
         : group.data.pressed ? 0.5 
-        : (group.data.hovered ? 1 : 0.0001);
+        : (group.data.hovered ? 1 : alpha);
     }
     updateColor();
 
@@ -978,6 +1158,7 @@
       disable: function(isDisabled) {
         group.data.disabled = isDisabled;
         item.opacity = isDisabled ? 0.5 : 1;
+        updateColor();
         if (isDisabled) group.data.hover(false);
       },
     }
@@ -1019,23 +1200,24 @@
   //  new Point(0, 0),
   //];
 
-  function renderModal(name, width, height, onDismiss) {
-    var topLeft = new Point(0, 0);// + view.bounds.topLeft;
-    var center = new Point(view.bounds.width * view.scaling.x / 2, view.bounds.height * view.scaling.y / 2);// + view.bounds.topLeft * 2;
-    var bottomRight = new Point(view.bounds.width * view.scaling.x, view.bounds.height * view.scaling.y);// + view.bounds.topLeft * 2;
+  var modals = [];
+
+  // options
+  // fullscreen
+
+  function renderModal(name, width, height, onDismiss, options) {
+    var fullscreen = (!options || !options.fullscreen) ? false : options.fullscreen;
 
     modalLayer.activate();
 
     var group = new Group;
 
-    var darkFill = new Path.Rectangle(new Rectangle(topLeft, bottomRight));
+    var darkFill = new Path.Rectangle(new Rectangle(0, 0, 1, 1));
     darkFill.fillColor = colors.offBlack.color;
     darkFill.fillColor.alpha = 0.3;
     darkFill.onMouseUp = onDismiss;
 
-    var modal = new Path.Rectangle(new Rectangle(
-      center.x - width / 2, 
-      center.y - height / 2, width, height), 60);
+    var modal = new Path();
     modal.fillColor = colors.paper.color;
     modal.onMouseEnter = function(event) {
       group.data.text.content = name;
@@ -1044,20 +1226,13 @@
     var modalContents = new Group();
     modalContents.applyMatrix = false;
     modalContents.pivot = new Point(0, 0);
-    modalContents.position = modal.bounds.topLeft + new Point(40, 120);
     modalContents.data = {
       addElement: function () {
 
       },
     }
 
-    group.data = {
-      width: modal.bounds.width - 40 * 2,
-      height: modal.bounds.height - 120 - 40,
-      contents: modalContents,
-    };
-
-    emitter.on('resize', function() {
+    function resize() {
       var topLeft = new Point(0, 0);// + view.bounds.topLeft;
       var center = new Point(view.bounds.width * view.scaling.x / 2, view.bounds.height * view.scaling.y / 2);// + view.bounds.topLeft * 2;
       var bottomRight = new Point(view.bounds.width * view.scaling.x, view.bounds.height * view.scaling.y);// + view.bounds.topLeft * 2;
@@ -1067,9 +1242,26 @@
       //var bottomRight = view.viewToProject(view.projectToView(new Point(view.bounds.width, view.bounds.height)));// + view.bounds.topLeft * 2;
 
       darkFill.bounds = new Rectangle(topLeft, bottomRight);
+
+      if (fullscreen) {
+        modal.segments = new Path.Rectangle(new Rectangle(
+          width, height, bottomRight.x - width * 2, bottomRight.y - height * 2), 60).segments;
+      }
+      else if (!modal || modal.segments == 0) {
+        modal.segments = new Path.Rectangle(new Rectangle(
+          center.x - width / 2, 
+          center.y - height / 2, width, height), 60).segments;
+      }
       modal.position = center;
-      modalContents.position = modal.bounds.topLeft + new Point(40, 135);
-    })
+      modalContents.position = modal.bounds.topLeft + new Point(40, 120);
+
+      group.data.width = modal.bounds.width - 40 * 2;
+      group.data.height = modal.bounds.height - 120 - 40;
+      group.data.contents = modalContents;
+    }
+
+    emitter.on('resize', resize);
+    resize();
 
     var text = new PointText(new Point(group.data.width / 2, -50));
     text.justification = 'center';
@@ -1098,6 +1290,19 @@
     group.addChildren([darkFill, modal, modalContents]);
 
     group.data.text = text;
+
+    modals.push(group);
+    group.data.isShown = function() { return group.opacity > 0.8; };
+    group.data.show = function(isShown) {
+      var modal = group;
+      modals.forEach(function (modal) {
+        var show = isShown && modal == group;
+        var targetOpacity = show ? 1 : 0;
+        if (modal.opacity != targetOpacity)
+          modal.tweenTo({opacity: targetOpacity}, 200);
+        modal.locked = !show;
+      });
+    }
 
     return group;
   }
@@ -1176,14 +1381,13 @@
       versionCode.fontSize = 12;
       versionCode.fontFamily = 'TTNorms, sans-serif';
       versionCode.fillColor = colors.lightText.color;
-      versionCode.content = "v0.2.1";
+      versionCode.content = "v0.3.0";
 
       helpMenu.data.contents.addChildren([helpTextRaster, helpText2Raster, versionCode]);
 
       helpMenu.opacity = 0;
     }
-    helpMenu.tweenTo({opacity: isShown ? 1 : 0}, 200);
-    helpMenu.locked = !isShown;
+    helpMenu.data.show(isShown);
   }
 
 
@@ -1196,7 +1400,7 @@
 
       var hitSizeHalf = new Point(35, 35);
       var hitSize = new Size(70, 70);
-      function createMenuButton(name, img, index, onMouseDown, onMouseEnter) {
+      function createMenuButton(name, img, column, row, onMouseDown, onMouseEnter) {
         var buttonGroup = new Group();
 
         var button = new Raster(img);
@@ -1208,7 +1412,7 @@
 
         buttonGroup.applyMatrix = false;
         buttonGroup.addChildren([hitTarget, button]);
-        buttonGroup.position = new Point(20 + index * 70, 0);
+        buttonGroup.position = new Point(20 + column * 70, row * 70);
 
         buttonGroup.onMouseDown = function(event) {
           onMouseDown();
@@ -1262,27 +1466,540 @@
         return buttonGroup;
       }
 
-      var saveButton = createMenuButton("Save as Image", 'img/menu-save.png', 0,
+      var saveButton = createMenuButton("Save as Image", 'img/menu-save.png', 0, 0,
         function() {saveMapToFile()});
-      var loadButton = createMenuButton('Load Map', 'img/menu-open.png', 1,
+      var loadButton = createMenuButton('Load Map', 'img/menu-open.png', 1, 0,
         function() {loadMapFromFile()});
-      var newButton = createMenuButton('New Map', 'img/menu-new.png', 2,
+      var newButton = createMenuButton('New Map', 'img/menu-new.png', 2, 0,
         function() {
           var r = confirm("Clear your map? You will lose all unsaved changes.");
           if (r == true) {
             loadTemplate();
           } else { }
         });
+      var switchButton = createMenuButton('Upload Screenshot', 'img/menu-switch.png', 0, 1,
+        function() { showSwitchModal(true) });
 
       var twitterButton = createMenuButton('Twitter', 'img/menu-twitt.png', 0,
         function() {window.open('https://twitter.com/island_designer', '_blank')});
       twitterButton.position = new Point(0, 210);
 
-      mainMenu.data.contents.addChildren([saveButton, loadButton, newButton, twitterButton]);
+      mainMenu.data.contents.addChildren([saveButton, loadButton, newButton, switchButton, twitterButton]);
       mainMenu.opacity = 0;
     }
-    mainMenu.tweenTo({opacity: isShown ? 1 : 0}, 200);
-    mainMenu.locked = !isShown;
+    mainMenu.data.show(isShown);
+  }
+
+  var switchMenu;
+  function showSwitchModal(isShown) {
+    if (switchMenu == null) {
+      if (!isShown) return;
+
+      var isMobile = Math.min(view.bounds.width * view.scaling.x, view.bounds.height * view.scaling.y) < 400;
+      var margin = isMobile ? 5 : 20;
+      switchMenu = renderModal('Load Game Map', margin, margin, function() {showSwitchModal(false)}, {fullscreen: true});
+
+      var uploadGroup = new Group();
+      uploadGroup.applyMatrix = false;
+      switchMenu.data.contents.addChild(uploadGroup);
+      {
+        var instructionImage = new Raster(
+          isMobile ? 'img/screenshot-instructions-mobile.png': 'img/screenshot-instructions.png');
+        instructionImage.scaling = 0.5;
+        instructionImage.onLoad = function() {
+          if (instructionImage.bounds.width > switchMenu.data.width) {
+            instructionImage.scaling = switchMenu.data.width / instructionImage.width;
+            instructionImage.bounds.topCenter = new Point(0, 0);
+          }
+          if (instructionImage.bounds.height > switchMenu.data.height * 0.5) {
+            instructionImage.scaling = (switchMenu.data.height * 0.5) / instructionImage.height;
+            instructionImage.bounds.topCenter = new Point(0, 0);
+          }
+
+          var instructions = new PointText();
+          instructions.justification = 'center';
+          instructions.fontFamily = 'TTNorms, sans-serif';
+          instructions.fontSize = isMobile ? 14 : 18;
+          instructions.fillColor = colors.text.color;
+          instructions.content = "1. Upload a photo/screenshot of your map\n\n2. Mark the four corners of the grid";
+          instructions.position = instructionImage.bounds.bottomCenter + new Point(0, 60);
+
+          var uploadIcon = new Raster('img/ui-upload-white.png');
+          uploadIcon.scaling = 0.4;
+          var uploadButton = createButton(uploadIcon, 30, function() {
+            loadImage(loadMapImage);
+          }, {
+            alpha: .9,
+            highlightedColor: colors.jaybird.color,
+            selectedColor: colors.blue.color,
+            disabledColor: colors.text.color,
+          });
+          uploadButton.position = instructions.position + new Point(0, 100);
+
+          uploadGroup.addChildren([instructionImage, instructions, uploadButton]);
+          uploadGroup.position = new Point(switchMenu.data.width / 2, switchMenu.data.height / 2);
+        };
+      }
+
+
+      var mapImageGroup = new Group();
+      mapImageGroup.applyMatrix = false;
+      switchMenu.data.contents.addChildren([mapImageGroup]);
+
+      var mapImage;
+      function loadMapImage(image) {
+        if (mapImage) mapImage.remove();
+
+        mapImage = new Raster(image);
+        mapImage.onLoad = function() {
+          uploadGroup.visible = false;
+
+          //var maxImageWidth = 700;
+          //var maxImageHeight = 700;
+          //var originalSize = new Size(mapImage.size);
+          //var scale = Math.min(maxImageWidth / mapImage.width, maxImageHeight / mapImage.height);
+          //console.log(maxImageWidth / mapImage.width, maxImageHeight / mapImage.height);
+          //var newSize = originalSize * scale;
+          //console.log(originalSize, scale, newSize)
+          //mapImage.scale(scale);
+          //var resampled = mapImage.rasterize(view.resolution / view.pixelRatio);
+          //resampled.smoothing=false;
+          //mapImage.remove();
+          //mapImage = resampled;
+
+          var newSize = mapImage.size;
+
+          var margin = isMobile ? -34 : 0;
+          mapImage.bounds.topLeft = new Point(0, 0);
+
+          var maxImageWidth = switchMenu.data.width - margin * 2;
+          var maxImageHeight = switchMenu.data.height - 100 - margin * 2; // need 100px for the button
+          mapImageGroup.scaling = 1;
+          mapImageGroup.scale(Math.min(maxImageWidth / newSize.width, maxImageHeight / newSize.height));
+          mapImageGroup.position = new Point(margin, 0);
+
+          var inverseScale = 1 / mapImageGroup.scaling.x;
+
+          var closeIcon = new Raster('img/ui-x.png');
+          closeIcon.scaling = .5;
+          var closeButton = createButton(closeIcon, 24, function(){mapImage.data.remove()}, {
+            alpha: 0.9,
+            highlightedColor: colors.paperOverlay.color,
+            selectedColor: colors.paperOverlay2.color,
+          });
+          closeButton.scaling = inverseScale;
+          closeButton.position = mapImage.bounds.topRight;
+
+          var confirmIcon = new Raster('img/ui-check-white.png');
+          confirmIcon.scaling = 0.5;
+          var confirmButton = createButton(confirmIcon, 30, function() {
+            mapImage.data.perspectiveWarp();
+            updateMapOverlay(mapImage.data.perspectiveWarpImage);
+            switchMenu.data.show(false);
+          }, {
+            alpha: .9,
+            highlightedColor: colors.jaybird.color,
+            selectedColor: colors.blue.color,
+            disabledColor: colors.text.color,
+          });
+          confirmButton.data.disable(true);
+          confirmButton.bounds.topCenter = mapImage.bounds.bottomCenter + new Point(0, 58 * inverseScale);
+          confirmButton.scaling = inverseScale;
+          emitter.on('screenshot_update_point', function(pointCount) {
+            if (pointCount == 4) {
+              confirmButton.data.disable(false);
+            } else {
+              confirmButton.data.disable(true);
+            }
+          });
+
+          var mapImagePoints = new Group();
+          mapImageGroup.addChildren([mapImage, mapImagePoints, confirmButton]);
+          mapImageGroup.position = new Point(switchMenu.data.width / 2, switchMenu.data.height / 2);
+          mapImageGroup.addChild(closeButton);
+
+          mapImage.data.hoveredPoint = null;
+          mapImage.data.grabbedPoint = null;
+          mapImage.data.updateHoveredPoint = function(position) {
+            var point = this.points.find(function(point) {
+              return point.position.getDistance(position) < 80;
+            });
+            if (point != this.hoveredPoint) {
+              var oldPoint = this.hoveredPoint;
+              if (oldPoint) {
+                oldPoint.data.hover(false);
+              }
+            }
+
+            this.hoveredPoint = point;
+            if (point) {
+              point.data.hover(true);
+            }
+            return point;
+          }
+
+          mapImage.data.pointIndex = 0;
+          mapImage.data.points = [];
+
+          mapImage.onMouseMove = function(event) {
+            // retain the same point after grab has begun
+            if (this.data.grabbedPoint) return;
+            var rawCoordinate = mapImageGroup.globalToLocal(event.point);
+            this.data.updateHoveredPoint(rawCoordinate);
+          }
+          mapImage.onMouseDown = function(event) {
+
+            var rawCoordinate = mapImageGroup.globalToLocal(event.point);
+
+            this.data.updateHoveredPoint(rawCoordinate);
+            if (this.data.hoveredPoint) {
+              this.data.grabbedPoint = this.data.hoveredPoint;
+              this.data.grabbedPoint.data.select(true);
+              this.data.grabbedPoint.data.startPoint = rawCoordinate;
+              this.data.grabbedPoint.data.grabPivot = rawCoordinate - this.data.grabbedPoint.position;
+            }
+
+            if (mapImage.data.points.length < 4 && !this.data.grabbedPoint) {
+
+              var point = new Group();
+              point.pivot = new Point(0, 0);
+              point.applyMatrix = false;
+              point.addChildren([
+                new Path.Circle({
+                  center: [0, 0],
+                  radius: 1,
+                  fillColor: colors.yellow.color,
+                }),
+                new Path({
+                  segments: [[0, 3], [0, 8]],
+                  strokeWidth: 1,
+                  strokeColor: colors.yellow.color,
+                  strokeCap: 'round',
+                }),
+                new Path({
+                  segments: [[3, 0], [8, 0]],
+                  strokeWidth: 1,
+                  strokeColor: colors.yellow.color,
+                  strokeCap: 'round',
+                }),
+                new Path({
+                  segments: [[0, -3], [0, -8]],
+                  strokeWidth: 1,
+                  strokeColor: colors.yellow.color,
+                  strokeCap: 'round',
+                }),
+                new Path({
+                  segments: [[-3, 0], [-8, 0]],
+                  strokeWidth: 1,
+                  strokeColor: colors.yellow.color,
+                  strokeCap: 'round',
+                }),
+                new Path.Circle({
+                  center: [0, 0],
+                  radius: 15,
+                  fillColor: colors.invisible.color,
+                  strokeColor: colors.yellow.color,
+                  strokeWidth: 2,
+                }),
+              ]);
+              point.scaling = 1 / mapImageGroup.scaling.x;
+              point.position = rawCoordinate;
+              point.data.startPoint = rawCoordinate;
+              point.data.grabPivot = new Point(0, 0);
+              point.locked = true;
+
+              point.data.updateColor = function() {
+                point.children.forEach(function(path) {
+                  path.strokeColor =
+                    point.data.selected ? colors.yellow.color
+                    : point.data.hovered ? colors.lightYellow.color : colors.yellow.color;
+                })
+              }
+              point.data.hover = function(isHovered) {
+                point.data.hovered = isHovered;
+                point.data.updateColor();
+              }
+              point.data.select = function(isSelected) {
+                point.data.selected = isSelected;
+                point.data.updateColor();
+                if (isMobile) point.scaling = isSelected ? 0.4 / mapImageGroup.scaling.x : 1 / mapImageGroup.scaling.x;
+              }
+
+              mapImagePoints.addChild(point);
+
+              mapImage.data.hoveredPoint = point;
+              mapImage.data.grabbedPoint = point;
+              point.data.hover(true);
+              point.data.select(true);
+
+              mapImage.data.pointIndex = mapImage.data.points.length;
+              mapImage.data.points[mapImage.data.pointIndex] = point;
+              emitter.emit('screenshot_update_point', mapImage.data.points.length);
+            }
+
+            if (this.data.grabbedPoint) {
+              var zoom = document.createElement("canvas");
+              zoom.height = 200;
+              zoom.width = 200;
+              zoom.style.position = 'absolute';
+              zoom.style.display = "block";
+              document.body.appendChild(zoom);
+              mapImage.data.zoom = zoom;
+              zoom.update = function(event, pointGlobalPosition) {
+                var zoomLevel = Math.min(0.8, 4 * mapImageGroup.scaling.x) * view.pixelRatio;
+                var zoomSize = 100;
+                var zoom = mapImage.data.zoom;
+                var pointCanvasPosition = fixedLayer.globalToLocal(pointGlobalPosition);
+
+                zoom.getContext("2d").drawImage(view.element,
+                  pointCanvasPosition.x * view.pixelRatio - zoomLevel * zoomSize * 0.5,
+                  pointCanvasPosition.y * view.pixelRatio - zoomLevel * zoomSize * 0.5,
+                  zoomLevel * zoomSize, zoomLevel * zoomSize,
+                  0, 0, zoomSize * 2, zoomSize * 2);
+
+                if (event.event.touches) {
+                  if (event.event.touches.length > 0) {
+                    zoom.style.top = event.event.touches[0].pageY - 30 - zoomSize * 2 + "px";
+                    zoom.style.left = event.event.touches[0].pageX - zoomSize + "px";
+                  }
+                } else {
+                  zoom.style.top = pointCanvasPosition.y - 10 - zoomSize * 2 + "px";
+                  zoom.style.left = pointCanvasPosition.x - 10 - zoomSize * 2 + "px";
+                }
+              }
+              // wait for the point to appear before grabbing canvas
+              zoom.update(event, event.point);
+              setTimeout(function() {zoom.update(event, event.point)}, 100);
+            }
+          }
+          mapImage.onMouseDrag = function(event) {
+            var rawCoordinate = mapImageGroup.globalToLocal(event.point);
+            
+            var point = mapImage.data.grabbedPoint;
+            if (point) {
+              var delta = rawCoordinate - point.data.startPoint;
+              point.position = point.data.startPoint - point.data.grabPivot + delta * (isMobile ? 0.08 : 0.2);
+
+              mapImage.data.zoom.update(event, mapImageGroup.localToGlobal(point.position));
+
+              if (this.data.outline) {
+                this.data.updateOutline(); 
+              }
+            }
+          }
+          mapImage.onMouseUp = function(event) {
+            var rawCoordinate = mapImageGroup.globalToLocal(event.point);
+
+            if (mapImage.data.zoom) {
+              mapImage.data.zoom.remove();
+            }
+
+            if (this.data.grabbedPoint) {
+              this.data.grabbedPoint.data.select(false);
+              this.data.grabbedPoint = null;
+            }
+
+            if (event.event.touches && this.data.hoveredPoint) {
+              this.data.hoveredPoint.data.hover(false);
+              this.data.hoveredPoint = null;
+            }
+
+            if (mapImage.data.points.length == 4) {
+              this.data.updateOutline();
+              //this.data.perspectiveWarp();
+            }
+          }
+          mapImage.data.sortPoints = function() {
+            // reorder the points to clockwise starting from top left
+            {
+              var points = mapImage.data.points;
+              points.sort(function (a, b) {return a.position.y - b.position.y})
+
+              function slope(a, b) {
+                return (a.y - b.y) / (a.x - b.x);
+              }
+
+              // the top/bottom edge must contain the top point and has slope closest to zero
+              function getHorizontalEdge(point, otherPoints) {
+                otherPoints.sort(function(a, b) {return Math.abs(slope(a.position, point.position)) - Math.abs(slope(b.position, point.position))});
+                var edgePoint = otherPoints[0];
+                var edge = [edgePoint, point];
+                edge.sort(function(a, b){return a.position.x - b.position.x});
+                return edge;
+              }
+
+              var topEdge = getHorizontalEdge(points[0], points.slice(1, -1));
+              var bottomEdge = getHorizontalEdge(points[3], points.slice(1, -1));
+
+              mapImage.data.points = [
+                topEdge[0], topEdge[1], bottomEdge[1], bottomEdge[0]
+              ];
+            }
+          }
+          mapImage.data.updateOutline = function() {
+            if (this.outline) {
+              this.outline.data.update();
+              return;
+            }
+
+            var outline = new Group();
+            outline.locked = true;
+
+            var rect = new Path();
+            rect.fillColor = colors.yellow.color;
+            rect.opacity = 0.3;  
+            outline.data.rect = rect;
+            outline.addChild(rect);
+
+            var lines = new Group();
+            outline.data.lines = lines;
+            outline.addChild(lines);
+
+            outline.data.update = function() {
+              this.sortPoints();
+              outline.data.rect.segments = this.points.map(function(p) { return p.position});
+
+
+              if (!this.flashingInterval) {
+                this.flashingInterval = setInterval(function() {
+                  if (!switchMenu.data.isShown()) {
+                    clearInterval(this.flashingInterval);
+                    this.flashingInterval = null;
+                    return;
+                  }
+                  lines.opacity = lines.opacity == 0 ? 1 : 0;
+                }.bind(this), 500);
+              }
+
+              var perspectiveTransformMatrix = PerspT(
+                [0, 0,
+                5, 0,
+                5, 4,
+                0, 4],
+                mapImage.data.points.reduce(function(acc, point) {
+                  acc.push(point.position.x, point.position.y); return acc;
+                }, []));
+              function calculateLines(p0, p1, axis, numLines) {
+                var lines = [];
+                for (var i = 0; i < numLines; i++) {
+                  var offset = new Point(axis.y, axis.x) * 1.1;
+
+                  var pp0 = p0 + axis * i - offset;
+                  var pp1 = p1 + axis * i + offset;
+                  lines.push([
+                    perspectiveTransformMatrix.transform(pp0.x, pp0.y),
+                    perspectiveTransformMatrix.transform(pp1.x, pp1.y)]);
+                }
+                return lines;
+              }
+              function drawLinePath(points, index) {
+                if (!outline.data.lines.children[index]) {
+                  var line = new Path.Line(points);
+                  line.strokeWidth = 1.5 / mapImageGroup.scaling.x;
+                  line.strokeColor = colors.white.color;
+                  line.strokeColor.alpha = 0.3;
+                  outline.data.lines.addChild(line);
+                }
+                outline.data.lines.children[index].segments = points;
+              }
+              var index = 0;
+              calculateLines(new Point(0, 0), new Point(0, 4),
+                new Point(1, 0), 6)
+                .forEach(function(line) {drawLinePath(line, index); index++})
+              calculateLines(new Point(0, 0), new Point(5, 0),
+                new Point(0, 1), 5)
+                .forEach(function(line) {drawLinePath(line, index); index++})
+            }.bind(this);
+            outline.data.update();
+
+            mapImageGroup.addChild(outline);
+            this.outline = outline;
+          }
+          mapImage.data.perspectiveWarp = function(onComplete) {
+            return new Promise(function(onComplete) {
+              var resultSize = new Size(700, 600);
+
+              this.sortPoints();
+
+              var perspectiveTransformMatrix = PerspT(
+                mapImage.data.points.reduce(function(acc, point) {
+                  acc.push(point.position.x, point.position.y); return acc;
+                }, []),
+                [0, 0,
+                resultSize.width, 0,
+                resultSize.width, resultSize.height,
+                0, resultSize.height]);
+
+              var mapImageData = mapImage.getImageData(0, 0, mapImage.width, mapImage.height);
+
+              if (!this.perspectiveWarpImage) {
+                this.perspectiveWarpImage = new Raster(resultSize);
+                mapImageGroup.addChild(this.perspectiveWarpImage);
+                this.perspectiveWarpImage.position = mapImage.position;
+                //this.perspectiveWarpImage.scaling = 1 / mapImageGroup.scaling.x;
+
+                this.perspectiveWarpImage.scaling = 16 * 7 / resultSize.width;
+                this.perspectiveWarpImage.bounds.topCenter = mapImage.bounds.bottomCenter;
+              }
+
+              var context = this.perspectiveWarpImage.context;
+
+              var xScale = 7 / 5;
+              var yScale = 6 / 4;
+
+              var imageData = context.createImageData(resultSize.width, resultSize.height)
+              for (var y = 0; y < resultSize.height; y++) {
+                var rowIndex = y * resultSize.width;
+                for (var x = 0; x < resultSize.width; x++) {
+                  var index = (rowIndex + x) * 4;
+
+                  // the points we want is actually an acre outside the bounds
+
+                  var mapPosX = x * xScale - resultSize.width / 5;
+                  var mapPosY = y * yScale - resultSize.height / 4;
+
+                  var srcPt = perspectiveTransformMatrix.transformInverse(mapPosX, mapPosY);
+                  var srcIndex = (Math.round(srcPt[0]) + Math.round(srcPt[1]) * mapImage.width) * 4;
+                  
+
+                  //console.log(x, y, '->', Math.round(srcPt[0]), Math.round(srcPt[1]), srcIndex);
+                  //var srcIndex = ((x) + (y + 10) * mapImage.width) * 4;
+
+                  imageData.data[index] = mapImageData.data[srcIndex];
+                  imageData.data[index+1] = mapImageData.data[srcIndex+1];
+                  imageData.data[index+2] = mapImageData.data[srcIndex+2];
+                  imageData.data[index+3] = mapImageData.data[srcIndex+3];
+                }
+              }
+              context.putImageData(imageData, 0, 0);
+              onComplete();
+            }.bind(this));
+          };
+          mapImage.data.remove = function() {
+            emitter.emit('screenshot_update_point', 0);
+            mapImageGroup.removeChildren();
+            uploadGroup.visible = true;
+          }
+        };
+      }
+
+      switchMenu.data.contents.addChildren([mapImageGroup]);
+      switchMenu.opacity = 0;
+    }
+    switchMenu.data.show(isShown);
+  }
+
+  function updateMapOverlay(raster) {
+    if (screenshot) {
+      screenshot.remove();
+    }
+    screenshot = raster;
+    screenshot.locked = true;
+    screenshot.opacity = 0;
+    mapOverlayLayer.addChild(screenshot);
+    screenshot.bounds.topLeft = new Point(0, 0);
+
+    startScreenshotOverlay();
   }
 
   var leftToolMenu = new Group();
@@ -2496,12 +3213,18 @@
   //pointerToolButton.position = toolsPosition + new Point(0, 0);
   //pointerToolButton.scaling = new Point(0.2, 0.2);
 
+  var keyDownMap = {};
+
   var isSpaceDown = false;
 
   function onKeyUp(event) {
     switch (event.key) {
       case 'space':
         isSpaceDown = false
+        break;
+      case '`':
+        toggleScreenshotVisible();
+        delete keyDownMap['`'];
         break;
       }
   }
@@ -2591,16 +3314,24 @@
         toolState.deleteSelection();
         break;
       case 'escape':
-        var isMainMenuShown = mainMenu != null && mainMenu.opacity > 0.8 ? true : false;
-        showMainMenu(!isMainMenuShown);
-        var isHelpMenuShown = helpMenu != null && helpMenu.opacity > 0.8 ? true : false;
-        if (isHelpMenuShown == true) showHelpMenu(false);
+        var isMainMenuShown = mainMenu && mainMenu.data.isShown();
+        if (isMainMenuShown) {
+          showMainMenu(false);  
+        } else {
+          var otherModalShown = false;
+          modals.forEach(function (modal) {
+            if (modal != mainMenu && modal.data.isShown()) {
+              modal.data.show(false);
+              otherModalShown = true;
+            }
+          });
+          if (!otherModalShown)
+            showMainMenu(true);
+        }
         break;
       case '?':
-        var isHelpMenuShown = helpMenu != null && helpMenu.opacity > 0.8 ? true : false;
-        var isMainMenuShown = mainMenu != null && mainMenu.opacity > 0.8 ? true : false;
+        var isHelpMenuShown = helpMenu && helpMenu.data.isShown();
         showHelpMenu(!isHelpMenuShown);
-        if (isMainMenuShown == true) showMainMenu(false);
         break;
       case '\\':
         toggleGrid();
@@ -2637,6 +3368,11 @@
         Object.values(state.drawing).forEach(function(path) {
           path.selected = !path.selected;
         });
+        break;
+      case '`':
+        if (!keyDownMap['`'])
+          toggleScreenshotVisible();
+        keyDownMap['`'] = true;
         break;
     }
     if (prevActiveTool == toolState.activeTool) {
@@ -2743,6 +3479,9 @@
       version: 1,
       objects: encodeObjectGroups(state.objects),
       drawing: encodeDrawing(state.drawing),
+    }
+    if (Object.keys(o.objects).length === 0) {
+      delete o.objects;
     }
     return JSON.stringify(o);
   }
@@ -4017,3 +4756,8 @@
     if (maxIndex == null) return null;
     return arguments[maxIndex];
   }
+
+  function round(n, p) {
+    d = Math.pow(10, p);
+    return Math.round(n * d) / d;
+  };
