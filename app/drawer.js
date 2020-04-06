@@ -1480,7 +1480,7 @@
       var switchButton = createMenuButton('Upload Screenshot', 'img/menu-switch.png', 0, 1,
         function() { showSwitchModal(true) });
 
-      var twitterButton = createMenuButton('Twitter', 'img/menu-twitt.png', 0,
+      var twitterButton = createMenuButton('Twitter', 'img/menu-twitt.png', 0, 3,
         function() {window.open('https://twitter.com/island_designer', '_blank')});
       twitterButton.position = new Point(0, 210);
 
@@ -3488,6 +3488,34 @@
 
   function decodeMap(json) {
     mapLayer.activate();
+
+    // older versions would encode drawings incorrectly
+    // if the objects field was empty
+    // level1/2/3 would be encoded as ØoveØ1
+    if (json == null) return;
+    if (json.version == 1 && json.drawing && json.objects && Object.keys(json.objects).length == 0) {
+
+      var index = 0;
+      Object.keys(json.drawing).forEach(function(colorName) {
+        if (colorName.match(/ØoveØ[0-9]/)) {
+          var newKey = ('level' + colorName.slice(-1));
+          json.drawing[newKey] = json.drawing[colorName];
+
+          // retain order by reordering indices in front
+          delete json.drawing[colorName];
+
+          var keys = Object.keys(json.drawing);
+          for (var i = index; i < keys.length - 1; i++) {
+            var key = keys[i];
+            var data = json.drawing[key];
+            delete json.drawing[key];
+            json.drawing[key] = data;
+          }
+        }
+        index++;
+      })
+    }
+
     var version = json.version;
     return {
       version: json.version,
