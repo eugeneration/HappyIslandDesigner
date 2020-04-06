@@ -580,6 +580,7 @@
   }
 
   function decodeObjectGroups(objectGroups, encodingVersion) {
+    if (objectGroups == null) return {};
     if (encodingVersion == 0) {
       return objectMap(objectGroups, function(encodedData) {
         return decodeObject(encodedData, version);
@@ -3477,6 +3478,9 @@
       version: 1,
       objects: encodeObjectGroups(state.objects),
       drawing: encodeDrawing(state.drawing),
+    }
+    if (Object.keys(o.objects).length === 0) {
+      delete o.objects;
     }
     return JSON.stringify(o);
   }
