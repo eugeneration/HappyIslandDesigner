@@ -1494,44 +1494,52 @@
   function showSwitchModal(isShown) {
     if (switchMenu == null) {
       if (!isShown) return;
-      switchMenu = renderModal('Load Game Map', 20, 20, function() {showSwitchModal(false)}, {fullscreen: true});
+
+      var isMobile = Math.min(view.bounds.width * view.scaling.x, view.bounds.height * view.scaling.y) < 400;
+      var margin = isMobile ? 5 : 20;
+      switchMenu = renderModal('Load Game Map', margin, margin, function() {showSwitchModal(false)}, {fullscreen: true});
 
       var uploadGroup = new Group();
       uploadGroup.applyMatrix = false;
       switchMenu.data.contents.addChild(uploadGroup);
       {
-        var instructionImage = new Raster('img/screenshot-instructions.png');
+        var instructionImage = new Raster(
+          isMobile ? 'img/screenshot-instructions-mobile.png': 'img/screenshot-instructions.png');
         instructionImage.scaling = 0.5;
         instructionImage.onLoad = function() {
           if (instructionImage.bounds.width > switchMenu.data.width) {
             instructionImage.scaling = switchMenu.data.width / instructionImage.width;
-            instructionImage.position = new Point(0, 0);
+            instructionImage.bounds.topCenter = new Point(0, 0);
           }
+          if (instructionImage.bounds.height > switchMenu.data.height * 0.5) {
+            instructionImage.scaling = (switchMenu.data.height * 0.5) / instructionImage.height;
+            instructionImage.bounds.topCenter = new Point(0, 0);
+          }
+
+          var instructions = new PointText();
+          instructions.justification = 'center';
+          instructions.fontFamily = 'TTNorms, sans-serif';
+          instructions.fontSize = isMobile ? 14 : 18;
+          instructions.fillColor = colors.text.color;
+          instructions.content = "1. Upload a photo/screenshot of your map\n\n2. Mark the four corners of the grid";
+          instructions.position = instructionImage.bounds.bottomCenter + new Point(0, 60);
+
+          var uploadIcon = new Raster('img/ui-upload-white.png');
+          uploadIcon.scaling = 0.4;
+          var uploadButton = createButton(uploadIcon, 30, function() {
+            loadImage(loadMapImage);
+          }, {
+            alpha: .9,
+            highlightedColor: colors.jaybird.color,
+            selectedColor: colors.blue.color,
+            disabledColor: colors.text.color,
+          });
+          uploadButton.position = instructions.position + new Point(0, 100);
+
+          uploadGroup.addChildren([instructionImage, instructions, uploadButton]);
+          uploadGroup.position = new Point(switchMenu.data.width / 2, switchMenu.data.height / 2);
         };
-
-        var instructions = new PointText();
-        instructions.justification = 'center';
-        instructions.fontFamily = 'TTNorms, sans-serif';
-        instructions.fontSize = 16;
-        instructions.fillColor = colors.text.color;
-        instructions.content = "1. Upload a photo/screenshot of your map\n\n2. Mark the four corners of the grid";
-        instructions.position += new Point(0, 150);
-
-        var uploadIcon = new Raster('img/ui-upload-white.png');
-        uploadIcon.scaling = 0.4;
-        var uploadButton = createButton(uploadIcon, 30, function() {
-          loadImage(loadMapImage);
-        }, {
-          alpha: .9,
-          highlightedColor: colors.jaybird.color,
-          selectedColor: colors.blue.color,
-          disabledColor: colors.text.color,
-        });
-        uploadButton.position += new Point(0, 300);
-
-        uploadGroup.addChildren([instructionImage, instructions, uploadButton]);
       }
-      uploadGroup.position = new Point(switchMenu.data.width / 2, switchMenu.data.height / 2);
 
 
       var mapImageGroup = new Group();
@@ -1561,13 +1569,14 @@
 
           var newSize = mapImage.size;
 
+          var margin = isMobile ? -34 : 0;
           mapImage.bounds.topLeft = new Point(0, 0);
 
-          var maxImageWidth = switchMenu.data.width;
-          var maxImageHeight = switchMenu.data.height;
+          var maxImageWidth = switchMenu.data.width - margin * 2;
+          var maxImageHeight = switchMenu.data.height - margin * 2;
           mapImageGroup.scaling = 1;
           mapImageGroup.scale(Math.min(maxImageWidth / newSize.width, maxImageHeight / newSize.height));
-          mapImageGroup.bounds.topLeft = new Point(0, 0);
+          mapImageGroup.position = new Point(margin, 0);
 
           var inverseScale = 1 / mapImageGroup.scaling.x;
 
@@ -1594,7 +1603,7 @@
             disabledColor: colors.text.color,
           });
           confirmButton.data.disable(true);
-          confirmButton.bounds.topCenter = mapImage.bounds.bottomCenter + new Point(0, 72 * inverseScale);
+          confirmButton.bounds.topCenter = mapImage.bounds.bottomCenter + new Point(0, 58 * inverseScale);
           confirmButton.scaling = inverseScale;
           emitter.on('screenshot_update_point', function(pointCount) {
             if (pointCount == 4) {
@@ -1606,6 +1615,7 @@
 
           var mapImagePoints = new Group();
           mapImageGroup.addChildren([mapImage, mapImagePoints, closeButton, confirmButton]);
+          mapImageGroup.bounds.leftCenter = new Point(margin, switchMenu.data.height / 2);
 
           mapImage.data.hoveredPoint = null;
           mapImage.data.grabbedPoint = null;
@@ -1711,6 +1721,7 @@
               point.data.select = function(isSelected) {
                 point.data.selected = isSelected;
                 point.data.updateColor();
+                if (isMobile) point.scaling = isSelected ? 0.4 / mapImageGroup.scaling.x : 1 / mapImageGroup.scaling.x;
               }
 
               mapImagePoints.addChild(point);
@@ -1734,7 +1745,7 @@
               document.body.appendChild(zoom);
               mapImage.data.zoom = zoom;
               zoom.update = function(event, pointGlobalPosition) {
-                var zoomLevel = .8 * view.pixelRatio;
+                var zoomLevel = Math.min(0.8, 4 * mapImageGroup.scaling.x) * view.pixelRatio;
                 var zoomSize = 100;
                 var zoom = mapImage.data.zoom;
                 var pointCanvasPosition = fixedLayer.globalToLocal(pointGlobalPosition);
