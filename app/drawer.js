@@ -1131,9 +1131,7 @@
         (group.data.disabled && disabledColor) ? disabledColor
         : (group.data.selected || group.data.pressed) ? selectedColor
         : highlightedColor;
-      button.fillColor.alpha = 
-        group.data.disabled ? 0.5
-        : group.data.selected ? 1
+      button.fillColor.alpha = group.data.selected ? 1
         : group.data.pressed ? 0.5 
         : (group.data.hovered ? 1 : alpha);
     }
@@ -1158,6 +1156,7 @@
       },
       disable: function(isDisabled) {
         group.data.disabled = isDisabled;
+        item.opacity = isDisabled ? 0.5 : 1;
         updateColor();
         if (isDisabled) group.data.hover(false);
       },
@@ -1777,7 +1776,7 @@
             var point = mapImage.data.grabbedPoint;
             if (point) {
               var delta = rawCoordinate - point.data.startPoint;
-              point.position = point.data.startPoint - point.data.grabPivot + delta * 0.2;
+              point.position = point.data.startPoint - point.data.grabPivot + delta * (isMobile ? 0.08 : 0.2);
 
               mapImage.data.zoom.update(event, mapImageGroup.localToGlobal(point.position));
 
