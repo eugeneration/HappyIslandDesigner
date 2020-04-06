@@ -1202,23 +1202,22 @@
 
   var modals = [];
 
-  function renderModal(name, width, height, onDismiss) {
-    var topLeft = new Point(0, 0);// + view.bounds.topLeft;
-    var center = new Point(view.bounds.width * view.scaling.x / 2, view.bounds.height * view.scaling.y / 2);// + view.bounds.topLeft * 2;
-    var bottomRight = new Point(view.bounds.width * view.scaling.x, view.bounds.height * view.scaling.y);// + view.bounds.topLeft * 2;
+  // options
+  // fullscreen
+
+  function renderModal(name, width, height, onDismiss, options) {
+    var fullscreen = (!options || !options.fullscreen) ? false : options.fullscreen;
 
     modalLayer.activate();
 
     var group = new Group;
 
-    var darkFill = new Path.Rectangle(new Rectangle(topLeft, bottomRight));
+    var darkFill = new Path.Rectangle(new Rectangle(0, 0, 1, 1));
     darkFill.fillColor = colors.offBlack.color;
     darkFill.fillColor.alpha = 0.3;
     darkFill.onMouseUp = onDismiss;
 
-    var modal = new Path.Rectangle(new Rectangle(
-      center.x - width / 2, 
-      center.y - height / 2, width, height), 60);
+    var modal = new Path();
     modal.fillColor = colors.paper.color;
     modal.onMouseEnter = function(event) {
       group.data.text.content = name;
@@ -1227,20 +1226,13 @@
     var modalContents = new Group();
     modalContents.applyMatrix = false;
     modalContents.pivot = new Point(0, 0);
-    modalContents.position = modal.bounds.topLeft + new Point(40, 120);
     modalContents.data = {
       addElement: function () {
 
       },
     }
 
-    group.data = {
-      width: modal.bounds.width - 40 * 2,
-      height: modal.bounds.height - 120 - 40,
-      contents: modalContents,
-    };
-
-    emitter.on('resize', function() {
+    function resize() {
       var topLeft = new Point(0, 0);// + view.bounds.topLeft;
       var center = new Point(view.bounds.width * view.scaling.x / 2, view.bounds.height * view.scaling.y / 2);// + view.bounds.topLeft * 2;
       var bottomRight = new Point(view.bounds.width * view.scaling.x, view.bounds.height * view.scaling.y);// + view.bounds.topLeft * 2;
@@ -1250,9 +1242,26 @@
       //var bottomRight = view.viewToProject(view.projectToView(new Point(view.bounds.width, view.bounds.height)));// + view.bounds.topLeft * 2;
 
       darkFill.bounds = new Rectangle(topLeft, bottomRight);
+
+      if (fullscreen) {
+        modal.segments = new Path.Rectangle(new Rectangle(
+          width, height, bottomRight.x - width * 2, bottomRight.y - height * 2), 60).segments;
+      }
+      else if (!modal || modal.segments == 0) {
+        modal.segments = new Path.Rectangle(new Rectangle(
+          center.x - width / 2, 
+          center.y - height / 2, width, height), 60).segments;
+      }
       modal.position = center;
-      modalContents.position = modal.bounds.topLeft + new Point(40, 135);
-    })
+      modalContents.position = modal.bounds.topLeft + new Point(40, 120);
+
+      group.data.width = modal.bounds.width - 40 * 2;
+      group.data.height = modal.bounds.height - 120 - 40;
+      group.data.contents = modalContents;
+    }
+
+    emitter.on('resize', resize);
+    resize();
 
     var text = new PointText(new Point(group.data.width / 2, -50));
     text.justification = 'center';
@@ -1485,7 +1494,7 @@
   function showSwitchModal(isShown) {
     if (switchMenu == null) {
       if (!isShown) return;
-      switchMenu = renderModal('Load Game Map', view.size.width - 40, view.size.height - 40, function() {showSwitchModal(false)});
+      switchMenu = renderModal('Load Game Map', 20, 20, function() {showSwitchModal(false)}, {fullscreen: true});
 
       var uploadGroup = new Group();
       uploadGroup.applyMatrix = false;
@@ -1493,11 +1502,17 @@
       {
         var instructionImage = new Raster('img/screenshot-instructions.png');
         instructionImage.scaling = 0.5;
+        instructionImage.onLoad = function() {
+          if (instructionImage.bounds.width > switchMenu.data.width) {
+            instructionImage.scaling = switchMenu.data.width / instructionImage.width;
+            instructionImage.position = new Point(0, 0);
+          }
+        };
 
         var instructions = new PointText();
         instructions.justification = 'center';
         instructions.fontFamily = 'TTNorms, sans-serif';
-        instructions.fontSize = 24;
+        instructions.fontSize = 16;
         instructions.fillColor = colors.text.color;
         instructions.content = "1. Upload a photo/screenshot of your map\n\n2. Mark the four corners of the grid";
         instructions.position += new Point(0, 150);
@@ -1550,6 +1565,7 @@
 
           var maxImageWidth = switchMenu.data.width;
           var maxImageHeight = switchMenu.data.height;
+          mapImageGroup.scaling = 1;
           mapImageGroup.scale(Math.min(maxImageWidth / newSize.width, maxImageHeight / newSize.height));
           mapImageGroup.bounds.topLeft = new Point(0, 0);
 
