@@ -1573,7 +1573,7 @@
           mapImage.bounds.topLeft = new Point(0, 0);
 
           var maxImageWidth = switchMenu.data.width - margin * 2;
-          var maxImageHeight = switchMenu.data.height - margin * 2;
+          var maxImageHeight = switchMenu.data.height - 100 - margin * 2; // need 100px for the button
           mapImageGroup.scaling = 1;
           mapImageGroup.scale(Math.min(maxImageWidth / newSize.width, maxImageHeight / newSize.height));
           mapImageGroup.position = new Point(margin, 0);
@@ -1614,8 +1614,9 @@
           });
 
           var mapImagePoints = new Group();
-          mapImageGroup.addChildren([mapImage, mapImagePoints, closeButton, confirmButton]);
-          mapImageGroup.bounds.leftCenter = new Point(margin, switchMenu.data.height / 2);
+          mapImageGroup.addChildren([mapImage, mapImagePoints, confirmButton]);
+          mapImageGroup.position = new Point(switchMenu.data.width / 2, switchMenu.data.height / 2);
+          mapImageGroup.addChild(closeButton);
 
           mapImage.data.hoveredPoint = null;
           mapImage.data.grabbedPoint = null;
