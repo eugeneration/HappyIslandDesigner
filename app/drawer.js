@@ -1480,7 +1480,7 @@
       var switchButton = createMenuButton('Upload Screenshot', 'img/menu-switch.png', 0, 1,
         function() { showSwitchModal(true) });
 
-      var twitterButton = createMenuButton('Twitter', 'img/menu-twitt.png', 0,
+      var twitterButton = createMenuButton('Twitter', 'img/menu-twitt.png', 0, 3,
         function() {window.open('https://twitter.com/island_designer', '_blank')});
       twitterButton.position = new Point(0, 210);
 
