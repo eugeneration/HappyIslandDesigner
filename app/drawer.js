@@ -1381,7 +1381,7 @@
       versionCode.fontSize = 12;
       versionCode.fontFamily = 'TTNorms, sans-serif';
       versionCode.fillColor = colors.lightText.color;
-      versionCode.content = "v0.2.1";
+      versionCode.content = "v0.3.0";
 
       helpMenu.data.contents.addChildren([helpTextRaster, helpText2Raster, versionCode]);
 
