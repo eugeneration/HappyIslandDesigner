@@ -979,7 +979,7 @@
 
   function saveMapToFile() {
     var mapJson = encodeMap();
-    mapJson = LZString.compress(mapJson);
+    mapJson = LZString.compressToUTF16(mapJson);
 
     var saveMargins = new Point(10, 10);
 
@@ -1062,9 +1062,13 @@
 
       var json;
       try {
-        var json = JSON.parse(mapJSONString);
+        json = JSON.parse(mapJSONString);
       } catch(e) {
-        var json = JSON.parse(LZString.decompress(mapJSONString))
+        try {
+          json = JSON.parse(LZString.decompressFromUTF16(mapJSONString))
+        } catch (e) {
+          json = JSON.parse(LZString.decompress(mapJSONString))
+        }
       }
       var map = decodeMap(json);
 
