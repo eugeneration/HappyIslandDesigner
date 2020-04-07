@@ -28,10 +28,10 @@ Click here for [local development info](/docs/README-localdev).
 
 ### Hotkeys
 
-* Hold down `SHIFT` to draw straight lines
-* Hold down `ALT` and click a color to switch to it
+* Hold `SHIFT` to draw straight lines
+* Hold `ALT` and click a color to switch to it
 * Hold `ALT` and scroll to zoom
-* hold `SPACEBAR` and drag to pan
+* Hold `SPACEBAR` and drag to pan
 
 ## Known Issues
 
