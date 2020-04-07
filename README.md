@@ -4,13 +4,15 @@ Click here to create your own island map!
 
 https://eugeneration.github.io/HappyIslandDesigner/
 
+![screenshot](thumbnail.png)
+
 ## Introduction
 
 Once I saw that you could customize your island in the AC direct, I was inspired to make a tool that lets you make your own island. Several dozen hours of work later, I have this! This is an alpha build, so some things may be wonky, and the maps data may become incompatible with future versions.
 
-Click here for [technical details](/README-technical.md).
+Click here for [technical details](/docs/README-technical.md).
 
-Click here for [local development info](/README-localdev).
+Click here for [local development info](/docs/README-localdev).
 
 ## Features
 
