@@ -2885,6 +2885,9 @@
           // this is a little messy
           this.iconMenu.data.update(this.data.paintColorData.key);
         }
+        if (isSelected && this.data.paintColorData) {
+          updatePaintColor(this.data.paintColorData);
+        }
         this.iconMenu.visible = isSelected;
         var adjusterUI = showBrushSizeUI(isSelected);
       },
@@ -2962,6 +2965,9 @@
           this.iconMenu.position = new Point(100, 45);
           // this is a little messy
           this.iconMenu.data.update(this.data.paintColorData.key);
+        }
+        if (isSelected && this.data.paintColorData) {
+          updatePaintColor(this.data.paintColorData);
         }
         this.iconMenu.visible = isSelected;
         var adjusterUI = showBrushSizeUI(isSelected);
