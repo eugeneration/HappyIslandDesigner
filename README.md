@@ -66,5 +66,24 @@ I am in dire need of icons for all the buildings/plants. If any of you have nice
 
 ### Maps
 
-People could help me by recreating these [24 maps](https://i.imgur.com/ltSsS3Q.jpg) and sending me the map data, either by sending me a non-compressed version of the image file or pressing '/' and grabbing the map data that will be output in the browser console. Then I can offer all of these templates in that menu.
+People could help me by recreating these 24 maps and sending me the map data, either by sending me a non-compressed version of the image file or pressing `/` and grabbing the map data that will be output in the browser console. Then I can offer all of these templates in a menu.
 
+![base maps](/docs/base-nh-maps.png)
+
+To see which maps have already been contributed, please reference [issue #59](https://github.com/eugeneration/HappyIslandDesigner/issues/59).
+
+#### Tips
+
+[TachiGaroth](https://github.com/TachiGaroth) has provided some tips for those who would like to contribute a map:
+
+> Just in case someone wants to make a template:
+>
+>   I used a screenshot of the map and put a 16x16 grid over each in-game grid (I had someone do this for me with illustrator)
+>
+>   Then opened Happy Island Designer on [Glass Browser](https://www.electronjs.org/apps/glass-browser). This allows you to open a browser with transparency.
+>
+>   To match the exact dimensions of both grids I used Win 10 gallery to open the screenshot and adjust manually the dimensions with the slider until it matched the size of the grid in the app.
+>
+>   Put the glass browser on top of the screenshot, align both grids and trace.
+>
+> The set up Its a bit cumbersome but it saves a lot of time afterwards and the end result is near perfect.
