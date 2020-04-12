@@ -39,7 +39,6 @@ function showBob(isShown) {
 var editor = {
   showBob: showBob,
 };
-
 // ===============================================
 // HELPERS
 function ES3Class(obj) {

@@ -1101,6 +1101,7 @@
       }
 
       function loadDataURLAsImage (dataURL) {
+
         var image = new Image();
         image.src = dataURL;
         image.addEventListener('load', function(){onLoad(image)}, false);
@@ -1327,7 +1328,7 @@
   var helpMenu;
   function showHelpMenu(isShown) {
     if (helpMenu == null) {
-      helpMenu = renderModal('Hotkeys', 340, 560, function() {showHelpMenu(false)});
+      helpMenu = renderModal(i18next.t('hotkey'), 340, 560, function() {showHelpMenu(false)});
       helpMenu.onMouseUp = function() {
         showHelpMenu(false);
       }
@@ -1337,56 +1338,14 @@
       helpText.fontSize = 16;
       helpText.fontFamily = 'TTNorms, sans-serif';
       helpText.fillColor = colors.oceanText.color;
-      helpText.content = 
-        'space+drag\n'+
-        'alt+scroll\n'+
-        '\\\n'+
-        'shift+drag\n'+
-        '[ ]\n'+
-        'p\n'+
-        'alt+click\n'+
-        'delete\n'+
-        'ctrl + z\n'+
-        'ctrl + y\n'+
-        '\n'+
-        'v\n'+
-        'b\n'+
-        'n\n'+
-        'm\n'+
-        '\n'+
-        'ctrl + s\n'+
-        'ctrl + o\n'+
-        'esc\n'+
-        '?\n'+
-        '';
+      helpText.content = i18next.t('hotkey_tips1')
 
       var helpText2 = new PointText(new Point(100, -10));
       helpText2.justification = 'left';
       helpText2.fontSize = 16;
       helpText2.fontFamily = 'TTNorms, sans-serif';
       helpText2.fillColor = colors.text.color;
-      helpText2.content = 
-        'pan\n'+
-        'zoom\n'+
-        'toggle grid\n'+
-        'draw line\n'+
-        'adjust brush size\n'+
-        'square/circle brush\n'+
-        'color pick\n'+
-        'delete selection\n'+
-        'undo\n'+
-        'redo\n'+
-        '\n'+
-        'terrain tool \n'+
-        'path tool\n'+
-        'building tool\n'+
-        'amenities tool\n'+
-        '\n'+
-        'save\n'+
-        'open map file\n'+
-        'main menu\n'+
-        'hotkeys\n'+
-        '';
+      helpText2.content = i18next.t('hotkey_tips2')
 
       var helpTextRaster = helpText.rasterize();
       var helpText2Raster = helpText2.rasterize();
@@ -1413,7 +1372,7 @@
   function showMainMenu(isShown) {
     if (mainMenu == null) {
       if (!isShown) return;
-      mainMenu = renderModal('Main Menu', 260, 370, function() {showMainMenu(false)});
+      mainMenu = renderModal(i18next.t('mainmenu'), 260, 370, function() {showMainMenu(false)});
 
       var hitSizeHalf = new Point(35, 35);
       var hitSize = new Size(70, 70);
@@ -1483,21 +1442,21 @@
         return buttonGroup;
       }
 
-      var saveButton = createMenuButton("Save as Image", 'img/menu-save.png', 0, 0,
+      var saveButton = createMenuButton(i18next.t('save_image'), 'img/menu-save.png', 0, 0,
         function() {saveMapToFile()});
-      var loadButton = createMenuButton('Load Map', 'img/menu-open.png', 1, 0,
+      var loadButton = createMenuButton(i18next.t('load_map'), 'img/menu-open.png', 1, 0,
         function() {loadMapFromFile()});
-      var newButton = createMenuButton('New Map', 'img/menu-new.png', 2, 0,
+      var newButton = createMenuButton(i18next.t('new_map'), 'img/menu-new.png', 2, 0,
         function() {
-          var r = confirm("Clear your map? You will lose all unsaved changes.");
+          var r = confirm(i18next.t('clear_warn'));
           if (r == true) {
             loadTemplate();
           } else { }
         });
-      var switchButton = createMenuButton('Upload Screenshot', 'img/menu-switch.png', 0, 1,
+      var switchButton = createMenuButton(i18next.t('load_screenshot'), 'img/menu-switch.png', 0, 1,
         function() { showSwitchModal(true) });
 
-      var twitterButton = createMenuButton('Twitter', 'img/menu-twitt.png', 0, 3,
+      var twitterButton = createMenuButton(i18next.t('twitter'), 'img/menu-twitt.png', 0, 3,
         function() {window.open('https://twitter.com/island_designer', '_blank')});
       twitterButton.position = new Point(0, 210);
 
@@ -1514,7 +1473,7 @@
 
       var isMobile = Math.min(view.bounds.width * view.scaling.x, view.bounds.height * view.scaling.y) < 400;
       var margin = isMobile ? 5 : 20;
-      switchMenu = renderModal('Load Game Map', margin, margin, function() {showSwitchModal(false)}, {fullscreen: true});
+      switchMenu = renderModal(i18next.t('load_game_map'), margin, margin, function() {showSwitchModal(false)}, {fullscreen: true});
 
       var uploadGroup = new Group();
       uploadGroup.applyMatrix = false;
@@ -1538,7 +1497,7 @@
           instructions.fontFamily = 'TTNorms, sans-serif';
           instructions.fontSize = isMobile ? 14 : 18;
           instructions.fillColor = colors.text.color;
-          instructions.content = "1. Upload a photo/screenshot of your map\n\n2. Mark the four corners of the grid";
+          instructions.content = i18next.t('load_game_map_instructions');
           instructions.position = instructionImage.bounds.bottomCenter + new Point(0, 60);
 
           var uploadIcon = new Raster('img/ui-upload-white.png');
@@ -4813,7 +4772,7 @@
     return Math.round(n * d) / d;
   };
 
-function dataURLtoBlob(dataurl) {
+  function dataURLtoBlob(dataurl) {
     var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
         bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
     while(n--){

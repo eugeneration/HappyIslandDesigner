@@ -42,6 +42,18 @@
     catch(e){window.attachEvent("onload", $buo_f)}
     </script>
 
+    <script src="lib/i18nextBrowserLanguageDetector.min.js"></script>
+    <script type="text/javascript" src="data/locale.js"></script>
+    <script type="text/javascript" src="lib/i18next.min.js"></script>
+    <script>
+        i18next.use(i18nextBrowserLanguageDetector)
+        .init({
+            fallbackLng: 'en',
+            debug: true,
+            resources: locale
+        })
+    </script>
+
     <script type="text/javascript" src="lib/paper-full.js"></script>
     <script type="text/javascript" src="lib/paper-animate-browser.min.js"></script>
     <script type="text/javascript" src="lib/steganography.min.js"></script>
