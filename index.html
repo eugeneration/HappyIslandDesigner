@@ -48,6 +48,7 @@
     <script type="text/javascript" src="lib/mitt.js"></script>
     <script type="text/javascript" src="lib/lz-string.js"></script>
     <script type="text/javascript" src="lib/perspective-transform.min.js"></script>
+    <script type="text/javascript" src="lib/heic2any.min.js"></script>
     <script type="text/javascript" src="data/template.js"></script>
     <script type="text/javascript" src="app/store.js"></script>
     <script type="text/paperscript" canvas="canvas" src="app/drawer.js"></script>
@@ -99,12 +100,38 @@
             font-family: "TTNorms";
             src: url("font/TTNorms-Bold.woff") format('woff');
         }
+
+        .bobContainer {
+            display: none;
+            opacity: 0;
+            background-color: #f5f3e5;
+            border-radius: 40px;
+            position: absolute;
+            padding: 50px;
+            margin: auto;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            width: 200px;
+            height: 200px;
+            text-align: center;
+            transition: opacity 0.5s;
+            box-shadow: rgb(0, 0, 0, 0.5) 0 0 20px;
+        }
+        .bob {
+            width: 50%;
+        }
     </style>
 </head>
 <body>
     <!-- browsers unload fonts that aren't used -->
     <div class="hidden">
         <p style="font-family: TTNorms">.</p>
+    </div>
+    <div class="bobContainer">
+        <img class="bob" src="gif/bob-loading.gif"/>
+        <p style="font-family: TTNorms; color: #726a5a">Please wait a bit...</p>
     </div>
     <canvas id="canvas" resize></canvas>
 </body>

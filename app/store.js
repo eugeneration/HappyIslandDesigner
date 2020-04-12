@@ -21,8 +21,24 @@ var Listener = ES3Class({
   },
 });
 
+var hideTimeout;
+function showBob(isShown) {
+  clearTimeout(hideTimeout);
+  var container = $(".bobContainer");
+  if (isShown) {
+    container.css({display: 'block'});
+  }
+  // for some reason it needs a frame before it will animate the opacity
+  setTimeout(function(){container.css({ opacity: isShown ? 1 : 0 })}, 10  );
+  if (!isShown) {
+    hideTimeout = setTimeout(function(){container.css({display: 'none'})}, 500)
+  }
+}
+
 // global scope used for exporting map editor functions
-var editor = {};
+var editor = {
+  showBob: showBob,
+};
 
 // ===============================================
 // HELPERS
