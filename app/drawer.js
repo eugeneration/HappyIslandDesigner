@@ -1083,15 +1083,28 @@
       if (!file) {
         return;
       }
-      var reader = new FileReader();
-      reader.onload = function(e) {
-        var dataURL = e.target.result;
+      if (file.type == "image/heic") { // convert to png
+        // this takes a long time, so show loading screen
+        editor.showBob(true);
+        heic2any({blob: file })
+          .then(function(conversionResult) {
+            editor.showBob(false);
+            var url = URL.createObjectURL(conversionResult);
+            loadDataURLAsImage(url);
+          })
+          .catch(function(e) {
+            editor.showBob(false);
+            console.error(e);
+          });
+      } else {
+        blobToDataURL(file, loadDataURLAsImage);
+      }
 
+      function loadDataURLAsImage (dataURL) {
         var image = new Image();
         image.src = dataURL;
         image.addEventListener('load', function(){onLoad(image)}, false);
       }
-      reader.readAsDataURL(file);
     }
     loadFile(readFile);
   }
@@ -4799,3 +4812,18 @@
     d = Math.pow(10, p);
     return Math.round(n * d) / d;
   };
+
+function dataURLtoBlob(dataurl) {
+    var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+        bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+    while(n--){
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], {type:mime});
+}
+
+function blobToDataURL(blob, callback) {
+    var a = new FileReader();
+    a.onload = function(e) {callback(e.target.result);}
+    a.readAsDataURL(blob);
+}
