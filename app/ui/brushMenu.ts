@@ -64,7 +64,7 @@ export function showBrushSizeUI(isShown) {
     brushPreview.strokeColor = colors.lightText.color;
     brushPreview.strokeWidth = 0.1;
 
-    brushSizeText = new paper.PointText(0, 28);
+    brushSizeText = new paper.PointText(new paper.Point(0, 28));
     brushSizeText.fontFamily = 'TTNorms, sans-serif';
     brushSizeText.fontSize = 14;
     brushSizeText.fillColor = colors.text.color;
@@ -100,26 +100,30 @@ export function showBrushSizeUI(isShown) {
 
     const backingWidth = 42;
     const brushSizeBacking = new paper.Path.Rectangle(
-      -backingWidth / 2,
-      0,
-      backingWidth,
-      153,
-      backingWidth / 2,
+      new paper.Rectangle(
+        -backingWidth / 2,
+        0,
+        backingWidth,
+        153,
+      ),
+      new paper.Size(backingWidth / 2, backingWidth / 2),
     );
     brushSizeBacking.strokeColor = colors.paperOverlay2.color;
     brushSizeBacking.strokeWidth = 2;
-    brushSizeBacking.position += new paper.Point(0, -22);
+    brushSizeBacking.position = brushSizeBacking.position.add(new paper.Point(0, -22));
 
     const brushLineBacking = new paper.Path.Rectangle(
-      -backingWidth / 2,
-      0,
-      backingWidth,
-      82,
-      backingWidth / 2,
+      new paper.Rectangle(
+        -backingWidth / 2,
+        0,
+        backingWidth,
+        82,
+      ),
+      new paper.Size(backingWidth / 2, backingWidth / 2),
     );
     brushLineBacking.strokeColor = colors.paperOverlay2.color;
     brushLineBacking.strokeWidth = 2;
-    brushLineBacking.position += new paper.Point(0, 149);
+    brushLineBacking.position = brushSizeBacking.position.add(new paper.Point(0, 136));
 
     group.addChildren([
       brushPreview,

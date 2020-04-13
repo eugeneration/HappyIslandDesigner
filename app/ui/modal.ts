@@ -42,7 +42,6 @@ export function renderModal(
   modal.fillColor = colors.paper.color;
   modal.onMouseEnter = function () {
     group.data.text.content = name;
-    console.log('prouuut');
   };
 
   const modalContents = new paper.Group();

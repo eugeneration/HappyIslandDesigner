@@ -45,20 +45,20 @@ export const baseToolCategoryDefinition = {
       subclass.enablePreview(isSelected);
     }
   },
-  onMouseMove(subclass, event) {
+  onMouseMove(subclass, event: paper.MouseEvent) {
     updateCoordinateLabel(event);
   },
-  onMouseDown(subclass, event) {
+  onMouseDown(subclass, event: paper.MouseEvent) {
     updateCoordinateLabel(event);
   },
-  onMouseDrag(subclass, event) {
+  onMouseDrag(subclass, event: paper.MouseEvent) {
     updateCoordinateLabel(event);
   },
-  onMouseUp(subclass, event) {
+  onMouseUp(subclass, event: paper.MouseEvent) {
     updateCoordinateLabel(event);
   },
-  onKeyDown() {},
-  enablePreview() {},
+  onKeyDown(subclass, event: paper.KeyEvent) {},
+  enablePreview(subclass, isEnabled: boolean) {},
   toggleMenu(subclass) {
     if (subclass.openMenu) {
       subclass.openMenu(!(subclass.iconMenu && subclass.iconMenu.visible));

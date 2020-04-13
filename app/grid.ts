@@ -92,21 +92,25 @@ export function createGrid() {
   // it starts counting from the second block
   for (let i = 0; i < horizontalBlocks; i++) {
     const gridLabel = new paper.PointText(
-      (i + 0.5) * horizontalDivisions,
-      verticalBlocks * verticalDivisions + 4,
+      new paper.Point(
+        (i + 0.5) * horizontalDivisions,
+        verticalBlocks * verticalDivisions + 4,
+      )
     );
     gridLabel.justification = 'center';
     gridLabel.fontFamily = 'TTNorms, sans-serif';
     gridLabel.fontSize = 3;
     gridLabel.fillColor = colors.oceanText.color;
-    gridLabel.content = 1 + i;
+    gridLabel.content = (1 + i).toString();
     gridGroup.addChild(gridLabel);
   }
 
   for (let i = 0; i < verticalBlocks; i++) {
     const gridLabel = new paper.PointText(
-      -4,
-      (i + 0.5) * verticalDivisions + 1,
+      new paper.Point(
+        -4,
+        (i + 0.5) * verticalDivisions + 1,
+      )
     );
     gridLabel.justification = 'center';
     gridLabel.fontFamily = 'TTNorms, sans-serif';

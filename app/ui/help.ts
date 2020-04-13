@@ -76,8 +76,10 @@ export function showHelpMenu(isShown: boolean) {
     helpText2.remove();
 
     const versionCode = new paper.PointText(
-      helpMenu.data.width / 2,
-      helpMenu.data.height,
+      new paper.Point(
+        helpMenu.data.width / 2,
+        helpMenu.data.height,
+      )
     );
     versionCode.justification = 'center';
     versionCode.fontSize = 12;

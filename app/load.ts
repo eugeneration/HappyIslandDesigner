@@ -2,6 +2,7 @@ import { clearMap, setNewMapData } from './state';
 import { decodeMap } from './save';
 import { template } from './template';
 
+
 function clickElem(elem) {
   // Thx user1601638 on Stack Overflow (6/6/2018 - https://stackoverflow.com/questions/13405129/javascript-create-and-save-file )
   const eventMouse = document.createEvent('MouseEvents');

@@ -6,16 +6,8 @@
  * Copyright (C) 2012 Peter Eigenschink (http://www.peter-eigenschink.at/)
  * Dual-licensed under MIT and Beerware license.
  */
-(function (name, context, factory) {
-  // Supports UMD. AMD, CommonJS/Node.js and browser context
-  if (typeof module !== 'undefined' && module.exports) {
-    module.exports = factory();
-  } else if (typeof define === 'function' && define.amd) {
-    define(factory);
-  } else {
-    context[name] = factory();
-  }
-})('steg', this, () => {
+
+export default function steg() {
   const Cover = function Cover() {};
   var util = {
     isPrime(n) {
@@ -144,6 +136,12 @@
     const shadowCanvas = document.createElement('canvas');
     const shadowCtx = shadowCanvas.getContext('2d');
 
+    if (shadowCtx == null)  {
+      throw new Error(
+        'Canvas does not have 2d context',
+      );;
+    }
+
     shadowCanvas.style.display = 'none';
     shadowCanvas.width = options.width || image.width;
     shadowCanvas.height = options.height || image.height;
@@ -168,7 +166,7 @@
     // mask ... The raw initial bitmask, will be changed every run and if bits are overlapping
     const bundlesPerChar = (codeUnitSize / t) >> 0;
     const overlapping = codeUnitSize % t;
-    const modMessage = [];
+    const modMessage: Array<number> = [];
     let decM;
     let oldDec;
     let oldMask;
@@ -313,6 +311,12 @@
     const shadowCanvas = document.createElement('canvas');
     const shadowCtx = shadowCanvas.getContext('2d');
 
+    if (shadowCtx == null)  {
+      throw new Error(
+        'Canvas does not have 2d context',
+      );;
+    }
+
     shadowCanvas.style.display = 'none';
     shadowCanvas.width = options.width || image.width;
     shadowCanvas.height = options.width || image.height;
@@ -329,7 +333,7 @@
       shadowCanvas.height,
     );
     const data = imageData.data;
-    const modMessage = [];
+    const modMessage: Array<number> = [];
     let q;
 
     let i;
@@ -413,4 +417,4 @@
   };
 
   return new Cover();
-});
+}

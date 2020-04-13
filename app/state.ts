@@ -7,7 +7,7 @@ import { autosaveMap } from './save';
 export type State = {
   index: number;
   history: any[];
-  drawing: Record<string, paper.Path>;
+  drawing: Record<string, paper.PathItem>;
   objects: Record<string, any>;
   actionsSinceSave: number;
 };

@@ -39,8 +39,6 @@ export function startDraw(event) {
     case paintTools.grid:
       startDrawGrid(event.point);
       break;
-    case paintTools.diagonals:
-      break;
     case paintTools.freeform:
       myPath = new paper.Path();
       myPath.strokeColor = getCurrentPaintColor().color;
@@ -68,10 +66,6 @@ export function draw(event) {
         drawGrid(event.point);
       }
       break;
-    case paintTools.marquee:
-      break;
-    case paintTools.marqueeDiagonal:
-      break;
     case paintTools.freeform:
       // Add a segment to the path at the position of the mouse:
       myPath.add(event.point);
@@ -92,8 +86,6 @@ export function endDraw(event) {
       }
       endDrawGrid();
       stopGridLinePreview();
-      break;
-    case paintTools.diagonals:
       break;
     case paintTools.freeform:
       break;

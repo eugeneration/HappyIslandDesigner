@@ -15,9 +15,9 @@ export function doForCellsOnLinePerInterval(
   let p0 = new paper.Point(x0, y0);
   const p1 = new paper.Point(x1, y1);
   const delta = p1.subtract(p0);
-  const slope = delta.normalize() * interval;
+  const slope = delta.normalize().multiply(interval);
 
-  let prevCellPoint = null;
+  let prevCellPoint;
   const totalLength = delta.length;
   let length = 0;
 
@@ -27,7 +27,7 @@ export function doForCellsOnLinePerInterval(
       setPixel(cellPoint.x, cellPoint.y);
       prevCellPoint = cellPoint;
     }
-    p0 += slope;
+    p0 = p0.add(slope);
     length += interval;
   } while (length < totalLength);
 }

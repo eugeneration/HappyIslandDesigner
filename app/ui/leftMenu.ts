@@ -37,8 +37,8 @@ export function createLeftMenu() {
   leftToolMenuBacking.strokeWidth = 120;
   leftToolMenuBacking.strokeCap = 'round';
   leftToolMenuBacking.segments = [
-    new paper.Point(-30, -0),
-    new paper.Point(-30, 480),
+    new paper.Segment(new paper.Point(-30, -0)),
+    new paper.Segment(new paper.Point(-30, 480)),
   ];
   leftToolMenu.addChild(leftToolMenuBacking);
 

@@ -31,6 +31,10 @@ export function getDiff(path: paper.Path, colorKey: string) {
     });
   }
 
+  function isPath(item: paper.Item): item is paper.Path {
+    return (item as paper.Path).segments !== undefined;
+  }
+
   const diff = {};
   Object.keys(editLayers).forEach((ck) => {
     const isAdd = editLayers[ck];
@@ -43,6 +47,7 @@ export function getDiff(path: paper.Path, colorKey: string) {
     // todo: for free drawing, remove this check
     const deltaSubPaths = delta.children ? delta.children : [delta];
     deltaSubPaths.forEach((p) => {
+      if ((p as paper.Path))
       correctPath(p, state.drawing[ck]);
     });
 
