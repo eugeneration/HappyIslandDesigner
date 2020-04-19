@@ -1,14 +1,19 @@
 # Happy Island Designer (Alpha)
 
-Click here to create your own island map!
-
+Create your own at: 
 https://eugeneration.github.io/HappyIslandDesigner/
+
+Report bugs in the Issues tab or on the [Discord](https://discord.gg/EtaqD5H)
+
+![screenshot](thumbnail.png)
 
 ## Introduction
 
 Once I saw that you could customize your island in the AC direct, I was inspired to make a tool that lets you make your own island. Several dozen hours of work later, I have this! This is an alpha build, so some things may be wonky, and the maps data may become incompatible with future versions.
 
-Click here for [technical details](/README-technical.md).
+Click here for [technical details](/docs/README-technical.md).
+
+Click here for [local development info](/docs/README-localdev).
 
 ## Features
 
@@ -24,10 +29,10 @@ Click here for [technical details](/README-technical.md).
 
 ### Hotkeys
 
-* Hold down `SHIFT` to draw straight lines
-* Hold down `ALT` and click a color to switch to it
+* Hold `SHIFT` to draw straight lines
+* Hold `ALT` and click a color to switch to it
 * Hold `ALT` and scroll to zoom
-* hold `SPACEBAR` and drag to pan
+* Hold `SPACEBAR` and drag to pan
 
 ## Known Issues
 
@@ -62,5 +67,8 @@ I am in dire need of icons for all the buildings/plants. If any of you have nice
 
 ### Maps
 
-People could help me by recreating these [24 maps](https://i.imgur.com/ltSsS3Q.jpg) and sending me the map data, either by sending me a non-compressed version of the image file or pressing '/' and grabbing the map data that will be output in the browser console. Then I can offer all of these templates in that menu.
+People could help me by recreating these 24 maps and sending me the map data, either by sending me a non-compressed version of the image file or pressing `/` and grabbing the map data that will be output in the browser console. Then I can offer all of these templates in a menu.
 
+![base maps](/docs/base-nh-maps.png)
+
+To see which maps have already been contributed, please reference [issue #59](https://github.com/eugeneration/HappyIslandDesigner/issues/59).
