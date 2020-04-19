@@ -47,11 +47,12 @@ export function getDiff(path: paper.Path, colorKey: string) {
     // todo: for free drawing, remove this check
     const deltaSubPaths = delta.children ? delta.children : [delta];
     deltaSubPaths.forEach((p) => {
-      if ((p as paper.Path))
-      correctPath(p, state.drawing[ck]);
+      if (isPath(p)) {
+        correctPath(p, state.drawing[ck]);
+      }
     });
 
-    if (delta.children || (delta.segments && delta.segments.length > 0)) {
+    if ((delta.children && delta.children.length > 0) || (isPath(delta) && delta.segments && delta.segments.length > 0)) {
       diff[colorKey] = {
         isAdd,
         path: delta,

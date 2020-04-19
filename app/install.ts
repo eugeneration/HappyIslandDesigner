@@ -1,6 +1,8 @@
 import paper from 'paper';
 import { store } from './store';
 
+import {onKeyUp, onKeyDown} from './keyboard';
+
 export function install() {
   return new Promise((resolve) => {
     window.onload = function onload() {
@@ -15,6 +17,9 @@ export function install() {
         new paper.Point(window.innerWidth, window.innerWidth),
         new paper.Point(0, 0),
       );
+
+      paper.view.onKeyUp = onKeyUp;
+      paper.view.onKeyDown = onKeyDown;
 
       map.fillColor = new paper.Color(0, 1, 1);
       resolve();

@@ -29,7 +29,7 @@ const paintTools = {
 };
 let paintTool = paintTools.grid;
 let brushLine: boolean = false;
-const brushSweep = false;
+const brushSweep = true;
 
 // Create a new paper.Path once, when the script is executed:
 let myPath;
@@ -149,6 +149,7 @@ export function drawLine(start: paper.Point, end: paper.Point): paper.Path {
       },
     );
     const path = getDrawPath(p);
+    var x = path.clone();
     drawPaths.push(sweepPath(path, prevDrawLineCoordinate.subtract(p)));
   } else {
     // stamping
@@ -182,9 +183,16 @@ export function addPath(isAdd, path, colorKey) {
     state.drawing[colorKey] = new paper.Path();
     state.drawing[colorKey].locked = true;
   }
+  state.drawing[colorKey].reduce();
+  console.log(path.area)
+  console.log(path.children && path.children.map((p) => p.area));
   const combined = isAdd
     ? state.drawing[colorKey].unite(path)
     : state.drawing[colorKey].subtract(path);
+    console.log(path?.children?.length, path.intersections.length)
+    console.log(isAdd, path, 
+      state.drawing[colorKey], state.drawing[colorKey].children.map((p) => p.segments.length),
+      combined,combined.children.map((p) => p.segments.length));
   combined.locked = true;
   combined.fillColor = colors[colorKey].color;
   combined.insertAbove(state.drawing[colorKey]);
@@ -193,6 +201,7 @@ export function addPath(isAdd, path, colorKey) {
   path.remove();
 
   state.drawing[colorKey] = combined;
+  state.drawing[colorKey].selected = true;
 }
 
 export function applyDiff(isApply, diff) {
@@ -206,6 +215,7 @@ export function applyDiff(isApply, diff) {
     if (!isApply) {
       isAdd = !isAdd;
     } // do the reverse operation
+    console.log(colorDiff.path?.children?.length)
     addPath(isAdd, colorDiff.path, colorKey);
   });
 }

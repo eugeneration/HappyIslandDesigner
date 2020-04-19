@@ -152,6 +152,9 @@ export function drawGrid(viewPosition: paper.Point) {
       if (!diffCollection.hasOwnProperty(colorKey)) {
         diffCollection[colorKey] = { isAdd: colorDiff.isAdd, path: [] };
       }
+      if (colorDiff.path.children) {
+        console.log("compound path in diff!");
+      }
       diffCollection[colorKey].path.push(colorDiff.path);
       if (diffCollection[colorKey].isAdd !== colorDiff.isAdd) {
         console.error(`Simultaneous add and remove for ${colorKey}`);
@@ -198,12 +201,15 @@ export function endDrawGrid() {
   prevGridCoordinate = null;
   startGridCoordinate = null;
   Object.keys(diffCollection).forEach((k) => {
-    mergedDiff[k] = {
-      isAdd: diffCollection[k].isAdd,
-      path: uniteCompoundPath(
-        new paper.CompoundPath({ children: diffCollection[k].path }),
-      ),
-    };
+    const combinedPath = uniteCompoundPath(
+      new paper.CompoundPath({ children: diffCollection[k].path }),
+    );
+    if (combinedPath.children && combinedPath.children.length > 0  || (combinedPath.segments && combinedPath.segments.length > 0)) {
+      mergedDiff[k] = {
+        isAdd: diffCollection[k].isAdd,
+        path: combinedPath,
+      };
+    }
   });
   diffCollection = {};
   if (Object.keys(mergedDiff).length > 0) {
