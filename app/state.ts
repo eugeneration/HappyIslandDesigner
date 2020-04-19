@@ -66,6 +66,7 @@ export function applyCommand(command, isApply: boolean) {
           applyCreateObject(!isApply, command);
           break;
         case 'position':
+          console.log(command)
           applyMoveCommand(isApply, command);
           break;
         case 'color':

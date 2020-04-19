@@ -1,4 +1,5 @@
 import { toolCategoryDefinition } from '.';
+import { layers } from '../layers';
 
 export const toolState = {
   activeTool: null,

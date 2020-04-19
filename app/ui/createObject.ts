@@ -30,8 +30,7 @@ export function createObjectBase(objectDefinition, itemData) {
     item = new paper.Group(item);
   }
 
-  item.pivot = item.bounds.bottomCenter;
-  item.pivot += objectDefinition.offset;
+  item.pivot = item.bounds.bottomCenter.add(objectDefinition.offset);
   item.position = new paper.Point(0, 0);
 
   const group = new paper.Group();
@@ -100,8 +99,13 @@ export function applyCreateObject(isCreate, createCommand) {
   if (isCreate) {
     createObjectAsync(createCommand.data, (object) => {
       object.position = createCommand.position;
-      atomicObjectId += 1;
-      object.data.id = atomicObjectId;
+
+      if (createCommand.data.id != null) {
+        object.data.id = createCommand.data.id;
+      } else {
+        atomicObjectId += 1;
+        object.data.id = atomicObjectId;
+      }
       // immediately grab the structure with the start position of creation
       state.objects[object.data.id] = object;
     });
@@ -141,11 +145,11 @@ export function createObject(objectDefinition, itemData) {
   group.showDeleteButton = function (show) {
     let { deleteButton } = group.data;
 
-    if (show && deleteButton === null) {
+    if (show && deleteButton == null) {
       const icon = new paper.Raster('static/img/ui-x.png');
-      icon.scaling = 0.03;
+      icon.scaling = new paper.Point(0.03, 0.03);
 
-      const buttonBacking = new paper.Path.Circle(0, 0, 0.9);
+      const buttonBacking = new paper.Path.Circle(new paper.Point(0, 0), 0.9);
       buttonBacking.fillColor = colors.offWhite.color;
       const button = createButton(icon, 0.8, (event) => {
         group.onDelete();
@@ -197,12 +201,12 @@ export function createObject(objectDefinition, itemData) {
     const coordinate = layers.mapOverlayLayer.globalToLocal(event.point);
     this.data.prevPosition = this.position;
     this.data.wasMoved = false;
-    this.data.clickPivot = coordinate - this.pivot;
+    this.data.clickPivot = coordinate.subtract(this.pivot);
     grabObject(coordinate, this);
   };
   group.onMouseDrag = function (event) {
     const coordinate = layers.mapOverlayLayer.globalToLocal(event.point);
-    this.position = (coordinate - this.data.clickPivot).round();
+    this.position = (coordinate.subtract(this.data.clickPivot)).round();
     if (this.position.getDistance(this.data.prevPosition, true) > 0.1) {
       this.data.wasMoved = true;
     }
@@ -223,7 +227,7 @@ export function createObject(objectDefinition, itemData) {
 
     delete this.data.prevPosition;
     delete this.data.clickPivot;
-    if (prevPosition !== coordinate.position) {
+    if (!prevPosition.equals(this.position)) {
       dropObject(coordinate, this, prevPosition);
     }
   };
