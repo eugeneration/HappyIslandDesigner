@@ -85,7 +85,7 @@ export function showHelpMenu(isShown: boolean) {
     versionCode.fontSize = 12;
     versionCode.fontFamily = 'TTNorms, sans-serif';
     versionCode.fillColor = colors.lightText.color;
-    versionCode.content = 'v0.2.1';
+    versionCode.content = 'v0.4.0';
 
     helpMenu.data.contents.addChildren([
       helpTextRaster,
@@ -95,6 +95,5 @@ export function showHelpMenu(isShown: boolean) {
 
     helpMenu.opacity = 0;
   }
-  helpMenu.tweenTo({ opacity: isShown ? 1 : 0 }, 200);
-  helpMenu.locked = !isShown;
+  helpMenu.data.show(isShown);
 }

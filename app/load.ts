@@ -82,9 +82,13 @@ export function loadMapFromFile() {
     };
     reader.readAsDataURL(file);
   };
+  loadFile(readFile);
+}
+
+export function loadFile(onLoad) {
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
   fileInput.style.display = 'none';
-  fileInput.onchange = readFile;
+  fileInput.onchange = onLoad;
   clickElem(fileInput);
 }

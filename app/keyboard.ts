@@ -110,20 +110,24 @@ export function onKeyDown(event) {
       toolState.deleteSelection();
       break;
     case 'escape':
-      let isMainMenuShown = !!(mainMenu != null && mainMenu.opacity > 0.8);
-      showMainMenu(!isMainMenuShown);
-      isHelpMenuShown = !!(helpMenu != null && helpMenu.opacity > 0.8);
-      if (isHelpMenuShown === true) {
-        showHelpMenu(false);
+      var isMainMenuShown = mainMenu && mainMenu.data.isShown();
+      if (isMainMenuShown) {
+        showMainMenu(false);
+      } else {
+        var otherModalShown = false;
+          modals.forEach(function (modal) {
+            if (modal != mainMenu && modal.data.isShown()) {
+              modal.data.show(false);
+              otherModalShown = true;
+            }
+          });
+          if (!otherModalShown)
+            showMainMenu(true);
       }
       break;
     case '?':
-      let isHelpMenuShown = !!(helpMenu != null && helpMenu.opacity > 0.8);
-      isMainMenuShown = !!(mainMenu != null && mainMenu.opacity > 0.8);
+      var isHelpMenuShown = helpMenu && helpMenu.data.isShown();
       showHelpMenu(!isHelpMenuShown);
-      if (isMainMenuShown === true) {
-        showMainMenu(false);
-      }
       break;
     case '\\':
       toggleGrid();

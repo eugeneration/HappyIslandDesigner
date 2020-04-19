@@ -12,7 +12,8 @@ let mainMenu: paper.Group;
 function createMenuButton(
   name: string,
   img: string,
-  index: number,
+  column: number,
+  row: number,
   onMouseDown: () => void,
 ) {
   const buttonGroup = new paper.Group();
@@ -32,7 +33,7 @@ function createMenuButton(
 
   buttonGroup.applyMatrix = false;
   buttonGroup.addChildren([hitTarget, button]);
-  buttonGroup.position = new paper.Point(20 + index * 70, 0);
+  buttonGroup.position = new paper.Point(20 + column * 70, row * 70);
 
   buttonGroup.onMouseDown = function () {
     onMouseDown();
@@ -100,7 +101,7 @@ export function showMainMenu(isShown: boolean) {
     const saveButton = createMenuButton(
       'Save as Image',
       'static/img/menu-save.png',
-      0,
+      0, 0,
       () => {
         saveMapToFile();
       },
@@ -108,7 +109,7 @@ export function showMainMenu(isShown: boolean) {
     const loadButton = createMenuButton(
       'Load Map',
       'static/img/menu-open.png',
-      1,
+      1, 0,
       () => {
         loadMapFromFile();
       },
@@ -116,7 +117,7 @@ export function showMainMenu(isShown: boolean) {
     const newButton = createMenuButton(
       'New Map',
       'static/img/menu-new.png',
-      2,
+      2, 0,
       () => {
         // eslint-disable-next-line no-alert, no-restricted-globals
         const r = confirm('Clear your map? You will lose all unsaved changes.');
@@ -125,11 +126,13 @@ export function showMainMenu(isShown: boolean) {
         }
       },
     );
+    var switchButton = createMenuButton('Load Game Map', 'img/menu-switch.png', 0, 1,
+        function() { showSwitchModal(true) });
 
     const twitterButton = createMenuButton(
       'Twitter',
       'static/img/menu-twitt.png',
-      0,
+      0, 3,
       () => {
         window.open('https://twitter.com/island_designer', '_blank');
       },
@@ -140,6 +143,7 @@ export function showMainMenu(isShown: boolean) {
       saveButton,
       loadButton,
       newButton,
+      switchButton, 
       twitterButton,
     ]);
     mainMenu.opacity = 0;

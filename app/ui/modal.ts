@@ -3,42 +3,27 @@ import { emitter } from '../emitter';
 import { colors } from '../colors';
 import { layers } from '../layers';
 
+var modals: Array<paper.Group> = [];
+
 export function renderModal(
   name: string,
   width: number,
   height: number,
   onDismiss,
+  options: {fullscreen?: boolean}
 ): paper.Group {
-  const topLeft = new paper.Point(0, 0); // + paper.view.bounds.topLeft;
-  const center = new paper.Point(
-    (paper.view.bounds.width * paper.view.scaling.x) / 2,
-    (paper.view.bounds.height * paper.view.scaling.y) / 2,
-  ); // + paper.view.bounds.topLeft * 2;
-  const bottomRight = new paper.Point(
-    paper.view.bounds.width * paper.view.scaling.x,
-    paper.view.bounds.height * paper.view.scaling.y,
-  ); // + paper.view.bounds.topLeft * 2;
+  var fullscreen = options?.fullscreen ?? false;
 
   layers.modalLayer.activate();
 
   const group = new paper.Group();
 
-  const darkFill = new paper.Path.Rectangle(
-    new paper.Rectangle(topLeft, bottomRight),
-  );
+  const darkFill = new paper.Path.Rectangle(new paper.Rectangle(0, 0, 1, 1));
   darkFill.fillColor = colors.offBlack.color;
   darkFill.fillColor.alpha = 0.3;
   darkFill.onMouseUp = onDismiss;
 
-  const modal = new paper.Path.Rectangle(
-    new paper.Rectangle(
-      center.x - width / 2,
-      center.y - height / 2,
-      width,
-      height,
-    ),
-    new paper.Size(60, 60),
-  );
+  var modal = new paper.Path();
   modal.fillColor = colors.paper.color;
   modal.onMouseEnter = function () {
     group.data.text.content = name;
@@ -47,32 +32,37 @@ export function renderModal(
   const modalContents = new paper.Group();
   modalContents.applyMatrix = false;
   modalContents.pivot = new paper.Point(0, 0);
-  modalContents.position = modal.bounds.topLeft.add(new paper.Point(40, 120));
   modalContents.data = {
     addElement() {},
   };
 
-  group.data = {
-    width: modal.bounds.width - 40 * 2,
-    height: modal.bounds.height - 120 - 40,
-    contents: modalContents,
-  };
+  function resize() {
+    const topLeft = new paper.Point(0, 0);// + view.bounds.topLeft;
+    const center = new paper.Point(view.bounds.width * view.scaling.x / 2, view.bounds.height * view.scaling.y / 2);// + view.bounds.topLeft * 2;
+    const bottomRight = new paper.Point(view.bounds.width * view.scaling.x, view.bounds.height * view.scaling.y);// + view.bounds.topLeft * 2;
 
-  emitter.on('resize', () => {
-    const newTopLeft = new paper.Point(0, 0); // + paper.view.bounds.topLeft;
-    const newCenter = new paper.Point(
-      (paper.view.bounds.width * paper.view.scaling.x) / 2,
-      (paper.view.bounds.height * paper.view.scaling.y) / 2,
-    ); // + paper.view.bounds.topLeft * 2;
-    const newBottomRight = new paper.Point(
-      paper.view.bounds.width * paper.view.scaling.x,
-      paper.view.bounds.height * paper.view.scaling.y,
-    ); // + paper.view.bounds.topLeft * 2;
+    darkFill.bounds = new paper.Rectangle(topLeft, bottomRight);
+    
+    if (fullscreen) {
+      modal.segments = new paper.Path.Rectangle(new paper.Rectangle(
+        width, height, bottomRight.x - width * 2, bottomRight.y - height * 2),
+        new paper.Size(60, 60)).segments;
+    }
+    else if (!modal || modal.segments.length == 0) {
+      modal.segments = new paper.Path.Rectangle(new paper.Rectangle(
+        center.x - width / 2, 
+        center.y - height / 2, width, height),
+        new paper.Size(60, 60)).segments;
+    }
+    modal.position = center;
+    modalContents.position = modal.bounds.topLeft.add(new paper.Point(40, 120));
 
-    darkFill.bounds = new paper.Rectangle(newTopLeft, newBottomRight);
-    modal.position = newCenter;
-    modalContents.position = modal.bounds.topLeft.add(new paper.Point(40, 135));
-  });
+    group.data.width = modal.bounds.width - 40 * 2;
+    group.data.height = modal.bounds.height - 120 - 40;
+    group.data.contents = modalContents;
+  }
+  emitter.on('resize', resize);
+  resize();
 
   const text = new paper.PointText(new paper.Point(group.data.width / 2, -50));
   text.justification = 'center';
@@ -107,6 +97,19 @@ export function renderModal(
   group.addChildren([darkFill, modal, modalContents]);
 
   group.data.text = text;
+
+  modals.push(group);
+  group.data.isShown = function() { return group.opacity > 0.8; };
+  group.data.show = function(isShown) {
+    var modal = group;
+    modals.forEach(function (modal) {
+      var show = isShown && modal == group;
+      var targetOpacity = show ? 1 : 0;
+      if (modal.opacity != targetOpacity)
+        modal.tweenTo({opacity: targetOpacity}, 200);
+      modal.locked = !show;
+    });
+  }
 
   return group;
 }
