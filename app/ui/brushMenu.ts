@@ -11,6 +11,8 @@ import {
   getCurrentBrushLineForce,
   getCurrentBrushSize,
 } from '../brush';
+import { createIncrementComponents, createVerticalIncrementControl } from './incrementControl';
+import { Group, Path, Point, Rectangle, Size } from 'paper';
 
 let brushSizeUI;
 let brushPreview: paper.Path;
@@ -18,14 +20,6 @@ let brushSizeText: paper.PointText;
 let drawLineButton: paper.Group;
 let drawBrushButton: paper.Group;
 
-function brushButton(path, onPress) {
-  const icon = new paper.Raster(path);
-  icon.scaling = new paper.Point(0.45, 0.45);
-  return createButton(icon, 20, onPress, {
-    highlightedColor: colors.paperOverlay.color,
-    selectedColor: colors.paperOverlay2.color,
-  });
-}
 function brushLineButton(path, onPress) {
   const icon = new paper.Raster(path);
   icon.scaling = new paper.Point(0.45, 0.45);
@@ -52,9 +46,8 @@ function updateBrushLineButton(isBrushLine) {
 
 export function showBrushSizeUI(isShown) {
   if (!brushSizeUI) {
-    const group = new paper.Group();
-    group.applyMatrix = false;
-    brushPreview = new paper.Path();
+    
+    brushPreview = new Path();
 
     const brush = getCurrentBrush();
     if (brush) {
@@ -64,25 +57,27 @@ export function showBrushSizeUI(isShown) {
     brushPreview.strokeColor = colors.lightText.color;
     brushPreview.strokeWidth = 0.1;
 
-    brushSizeText = new paper.PointText(new paper.Point(0, 28));
-    brushSizeText.fontFamily = 'TTNorms, sans-serif';
-    brushSizeText.fontSize = 14;
-    brushSizeText.fillColor = colors.text.color;
-    brushSizeText.justification = 'center';
+    var incrementComponents = createIncrementComponents(incrementBrush, decrementBrush);
+    
+    brushSizeText = incrementComponents.text;
+    brushSizeText.content = '0';
+    brushSizeText.position = new Point(0, 24);
+
+    var incrementImage = new Group();
+    incrementImage.applyMatrix = false;
+    incrementImage.addChildren([brushPreview, brushSizeText]);
+
+    var incrementControl = createVerticalIncrementControl(
+      incrementComponents.increment,
+      incrementComponents.decrement,
+      153,
+      incrementImage,
+      22);
+
+    incrementControl.position = incrementControl.position.add(new Point(0, -22));
 
     emitter.on('updateBrush', update);
     update();
-
-    const increaseButton = brushButton(
-      'static/img/ui-plus.png',
-      incrementBrush,
-    );
-    const decreaseButton = brushButton(
-      'static/img/ui-minus.png',
-      decrementBrush,
-    );
-    increaseButton.position = new paper.Point(0, 70);
-    decreaseButton.position = new paper.Point(0, 110);
 
     drawLineButton = brushLineButton('static/img/menu-drawline.png', () => {
       setBrushLineForce(true);
@@ -95,48 +90,34 @@ export function showBrushSizeUI(isShown) {
     emitter.on('updateBrushLineForce', updateBrushLineButton);
     updateBrushLineButton(getCurrentBrushLineForce());
 
-    drawLineButton.position = new paper.Point(0, 210);
-    drawBrushButton.position = new paper.Point(0, 170);
+    drawLineButton.position = new Point(0, 210);
+    drawBrushButton.position = new Point(0, 170);
 
     const backingWidth = 42;
-    const brushSizeBacking = new paper.Path.Rectangle(
-      new paper.Rectangle(
-        -backingWidth / 2,
-        0,
-        backingWidth,
-        153,
-      ),
-      new paper.Size(backingWidth / 2, backingWidth / 2),
-    );
-    brushSizeBacking.strokeColor = colors.paperOverlay2.color;
-    brushSizeBacking.strokeWidth = 2;
-    brushSizeBacking.position = brushSizeBacking.position.add(new paper.Point(0, -22));
 
-    const brushLineBacking = new paper.Path.Rectangle(
-      new paper.Rectangle(
+    const brushLineBacking = new Path.Rectangle(
+      new Rectangle(
         -backingWidth / 2,
         0,
         backingWidth,
         82,
       ),
-      new paper.Size(backingWidth / 2, backingWidth / 2),
+      new Size(backingWidth / 2, backingWidth / 2),
     );
     brushLineBacking.strokeColor = colors.paperOverlay2.color;
     brushLineBacking.strokeWidth = 2;
-    brushLineBacking.position = brushSizeBacking.position.add(new paper.Point(0, 136));
+    brushLineBacking.position = incrementControl.position.add(new Point(0, 136));
 
+    const group = new paper.Group();
+    group.applyMatrix = false;
     group.addChildren([
-      brushPreview,
-      brushSizeText,
-      brushSizeBacking,
-      increaseButton,
-      decreaseButton,
+      incrementControl,
       brushLineBacking,
       drawLineButton,
       drawBrushButton,
     ]);
-    group.pivot = new paper.Point(0, 0);
-    group.position = new paper.Point(105, 55);
+    group.pivot = new Point(0, 0);
+    group.position = new Point(105, 55);
     brushSizeUI = group;
   }
   brushSizeUI.bringToFront();
