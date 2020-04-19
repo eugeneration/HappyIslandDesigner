@@ -2,13 +2,13 @@
 // otherwise I have to simplify the polygon after stretching points
 export function sweepPath(path: paper.Path, sweepVector) {
   // find the lines w/ segment normals > 0
-  const allFrontEdges: paper.Segment[][] = [];
-  let frontEdge: paper.Segment[] = [];
-  const sweepDirection = sweepVector.normalize();
-
   if (sweepVector.x === 0 && sweepVector.y === 0) {
     return path;
   }
+
+  const allFrontEdges: paper.Segment[][] = [];
+  let frontEdge: paper.Segment[] = [];
+  const sweepDirection = sweepVector.normalize();
 
   let isFirstFront = false;
   let isLastFront = false;
@@ -96,7 +96,7 @@ export function sweepPath(path: paper.Path, sweepVector) {
       if (isWrapped && first) {
         first = false;
       } else {
-        s.point += sweepVector;
+        s.point = s.point.add(sweepVector);
       }
     });
   });

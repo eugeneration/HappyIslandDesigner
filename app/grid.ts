@@ -139,11 +139,18 @@ export function drawGrid(viewPosition: paper.Point) {
   );
   const coordinate = getBrushCenteredCoordinate(rawCoordinate);
 
-  if (!prevGridCoordinate) {
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+  if (!startGridCoordinate) {
     startDrawGrid(viewPosition);
+    return;
   }
-  const path = drawLine(coordinate, prevGridCoordinate!);
+  if (!prevGridCoordinate) {
+    prevGridCoordinate = coordinate;
+  } else {
+    if (prevGridCoordinate.equals(coordinate))
+      return;
+  }
+
+  const path = drawLine(prevGridCoordinate!, coordinate);
   if (path) {
     const diff = getDiff(path, getCurrentPaintColor().key);
 
@@ -171,7 +178,6 @@ export function startDrawGrid(viewPosition: paper.Point) {
   let coordinate = new paper.Point(layers.mapLayer.globalToLocal(viewPosition));
   coordinate = getBrushCenteredCoordinate(coordinate);
   startGridCoordinate = coordinate;
-  prevGridCoordinate = coordinate;
   drawGrid(viewPosition);
 }
 

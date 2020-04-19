@@ -11,7 +11,7 @@ import { getObjectData } from './helpers/getObjectData';
 import { createObjectPreviewAsync } from './ui/createObject';
 
 let brushSize = 2;
-let brushSegments;
+let brushSegments: Array<paper.Point>;
 let brush: paper.Path;
 let brushOutline: paper.Path;
 
@@ -29,6 +29,10 @@ let paintColor = colors.level1;
 export function initBrush() {
   brush = new paper.Path();
   brushOutline = new paper.Path();
+}
+
+export function getCurrentBrushSegments() {
+  return brushSegments;
 }
 
 export function getCurrentBrush() {

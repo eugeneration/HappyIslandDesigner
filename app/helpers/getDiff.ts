@@ -52,8 +52,8 @@ export function getDiff(path: paper.Path, colorKey: string) {
       }
     });
 
-    if ((delta.children && delta.children.length > 0) || (isPath(delta) && delta.segments && delta.segments.length > 0)) {
-      diff[colorKey] = {
+    if ((delta.children && delta.children.length > 0) || (isPath(delta) && delta.segments && delta.segments.length > 0)) {  
+      diff[ck] = {
         isAdd,
         path: delta,
       };

@@ -4,7 +4,7 @@ import { state } from './state';
 import {
   getCurrentBrushLineForce,
   getCurrentPaintColor,
-  getCurrentBrush,
+  getCurrentBrushSegments,
   getCurrentBrushSize,
   getBrushCenteredCoordinate,
 } from './brush';
@@ -102,26 +102,32 @@ export function applyMoveCommand(isApply, moveCommand) {
     : moveCommand.prevPosition;
 }
 
-let prevDrawCoordinate: paper.Point | null;
+let prevDrawCoordinate: paper.Point | undefined;
 
 function getDrawPath(coordinate) {
-  const brushSegments = getCurrentBrush().segments;
+  const brushSegments = getCurrentBrushSegments();
   const brushSize = getCurrentBrushSize();
 
+  var pos = getBrushCenteredCoordinate(coordinate);
+  pos.x -= brushSize / 2 - 0.5;
+  pos.y -= brushSize / 2 - 0.5;
+
   const p = new paper.Path(brushSegments);
-  p.pivot = new paper.Point(brushSize / 2 - 0.5, brushSize / 2 - 0.5);
-  p.position = getBrushCenteredCoordinate(coordinate);
+  p.segments.forEach((coords, index) => {
+    p.segments[index].point = coords.point.add(pos);
+  });
+  p.closed = true;
   return p;
 }
 
 export function drawLine(start: paper.Point, end: paper.Point): paper.Path {
   const drawPaths: paper.Path[] = [];
   if (brushSweep) {
-    prevDrawCoordinate = null;
+    //prevDrawCoordinate = null;
 
-    let p: paper.Point;
-    let prevDelta: paper.Point;
-    let prevDrawLineCoordinate: paper.Point | null = null;
+    let p: paper.Point | undefined;
+    let prevDelta: paper.Point | undefined;
+    let prevDrawLineCoordinate: paper.Point | undefined;
     doForCellsOnLine(
       Math.round(start.x),
       Math.round(start.y),
@@ -129,11 +135,15 @@ export function drawLine(start: paper.Point, end: paper.Point): paper.Path {
       Math.round(end.y),
       (x, y) => {
         p = new paper.Point(x, y);
-        if (prevDrawLineCoordinate === null) {
+
+        if (prevDrawLineCoordinate && p.equals(prevDrawLineCoordinate)) return;
+
+        if (prevDrawLineCoordinate == null) {
           prevDrawLineCoordinate = p;
-        } else if (p !== prevDrawCoordinate) {
+        }
+        else if (prevDrawCoordinate) {
           const delta = p.subtract(prevDrawCoordinate);
-          if (prevDelta !== null && delta !== prevDelta) {
+          if (prevDelta != null && !delta.equals(prevDelta)) {
             const path = getDrawPath(prevDrawCoordinate);
             drawPaths.push(
               sweepPath(
@@ -148,9 +158,10 @@ export function drawLine(start: paper.Point, end: paper.Point): paper.Path {
         prevDrawCoordinate = p;
       },
     );
-    const path = getDrawPath(p);
-    var x = path.clone();
-    drawPaths.push(sweepPath(path, prevDrawLineCoordinate.subtract(p)));
+    if (prevDrawCoordinate && prevDrawLineCoordinate) {
+      const path = getDrawPath(p);
+      drawPaths.push(sweepPath(path, prevDrawLineCoordinate.subtract(prevDrawCoordinate)));
+    }
   } else {
     // stamping
     doForCellsOnLine(
@@ -183,16 +194,9 @@ export function addPath(isAdd, path, colorKey) {
     state.drawing[colorKey] = new paper.Path();
     state.drawing[colorKey].locked = true;
   }
-  state.drawing[colorKey].reduce();
-  console.log(path.area)
-  console.log(path.children && path.children.map((p) => p.area));
   const combined = isAdd
     ? state.drawing[colorKey].unite(path)
     : state.drawing[colorKey].subtract(path);
-    console.log(path?.children?.length, path.intersections.length)
-    console.log(isAdd, path, 
-      state.drawing[colorKey], state.drawing[colorKey].children.map((p) => p.segments.length),
-      combined,combined.children.map((p) => p.segments.length));
   combined.locked = true;
   combined.fillColor = colors[colorKey].color;
   combined.insertAbove(state.drawing[colorKey]);
@@ -201,13 +205,12 @@ export function addPath(isAdd, path, colorKey) {
   path.remove();
 
   state.drawing[colorKey] = combined;
-  state.drawing[colorKey].selected = true;
 }
 
 export function applyDiff(isApply, diff) {
   // todo: weird location
-  if (isApply) {
-    prevDrawCoordinate = null;
+  if (!isApply) {
+    prevDrawCoordinate = undefined;
   }
   Object.keys(diff).forEach((colorKey) => {
     const colorDiff = diff[colorKey];
@@ -215,7 +218,6 @@ export function applyDiff(isApply, diff) {
     if (!isApply) {
       isAdd = !isAdd;
     } // do the reverse operation
-    console.log(colorDiff.path?.children?.length)
     addPath(isAdd, colorDiff.path, colorKey);
   });
 }
