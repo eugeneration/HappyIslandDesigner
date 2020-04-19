@@ -2,6 +2,7 @@ import { clearMap, setNewMapData } from './state';
 import { decodeMap } from './save';
 import { template } from './template';
 import steg from './vendors/steganography';
+import LZString from 'lz-string';
 
 function clickElem(elem) {
   // Thx user1601638 on Stack Overflow (6/6/2018 - https://stackoverflow.com/questions/13405129/javascript-create-and-save-file )
@@ -69,6 +70,7 @@ export function loadMapFromFile() {
           try {
             json = JSON.parse(mapJSONString);
           } catch (err) {
+            console.log(LZString.decompress(mapJSONString))
             json = JSON.parse(LZString.decompress(mapJSONString));
           }
           const map = decodeMap(json);
