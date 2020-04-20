@@ -397,8 +397,8 @@ export function showSwitchModal(isShown) {
                 mapImage.data.points.reduce(function(acc, point) {
                   acc.push(point.position.x, point.position.y); return acc;
                 }, []));
-              function calculateLines(p0, p1, axis, numLines) {
-                var lines = [];
+              function calculateLines(p0: paper.Point, p1: paper.Point, axis: paper.Point, numLines: number) {
+                var lines: Array<[number, number]> = [];
                 for (let i = 0; i < numLines; i++) {
                   const offset = new Point(axis.y, axis.x).multiply(1.1);
 
@@ -410,7 +410,7 @@ export function showSwitchModal(isShown) {
                 }
                 return lines;
               }
-              function drawLinePath(points, index) {
+              function drawLinePath(points: [number, number], index: number) {
                 if (!outline.data.lines.children[index]) {
                   const line = new Path.Line(points);
                   line.strokeWidth = 1.5 / mapImageGroup.scaling.x;

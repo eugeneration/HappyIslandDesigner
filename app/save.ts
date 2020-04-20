@@ -94,7 +94,7 @@ function decodeObjectGroups(objectGroups, encodingVersion) {
 }
 
 function encodePath(p) {
-  const positions = [];
+  const positions: number[] = [];
   p.segments.forEach((s) => {
     const encodedPoint = encodePoint(s.point);
     positions.push(encodedPoint[0], encodedPoint[1]);

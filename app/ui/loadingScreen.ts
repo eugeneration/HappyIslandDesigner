@@ -10,7 +10,8 @@ function createElement() {
   img.id = "bob";
 
   let p = document.createElement("p");
-  p.style = "font-family: TTNorms; color: #726a5a";
+  p.style.fontFamily = "TTNorms";
+  p.style.color = "#726a5a";
   p.textContent = "Please wait a bit...";
 
   div.appendChild(img);

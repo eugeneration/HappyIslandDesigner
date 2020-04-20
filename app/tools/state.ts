@@ -31,7 +31,7 @@ export const toolState = {
       this.switchTool(this.toolMap[toolType], true);
     }
   },
-  switchTool(toolData, isToolTypeSwitch) {
+  switchTool(toolData, isToolTypeSwitch?: boolean) {
     const prevTool = this.activeTool;
     this.activeTool = toolData;
     this.toolMap[toolData.type] = toolData;

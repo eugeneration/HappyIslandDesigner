@@ -1,7 +1,7 @@
 import { pointApproximates } from './pointApproximates';
 import { getDistanceFromWholeNumber } from './getDistanceFromWholeNumber';
 
-export function correctPath(path: paper.Path, receivingPath: paper.Path) {
+export function correctPath(path: paper.Path, receivingPath: paper.PathItem) {
   path.segments.forEach((segment) => {
     const { point } = segment;
     const isSegmentInvalid =

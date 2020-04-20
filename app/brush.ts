@@ -11,7 +11,7 @@ import { getObjectData } from './helpers/getObjectData';
 import { createObjectPreviewAsync } from './ui/createObject';
 
 let brushSize = 2;
-let brushSegments: Array<paper.Point>;
+let brushSegments: Array<paper.Segment>;
 let brush: paper.Path;
 let brushOutline: paper.Path;
 
@@ -145,6 +145,10 @@ export function updateCoordinateLabel(event) {
 }
 
 function getBrushSegments(size) {
+  return getBrushPoints(size).map(p => new paper.Segment(p));
+}
+
+function getBrushPoints(size) {
   // square
   const sizeX = size;
   const sizeY = size;
