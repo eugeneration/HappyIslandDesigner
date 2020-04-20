@@ -1,12 +1,13 @@
-import paper from 'paper';
+import { Group, Path, Point, PointText, Raster, Size, view } from 'paper';
+import i18next from 'i18next';
+import PerspT from 'perspective-transform';
+
 import { renderModal } from './modal';
 import { createButton } from './createButton';
 import { colors } from '../colors';
 import { emitter } from '../emitter';
-import { Group, Path, Point, PointText, Raster, Size, view } from 'paper';
 import { layers } from '../layers';
 import { loadImage } from '../load';
-import PerspT from 'perspective-transform';
 import { updateMapOverlay } from './screenshotOverlay';
 
 let switchMenu: paper.Group;
@@ -17,7 +18,7 @@ export function showSwitchModal(isShown) {
 
     const isMobile = Math.min(view.bounds.width * view.scaling.x, view.bounds.height * view.scaling.y) < 400;
     const margin = isMobile ? 5 : 20;
-    switchMenu = renderModal('Load Game Map', margin, margin, function() {showSwitchModal(false)}, {fullscreen: true});
+    switchMenu = renderModal(i18next.t('load_game_map'), margin, margin, function() {showSwitchModal(false)}, {fullscreen: true});
 
     const uploadGroup = new Group();
     uploadGroup.applyMatrix = false;
@@ -41,7 +42,7 @@ export function showSwitchModal(isShown) {
         instructions.fontFamily = 'TTNorms, sans-serif';
         instructions.fontSize = isMobile ? 14 : 18;
         instructions.fillColor = colors.text.color;
-        instructions.content = "1. Upload a photo/screenshot of your map\n\n2. Mark the four corners of the grid";
+        instructions.content = i18next.t('load_game_map_instructions');
 
         const uploadIcon = new Raster('static/img/ui-upload-white.png');
         uploadIcon.scale(0.4);

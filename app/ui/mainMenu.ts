@@ -1,5 +1,6 @@
 import paper from 'paper';
 import * as animatePaper from 'paper-animate';
+import i18next from 'i18next';
 
 import { renderModal } from './modal';
 import { colors } from '../colors';
@@ -7,6 +8,7 @@ import { saveMapToFile } from '../save';
 import { loadMapFromFile, loadTemplate } from '../load';
 import { layers } from '../layers';
 import { showSwitchModal } from './screenshotModal';
+
 
 export let mainMenu: paper.Group;
 
@@ -95,12 +97,12 @@ export function showMainMenu(isShown: boolean) {
     if (!isShown) {
       return;
     }
-    mainMenu = renderModal('Main Menu', 260, 370, () => {
+    mainMenu = renderModal(i18next.t('mainmenu'), 260, 370, () => {
       showMainMenu(false);
     });
 
     const saveButton = createMenuButton(
-      'Save as Image',
+      i18next.t('save_image'),
       'static/img/menu-save.png',
       0, 0,
       () => {
@@ -108,7 +110,7 @@ export function showMainMenu(isShown: boolean) {
       },
     );
     const loadButton = createMenuButton(
-      'Load Map',
+      i18next.t('load_map'),
       'static/img/menu-open.png',
       1, 0,
       () => {
@@ -116,7 +118,7 @@ export function showMainMenu(isShown: boolean) {
       },
     );
     const newButton = createMenuButton(
-      'New Map',
+      i18next.t('new_map'),
       'static/img/menu-new.png',
       2, 0,
       () => {
@@ -128,12 +130,12 @@ export function showMainMenu(isShown: boolean) {
       },
     );
     var switchButton = createMenuButton(
-      'Load Game Map',
+      i18next.t('load_screenshot'),
       'static/img/menu-switch.png', 0, 1,
       () => showSwitchModal(true));
 
     const twitterButton = createMenuButton(
-      'Twitter',
+      i18next.t('twitter'),
       'static/img/menu-twitt.png',
       0, 3,
       () => {

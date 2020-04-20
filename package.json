@@ -58,6 +58,7 @@
     "browser-update": "^3.3.16",
     "hammerjs": "2.0.8",
     "heic2any": "^0.0.3",
+    "i18next": "^19.4.2",
     "lz-string": "1.4.4",
     "paper": "0.12.4",
     "paper-animate": "1.2.1",

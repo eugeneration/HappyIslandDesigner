@@ -10,7 +10,7 @@ export function renderModal(
   width: number,
   height: number,
   onDismiss,
-  options: {fullscreen?: boolean}
+  options?: {fullscreen?: boolean}
 ): paper.Group {
   var fullscreen = options?.fullscreen ?? false;
 
