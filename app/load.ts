@@ -59,8 +59,11 @@ export function loadMapFromFile() {
     try {
       json = JSON.parse(mapJSONString);
     } catch (err) {
-      console.log(LZString.decompress(mapJSONString))
-      json = JSON.parse(LZString.decompress(mapJSONString));
+      try {
+        json = JSON.parse(LZString.decompressFromUTF16(mapJSONString))
+      } catch (e) {
+        json = JSON.parse(LZString.decompress(mapJSONString))
+      }
     }
     const map = decodeMap(json);
 
