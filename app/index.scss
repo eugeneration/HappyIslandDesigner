@@ -45,3 +45,25 @@ canvas[resize],
   font-family: 'TTNorms';
   src: url('/static/font/TTNorms-Bold.woff') format('woff');
 }
+
+#bobContainer {
+  display: none;
+  opacity: 0;
+  background-color: #f5f3e5;
+  border-radius: 40px;
+  position: absolute;
+  padding: 50px;
+  margin: auto;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 200px;
+  height: 200px;
+  text-align: center;
+  transition: opacity 0.5s;
+  box-shadow: rgba(0, 0, 0, 0.5) 0 0 20px;
+}
+#bob {
+  width: 50%;
+}

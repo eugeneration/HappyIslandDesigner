@@ -6,7 +6,7 @@ import { createButton } from "./createButton";
 export function createIncrementComponents(onIncrement, onDecrement) {
   function incrementButton(path, onPress) {
     const icon = new Raster(path);
-    icon.scaling = 0.45;
+    icon.scale(0.45);
     return createButton(icon, 20, onPress, {
       highlightedColor: colors.paperOverlay.color,
       selectedColor: colors.paperOverlay2.color,

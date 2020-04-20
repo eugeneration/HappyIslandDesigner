@@ -56,6 +56,7 @@
     "@babel/polyfill": "7.8.7",
     "@babel/runtime": "7.9.2",
     "hammerjs": "2.0.8",
+    "heic2any": "^0.0.3",
     "lz-string": "1.4.4",
     "paper": "0.12.4",
     "paper-animate": "1.2.1",
