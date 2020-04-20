@@ -3,7 +3,7 @@ import { emitter } from '../emitter';
 import { colors } from '../colors';
 import { layers } from '../layers';
 
-var modals: Array<paper.Group> = [];
+export var modals: Array<paper.Group> = [];
 
 export function renderModal(
   name: string,

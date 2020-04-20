@@ -3,7 +3,7 @@ import paper from 'paper';
 import { renderModal } from './modal';
 import { colors } from '../colors';
 
-let helpMenu: paper.Group;
+export let helpMenu: paper.Group;
 
 export function showHelpMenu(isShown: boolean) {
   if (!helpMenu) {

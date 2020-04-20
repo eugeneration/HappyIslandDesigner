@@ -8,7 +8,7 @@ import { loadMapFromFile, loadTemplate } from '../load';
 import { layers } from '../layers';
 import { showSwitchModal } from './screenshotModal';
 
-let mainMenu: paper.Group;
+export let mainMenu: paper.Group;
 
 function createMenuButton(
   name: string,

@@ -11,19 +11,27 @@ import { colors } from './colors';
 import { saveMapToFile, encodeMap } from './save';
 import { loadMapFromFile } from './load';
 import { toolCategoryDefinition } from './tools';
-import { showMainMenu } from './ui/mainMenu';
-import { showHelpMenu } from './ui/help';
+import { showMainMenu, mainMenu } from './ui/mainMenu';
+import { showHelpMenu, helpMenu } from './ui/help';
 import { toggleGrid } from './grid';
 import { redo, undo, state } from './state';
+import { toggleScreenshotVisible } from './ui/screenshotOverlay';
+import { modals } from './ui/modal';
 
 export const keys = {
   isSpaceDown: false,
 };
 
+const keyDownMap = {};
+
 export function onKeyUp(event) {
   switch (event.key) {
     case 'space':
       keys.isSpaceDown = false;
+      break;
+    case '`':
+      toggleScreenshotVisible();
+      delete keyDownMap['`'];
       break;
   }
 }
@@ -163,6 +171,11 @@ export function onKeyDown(event) {
       Object.values(state.drawing).forEach((path) => {
         path.selected = !path.selected;
       });
+      break;
+    case '`':
+      if (!keyDownMap['`'])
+        toggleScreenshotVisible();
+      keyDownMap['`'] = true;
       break;
   }
   if (prevActiveTool === toolState.activeTool) {
