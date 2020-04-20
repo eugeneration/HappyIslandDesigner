@@ -264,8 +264,8 @@ export function saveMapToFile() {
   const gridClone = gridRaster.clone();
 
   const mapBounds = gridRaster.bounds.clone();
-  mapBounds.size.add(saveMargins);
-  mapBounds.point.subtract(saveMargins.divide(2).height);
+  mapBounds.size = mapBounds.size.add(saveMargins);
+  mapBounds.point = mapBounds.point.subtract(saveMargins.divide(2).height);
   const mapBoundsClippingMask = new paper.Path.Rectangle(mapBounds);
 
   const background = mapBoundsClippingMask.clone();
@@ -297,10 +297,10 @@ export function saveMapToFile() {
   ]);
 
   // the raster doesn't scale for some reason, so manually scale it;
-  mapRaster.scaling.divide(layers.mapLayer.scaling);
+  mapRaster.scaling = mapRaster.scaling.divide(layers.mapLayer.scaling);
   mapRaster.bounds.topLeft = mapPositionDelta;
 
-  iconsRaster.scaling.divide(layers.mapLayer.scaling);
+  iconsRaster.scaling = iconsRaster.scaling.divide(layers.mapLayer.scaling);
   iconsRaster.bounds.topLeft = iconsPositionDelta;
 
   const combinedImage = group.rasterize(708.5);
