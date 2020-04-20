@@ -49,13 +49,12 @@ export function createLeftMenu() {
 }
 
 export function addHelpButton() {
+  addToLeftToolMenu(); // add gap
+
   const btn = new paper.Raster(`${imgPath}menu-help.png`);
   btn.scaling = new paper.Point(0.3, 0.3);
-  btn.position = new paper.Point(0, 30);
+  btn.position = new paper.Point(0, 4);
 
-  const button = createButton(btn, 20, () => {});
-  button.onMouseUp = function () {
-    showHelpMenu(true);
-  };
+  const button = createButton(btn, 20, () => showHelpMenu(true));
   addToLeftToolMenu(button);
 }
