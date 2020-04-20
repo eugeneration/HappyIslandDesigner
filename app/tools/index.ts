@@ -310,6 +310,9 @@ export function initTools() {
         // this is a little messy
         this.iconMenu.data.update(this.data.paintColorData.key);
       }
+      if (isSelected && this.data.paintColorData) {
+        updatePaintColor(this.data.paintColorData);
+      }
       this.iconMenu.visible = isSelected;
       showBrushSizeUI(isSelected);
     },
@@ -398,6 +401,9 @@ export function initTools() {
         this.iconMenu.position = new paper.Point(100, 45);
         // this is a little messy
         this.iconMenu.data.update(this.data.paintColorData.key);
+      }
+      if (isSelected && this.data.paintColorData) {
+        updatePaintColor(this.data.paintColorData);
       }
       this.iconMenu.visible = isSelected;
       showBrushSizeUI(isSelected);
