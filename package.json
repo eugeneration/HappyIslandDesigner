@@ -55,6 +55,7 @@
   "dependencies": {
     "@babel/polyfill": "7.8.7",
     "@babel/runtime": "7.9.2",
+    "browser-update": "^3.3.16",
     "hammerjs": "2.0.8",
     "heic2any": "^0.0.3",
     "lz-string": "1.4.4",
