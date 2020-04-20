@@ -31,7 +31,7 @@ import { startDraw, draw, endDraw } from '../paint';
 
 const toolPrefix = 'tool-';
 
-export const baseToolCategoryDefinition = {
+class BaseToolCategoryDefinition {
   onSelect(subclass, isSelected, isReselected) {
     subclass.icon.data.select(isSelected);
 
@@ -44,31 +44,31 @@ export const baseToolCategoryDefinition = {
     if (!isSelected) {
       subclass.enablePreview(isSelected);
     }
-  },
+  }
   onMouseMove(subclass, event: paper.MouseEvent) {
     updateCoordinateLabel(event);
-  },
+  }
   onMouseDown(subclass, event: paper.MouseEvent) {
     updateCoordinateLabel(event);
-  },
+  }
   onMouseDrag(subclass, event: paper.MouseEvent) {
     updateCoordinateLabel(event);
-  },
+  }
   onMouseUp(subclass, event: paper.MouseEvent) {
     updateCoordinateLabel(event);
-  },
-  onKeyDown(subclass, event: paper.KeyEvent) {},
-  enablePreview(subclass, isEnabled: boolean) {},
+  }
+  onKeyDown(subclass, event: paper.KeyEvent) {}
+  enablePreview(subclass, isEnabled: boolean) {}
   toggleMenu(subclass) {
     if (subclass.openMenu) {
       subclass.openMenu(!(subclass.iconMenu && subclass.iconMenu.visible));
     }
-  },
+  }
   openMenu(subclass, isSelected) {
     if (subclass.openMenu) {
       subclass.openMenu(isSelected);
     }
-  },
+  }
   updateTool(subclass, prevToolData, nextToolData, isToolTypeSwitch) {
     const sameToolType =
       prevToolData &&
@@ -109,40 +109,52 @@ export const baseToolCategoryDefinition = {
         }
       }
     }
-  },
+  }
 };
+const baseToolCategoryDefinition = new BaseToolCategoryDefinition();
 
-export const baseObjectCategoryDefinition = {
-  base: baseToolCategoryDefinition,
-  // type: 'tree', // filled in by base class
-  // icon: "amenities",
-  // tools: asyncTreeDefinition,
-  // menuOptions: {},
-  // yPos: 185
-  iconMenu: null,
-  layer: null,
-  defaultTool: null,
-  modifiers: {},
-  defaultModifiers: {},
+class BaseObjectCategoryDefinition {
+  constructor({type, icon, tools, menuOptions, yPos}) {
+    this.type = type;
+    this.icon = icon;
+    this.tools = tools;
+    this.menuOptions = menuOptions;
+    this.yPos = yPos;
+  }
+
+  base = baseToolCategoryDefinition;
+
+  type: string;
+  icon: string;
+  tools: any; // asyncTreeDefinition,
+
+  menuOptions = {};
+  yPos = 0;
+
+  iconMenu: paper.Group | null = null;
+  defaultTool: null;
+  modifiers = {};
+  defaultModifiers = {};
+
   onSelect(isSelected, isReselected) {
     this.base.onSelect(this, isSelected, isReselected);
-  },
+  }
   onMouseMove(event) {
     this.base.onMouseMove(this, event);
-  },
+  }
   onMouseDown(event) {
     placeObject(event);
     this.base.onMouseDown(this, event);
-  },
+  }
   onMouseDrag(event) {
     this.base.onMouseDrag(this, event);
-  },
+  }
   onMouseUp(event) {
     this.base.onMouseUp(this, event);
-  },
+  }
   onKeyDown(event) {
     this.base.onKeyDown(this, event);
-  },
+  }
   enablePreview(isEnabled) {
     this.base.enablePreview(this, isEnabled);
     const objectPreviewOutline = getCurrentObjectPreviewOutline();
@@ -154,7 +166,7 @@ export const baseObjectCategoryDefinition = {
     if (objectPreview) {
       objectPreview.visible = isEnabled;
     }
-  },
+  }
   openMenu(isSelected) {
     if (this.iconMenu === null) {
       this.tools.getAsyncValue((definitions) => {
@@ -187,19 +199,11 @@ export const baseObjectCategoryDefinition = {
     } else {
       this.iconMenu.visible = isSelected;
     }
-  },
+  }
 };
 
-export const toolCategoryDefinition: Record<
-  | 'terrain'
-  | 'path'
-  | 'structures'
-  | 'amenities'
-  | 'construction'
-  | 'tree'
-  | 'flower',
-  any
-> = {
+export const toolCategoryDefinition: any = {};
+ 
   //    pointer: {
   //      base: baseToolCategoryDefinition,
   //      type: 'pointer',
@@ -238,11 +242,8 @@ export const toolCategoryDefinition: Record<
   //    type: 'sprite',
   //    targetLayers: [mapIconLayer],
   //  },
-};
 
 export function initTools() {
-  baseObjectCategoryDefinition.layer = layers.mapIconLayer;
-
   toolCategoryDefinition.terrain = {
     base: baseToolCategoryDefinition,
     type: 'terrain',
@@ -410,59 +411,49 @@ export function initTools() {
     },
   };
 
-  toolCategoryDefinition.structures = Object.assign(
-    Object.create(baseObjectCategoryDefinition),
-    {
+  toolCategoryDefinition.structures = 
+    new BaseObjectCategoryDefinition({
       type: 'structures',
       icon: 'structure',
       tools: structureDef.asyncStructureDefinition,
       menuOptions: { spacing: 50, perColumn: 9 },
       yPos: 160,
-    },
-  );
+    });
 
-  toolCategoryDefinition.amenities = Object.assign(
-    Object.create(baseObjectCategoryDefinition),
-    {
+  toolCategoryDefinition.amenities =
+    new BaseObjectCategoryDefinition({
       type: 'amenities',
       icon: 'amenities',
       tools: amenitiesDef.asyncAmenitiesDefinition,
       menuOptions: { spacing: 50, perColumn: 8 },
       yPos: 208,
-    },
-  );
+    });
 
-  toolCategoryDefinition.construction = Object.assign(
-    Object.create(baseObjectCategoryDefinition),
-    {
+  toolCategoryDefinition.construction =
+    new BaseObjectCategoryDefinition({
       type: 'construction',
       icon: 'construction',
       tools: constructionDef.asyncConstructionDefinition,
       menuOptions: { spacing: 50, perColumn: 9 },
       yPos: 260,
-    },
-  );
+    });
 
-  toolCategoryDefinition.tree = Object.assign(
-    Object.create(baseObjectCategoryDefinition),
-    {
+  toolCategoryDefinition.tree =
+    new BaseObjectCategoryDefinition({
       type: 'tree',
       icon: 'tree',
       tools: treeDef.asyncTreeDefinition,
       menuOptions: { spacing: 50, perColumn: 8 },
       yPos: 310,
-    },
-  );
-  toolCategoryDefinition.flower = Object.assign(
-    Object.create(baseObjectCategoryDefinition),
-    {
+    });
+  toolCategoryDefinition.flower =
+    new BaseObjectCategoryDefinition({
       type: 'flower',
       icon: 'flower',
       tools: flowerDef.asyncFlowerDefinition,
       menuOptions: { spacing: 50, perColumn: 9 },
       yPos: 360,
-    },
-  );
+    });
 
   amenitiesDef.load();
   structureDef.load();
