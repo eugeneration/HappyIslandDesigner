@@ -414,7 +414,7 @@ export function showSwitchModal(isShown) {
                 if (!outline.data.lines.children[index]) {
                   const line = new Path.Line(points);
                   line.strokeWidth = 1.5 / mapImageGroup.scaling.x;
-                  line.strokeColor = colors.white.color;
+                  line.strokeColor = colors.white.color.clone();
                   line.strokeColor.alpha = 0.3;
                   outline.data.lines.addChild(line);
                 }

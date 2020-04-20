@@ -9,9 +9,9 @@ type buttonOptions = {
 };
 export function createButton(item, buttonSize: number, onClick, options?: buttonOptions) {
   const alpha = options?.alpha ?? 0.0001;
-  const highlightedColor = options?.highlightedColor ?? colors.sand.color;
-  const selectedColor = options?.selectedColor ?? colors.npc.color;
-  const disabledColor = options?.disabledColor ?? null;
+  const highlightedColor = options?.highlightedColor?.clone() ?? colors.sand.color.clone();
+  const selectedColor = options?.selectedColor?.clone() ?? colors.npc.color.clone();
+  const disabledColor = options?.disabledColor?.clone() ?? null;
 
   const group = new paper.Group();
 
