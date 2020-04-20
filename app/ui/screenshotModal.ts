@@ -3,9 +3,13 @@ import { renderModal } from './modal';
 import { createButton } from './createButton';
 import { colors } from '../colors';
 import { emitter } from '../emitter';
-import { Group, Path, Point, PointText, Raster, Size, view } from 'paper/dist/paper-core';
+import { Group, Path, Point, PointText, Raster, Size, view } from 'paper';
+import { layers } from '../layers';
+import { loadImage } from '../load';
+import PerspT from 'perspective-transform';
+import { updateMapOverlay } from './screenshotOverlay';
 
-let switchMenu: Group;
+let switchMenu: paper.Group;
 
 export function showSwitchModal(isShown) {
   if (switchMenu == null) {
@@ -13,34 +17,34 @@ export function showSwitchModal(isShown) {
 
     const isMobile = Math.min(view.bounds.width * view.scaling.x, view.bounds.height * view.scaling.y) < 400;
     const margin = isMobile ? 5 : 20;
-    switchMenu = renderModal(i18next.t('load_game_map'), margin, margin, function() {showSwitchModal(false)}, {fullscreen: true});
+    switchMenu = renderModal('Load Game Map', margin, margin, function() {showSwitchModal(false)}, {fullscreen: true});
 
     const uploadGroup = new Group();
     uploadGroup.applyMatrix = false;
     switchMenu.data.contents.addChild(uploadGroup);
     {
       var instructionImage = new Raster(
-          isMobile ? 'img/screenshot-instructions-mobile.png': 'img/screenshot-instructions.png');
+          isMobile ? 'static/img/screenshot-instructions-mobile.png': 'static/img/screenshot-instructions.png');
       instructionImage.scale(0.5);
       instructionImage.onLoad = function() {
         if (instructionImage.bounds.width > switchMenu.data.width) {
-          instructionImage.scaling = switchMenu.data.width / instructionImage.width;
+          instructionImage.scale(switchMenu.data.width / instructionImage.width);
           instructionImage.bounds.topCenter = new Point(0, 0);
         }
         if (instructionImage.bounds.height > switchMenu.data.height * 0.5) {
-          instructionImage.scaling = (switchMenu.data.height * 0.5) / instructionImage.height;
+          instructionImage.scale((switchMenu.data.height * 0.5) / instructionImage.height);
           instructionImage.bounds.topCenter = new Point(0, 0);
         }
 
-        const instructions = new PointText(instructionImage.bounds.bottomCenter.add(new paper.Point(0, 60)););
+        const instructions = new PointText(instructionImage.bounds.bottomCenter.add(new Point(0, 60)));
         instructions.justification = 'center';
         instructions.fontFamily = 'TTNorms, sans-serif';
         instructions.fontSize = isMobile ? 14 : 18;
         instructions.fillColor = colors.text.color;
-        instructions.content = i18next.t('load_game_map_instructions');
+        instructions.content = "1. Upload a photo/screenshot of your map\n\n2. Mark the four corners of the grid";
 
-        const uploadIcon = new Raster('img/ui-upload-white.png');
-        uploadIcon.scaling = 0.4;
+        const uploadIcon = new Raster('static/img/ui-upload-white.png');
+        uploadIcon.scale(0.4);
         var uploadButton = createButton(uploadIcon, 30, function() {
           loadImage(loadMapImage);
         }, {
@@ -95,7 +99,7 @@ export function showSwitchModal(isShown) {
 
         const inverseScale = 1 / mapImageGroup.scaling.x;
 
-        const closeIcon = new Raster('img/ui-x.png');
+        const closeIcon = new Raster('static/img/ui-x.png');
         closeIcon.scaling = .5;
         const closeButton = createButton(closeIcon, 24, function(){mapImage.data.remove()}, {
           alpha: 0.9,
@@ -105,7 +109,7 @@ export function showSwitchModal(isShown) {
         closeButton.scaling = inverseScale;
         closeButton.position = mapImage.bounds.topRight;
 
-        const confirmIcon = new Raster('img/ui-check-white.png');
+        const confirmIcon = new Raster('static/img/ui-check-white.png');
         confirmIcon.scaling = 0.5;
         const confirmButton = createButton(confirmIcon, 30, function() {
           mapImage.data.perspectiveWarp();
@@ -118,7 +122,7 @@ export function showSwitchModal(isShown) {
           disabledColor: colors.text.color,
         });
         confirmButton.data.disable(true);
-        confirmButton.bounds.topCenter = mapImage.bounds.bottomCenter + new Point(0, 58 * inverseScale);
+        confirmButton.bounds.topCenter = mapImage.bounds.bottomCenter.add(new Point(0, 58 * inverseScale));
         confirmButton.scaling = inverseScale;
         emitter.on('screenshot_update_point', function(pointCount) {
           if (pointCount == 4) {
@@ -171,7 +175,7 @@ export function showSwitchModal(isShown) {
               this.data.grabbedPoint = this.data.hoveredPoint;
               this.data.grabbedPoint.data.select(true);
               this.data.grabbedPoint.data.startPoint = rawCoordinate;
-              this.data.grabbedPoint.data.grabPivot = rawCoordinate - this.data.grabbedPoint.position;
+              this.data.grabbedPoint.data.grabPivot = rawCoordinate.subtract(this.data.grabbedPoint.position);
           }
 
           if (mapImage.data.points.length < 4 && !this.data.grabbedPoint) {
@@ -253,7 +257,7 @@ export function showSwitchModal(isShown) {
             }
 
             if (this.data.grabbedPoint) {
-              var zoom = document.createElement("canvas");
+              const zoom = document.createElement("canvas");
               zoom.height = 200;
               zoom.width = 200;
               zoom.style.position = 'absolute';
@@ -261,10 +265,10 @@ export function showSwitchModal(isShown) {
               document.body.appendChild(zoom);
               mapImage.data.zoom = zoom;
               zoom.update = function(event, pointGlobalPosition) {
-                var zoomLevel = Math.min(0.8, 4 * mapImageGroup.scaling.x) * view.pixelRatio;
-                var zoomSize = 100;
-                var zoom = mapImage.data.zoom;
-                var pointCanvasPosition = fixedLayer.globalToLocal(pointGlobalPosition);
+                const zoomLevel = Math.min(0.8, 4 * mapImageGroup.scaling.x) * view.pixelRatio;
+                const zoomSize = 100;
+                const zoom = mapImage.data.zoom;
+                const pointCanvasPosition = layers.fixedLayer.globalToLocal(pointGlobalPosition);
 
                 zoom.getContext("2d").drawImage(view.element,
                     pointCanvasPosition.x * view.pixelRatio - zoomLevel * zoomSize * 0.5,
@@ -288,12 +292,12 @@ export function showSwitchModal(isShown) {
             }
           }
           mapImage.onMouseDrag = function(event) {
-            var rawCoordinate = mapImageGroup.globalToLocal(event.point);
+            const rawCoordinate = mapImageGroup.globalToLocal(event.point);
 
-            var point = mapImage.data.grabbedPoint;
+            const point = mapImage.data.grabbedPoint;
             if (point) {
-              var delta = rawCoordinate - point.data.startPoint;
-              point.position = point.data.startPoint - point.data.grabPivot + delta * (isMobile ? 0.08 : 0.2);
+              const delta = rawCoordinate.subtract(point.data.startPoint);
+              point.position = point.data.startPoint.subtract(point.data.grabPivot).add(delta.multiply(isMobile ? 0.08 : 0.2));
 
               mapImage.data.zoom.update(event, mapImageGroup.localToGlobal(point.position));
 
@@ -303,26 +307,25 @@ export function showSwitchModal(isShown) {
             }
           }
           mapImage.onMouseUp = function(event) {
-          var rawCoordinate = mapImageGroup.globalToLocal(event.point);
 
-          if (mapImage.data.zoom) {
-            mapImage.data.zoom.remove();
-          }
+            if (mapImage.data.zoom) {
+              mapImage.data.zoom.remove();
+            }
 
-          if (this.data.grabbedPoint) {
-            this.data.grabbedPoint.data.select(false);
-            this.data.grabbedPoint = null;
-          }
+            if (this.data.grabbedPoint) {
+              this.data.grabbedPoint.data.select(false);
+              this.data.grabbedPoint = null;
+            }
 
-          if (event.event.touches && this.data.hoveredPoint) {
-            this.data.hoveredPoint.data.hover(false);
-            this.data.hoveredPoint = null;
-          }
+            if (event.event.touches && this.data.hoveredPoint) {
+              this.data.hoveredPoint.data.hover(false);
+              this.data.hoveredPoint = null;
+            }
 
-          if (mapImage.data.points.length == 4) {
-            this.data.updateOutline();
-            //this.data.perspectiveWarp();
-          }
+            if (mapImage.data.points.length == 4) {
+              this.data.updateOutline();
+              //this.data.perspectiveWarp();
+            }
           }
           mapImage.data.sortPoints = function() {
             // reorder the points to clockwise starting from top left
@@ -337,14 +340,14 @@ export function showSwitchModal(isShown) {
                 // the top/bottom edge must contain the top point and has slope closest to zero
                 function getHorizontalEdge(point, otherPoints) {
                   otherPoints.sort(function(a, b) {return Math.abs(slope(a.position, point.position)) - Math.abs(slope(b.position, point.position))});
-                  var edgePoint = otherPoints[0];
-                  var edge = [edgePoint, point];
+                  const edgePoint = otherPoints[0];
+                  const edge = [edgePoint, point];
                   edge.sort(function(a, b){return a.position.x - b.position.x});
                   return edge;
                 }
 
-                var topEdge = getHorizontalEdge(points[0], points.slice(1, -1));
-                var bottomEdge = getHorizontalEdge(points[3], points.slice(1, -1));
+                const topEdge = getHorizontalEdge(points[0], points.slice(1, -1));
+                const bottomEdge = getHorizontalEdge(points[3], points.slice(1, -1));
 
                 mapImage.data.points = [
                   topEdge[0], topEdge[1], bottomEdge[1], bottomEdge[0]
@@ -357,16 +360,16 @@ export function showSwitchModal(isShown) {
                 return;
             }
 
-            var outline = new Group();
+            const outline = new Group();
             outline.locked = true;
 
-            var rect = new Path();
+            const rect = new Path();
             rect.fillColor = colors.yellow.color;
             rect.opacity = 0.3;  
             outline.data.rect = rect;
             outline.addChild(rect);
 
-            var lines = new Group();
+            const lines = new Group();
             outline.data.lines = lines;
             outline.addChild(lines);
 
@@ -375,17 +378,17 @@ export function showSwitchModal(isShown) {
               outline.data.rect.segments = this.points.map(function(p) { return p.position});
 
               if (!this.flashingInterval) {
-              this.flashingInterval = setInterval(function() {
-                if (!switchMenu.data.isShown()) {
-                  clearInterval(this.flashingInterval);
-                  this.flashingInterval = null;
-                  return;
+                this.flashingInterval = setInterval(function() {
+                  if (uploadGroup.visible || !switchMenu.data.isShown()) {
+                    clearInterval(this.flashingInterval);
+                    this.flashingInterval = null;
+                    return;
                   }
                   lines.opacity = lines.opacity == 0 ? 1 : 0;
                 }.bind(this), 500);
               }
 
-              var perspectiveTransformMatrix = PerspT(
+              const perspectiveTransformMatrix = PerspT(
                 [0, 0,
                 5, 0,
                 5, 4,
@@ -395,12 +398,12 @@ export function showSwitchModal(isShown) {
                 }, []));
               function calculateLines(p0, p1, axis, numLines) {
                 var lines = [];
-                for (var i = 0; i < numLines; i++) {
-                    var offset = new Point(axis.y, axis.x) * 1.1;
+                for (let i = 0; i < numLines; i++) {
+                  const offset = new Point(axis.y, axis.x).multiply(1.1);
 
-                    var pp0 = p0 + axis * i - offset;
-                    var pp1 = p1 + axis * i + offset;
-                    lines.push([
+                  const pp0 = p0.add(axis.multiply(i)).subtract(offset);
+                  const pp1 = p1.add(axis.multiply(i)).add(offset);
+                  lines.push([
                     perspectiveTransformMatrix.transform(pp0.x, pp0.y),
                     perspectiveTransformMatrix.transform(pp1.x, pp1.y)]);
                 }
@@ -408,7 +411,7 @@ export function showSwitchModal(isShown) {
               }
               function drawLinePath(points, index) {
                 if (!outline.data.lines.children[index]) {
-                  var line = new Path.Line(points);
+                  const line = new Path.Line(points);
                   line.strokeWidth = 1.5 / mapImageGroup.scaling.x;
                   line.strokeColor = colors.white.color;
                   line.strokeColor.alpha = 0.3;
@@ -416,13 +419,13 @@ export function showSwitchModal(isShown) {
                 }
                 outline.data.lines.children[index].segments = points;
               }
-              var index = 0;
+              let index = 0;
               calculateLines(new Point(0, 0), new Point(0, 4),
-              new Point(1, 0), 6)
-                .forEach(function(line) {drawLinePath(line, index); index++})
-                calculateLines(new Point(0, 0), new Point(5, 0),
-              new Point(0, 1), 5)
-                .forEach(function(line) {drawLinePath(line, index); index++})
+                new Point(1, 0), 6)
+                  .forEach(function(line) {drawLinePath(line, index); index++})
+              calculateLines(new Point(0, 0), new Point(5, 0),
+                new Point(0, 1), 5)
+                  .forEach(function(line) {drawLinePath(line, index); index++})
             }.bind(this);
             outline.data.update();
 
@@ -431,11 +434,11 @@ export function showSwitchModal(isShown) {
           }
           mapImage.data.perspectiveWarp = function(onComplete) {
             return new Promise(function(onComplete) {
-              var resultSize = new Size(700, 600);
+              const resultSize = new Size(700, 600);
 
               this.sortPoints();
 
-              var perspectiveTransformMatrix = PerspT(
+              const perspectiveTransformMatrix = PerspT(
                 mapImage.data.points.reduce(function(acc, point) {
                   acc.push(point.position.x, point.position.y); return acc;
                 }, []),
@@ -444,7 +447,7 @@ export function showSwitchModal(isShown) {
                 resultSize.width, resultSize.height,
                 0, resultSize.height]);
 
-              var mapImageData = mapImage.getImageData(0, 0, mapImage.width, mapImage.height);
+              const mapImageData = mapImage.getImageData(0, 0, mapImage.width, mapImage.height);
 
               if (!this.perspectiveWarpImage) {
                 this.perspectiveWarpImage = new Raster(resultSize);
@@ -490,9 +493,9 @@ export function showSwitchModal(isShown) {
             }.bind(this));
           };
           mapImage.data.remove = function() {
-          emitter.emit('screenshot_update_point', 0);
-          mapImageGroup.removeChildren();
-          uploadGroup.visible = true;
+            emitter.emit('screenshot_update_point', 0);
+            mapImageGroup.removeChildren();
+            uploadGroup.visible = true;
           }
         };
       }

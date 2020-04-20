@@ -46,42 +46,40 @@ export function tryLoadAutosaveMap() {
 }
 
 export function loadMapFromFile() {
+  loadImage((image) => {
+    const mapJSONString = steg.decode(image.src, {
+      height: image.height,
+      width: image.width,
+    });
+    clearMap();
+
+    let json;
+    try {
+      json = JSON.parse(mapJSONString);
+    } catch (err) {
+      console.log(LZString.decompress(mapJSONString))
+      json = JSON.parse(LZString.decompress(mapJSONString));
+    }
+    const map = decodeMap(json);
+
+    setNewMapData(map);
+  });
+}
+
+export function loadImage(onLoad) {
   const readFile = function (eventRead) {
     const file = eventRead.target.files[0];
     if (!file) {
       return;
     }
-    const reader = new FileReader();
-    reader.onload = function (event) {
-      const dataURL = event.target!.result as string;
+    blobToDataURL(file, loadDataURLAsImage);
 
-      const image = new Image();
+    function loadDataURLAsImage (dataURL) {
+      var image = new Image();
       image.src = dataURL;
-      image.addEventListener(
-        'load',
-        () => {
-          const mapJSONString = steg.decode(dataURL, {
-            height: image.height,
-            width: image.width,
-          });
-          clearMap();
-
-          let json;
-          try {
-            json = JSON.parse(mapJSONString);
-          } catch (err) {
-            console.log(LZString.decompress(mapJSONString))
-            json = JSON.parse(LZString.decompress(mapJSONString));
-          }
-          const map = decodeMap(json);
-
-          setNewMapData(map);
-        },
-        false,
-      );
-    };
-    reader.readAsDataURL(file);
-  };
+      image.addEventListener('load', function() {onLoad(image)}, false);
+    }
+  }
   loadFile(readFile);
 }
 
@@ -92,3 +90,18 @@ export function loadFile(onLoad) {
   fileInput.onchange = onLoad;
   clickElem(fileInput);
 }
+
+function dataURLtoBlob(dataurl) {
+  var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+      bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+  while(n--){
+      u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], {type:mime});
+}
+
+function blobToDataURL(blob, callback) {
+  var a = new FileReader();
+  a.onload = function(e) {callback(e.target?.result);}
+  a.readAsDataURL(blob);
+} 

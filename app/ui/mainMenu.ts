@@ -6,6 +6,7 @@ import { colors } from '../colors';
 import { saveMapToFile } from '../save';
 import { loadMapFromFile, loadTemplate } from '../load';
 import { layers } from '../layers';
+import { showSwitchModal } from './screenshotModal';
 
 let mainMenu: paper.Group;
 
@@ -126,8 +127,10 @@ export function showMainMenu(isShown: boolean) {
         }
       },
     );
-    var switchButton = createMenuButton('Load Game Map', 'img/menu-switch.png', 0, 1,
-        function() { showSwitchModal(true) });
+    var switchButton = createMenuButton(
+      'Load Game Map',
+      'static/img/menu-switch.png', 0, 1,
+      () => showSwitchModal(true));
 
     const twitterButton = createMenuButton(
       'Twitter',

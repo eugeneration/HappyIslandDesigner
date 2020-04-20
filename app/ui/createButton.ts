@@ -1,15 +1,17 @@
-import paper from 'paper';
+import { Color, Group, Path, Point } from 'paper';
 import { colors } from '../colors';
 
-export function createButton(item, buttonSize: number, onClick, options?: any) {
-  const highlightedColor: paper.Color =
-    !options || !options.highlightedColor
-      ? colors.sand.color.clone()
-      : options.highlightedColor.clone();
-  const selectedColor: paper.Color =
-    !options || !options.selectedColor
-      ? colors.npc.color.clone()
-      : options.selectedColor.clone();
+type buttonOptions = {
+  alpha?: number
+  highlightedColor?: paper.Color
+  selectedColor?: paper.Color
+  disabledColor?: paper.Color
+};
+export function createButton(item, buttonSize: number, onClick, options?: buttonOptions) {
+  const alpha = options?.alpha ?? 0.0001;
+  const highlightedColor = options?.highlightedColor ?? colors.sand.color;
+  const selectedColor = options?.selectedColor ?? colors.npc.color;
+  const disabledColor = options?.disabledColor ?? null;
 
   const group = new paper.Group();
 
@@ -20,9 +22,9 @@ export function createButton(item, buttonSize: number, onClick, options?: any) {
 
   function updateColor(btn: paper.Path.Circle) {
     btn.fillColor =
-      group.data.selected || group.data.pressed
-        ? selectedColor
-        : highlightedColor;
+      (group.data.disabled && disabledColor) ? disabledColor
+      : (group.data.selected || group.data.pressed) ? selectedColor
+      : highlightedColor;
 
     if (group.data.selected) {
       btn.fillColor.alpha = 1;
@@ -31,7 +33,7 @@ export function createButton(item, buttonSize: number, onClick, options?: any) {
     } else if (group.data.hovered) {
       btn.fillColor.alpha = 1;
     } else {
-      btn.fillColor.alpha = 0.0001;
+      btn.fillColor.alpha = alpha;
     }
   }
   updateColor(button);
@@ -56,6 +58,7 @@ export function createButton(item, buttonSize: number, onClick, options?: any) {
     disable(isDisabled) {
       group.data.disabled = isDisabled;
       item.opacity = isDisabled ? 0.5 : 1;
+      updateColor(button);
       if (isDisabled) {
         group.data.hover(false);
       }
