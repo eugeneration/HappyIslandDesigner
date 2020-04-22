@@ -11,7 +11,7 @@ import { getObjectData } from './helpers/getObjectData';
 import { createObjectPreviewAsync } from './ui/createObject';
 
 let brushSize = 2;
-let brushSegments: Array<paper.Segment>;
+let brushPoints: Array<paper.Point>;
 let brush: paper.Path;
 let brushOutline: paper.Path;
 
@@ -31,8 +31,8 @@ export function initBrush() {
   brushOutline = new paper.Path();
 }
 
-export function getCurrentBrushSegments() {
-  return brushSegments;
+export function getCurrentBrushPoints() {
+  return brushPoints;
 }
 
 export function getCurrentBrush() {
@@ -144,10 +144,6 @@ export function updateCoordinateLabel(event) {
   }
 }
 
-function getBrushSegments(size) {
-  return getBrushPoints(size).map(p => new paper.Segment(p));
-}
-
 function getBrushPoints(size) {
   // square
   const sizeX = size;
@@ -247,12 +243,12 @@ export function updatePaintColor(colorData: Color) {
 }
 
 export function updateBrush() {
-  brushSegments = getBrushSegments(brushSize);
+  brushPoints = getBrushPoints(brushSize);
 
   const prevPosOutline = brushOutline.position;
 
   // brush.layer = uiLayer;
-  brush.segments = brushSegments;
+  brush.segments = brushPoints.map(s => new paper.Segment(s));
   brush.pivot = new paper.Point(brushSize / 2 - 0.5, brushSize / 2 - 0.5);
   brush.position = getBrushCenteredCoordinate(prevPosOutline);
   brush.opacity = 0.6;
@@ -260,7 +256,7 @@ export function updateBrush() {
   brush.fillColor = paintColor.color;
   brush.locked = true;
 
-  brushOutline.segments = brushSegments;
+  brushOutline.segments = brushPoints.map(s => new paper.Segment(s));
   brushOutline.position = prevPosOutline;
   brushOutline.closed = true;
   brushOutline.strokeColor = new paper.Color('#fff');

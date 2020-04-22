@@ -4,7 +4,7 @@ import { state } from './state';
 import {
   getCurrentBrushLineForce,
   getCurrentPaintColor,
-  getCurrentBrushSegments,
+  getCurrentBrushPoints,
   getCurrentBrushSize,
   getBrushCenteredCoordinate,
 } from './brush';
@@ -105,14 +105,14 @@ export function applyMoveCommand(isApply, moveCommand) {
 let prevDrawCoordinate: paper.Point | undefined;
 
 function getDrawPath(coordinate) {
-  const brushSegments = getCurrentBrushSegments();
+  const brushPoints = getCurrentBrushPoints();
   const brushSize = getCurrentBrushSize();
 
   var pos = getBrushCenteredCoordinate(coordinate);
   pos.x -= brushSize / 2 - 0.5;
   pos.y -= brushSize / 2 - 0.5;
 
-  const p = new paper.Path(brushSegments);
+  const p = new paper.Path(brushPoints);
   p.segments.forEach((coords, index) => {
     p.segments[index].point = coords.point.add(pos);
   });
