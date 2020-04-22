@@ -1,3 +1,4 @@
+// @ts-nocheck
 import paper from 'paper';
 import LZString from 'lz-string';
 import steg from './vendors/steganography';

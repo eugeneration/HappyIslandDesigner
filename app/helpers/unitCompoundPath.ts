@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function uniteCompoundPath(compound) {
   let p = new paper.Path();
   compound.children.forEach((c) => {

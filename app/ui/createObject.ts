@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { toolCategoryDefinition } from '../tools';
 import { layers } from '../layers';
 import { getObjectData } from '../helpers/getObjectData';

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Group, Path, Point, PointText, Raster, Size, view } from 'paper';
 import i18next from 'i18next';
 import PerspT from 'perspective-transform';
@@ -94,24 +95,24 @@ export function showSwitchModal(isShown) {
 
         const maxImageWidth = switchMenu.data.width - margin * 2;
         const maxImageHeight = switchMenu.data.height - 100 - margin * 2; // need 100px for the button
-        mapImageGroup.scaling = 1;
+        mapImageGroup.scaling = new Point(1, 1);
         mapImageGroup.scale(Math.min(maxImageWidth / newSize.width, maxImageHeight / newSize.height));
         mapImageGroup.position = new Point(margin, 0);
 
         const inverseScale = 1 / mapImageGroup.scaling.x;
 
         const closeIcon = new Raster('static/img/ui-x.png');
-        closeIcon.scaling = .5;
+        closeIcon.scale(.5);
         const closeButton = createButton(closeIcon, 24, function(){mapImage.data.remove()}, {
           alpha: 0.9,
           highlightedColor: colors.paperOverlay.color,
           selectedColor: colors.paperOverlay2.color,
         });
-        closeButton.scaling = inverseScale;
+        closeButton.scale(inverseScale);
         closeButton.position = mapImage.bounds.topRight;
 
         const confirmIcon = new Raster('static/img/ui-check-white.png');
-        confirmIcon.scaling = 0.5;
+        confirmIcon.scale(0.5);
         const confirmButton = createButton(confirmIcon, 30, function() {
           mapImage.data.perspectiveWarp();
           updateMapOverlay(mapImage.data.perspectiveWarpImage);
@@ -124,7 +125,7 @@ export function showSwitchModal(isShown) {
         });
         confirmButton.data.disable(true);
         confirmButton.bounds.topCenter = mapImage.bounds.bottomCenter.add(new Point(0, 58 * inverseScale));
-        confirmButton.scaling = inverseScale;
+        confirmButton.scale(inverseScale);
         emitter.on('screenshot_update_point', function(pointCount) {
           if (pointCount == 4) {
             confirmButton.data.disable(false);
@@ -222,7 +223,7 @@ export function showSwitchModal(isShown) {
                   strokeWidth: 2,
               }),
               ]);
-              point.scaling = 1 / mapImageGroup.scaling.x;
+              point.scale(1 / mapImageGroup.scaling.x);
               point.position = rawCoordinate;
               point.data.startPoint = rawCoordinate;
               point.data.grabPivot = new Point(0, 0);
@@ -375,18 +376,18 @@ export function showSwitchModal(isShown) {
             outline.addChild(lines);
 
             outline.data.update = function() {
-              this.sortPoints();
-              outline.data.rect.segments = this.points.map(function(p) { return p.position});
+              mapImage.data.sortPoints();
+              outline.data.rect.segments = mapImage.data.points.map(function(p) { return p.position});
 
-              if (!this.flashingInterval) {
-                this.flashingInterval = setInterval(function() {
+              if (!mapImage.data.flashingInterval) {
+                mapImage.data.flashingInterval = setInterval(function() {
                   if (uploadGroup.visible || !switchMenu.data.isShown()) {
-                    clearInterval(this.flashingInterval);
-                    this.flashingInterval = null;
+                    clearInterval(mapImage.data.flashingInterval);
+                    mapImage.data.flashingInterval = null;
                     return;
                   }
                   lines.opacity = lines.opacity == 0 ? 1 : 0;
-                }.bind(this), 500);
+                }, 500);
               }
 
               const perspectiveTransformMatrix = PerspT(
@@ -437,7 +438,7 @@ export function showSwitchModal(isShown) {
             return new Promise(function(onComplete) {
               const resultSize = new Size(700, 600);
 
-              this.sortPoints();
+              mapImage.data.sortPoints();
 
               const perspectiveTransformMatrix = PerspT(
                 mapImage.data.points.reduce(function(acc, point) {
@@ -450,17 +451,17 @@ export function showSwitchModal(isShown) {
 
               const mapImageData = mapImage.getImageData(0, 0, mapImage.width, mapImage.height);
 
-              if (!this.perspectiveWarpImage) {
-                this.perspectiveWarpImage = new Raster(resultSize);
-                mapImageGroup.addChild(this.perspectiveWarpImage);
-                this.perspectiveWarpImage.position = mapImage.position;
+              if (!mapImage.data.perspectiveWarpImage) {
+                mapImage.data.perspectiveWarpImage = new Raster(resultSize);
+                mapImageGroup.addChild(mapImage.data.perspectiveWarpImage);
+                mapImage.data.perspectiveWarpImage.position = mapImage.position;
                 //this.perspectiveWarpImage.scaling = 1 / mapImageGroup.scaling.x;
 
-                this.perspectiveWarpImage.scaling = 16 * 7 / resultSize.width;
-                this.perspectiveWarpImage.bounds.topCenter = mapImage.bounds.bottomCenter;
+                mapImage.data.perspectiveWarpImage.scaling = 16 * 7 / resultSize.width;
+                mapImage.data.perspectiveWarpImage.bounds.topCenter = mapImage.bounds.bottomCenter;
               }
 
-              const context = this.perspectiveWarpImage.context;
+              const context = mapImage.data.perspectiveWarpImage.context;
 
               const xScale = 7 / 5;
               const yScale = 6 / 4;
@@ -491,7 +492,7 @@ export function showSwitchModal(isShown) {
               }
               context.putImageData(imageData, 0, 0);
               onComplete();
-            }.bind(this));
+            });
           };
           mapImage.data.remove = function() {
             emitter.emit('screenshot_update_point', 0);

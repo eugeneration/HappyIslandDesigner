@@ -1,17 +1,17 @@
 import { toolCategoryDefinition } from '.';
 import { layers } from '../layers';
 
-export const toolState = {
-  activeTool: null,
-  toolMap: {},
+class ToolState {
+  activeTool: any = null;
+  toolMap = {};
 
-  selected: {},
+  selected = {};
   isSomethingSelected() {
     return Object.keys(this.selected).length > 0;
-  },
-  isCanvasFocused: false,
-  toolIsActive: false,
-  isDown: false,
+  }
+  isCanvasFocused = false;
+  toolIsActive = false;
+  isDown = false;
   toolMapValue(definition, tool, modifiers) {
     return {
       type: definition.type,
@@ -19,18 +19,18 @@ export const toolState = {
       tool,
       modifiers,
     };
-  },
+  }
   defaultToolMapValue(toolType) {
     const def = toolCategoryDefinition[toolType];
     return this.toolMapValue(def, def.defaultTool, def.defaultModifiers);
-  },
+  }
   switchToolType(toolType) {
     if (!this.toolMap.hasOwnProperty(toolType)) {
       this.switchTool(this.defaultToolMapValue(toolType), true);
     } else {
       this.switchTool(this.toolMap[toolType], true);
     }
-  },
+  }
   switchTool(toolData, isToolTypeSwitch?: boolean) {
     const prevTool = this.activeTool;
     this.activeTool = toolData;
@@ -40,30 +40,30 @@ export const toolState = {
     } else if (toolData) {
       toolData.definition.updateTool(prevTool, toolData, isToolTypeSwitch);
     }
-  },
+  }
   deleteSelection() {
     Object.keys(this.selected).forEach((objectId) => {
       const object = this.selected[objectId];
       object.onDelete();
     });
     this.deselectAll();
-  },
+  }
   selectObject(object) {
     this.deselectAll();
     this.selected[object.data.id] = object;
     object.onSelect(true);
-  },
+  }
   deselectObject(object) {
     delete this.selected[object.data.id];
     object.onSelect(false);
-  },
+  }
   deselectAll() {
     Object.keys(this.selected).forEach((objectId) => {
       const object = this.selected[objectId];
       object.onSelect(false);
     });
     this.selected = {};
-  },
+  }
   onDown(event) {
     // deactivate the tool when something is selected or dragging an object
     this.isDown = true;
@@ -79,7 +79,7 @@ export const toolState = {
     if (!clickedOnSelected) {
       this.deselectAll();
     }
-  },
+  }
   onUp() {
     this.isDown = false;
 
@@ -90,7 +90,7 @@ export const toolState = {
         this.activeTool.definition.enablePreview(isActive);
       }
     }
-  },
+  }
   focusOnCanvas(isFocused) {
     this.isCanvasFocused = isFocused;
     if (!this.isDown) {
@@ -102,5 +102,7 @@ export const toolState = {
         }
       }
     }
-  },
-};
+  }
+}
+
+export const toolState = new ToolState();

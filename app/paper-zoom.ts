@@ -6,6 +6,8 @@
 // ===============================================
 // SCROLL EVENTS
 
+import {project, view, Point} from 'paper';
+
 export function zoom() {
   view.on('twofingermove', (event) => {
     changeZoomCentered(event.deltaScale * 500, event.center);
@@ -55,8 +57,8 @@ export function zoom() {
   function onMiddleClickUp(event) {}
   
   let isSpaceDown = false;
-  let mouseNativeStart = null;
-  let viewCenterStart = null;
+  let mouseNativeStart: paper.Point | null = null;
+  let viewCenterStart: paper.Point | null = null;
   
   view.on('keydown', (event) => {
     if (event.key === 'space') {
@@ -86,7 +88,7 @@ export function zoom() {
     if (!isSpaceDown) {
       return;
     }
-    if (viewCenterStart) {
+    if (viewCenterStart && mouseNativeStart) {
       const nativeDelta = new paper.Point(
         event.event.offsetX - mouseNativeStart.x,
         event.event.offsetY - mouseNativeStart.y,
@@ -110,7 +112,7 @@ export function zoom() {
   let _minZoom;
   let _maxZoom;
 
-  setZoomRange([view.size * 2, view.size * 0.05]);
+  setZoomRange([view.size.multiply(2), view.size.multiply(0.05)]);
   
   function changeCenterPosition(deltaX, deltaY) {
 

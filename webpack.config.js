@@ -9,7 +9,7 @@ module.exports = {
   mode: 'development',
   entry: ['./app/index'],
   output: {
-    path: path.join(__dirname, 'dist'),
+    path: path.join(__dirname),
     filename: 'bundle.js',
   },
   resolve: {
@@ -70,7 +70,7 @@ module.exports = {
       template: path.resolve(__dirname, 'static', 'index.html'),
       filename: 'index.html',
     }),
-    new CopyPlugin([{ from: 'src/static', to: 'static' }]),
+    //new CopyPlugin([{ from: 'src/static', to: 'static' }]),
 
     // new MiniCssExtractPlugin({
     //   // Options similar to the same options in webpackOptions.output

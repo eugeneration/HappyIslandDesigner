@@ -1,3 +1,4 @@
+// @ts-nocheck
 import paper, { Path, Point, Color } from 'paper';
 
 export function multitouch() {
@@ -175,23 +176,25 @@ export function multitouch() {
             fingerData2.touch,
           );
 
-          // calculate the difference between current touch values and the start values
-          const scalePixelChange =
-            gestureData.distance - gestureCache.prev.distance;
-          const angleChange = gestureData.angle - gestureCache.prev.angle;
+          if (gestureCache) {
+            // calculate the difference between current touch values and the start values
+            const scalePixelChange =
+              gestureData.distance - gestureCache.prev.distance;
+            const angleChange = gestureData.angle - gestureCache.prev.angle;
 
-          // calculate how much this should affect the actual object
-          const scalingDelta = scalePixelChange / gestureCache.prev.distance;
-          const rotationDelta = (angleChange * 180) / Math.PI;
+            // calculate how much this should affect the actual object
+            const scalingDelta = scalePixelChange / gestureCache.prev.distance;
+            const rotationDelta = (angleChange * 180) / Math.PI;
 
-          gestureCache.prev = gestureData;
+            gestureCache.prev = gestureData;
 
-          paper.view.scale(
-            1 + scalingDelta,
-            paper.view.viewToProject(
-              new Point(gestureCache.prev.centerX, gestureCache.prev.centerY),
-            ),
-          );
+            paper.view.scale(
+              1 + scalingDelta,
+              paper.view.viewToProject(
+                new Point(gestureCache.prev.centerX, gestureCache.prev.centerY),
+              ),
+            );
+          }
         }
       }
       //    console.log(ev);

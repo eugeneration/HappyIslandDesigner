@@ -1,3 +1,4 @@
+// @ts-nocheck
 import paper from 'paper';
 import * as animatePaper from 'paper-animate';
 import i18next from 'i18next';

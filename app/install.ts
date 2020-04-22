@@ -1,3 +1,4 @@
+// @ts-nocheck
 import paper from 'paper';
 import { store } from './store';
 
