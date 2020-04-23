@@ -5204,10 +5204,9 @@ paper-animate@1.2.1:
   resolved "https://registry.yarnpkg.com/paper-animate/-/paper-animate-1.2.1.tgz#d4de955c968f227fa83200b1cfd52cadb1eea632"
   integrity sha1-1N6VXJaPIn+oMgCxz9UsrbHupjI=
 
-paper@0.12.4:
+paper@eugeneration/paper.js#develop:
   version "0.12.4"
-  resolved "https://registry.yarnpkg.com/paper/-/paper-0.12.4.tgz#c6b01fea26cb30d15a4f7abeb3465c45ad7b49ae"
-  integrity sha512-KypUqX2uXJZOX2j55RcgnBzK7weau9WKVCB+3e0E1Wa9yxlV7z6BsSrrJxmLNIC0pATbjcy9pJYDutQ7rIhnpQ==
+  resolved "https://codeload.github.com/eugeneration/paper.js/tar.gz/ea16dc486330511a743e20c178a1e0f542ad8e18"
 
 parallel-transform@^1.1.0:
   version "1.2.0"
