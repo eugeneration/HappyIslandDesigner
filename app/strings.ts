@@ -122,7 +122,7 @@ export const strings = {
                 'shift + 拖曳\n'+
                 '[ ]\n'+
                 'p\n'+
-                'alt + 單點\n'+
+                'alt + 滑鼠單點\n'+
                 'delete\n'+
                 'ctrl + z\n'+
                 'ctrl + y\n'+
