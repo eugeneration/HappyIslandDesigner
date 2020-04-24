@@ -10,6 +10,7 @@ import { colors, getColorDataFromEncodedName } from './colors';
 import { getGridRaster } from './grid';
 import { objectMap } from './helpers/objectMap';
 import { toolCategoryDefinition } from './tools';
+import { getMobileOperatingSystem } from "./helpers/getMobileOperatingSystem";
 
 function removeFloatingPointError(f) {
   return Math.round((f + Number.EPSILON) * 100) / 100;
@@ -317,19 +318,36 @@ export function saveMapToFile() {
   shadowCanvas.style.display = 'none';
   const image = new Image();
   image.src = mapRasterData;
-  image.addEventListener(
-    'load',
-    () => {
-      mapRasterData = steg.encode(mapJson, mapRasterData, {
-        height: mapRasterSize.height,
-        width: mapRasterSize.width,
-      });
 
-      const filename = `HappyIslandDesigner_${Date.now()}.png`;
-      downloadDataURL(filename, mapRasterData);
-    },
-    false,
-  );
+  const os = getMobileOperatingSystem();
+  var isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1 &&
+    navigator.userAgent &&
+    navigator.userAgent.indexOf('CriOS') == -1 &&
+    navigator.userAgent.indexOf('FxiOS') == -1;
+  if (os == "iOS" && isSafari)
+  {
+    // mobile safari doesn't allow for auto-saving an image
+    // open a new tab with the screenshot
+    // (window.open must not be in an async function or it will be blocked)
+    let w = window.open('about:blank');
+    setTimeout(function(){
+      w?.document.write(image.outerHTML);
+    }, 0);
+  } else {
+    image.addEventListener(
+      'load',
+      () => {
+        mapRasterData = steg.encode(mapJson, mapRasterData, {
+          height: mapRasterSize.height,
+          width: mapRasterSize.width,
+        });
+
+        const filename = `HappyIslandDesigner_${Date.now()}.png`;
+        downloadDataURL(filename, mapRasterData);
+      },
+      false,
+    );
+  }
 
   autosaveMap();
 }
