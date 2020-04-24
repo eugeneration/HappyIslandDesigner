@@ -5215,7 +5215,7 @@ paper-animate@1.2.1:
 
 paper@eugeneration/paper.js#develop:
   version "0.12.4"
-  resolved "https://codeload.github.com/eugeneration/paper.js/tar.gz/ea16dc486330511a743e20c178a1e0f542ad8e18"
+  resolved "https://codeload.github.com/eugeneration/paper.js/tar.gz/3fcb6d515a57f79e600344812e52f24fb1175e54"
 
 parallel-transform@^1.1.0:
   version "1.2.0"
