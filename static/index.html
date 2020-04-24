@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta property="og:title" content="Happy Island Designer" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://eugeneration.github.io/HappyIslandDesigner/" />
+    <meta property="og:image" content="https://eugeneration.github.io/HappyIslandDesigner/thumbnail.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:description" content="Plan your dream island map. Made for Animal Crossing: New Horizons. Draw terrain and paths, place buildings, and trace your in-game map." />
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, shrink-to-fit=no, user-scalable=no"
+    />
+    <title>Happy Island Designer</title>
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-159461234-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'UA-159461234-1');
+    </script>
+
+    <link rel="icon" href="favicon.ico" type="image/x-icon" />
+    <link
+      rel="preload"
+      href="./static/font/TTNorms-Bold.woff"
+      as="font"
+      type="font/woff"
+      crossorigin
+    />
+  </head>
+  <body>
+    <div class="hidden">
+      <p style="font-family: TTNorms;">.</p>
+    </div>
+    <div id="app">
+      <canvas id="canvas" resize></canvas>
+    </div>
+  </body>
+</html>
