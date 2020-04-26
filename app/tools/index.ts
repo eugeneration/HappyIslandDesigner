@@ -10,7 +10,9 @@ import {
 } from '../brush';
 
 import * as amenitiesDef from './amenities';
-import * as constructionDef from './construction';
+import * as legacyConstructionsDef from './construction/legacy';
+import * as bridgesDef from './construction/bridges';
+import * as stairsDef from './construction/stairs';
 import * as flowerDef from './flower';
 import * as structureDef from './structure';
 import * as treeDef from './tree';
@@ -101,7 +103,8 @@ class BaseToolCategoryDefinition {
           subclass.iconMenu &&
           (nextToolData.type === 'structures' ||
             nextToolData.type === 'amenities' ||
-            nextToolData.type === 'construction' ||
+            nextToolData.type === 'bridges' ||
+            nextToolData.type === 'stairs' ||
             nextToolData.type === 'tree' ||
             nextToolData.type === 'flower')
         ) {
@@ -430,13 +433,28 @@ export function initTools() {
       yPos: 208,
     });
 
+  toolCategoryDefinition.bridges =
+    new BaseObjectCategoryDefinition({
+      type: 'bridges',
+      icon: 'construction-bridges',
+      tools: bridgesDef.asyncBridgesDefinition,
+      menuOptions: { spacing: 50, perColumn: 8 },
+      yPos: 260,
+    });
+
+  toolCategoryDefinition.stairs =
+    new BaseObjectCategoryDefinition({
+      type: 'stairs',
+      icon: 'construction-stairs',
+      tools: stairsDef.asyncStairsDefinition,
+      menuOptions: { spacing: 50, perColumn: 8 },
+      yPos: 310,
+    });
+
   toolCategoryDefinition.construction =
     new BaseObjectCategoryDefinition({
       type: 'construction',
-      icon: 'construction',
-      tools: constructionDef.asyncConstructionDefinition,
-      menuOptions: { spacing: 50, perColumn: 9 },
-      yPos: 260,
+      tools: legacyConstructionsDef.asyncConstructionDefinition,
     });
 
   toolCategoryDefinition.tree =
@@ -445,7 +463,7 @@ export function initTools() {
       icon: 'tree',
       tools: treeDef.asyncTreeDefinition,
       menuOptions: { spacing: 50, perColumn: 8 },
-      yPos: 310,
+      yPos: 360,
     });
   toolCategoryDefinition.flower =
     new BaseObjectCategoryDefinition({
@@ -453,12 +471,14 @@ export function initTools() {
       icon: 'flower',
       tools: flowerDef.asyncFlowerDefinition,
       menuOptions: { spacing: 50, perColumn: 9 },
-      yPos: 360,
+      yPos: 410,
     });
 
   amenitiesDef.load();
   structureDef.load();
-  constructionDef.load();
+  legacyConstructionsDef.load();
+  bridgesDef.load();
+  stairsDef.load();
   treeDef.load();
   flowerDef.load();
 
@@ -492,23 +512,25 @@ export function initTools() {
 
   Object.keys(toolCategoryDefinition).forEach((toolType) => {
     const def = toolCategoryDefinition[toolType];
-    def.updateTool = function (prevToolData, nextToolData, isToolTypeSwitch) {
-      def.base.updateTool(def, prevToolData, nextToolData, isToolTypeSwitch);
-    };
+    if (def.icon) {
+      def.updateTool = function (prevToolData, nextToolData, isToolTypeSwitch) {
+        def.base.updateTool(def, prevToolData, nextToolData, isToolTypeSwitch);
+      };
 
-    const tool = new paper.Raster(`${imgPath + toolPrefix + def.icon}.png`);
+      const tool = new paper.Raster(`${imgPath + toolPrefix + def.icon}.png`);
 
-    const button = createButton(tool, 20, () => {
-      toolState.switchToolType(toolType);
-    });
-    switch (def.icon) {
-      case 'color':
-        tool.position = new paper.Point(-8, 0);
-        break;
+      const button = createButton(tool, 20, () => {
+        toolState.switchToolType(toolType);
+      });
+      switch (def.icon) {
+        case 'color':
+          tool.position = new paper.Point(-8, 0);
+          break;
+      }
+      tool.scaling = new paper.Point(0.4, 0.4);
+
+      addToLeftToolMenu(button);
+      def.icon = button;
     }
-    tool.scaling = new paper.Point(0.4, 0.4);
-
-    addToLeftToolMenu(button);
-    def.icon = button;
   });
 }

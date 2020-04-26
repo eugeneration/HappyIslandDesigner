@@ -20,7 +20,7 @@ Click here for [local development info](/docs/README-localdev).
 * autosave
 * undo/redo
 * zooming
-* Choose between flat icons or high quality renders for building icons
+* Choose between flat icons or high quality renders for building and construction icons
 * Save an image of a map and load the image back in to recover your map (the map data is encoded in the image)
 * Click the tool icon a second time to hide the pop out tool menu
 * Brush size selector
