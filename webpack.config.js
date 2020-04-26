@@ -83,4 +83,15 @@ module.exports = {
     //   chunkFilename: '[id].css',
     // }),
   ],
+  optimization: {
+    splitChunks: {
+      cacheGroups: {
+        commons: {
+          test: /[\\/]node_modules[\\/]/,
+          name: "vendor",
+          chunks: "initial",
+        }
+      }
+    }
+  }
 };

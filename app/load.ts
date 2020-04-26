@@ -3,8 +3,7 @@ import { decodeMap } from './save';
 import { template } from './template';
 import steg from './vendors/steganography';
 import LZString from 'lz-string';
-import heic2any from 'heic2any';
-import { showLoadingScreen } from './ui/loadingScreen';
+import { showLoadingScreen } from "./ui/loadingScreen";
 
 function clickElem(elem) {
   // Thx user1601638 on Stack Overflow (6/6/2018 - https://stackoverflow.com/questions/13405129/javascript-create-and-save-file )
@@ -80,16 +79,19 @@ export function loadImage(onLoad) {
     if (file.type == "image/heic") { // convert to png
       // this takes a long time, so show loading screen
       showLoadingScreen(true);
-      heic2any({blob: file })
-        .then(function(conversionResult) {
-          showLoadingScreen(false);
-          var url = URL.createObjectURL(conversionResult);
-          loadDataURLAsImage(url);
-        })
-        .catch(function(e) {
-          showLoadingScreen(false);
-          console.error(e);
-        });
+      import("heic2any").then(heic2anyModule => {
+        const heic2any = heic2anyModule.default;
+        heic2any({blob: file })
+          .then(function(conversionResult) {
+            showLoadingScreen(false);
+            var url = URL.createObjectURL(conversionResult);
+            loadDataURLAsImage(url);
+          })
+          .catch(function(e) {
+            showLoadingScreen(false);
+            console.error(e);
+          });
+      });
     } else {
       blobToDataURL(file, loadDataURLAsImage);
     }
@@ -124,4 +126,4 @@ function blobToDataURL(blob, callback) {
   var a = new FileReader();
   a.onload = function(e) {callback(e.target?.result);}
   a.readAsDataURL(blob);
-} 
+}
