@@ -4,6 +4,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const DynamicCdnWebpackPlugin = require('dynamic-cdn-webpack-plugin');
 
 module.exports = {
   mode: 'development',
@@ -51,6 +52,7 @@ module.exports = {
                 },
               ],
               '@babel/preset-typescript',
+              '@babel/react',
             ],
             plugins: [
               ['@babel/plugin-proposal-class-properties', { loose: true }],
@@ -82,6 +84,7 @@ module.exports = {
     //   filename: '[name].css',
     //   chunkFilename: '[id].css',
     // }),
+    new DynamicCdnWebpackPlugin()
   ],
   optimization: {
     splitChunks: {

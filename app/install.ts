@@ -1,8 +1,10 @@
-// @ts-nocheck
 import paper from 'paper';
-import { store } from './store';
+import * as React from "react";
+import * as ReactDOM from "react-dom";
 
+import { store } from './store';
 import {onKeyUp, onKeyDown} from './keyboard';
+import { Hello } from "./components/Hello";
 
 export function install() {
   return new Promise((resolve) => {
@@ -19,11 +21,19 @@ export function install() {
         new paper.Point(0, 0),
       );
 
+      // @ts-ignore
       paper.view.onKeyUp = onKeyUp;
+      // @ts-ignore
       paper.view.onKeyDown = onKeyDown;
 
       map.fillColor = new paper.Color(0, 1, 1);
       resolve();
+
+      // Setup React
+      ReactDOM.render(
+        React.createElement(Hello, {compiler:"TypeScript", framework:"React"}),
+        document.getElementById("ui-container")
+      );
     };
   });
 }
