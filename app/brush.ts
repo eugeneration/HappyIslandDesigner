@@ -10,6 +10,7 @@ import { pathDefinition } from './pathDefinition';
 import { getObjectData } from './helpers/getObjectData';
 import { createObjectPreviewAsync } from './ui/createObject';
 
+let rawBrushSize = 2;
 let brushSize = 2;
 let brushPoints: Array<paper.Point>;
 let brush: paper.Path;
@@ -84,6 +85,7 @@ export function getObjectCenteredCoordinate(
 export function getBrushCenteredCoordinate(
   rawCoordinate: paper.Point,
 ): paper.Point {
+  // special case for size 'zero' triangle brush
   // hack for even sized brushes
   if (brushSize % 2 === 0) {
     return rawCoordinate
@@ -133,6 +135,8 @@ export function updateCoordinateLabel(event) {
   brushOutline.position = coordinate;
   brush.position = getBrushCenteredCoordinate(coordinate);
 
+  updateBrushDirection(coordinate);
+
   if (objectPreview) {
     objectPreview.position = getObjectCenteredCoordinate(
       coordinate,
@@ -144,17 +148,35 @@ export function updateCoordinateLabel(event) {
   }
 }
 
+function getBrushPointsTriangle(direction?: paper.Point) {
+  direction = direction ?? new paper.Point(0, 0);
+
+  var p1 = direction.clone();
+  var p2 = direction.clone();
+
+  if (direction.x ^ direction.y) { // (1, 0) / (0, 1)
+    p1.y = Math.abs(direction.y - 1);
+    p2.x = Math.abs(direction.x - 1);
+  }
+  else { // (0, 0) / (1, 1)
+    p1.x = Math.abs(direction.x - 1);
+    p2.y = Math.abs(direction.y - 1);
+  }
+
+  return [
+    direction,
+    p1,
+    p2,
+  ]
+}
+
 function getBrushPoints(size) {
   // square
   const sizeX = size;
   const sizeY = size;
   const offset = new paper.Point(0, 0);
   if (size === 0) {
-    return [
-      new paper.Point(0, 0),
-      new paper.Point(0, 1),
-      new paper.Point(1, 0),
-    ];
+    return getBrushPointsTriangle();
   }
   switch (brushType) {
     default:
@@ -242,9 +264,24 @@ export function updatePaintColor(colorData: Color) {
   }
 }
 
-export function updateBrush() {
-  brushPoints = getBrushPoints(brushSize);
+function frac(float) {
+  return float - Math.trunc(float);
+}
 
+export function updateBrushDirection(point: paper.Point) {
+  if (rawBrushSize === 0) {
+    const direction = new paper.Point(Math.round(frac(point.x)), Math.round(frac(point.y)));
+    brushPoints = getBrushPointsTriangle(direction);
+    updateBrushPaths();
+  }
+}
+
+export function updateBrush() {
+  brushPoints = getBrushPoints(rawBrushSize);
+  updateBrushPaths();
+}
+
+function updateBrushPaths() {
   const prevPosOutline = brushOutline.position;
 
   // brush.layer = uiLayer;
@@ -282,11 +319,13 @@ export function cycleBrushHead() {
 }
 
 export function decrementBrush() {
-  brushSize = Math.max(brushSize - 1, 1);
+  rawBrushSize = Math.max(brushSize - 1, 0);
+  brushSize = Math.max(rawBrushSize, 1);
   updateBrush();
 }
 
 export function incrementBrush() {
-  brushSize = Math.max(brushSize + 1, 1);
+  rawBrushSize = Math.max(brushSize + 1, 0);
+  brushSize = Math.max(rawBrushSize, 1);
   updateBrush();
 }

@@ -36,7 +36,7 @@ function update() {
     brushPreview.bounds.width = Math.min(30, 5 * brushPreview.bounds.width);
     brushPreview.position = new paper.Point(0, 0);
   }
-  brushSizeText.content = `${getCurrentBrushSize()}`;
+  brushSizeText.content = `${getCurrentBrushSize() || '0.5'}`; // size zero brush is actually 0.5
 }
 
 function updateBrushLineButton(isBrushLine) {
@@ -46,7 +46,7 @@ function updateBrushLineButton(isBrushLine) {
 
 export function showBrushSizeUI(isShown) {
   if (!brushSizeUI) {
-    
+
     brushPreview = new Path();
 
     const brush = getCurrentBrush();
@@ -58,7 +58,7 @@ export function showBrushSizeUI(isShown) {
     brushPreview.strokeWidth = 0.1;
 
     var incrementComponents = createIncrementComponents(incrementBrush, decrementBrush);
-    
+
     brushSizeText = incrementComponents.text;
     brushSizeText.content = '0';
     brushSizeText.position = new Point(0, 24);
