@@ -94,10 +94,10 @@ export function drawer() {
     if (keys.isSpaceDown) {
       return;
     }
-    toolState.onUp();
     if (toolState.toolIsActive) {
       toolState.activeTool.definition.onMouseUp(event);
     }
+    toolState.onUp();
   };
 
   // ===============================================
