@@ -4,7 +4,7 @@ import LZString from 'lz-string';
 import steg from './vendors/steganography';
 
 import { state, objectCreateCommand, applyCommand } from './state';
-import { downloadDataURL } from './helpers/download';
+import { downloadDataURL, downloadDataURLForiOSSafari } from './helpers/download';
 import { layers } from './layers';
 import { colors, getColorDataFromEncodedName } from './colors';
 import { getGridRaster } from './grid';
@@ -319,6 +319,16 @@ export function saveMapToFile() {
   const image = new Image();
   image.src = mapRasterData;
 
+  const os = getMobileOperatingSystem();
+  var isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1 &&
+    navigator.userAgent &&
+    navigator.userAgent.indexOf('CriOS') == -1 &&
+    navigator.userAgent.indexOf('FxiOS') == -1;
+  var w;
+  if (os == "iOS" && !isSafari) {
+    w = window.open('about:blank');
+  }
+
   image.addEventListener(
     'load',
     () => {
@@ -326,8 +336,25 @@ export function saveMapToFile() {
         height: mapRasterSize.height,
         width: mapRasterSize.width,
       });
+
       const filename = `HappyIslandDesigner_${Date.now()}.png`;
-      downloadDataURL(filename, mapRasterData);
+
+      if (os == "iOS") {
+        if (isSafari) {
+          downloadDataURLForiOSSafari(filename, mapRasterData)
+        } else {
+          image.src = mapRasterData;
+          image.addEventListener(
+            'load',
+            () => {
+              w?.document.write(image.outerHTML);
+            },
+            false,
+          );
+        }
+      } else {
+        downloadDataURL(filename, mapRasterData);
+      }
     },
     false,
   );
