@@ -1,7 +1,28 @@
 import { saveAs } from 'file-saver';
 
+export function downloadDataURLForiOSSafari(filename, data) {
+  const image = new Image();
+  image.src = data;
+  image.addEventListener(
+    'load',
+    () => {
+      saveAs(dataURLtoBlob(data), filename);
+    }
+  );
+}
+
 export function downloadDataURL(filename, data) {
-  saveAs(dataURLtoBlob(data), filename);
+  const element = document.createElement('a');
+  element.setAttribute('href', data);
+  element.setAttribute('download', filename);
+
+  element.style.display = 'none';
+  document.body.appendChild(element);
+
+  element.click();
+
+
+  document.body.removeChild(element);
 }
 
 export function downloadText(filename, text) {
