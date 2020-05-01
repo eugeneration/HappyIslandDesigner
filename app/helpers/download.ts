@@ -4,7 +4,11 @@ import { getMobileOperatingSystem } from './getMobileOperatingSystem';
 export function downloadDataURL(filename, data) {
 
   const os = getMobileOperatingSystem();
-  if (os == "iOS") {
+  var isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1 &&
+    navigator.userAgent &&
+    navigator.userAgent.indexOf('CriOS') == -1 &&
+    navigator.userAgent.indexOf('FxiOS') == -1;
+  if (os == "iOS" && isSafari) {
     saveAs(dataURLtoBlob(data), filename);
   } else {
     const element = document.createElement('a');
