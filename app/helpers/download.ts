@@ -8,8 +8,17 @@ export function downloadDataURL(filename, data) {
     navigator.userAgent &&
     navigator.userAgent.indexOf('CriOS') == -1 &&
     navigator.userAgent.indexOf('FxiOS') == -1;
-  if (os == "iOS" && isSafari) {
-    saveAs(dataURLtoBlob(data), filename);
+  if (os == "iOS") {
+    if (isSafari) {
+      saveAs(dataURLtoBlob(data), filename);
+    } else {
+      let w = window.open('about:blank');
+      const image = new Image();
+      image.src = data;
+      setTimeout(function(){
+        w?.document.write(image.outerHTML);
+      }, 0);
+    }
   } else {
     const element = document.createElement('a');
     element.setAttribute('href', data);
