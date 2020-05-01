@@ -330,9 +330,17 @@ export function saveMapToFile() {
     // open a new tab with the screenshot
     // (window.open must not be in an async function or it will be blocked)
     let w = window.open('about:blank');
-    setTimeout(function(){
-      w?.document.write(image.outerHTML);
-    }, 0);
+    image.addEventListener(
+      'load',
+      () => {
+        mapRasterData = steg.encode(mapJson, mapRasterData, {
+          height: mapRasterSize.height,
+          width: mapRasterSize.width,
+        });
+        image.src = mapRasterData;
+        setTimeout(() => w?.document.write(image.outerHTML), 0);
+      }
+    );
   } else {
     image.addEventListener(
       'load',
