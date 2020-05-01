@@ -319,43 +319,18 @@ export function saveMapToFile() {
   const image = new Image();
   image.src = mapRasterData;
 
-  const os = getMobileOperatingSystem();
-  var isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1 &&
-    navigator.userAgent &&
-    navigator.userAgent.indexOf('CriOS') == -1 &&
-    navigator.userAgent.indexOf('FxiOS') == -1;
-  if (os == "iOS" && isSafari)
-  {
-    // mobile safari doesn't allow for auto-saving an image
-    // open a new tab with the screenshot
-    // (window.open must not be in an async function or it will be blocked)
-    let w = window.open('about:blank');
-    image.addEventListener(
-      'load',
-      () => {
-        mapRasterData = steg.encode(mapJson, mapRasterData, {
-          height: mapRasterSize.height,
-          width: mapRasterSize.width,
-        });
-        image.src = mapRasterData;
-        setTimeout(() => w?.document.write(image.outerHTML), 0);
-      }
-    );
-  } else {
-    image.addEventListener(
-      'load',
-      () => {
-        mapRasterData = steg.encode(mapJson, mapRasterData, {
-          height: mapRasterSize.height,
-          width: mapRasterSize.width,
-        });
-
-        const filename = `HappyIslandDesigner_${Date.now()}.png`;
-        downloadDataURL(filename, mapRasterData);
-      },
-      false,
-    );
-  }
+  image.addEventListener(
+    'load',
+    () => {
+      mapRasterData = steg.encode(mapJson, mapRasterData, {
+        height: mapRasterSize.height,
+        width: mapRasterSize.width,
+      });
+      const filename = `HappyIslandDesigner_${Date.now()}.png`;
+      downloadDataURL(filename, mapRasterData);
+    },
+    false,
+  );
 
   autosaveMap();
 }
