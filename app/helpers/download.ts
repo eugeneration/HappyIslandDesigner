@@ -1,7 +1,24 @@
 import { saveAs } from 'file-saver';
+import { getMobileOperatingSystem } from './getMobileOperatingSystem';
 
 export function downloadDataURL(filename, data) {
-  saveAs(dataURLtoBlob(data), filename);
+
+  const os = getMobileOperatingSystem();
+  if (os == "iOS") {
+    saveAs(dataURLtoBlob(data), filename);
+  } else {
+    const element = document.createElement('a');
+    element.setAttribute('href', data);
+    element.setAttribute('download', filename);
+
+    element.style.display = 'none';
+    document.body.appendChild(element);
+
+    element.click();
+
+
+    document.body.removeChild(element);
+  }
 }
 
 export function downloadText(filename, text) {
