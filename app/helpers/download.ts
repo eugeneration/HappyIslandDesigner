@@ -1,37 +1,28 @@
 import { saveAs } from 'file-saver';
-import { getMobileOperatingSystem } from './getMobileOperatingSystem';
+
+export function downloadDataURLForiOSSafari(filename, data) {
+  const image = new Image();
+  image.src = data;
+  image.addEventListener(
+    'load',
+    () => {
+      saveAs(dataURLtoBlob(data), filename);
+    }
+  );
+}
 
 export function downloadDataURL(filename, data) {
+  const element = document.createElement('a');
+  element.setAttribute('href', data);
+  element.setAttribute('download', filename);
 
-  const os = getMobileOperatingSystem();
-  var isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1 &&
-    navigator.userAgent &&
-    navigator.userAgent.indexOf('CriOS') == -1 &&
-    navigator.userAgent.indexOf('FxiOS') == -1;
-  if (os == "iOS") {
-    if (isSafari) {
-      saveAs(dataURLtoBlob(data), filename);
-    } else {
-      let w = window.open('about:blank');
-      const image = new Image();
-      image.src = data;
-      setTimeout(function(){
-        w?.document.write(image.outerHTML);
-      }, 0);
-    }
-  } else {
-    const element = document.createElement('a');
-    element.setAttribute('href', data);
-    element.setAttribute('download', filename);
+  element.style.display = 'none';
+  document.body.appendChild(element);
 
-    element.style.display = 'none';
-    document.body.appendChild(element);
-
-    element.click();
+  element.click();
 
 
-    document.body.removeChild(element);
-  }
+  document.body.removeChild(element);
 }
 
 export function downloadText(filename, text) {
