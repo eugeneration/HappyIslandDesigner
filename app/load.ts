@@ -105,9 +105,14 @@ export function loadImage(onLoad) {
 
 export function loadFile(onLoad) {
   const fileInput = document.createElement('input');
+  document.body.appendChild(fileInput);
   fileInput.type = 'file';
+  fileInput.accept="image/*";
   fileInput.style.display = 'none';
-  fileInput.onchange = onLoad;
+  fileInput.onchange = (event) => {
+    onLoad(event);
+    fileInput.remove();
+  }
   clickElem(fileInput);
 }
 
