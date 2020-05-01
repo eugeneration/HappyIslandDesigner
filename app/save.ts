@@ -326,7 +326,6 @@ export function saveMapToFile() {
         height: mapRasterSize.height,
         width: mapRasterSize.width,
       });
-
       const filename = `HappyIslandDesigner_${Date.now()}.png`;
       downloadDataURL(filename, mapRasterData);
     },
