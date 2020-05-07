@@ -107,19 +107,15 @@ export function loadImage(onLoad) {
 
 export function loadFile(onLoad) {
   const fileInput = document.createElement('input');
+  document.body.appendChild(fileInput);
   fileInput.type = 'file';
+  fileInput.accept="image/*";
   fileInput.style.display = 'none';
-  fileInput.onchange = onLoad;
-  clickElem(fileInput);
-}
-
-function dataURLtoBlob(dataurl) {
-  var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
-      bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
-  while(n--){
-      u8arr[n] = bstr.charCodeAt(n);
+  fileInput.onchange = (event) => {
+    onLoad(event);
+    fileInput.remove();
   }
-  return new Blob([u8arr], {type:mime});
+  clickElem(fileInput);
 }
 
 function blobToDataURL(blob, callback) {

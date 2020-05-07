@@ -3249,6 +3249,10 @@ file-entry-cache@^5.0.1:
   dependencies:
     flat-cache "^2.0.1"
 
+file-saver@eugeneration/FileSaver.js#master:
+  version "2.0.3"
+  resolved "https://codeload.github.com/eugeneration/FileSaver.js/tar.gz/bdfa0f55ebfeba14ab10b31872e5735c48483ad4"
+
 file-uri-to-path@1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/file-uri-to-path/-/file-uri-to-path-1.0.0.tgz#553a7b8446ff6f684359c445f1e37a05dacc33dd"

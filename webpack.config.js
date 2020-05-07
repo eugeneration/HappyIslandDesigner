@@ -84,7 +84,9 @@ module.exports = {
     //   filename: '[name].css',
     //   chunkFilename: '[id].css',
     // }),
-    new DynamicCdnWebpackPlugin()
+    new DynamicCdnWebpackPlugin({
+      exclude: ['file-saver']
+    })
   ],
   optimization: {
     splitChunks: {
