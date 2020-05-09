@@ -49,7 +49,7 @@ export function startDraw(event) {
 
 export function draw(event) {
   switch (paintTool) {
-    case paintTools.grid:
+    case paintTools.grid: {
       const brushLineForce = getCurrentBrushLineForce();
       const isShift = paper.Key.isDown('shift');
       if (!brushLine && (isShift || brushLineForce)) {
@@ -66,19 +66,21 @@ export function draw(event) {
         drawGrid(event.point);
       }
       break;
-    case paintTools.freeform:
+    }
+    case paintTools.freeform: {
       // Add a segment to the path at the position of the mouse:
       myPath.add(event.point);
       myPath.smooth({
         type: 'catmull-rom',
       });
       break;
+    }
   }
 }
 
 export function endDraw(event) {
   switch (paintTool) {
-    case paintTools.grid:
+    case paintTools.grid: {
       const brushLineForce = getCurrentBrushLineForce();
       const isShift = paper.Key.isDown('shift');
       if (isShift || brushLineForce) {
@@ -87,8 +89,10 @@ export function endDraw(event) {
       endDrawGrid();
       stopGridLinePreview();
       break;
-    case paintTools.freeform:
+    }
+    case paintTools.freeform: {
       break;
+    }
   }
 }
 
@@ -190,7 +194,7 @@ export function drawLine(start: paper.Point, end: paper.Point): paper.Path {
 
 export function addPath(isAdd, path, colorKey) {
   layers.mapLayer.activate();
-  if (!state.drawing.hasOwnProperty(colorKey)) {
+  if (!Object.prototype.hasOwnProperty.call(state.drawing, colorKey)) {
     state.drawing[colorKey] = new paper.Path();
     state.drawing[colorKey].locked = true;
   }

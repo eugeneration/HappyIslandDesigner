@@ -7,7 +7,6 @@ import { renderModal } from './modal';
 import { colors } from '../colors';
 import { saveMapToFile } from '../save';
 import { loadMapFromFile, loadTemplate } from '../load';
-import { layers } from '../layers';
 import { showSwitchModal } from './screenshotModal';
 
 
@@ -149,7 +148,7 @@ export function showMainMenu(isShown: boolean) {
       saveButton,
       loadButton,
       newButton,
-      switchButton, 
+      switchButton,
       twitterButton,
     ]);
     mainMenu.opacity = 0;

@@ -156,7 +156,7 @@ export function drawGrid(viewPosition: paper.Point) {
 
     Object.keys(diff).forEach((colorKey) => {
       const colorDiff = diff[colorKey];
-      if (!diffCollection.hasOwnProperty(colorKey)) {
+        if (!Object.prototype.hasOwnProperty.call(diffCollection, colorKey)) {
         diffCollection[colorKey] = { isAdd: colorDiff.isAdd, path: [] };
       }
       if (colorDiff.path.children) {

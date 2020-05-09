@@ -27,8 +27,17 @@ module.exports = {
     ],
     "rules": {
         "react-hooks/rules-of-hooks": "error", // Checks rules of Hooks
-        "react-hooks/exhaustive-deps": "warn" // Checks effect dependencies
+        "react-hooks/exhaustive-deps": "warn", // Checks effect dependencies
+        "no-inner-declarations": 0, // allow functions in functions
     },
+    "overrides": [
+      {
+        files: ['*.ts', '*.tsx'],
+        rules: {
+          '@typescript-eslint/no-unused-vars': [2, { args: 'none' }]
+        }
+      }
+    ],
     "settings": {
       "react": {
         "createClass": "createReactClass", // Regex for Component Factory to use,
@@ -49,6 +58,6 @@ module.exports = {
         // Components used as alternatives to <a> for linking, eg. <Link to={ url } />
         "Hyperlink",
         {"name": "Link", "linkAttribute": "to"}
-      ]
+      ],
     }
 };

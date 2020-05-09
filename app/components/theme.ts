@@ -6,6 +6,7 @@ export default {
     text: colors.text.cssColor,
     background: colors.paper.cssColor,
     primary: '#33e',
+    secondary: '#333',
   },
   fontSizes: [
     12, 14, 16, 20, 24, 32, 48, 64
@@ -23,6 +24,20 @@ export default {
       // uses the theme values provided above
       fontFamily: 'body',
       fontWeight: 'body',
+    },
+  },
+
+  buttons: {
+    primary: {
+      color: 'background',
+      bg: 'primary',
+      '&:hover': {
+        bg: 'text',
+      }
+    },
+    secondary: {
+      color: 'background',
+      bg: 'secondary',
     },
   },
 }

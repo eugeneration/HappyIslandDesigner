@@ -25,7 +25,7 @@ class ToolState {
     return this.toolMapValue(def, def.defaultTool, def.defaultModifiers);
   }
   switchToolType(toolType) {
-    if (!this.toolMap.hasOwnProperty(toolType)) {
+    if (!Object.prototype.hasOwnProperty.call(this.toolMap, toolType)) {
       this.switchTool(this.defaultToolMapValue(toolType), true);
     } else {
       this.switchTool(this.toolMap[toolType], true);
