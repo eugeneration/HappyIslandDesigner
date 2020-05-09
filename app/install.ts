@@ -4,7 +4,7 @@ import * as ReactDOM from "react-dom";
 
 import { store } from './store';
 import {onKeyUp, onKeyDown} from './keyboard';
-import { Hello } from "./components/Hello";
+import { App } from "./components/App";
 
 export function install() {
   return new Promise((resolve) => {
@@ -31,7 +31,7 @@ export function install() {
 
       // Setup React
       ReactDOM.render(
-        React.createElement(Hello, {compiler:"TypeScript", framework:"React"}),
+        React.createElement(App, {}),
         document.getElementById("ui-container")
       );
     };

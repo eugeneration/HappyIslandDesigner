@@ -20,6 +20,14 @@ module.exports = {
   module: {
     rules: [
       {
+        test: /\.(j|t)s(x)?$/,
+        exclude: /node_modules/,
+        loader: 'eslint-loader',
+        options: {
+          // eslint options (if necessary)
+        },
+      },
+      {
         test: /\.scss$/,
         exclude: /node_modules/,
         use: [
@@ -62,6 +70,7 @@ module.exports = {
                   regenerator: true,
                 },
               ],
+              ['babel-plugin-typescript-to-proptypes', {}],
             ],
           },
         },
