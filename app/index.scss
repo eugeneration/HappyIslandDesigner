@@ -5,6 +5,11 @@ body {
   overscroll-behavior: none;
 }
 
+.no-focus-outline a:focus,
+.no-focus-outline button:focus {
+  outline: none;
+}
+
 /* Scale canvas with resize attribute to full size */
 canvas[resize],
 #app {

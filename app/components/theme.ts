@@ -1,12 +1,19 @@
 import {colors} from '../colors'
 
+const shadowColor = "rgba(75, 59, 50, 0.3)" // offblack
+
 // example theme.js
 export default {
+  breakpoints: [
+    '40em', '56em', '64em',
+  ],
+
   colors: {
     text: colors.text.cssColor,
     background: colors.paper.cssColor,
     primary: '#33e',
     secondary: '#333',
+    white: '#fff',
   },
   fontSizes: [
     12, 14, 16, 20, 24, 32, 48, 64
@@ -19,11 +26,24 @@ export default {
     heading: 'inherit',
     monospace: 'monospace'
   },
-  styles: {
-    root: {
-      // uses the theme values provided above
-      fontFamily: 'body',
-      fontWeight: 'body',
+  fontWeights: {
+    body: 400,
+    heading: 700,
+    bold: 700
+  },
+  lineHeights: {
+    body: 1.5,
+    heading: 1.125,
+  },
+
+  images: {
+    block: {
+      display: 'block',
+    },
+    card: {
+      display: 'block',
+      width: '100%',
+      borderRadius: 6,
     },
   },
 
@@ -35,9 +55,79 @@ export default {
         bg: 'text',
       }
     },
-    secondary: {
-      color: 'background',
-      bg: 'secondary',
+    card: {
+      color: 'text',
+      bg: 'white',
+      boxShadow: '0 0 3px 0 ' + shadowColor,
+      borderRadius: 8,
+      transition: 'transform 0.1s',
+      '&:hover': {
+        boxShadow: '2px 2px 3px 1px ' + shadowColor,
+        transform: 'rotate(3deg) scale(1.1)'
+      },
+      '&:active': {
+        boxShadow: '1px 1px 3px 1px ' + shadowColor,
+      },
+    },
+  },
+
+  styles: {
+    root: {
+      // uses the theme values provided above
+      fontFamily: 'body',
+      fontWeight: 'body',
+      userSelect: 'none',
+    },
+    h1: {
+      color: 'text',
+      fontFamily: 'heading',
+      lineHeight: 'heading',
+      fontWeight: 'heading',
+      fontSize: 5
+    },
+    h2: {
+      color: 'text',
+      fontFamily: 'heading',
+      lineHeight: 'heading',
+      fontWeight: 'heading',
+      fontSize: 4
+    },
+    h3: {
+      color: 'text',
+      fontFamily: 'heading',
+      lineHeight: 'heading',
+      fontWeight: 'heading',
+      fontSize: 3
+    },
+    h4: {
+      color: 'text',
+      fontFamily: 'heading',
+      lineHeight: 'heading',
+      fontWeight: 'heading',
+      fontSize: 2
+    },
+    h5: {
+      color: 'text',
+      fontFamily: 'heading',
+      lineHeight: 'heading',
+      fontWeight: 'heading',
+      fontSize: 1
+    },
+    h6: {
+      color: 'text',
+      fontFamily: 'heading',
+      lineHeight: 'heading',
+      fontWeight: 'heading',
+      fontSize: 0
+    },
+    p: {
+      color: 'text',
+      fontFamily: 'body',
+      fontWeight: 'body',
+      lineHeight: 'body'
+    },
+    img: {
+      display: 'block',
     },
   },
 }

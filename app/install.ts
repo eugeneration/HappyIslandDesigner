@@ -11,6 +11,13 @@ export function install() {
     window.onload = function onload() {
       paper.install(window);
 
+      // bring outlines back when user presses tab
+      document.body.addEventListener('keyup', function(e) {
+        if (e.which === 9) /* tab */ {
+          document.documentElement.classList.remove('no-focus-outline');
+        }
+      });
+
       // Setup PaperJS
       const canvas = document.getElementById('canvas') as HTMLCanvasElement;
       paper.setup(canvas);

@@ -1,22 +1,25 @@
-import * as React from 'react';
+import React from 'react';
 import { ThemeProvider } from 'theme-ui'
 import theme from './theme'
-import {Global, Box, Flex, Text} from 'theme-ui'
+import ModalMapSelect from './ModalMapSelect';
 
-export interface AppProps { }
+//export interface AppProps { }
 
-export function App(props: AppProps) {
+export function App(/*props: AppProps*/) {
   return (
     <ThemeProvider theme={theme}>
       <main>
-        <Flex
-          px={2}
+        {/* <Flex
+          p={2}
           color='color'
           bg='background'
-          alignItems='center'>
+          sx={{
+            alignItems: 'center'
+          }}>
           <Text p={2}>Rebass</Text>
           <Box mx='auto' />
-        </Flex>
+        </Flex> */}
+        <ModalMapSelect />
       </main>
     </ThemeProvider>
   );

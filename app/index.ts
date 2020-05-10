@@ -14,8 +14,10 @@ i18next.init({
   resources: strings,
 });
 
+/*eslint-disable */
 (async () => {
   await install();
   drawer();
   zoom();
 })();
+/*eslint-enable */

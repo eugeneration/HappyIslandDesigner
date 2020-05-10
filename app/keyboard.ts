@@ -45,9 +45,6 @@ export function onKeyDown(event) {
     case 'space':
       keys.isSpaceDown = true;
       break;
-    case '0':
-      updatePaintColor(colors.eraser);
-      break;
     case '1':
       updatePaintColor(colors.sand);
       break;
