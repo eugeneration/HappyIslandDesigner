@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import Modal from 'react-modal';
-import {Box, Button, Image, Flex, Grid, Heading, Text} from 'theme-ui'
+import {Box, Button, Image, Flex, Grid, Heading, Text, Link} from 'theme-ui'
 import { colors } from '../colors';
 import './modal.scss';
 import Layouts, { LayoutType, Layout } from './islandLayouts';
 import useBlockZoom from './useBlockZoom';
 
 import { loadMapFromJSONString } from '../load';
-import {confirmDestructiveAction} from '../state';
+import {confirmDestructiveAction, isMapEmpty} from '../state';
 
 const shadowColor = "rgba(75, 59, 50, 0.3)" // offblack
 
@@ -49,7 +49,8 @@ export default function ModalMapSelect(){
   }
 
   function closeModal(){
-    setIsOpen(false);
+    if (!isMapEmpty())
+      setIsOpen(false);
   }
 
   useEffect(() => {
@@ -103,12 +104,14 @@ export default function ModalMapSelect(){
 function IslandLayoutSelector() {
   const [layoutType, setLayoutType] = useState<LayoutType>(LayoutType.none);
   const [layout, setLayout] = useState<number>(-1);
+  const [help, setHelp] = useState<boolean>(false);
 
   useEffect(() => {
     if (layout != -1)
     {
       const layoutData = getLayouts(layoutType)[layout];
       loadMapFromJSONString(layoutData.data);
+      CloseMapSelectModal();
     }
   }, [layoutType, layout]);
 
@@ -122,6 +125,23 @@ function IslandLayoutSelector() {
         return Layouts.east;
     }
     return [];
+  }
+
+  if (help) {
+    return (
+      <Flex p={[0, 3]} sx={{flexDirection: 'column', alignItems: 'center', position: 'relative'}}>
+        <Box sx={{position: 'absolute', left: 0, top: [1, 30]}}>
+          <Button variant='icon' onClick={() => setHelp(false)}>
+            <Image sx={{width: 'auto'}} src='static/img/back.png' />
+          </Button>
+        </Box>
+        <Image sx={{width: 100, margin: 'auto'}} src={'static/img/blathers.png'}/>
+        <Heading m={3} sx={{px: layoutType ? 4 : 0, textAlign: 'center'}}>{'Please help contribute!'}</Heading>
+        <Text my={2}>{'Sorry, we don\'t have all the map templates yet (there are almost 100 river layouts in the game!). Each option you see here has been hand-made by a member of the community.'}</Text>
+        <Text my={2}>{'You can use the \'Upload Screenshot\' tool to trace an image of your island. When you\'re done please consider contributing your island map in either the '}<Link href={'https://github.com/eugeneration/HappyIslandDesigner/issues/59'}>Github</Link>{' or '}<Link href={'https://discord.gg/EtaqD5H'}>Discord</Link>!</Text>
+        <Text my={2}>{'Please note that your island may have different shaped rock formations, beaches, and building positions than another island with the same river layout.'}</Text>
+      </Flex>
+    )
   }
 
   let content;
@@ -141,12 +161,16 @@ function IslandLayoutSelector() {
                   'Clear your map? You will lose all unsaved changes.',
                   () => {
                     setLayout(index);
-                    CloseMapSelectModal();
                   });
               }}>
               <Image variant='card' src={`static/img/layouts/${layoutType}-${layout.name}.png`}/>
             </Card>
-          ))
+          )).concat(
+            <Card key={'help'} onClick={()=>{setHelp(true)}}>
+              <Image sx={{width: 24}} src={'static/img/menu-help.png'} />
+              <Text sx={{fontFamily: 'body'}}>{'Why isn\'t my map here?'}</Text>
+            </Card>
+          )
         }
       </Grid>
     );

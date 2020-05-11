@@ -159,6 +159,11 @@ export function addToHistory(command) {
   }
   state.history[state.index] = command;
 
+  autosaveTrigger();
+  emitter.emit('historyUpdate', 'add');
+}
+
+export function autosaveTrigger() {
   // autosave
   actionsCount += 1;
   state.actionsSinceSave += 1;
@@ -172,6 +177,4 @@ export function addToHistory(command) {
       autosaveMap();
     }, autosaveInactivityTimer);
   }
-
-  emitter.emit('historyUpdate', 'add');
 }

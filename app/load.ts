@@ -1,6 +1,5 @@
-import { clearMap, setNewMapData } from './state';
+import { clearMap, setNewMapData, autosaveTrigger } from './state';
 import { decodeMap } from './save';
-import { template } from './template';
 import steg from './vendors/steganography';
 import LZString from 'lz-string';
 import { showLoadingScreen } from "./ui/loadingScreen";
@@ -62,6 +61,7 @@ export function loadMapFromJSONString(mapJSONString: string) {
   clearMap();
   const map = decodeMap(json);
   setNewMapData(map);
+  autosaveTrigger();
 }
 
 export function loadMapFromFile() {

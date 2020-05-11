@@ -23,8 +23,8 @@ export default {
     0, 4, 8, 16, 32, 64, 128, 256
   ],
   fonts: {
-    body: '"TTNorms", sans-serif',
-    heading: 'inherit',
+    body: '"Quicksand", "TTNorms", sans-serif',
+    heading: '"TTNorms", sans-serif',
     monospace: 'monospace'
   },
   fontWeights: {
