@@ -4,6 +4,7 @@ import { template } from './template';
 import steg from './vendors/steganography';
 import LZString from 'lz-string';
 import { showLoadingScreen } from "./ui/loadingScreen";
+import { OpenMapSelectModal } from './components/ModalMapSelect';
 
 function clickElem(elem) {
   // Thx user1601638 on Stack Overflow (6/6/2018 - https://stackoverflow.com/questions/13405129/javascript-create-and-save-file )
@@ -28,11 +29,6 @@ function clickElem(elem) {
   elem.dispatchEvent(eventMouse);
 }
 
-export function loadTemplate() {
-  clearMap();
-  setNewMapData(decodeMap(template));
-}
-
 export function tryLoadAutosaveMap() {
   document.cookie = '';
   if (localStorage) {
@@ -43,6 +39,8 @@ export function tryLoadAutosaveMap() {
       return true;
     }
   }
+  // open the new map modal
+  OpenMapSelectModal();
   return false;
 }
 

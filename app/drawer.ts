@@ -219,9 +219,7 @@ export function drawer() {
 
   layers.mapLayer.activate();
 
-  if (!tryLoadAutosaveMap()) {
-    loadTemplate();
-  }
+  tryLoadAutosaveMap();
 
   paper.view.onResize = onResize;
   paper.view.onFrame = onFrame;

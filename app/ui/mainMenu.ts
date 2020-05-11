@@ -8,6 +8,7 @@ import { colors } from '../colors';
 import { saveMapToFile } from '../save';
 import { loadMapFromFile, loadTemplate } from '../load';
 import { showSwitchModal } from './screenshotModal';
+import { OpenMapSelectModal } from '../components/ModalMapSelect';
 
 
 export let mainMenu: paper.Group;
@@ -123,10 +124,8 @@ export function showMainMenu(isShown: boolean) {
       2, 0,
       () => {
         // eslint-disable-next-line no-alert, no-restricted-globals
-        const r = confirm('Clear your map? You will lose all unsaved changes.');
-        if (r === true) {
-          loadTemplate();
-        }
+        OpenMapSelectModal();
+        showMainMenu(false);
       },
     );
     var switchButton = createMenuButton(

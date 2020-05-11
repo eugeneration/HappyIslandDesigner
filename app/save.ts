@@ -238,6 +238,8 @@ export function autosaveMap() {
   return false;
 }
 
+// @ts-ignore
+window.clearAutosave = clearAutosave;
 export function clearAutosave() {
   if (localStorage) {
     localStorage.removeItem('autosave');

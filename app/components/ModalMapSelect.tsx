@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from 'react-modal';
 import {Box, Button, Image, Flex, Grid, Heading, Text} from 'theme-ui'
 import { colors } from '../colors';
 import './modal.scss';
 import Layouts, { LayoutType, Layout } from './islandLayouts';
 import useBlockZoom from './useBlockZoom';
+
+import { loadMapFromJSONString } from '../load';
+import {confirmDestructiveAction} from '../state';
 
 const shadowColor = "rgba(75, 59, 50, 0.3)" // offblack
 
@@ -27,6 +30,14 @@ const customStyles = {
   }
 };
 
+export function OpenMapSelectModal() {
+  document.getElementById('open-map-select')?.click();
+}
+
+export function CloseMapSelectModal() {
+  document.getElementById('close-map-select')?.click();
+}
+
 export default function ModalMapSelect(){
   const [modalIsOpen,setIsOpen] = useState(false);
   function openModal() {
@@ -42,9 +53,6 @@ export default function ModalMapSelect(){
   }
 
   useEffect(() => {
-    openModal(); // TEMP
-
-
     Modal.setAppElement('body');
   }, []);
 
@@ -102,7 +110,8 @@ function IslandLayoutSelector() {
   useEffect(() => {
     if (layout != -1)
     {
-      console.log(getLayouts(layoutType)[layout]);
+      const layoutData = getLayouts(layoutType)[layout];
+      loadMapFromJSONString(layoutData.data);
     }
   }, [layoutType, layout]);
 
@@ -131,7 +140,14 @@ function IslandLayoutSelector() {
             layouts.map((layout, index) => (
               <Card
                 key={index}
-                onClick={() => setLayout(index)}>
+                onClick={() => {
+                  confirmDestructiveAction(
+                    'Clear your map? You will lose all unsaved changes.',
+                    () => {
+                      setLayout(index);
+                      CloseMapSelectModal();
+                    });
+                }}>
                 <Image variant='card' src={`static/img/layouts/${layoutType}-${layout.name}.png`}/>
               </Card>
             ))

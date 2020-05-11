@@ -2,6 +2,7 @@ import { emitter } from './emitter';
 import { applyCreateObject } from './ui/createObject';
 import { applyMoveCommand, applyDiff } from './paint';
 import { autosaveMap } from './save';
+import objectIsEmpty from './helpers/objectIsEmpty';
 
 /* eslint-disable default-case */
 export type State = {
@@ -26,6 +27,18 @@ let actionsCount = 0;
 const autosaveActionsInterval = 20;
 const autosaveInactivityTimer = 10000;
 let autosaveTimeout: NodeJS.Timeout;
+
+export function isMapEmpty() {
+  return objectIsEmpty(state.objects) && objectIsEmpty(state.drawing);
+}
+
+export function confirmDestructiveAction(message: string, callback: Function) {
+  const empty = isMapEmpty();
+  const r = empty || confirm(message);
+  if (r === true) {
+    callback();
+  }
+}
 
 export function clearMap() {
   Object.keys(state.drawing).forEach((p) => {
