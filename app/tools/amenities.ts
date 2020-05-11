@@ -44,9 +44,9 @@ asyncAmenitiesDefinition.value = {
   campsiteSprite: {
     img: 'static/sprite/building-campsite.png',
     menuScaling: new paper.Point(0.17, 0.17),
-    scaling: new paper.Point(0.017, 0.017),
-    size: new paper.Size(4, 3),
-    offset: new paper.Point(-2, -2.6),
+    scaling: new paper.Point(0.021, 0.021),
+    size: new paper.Size(4, 4),
+    offset: new paper.Point(-2, -3.4),
   },
   museumSprite: {
     img: 'static/sprite/building-museum.png',
