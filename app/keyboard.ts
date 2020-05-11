@@ -139,6 +139,7 @@ export function onKeyDown(event) {
       break;
     case '/':
       console.log(encodeMap());
+      navigator.clipboard.writeText(encodeMap());
       break;
     case 'z':
       if (control && shift) {

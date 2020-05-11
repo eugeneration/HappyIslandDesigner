@@ -46,27 +46,33 @@ export function tryLoadAutosaveMap() {
   return false;
 }
 
+// @ts-ignore
+window.loadMap = loadMapFromJSONString;
+
+export function loadMapFromJSONString(mapJSONString: string) {
+  let json;
+  try {
+    json = JSON.parse(mapJSONString);
+  } catch (err) {
+    try {
+      json = JSON.parse(LZString.decompressFromUTF16(mapJSONString))
+    } catch (e) {
+      json = JSON.parse(LZString.decompress(mapJSONString))
+    }
+  }
+
+  clearMap();
+  const map = decodeMap(json);
+  setNewMapData(map);
+}
+
 export function loadMapFromFile() {
   loadImage((image) => {
     const mapJSONString = steg.decode(image.src, {
       height: image.height,
       width: image.width,
     });
-    clearMap();
-
-    let json;
-    try {
-      json = JSON.parse(mapJSONString);
-    } catch (err) {
-      try {
-        json = JSON.parse(LZString.decompressFromUTF16(mapJSONString))
-      } catch (e) {
-        json = JSON.parse(LZString.decompress(mapJSONString))
-      }
-    }
-    const map = decodeMap(json);
-
-    setNewMapData(map);
+    loadMapFromJSONString(mapJSONString);
   });
 }
 

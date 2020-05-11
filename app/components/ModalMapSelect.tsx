@@ -99,35 +99,44 @@ function IslandLayoutSelector() {
   const [layoutType, setLayoutType] = useState<LayoutType>(LayoutType.none);
   const [layout, setLayout] = useState<number>(-1);
 
-  if (layoutType != LayoutType.none) {
-    var layouts: Array<Layout> = [];
-    switch (layoutType) {
-      case LayoutType.west:
-        layouts = Layouts.west;
-        break;
-      case LayoutType.south:
-        layouts = Layouts.south;
-        break;
-      case LayoutType.east:
-        layouts = Layouts.east;
-        break;
+  useEffect(() => {
+    if (layout != -1)
+    {
+      console.log(getLayouts(layoutType)[layout]);
     }
+  }, [layoutType, layout]);
+
+  function getLayouts(type: LayoutType) {
+    switch (type) {
+      case LayoutType.west:
+        return Layouts.west;
+      case LayoutType.south:
+        return Layouts.south;
+      case LayoutType.east:
+        return Layouts.east;
+    }
+    return [];
+  }
+
+  if (layoutType != LayoutType.none) {
+    var layouts: Array<Layout> = getLayouts(layoutType);
     return (
       <Flex sx={{flexDirection: 'column'}}>
         <Button onClick={() => setLayoutType(LayoutType.none)}><Text>Back</Text></Button>
-        <Grid sx={{flexDirection: ['column', 'row']}}>
+        <Grid
+          gap={0}
+          columns={[2, 3, 4]}
+          sx={{flexDirection: ['column', 'row']}}>
           {
             layouts.map((layout, index) => (
               <Card
                 key={index}
                 onClick={() => setLayout(index)}>
-                <Image variant='card' src={`static/img/layouts/${layout.name}.png`}/>
+                <Image variant='card' src={`static/img/layouts/${layoutType}-${layout.name}.png`}/>
               </Card>
             ))
           }
         </Grid>
-        {layout >= 0 &&
-          <Button onClick={() => alert('select layout ' + layoutType + layout)}><Text>Layout</Text></Button>}
       </Flex>
     );
   }

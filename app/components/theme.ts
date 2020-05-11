@@ -43,6 +43,7 @@ export default {
     card: {
       display: 'block',
       width: '100%',
+      maxWidth: 300,
       borderRadius: 6,
     },
   },
@@ -63,7 +64,7 @@ export default {
       transition: 'transform 0.1s',
       '&:hover': {
         boxShadow: '2px 2px 3px 1px ' + shadowColor,
-        transform: 'rotate(3deg) scale(1.1)'
+        transform: 'rotate(2deg) scale(1.05)'
       },
       '&:active': {
         boxShadow: '1px 1px 3px 1px ' + shadowColor,
