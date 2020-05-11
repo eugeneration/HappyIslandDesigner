@@ -1,6 +1,6 @@
 # Happy Island Designer (Alpha)
 
-Create your own at: 
+Create your own at:
 https://eugeneration.github.io/HappyIslandDesigner/
 
 Report bugs in the Issues tab or on the [Discord](https://discord.gg/EtaqD5H)
@@ -13,7 +13,7 @@ Once I saw that you could customize your island in the AC direct, I was inspired
 
 Click here for [technical details](/docs/README-technical.md).
 
-Click here for [local development info](/docs/README-localdev).
+Click here for [local development info](/docs/README-localdev.md).
 
 ## Features
 
