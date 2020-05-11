@@ -17,7 +17,7 @@ import { createLeftMenu, addHelpButton } from './ui/leftMenu';
 import { showMainMenu } from './ui/mainMenu';
 import { initLayers, layers } from './layers';
 import { colors } from './colors';
-import { loadTemplate, tryLoadAutosaveMap } from './load';
+import { tryLoadAutosaveMap } from './load';
 import { backgroundInit, drawBackground } from './background';
 import { resizeCoordinates } from './resizeCoordinates';
 import { keys } from './keyboard';

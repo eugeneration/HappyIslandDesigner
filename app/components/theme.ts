@@ -1,4 +1,5 @@
 import {colors} from '../colors'
+import { changePaintTool } from '../paint'
 
 const shadowColor = "rgba(75, 59, 50, 0.3)" // offblack
 
@@ -70,6 +71,19 @@ export default {
         boxShadow: '1px 1px 3px 1px ' + shadowColor,
       },
     },
+    icon: {
+      background: 'none',
+      borderRadius: 24,
+      width: 36,
+      height: 36,
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 2,
+      '&:hover': {
+        backgroundColor: colors.yellow.cssColor,
+      },
+    },
   },
 
   styles: {
@@ -78,6 +92,7 @@ export default {
       fontFamily: 'body',
       fontWeight: 'body',
       userSelect: 'none',
+      fontVariantLigatures: 'no-common-ligatures',
     },
     h1: {
       color: 'text',
@@ -125,7 +140,7 @@ export default {
       color: 'text',
       fontFamily: 'body',
       fontWeight: 'body',
-      lineHeight: 'body'
+      lineHeight: 'body',
     },
     img: {
       display: 'block',

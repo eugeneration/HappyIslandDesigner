@@ -89,10 +89,7 @@ export default function ModalMapSelect(){
           }}>
             <Image variant='block' sx={{maxWidth: 150}} src='static/img/nook-inc-white.png'/>
           </Box>
-          <Box p={[0, 3]}>
-            <Heading m={3} sx={{textAlign: 'center'}}>Choose your Island!</Heading>
-            <IslandLayoutSelector />
-          </Box>
+          <IslandLayoutSelector />
           <Box p={3} sx={{
             backgroundColor: colors.level3.cssColor,
             borderRadius: '4px 30px 30px 4px',
@@ -127,55 +124,69 @@ function IslandLayoutSelector() {
     return [];
   }
 
+  let content;
   if (layoutType != LayoutType.none) {
     var layouts: Array<Layout> = getLayouts(layoutType);
-    return (
-      <Flex sx={{flexDirection: 'column'}}>
-        <Button onClick={() => setLayoutType(LayoutType.none)}><Text>Back</Text></Button>
-        <Grid
-          gap={0}
-          columns={[2, 3, 4]}
-          sx={{flexDirection: ['column', 'row']}}>
-          {
-            layouts.map((layout, index) => (
-              <Card
-                key={index}
-                onClick={() => {
-                  confirmDestructiveAction(
-                    'Clear your map? You will lose all unsaved changes.',
-                    () => {
-                      setLayout(index);
-                      CloseMapSelectModal();
-                    });
-                }}>
-                <Image variant='card' src={`static/img/layouts/${layoutType}-${layout.name}.png`}/>
-              </Card>
-            ))
-          }
-        </Grid>
+    content = (
+      <Grid
+        gap={0}
+        columns={[2, 3, 4]}
+        sx={{justifyItems: 'center' }}>
+        {
+          layouts.map((layout, index) => (
+            <Card
+              key={index}
+              onClick={() => {
+                confirmDestructiveAction(
+                  'Clear your map? You will lose all unsaved changes.',
+                  () => {
+                    setLayout(index);
+                    CloseMapSelectModal();
+                  });
+              }}>
+              <Image variant='card' src={`static/img/layouts/${layoutType}-${layout.name}.png`}/>
+            </Card>
+          ))
+        }
+      </Grid>
+    );
+  }
+  else {
+    content = (
+      <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center'}}>
+        <Card onClick={() => setLayoutType(LayoutType.west)}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
+        <Card onClick={() => setLayoutType(LayoutType.south)}><Image variant='card' src={'static/img/island-type-south.png'}/></Card>
+        <Card onClick={() => setLayoutType(LayoutType.east)}><Image variant='card' src={'static/img/island-type-east.png'}/></Card>
       </Flex>
     );
   }
   return (
-    <Flex sx={{flexDirection: ['column', 'row']}}>
-      <Card onClick={() => setLayoutType(LayoutType.west)}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
-      <Card onClick={() => setLayoutType(LayoutType.south)}><Image variant='card' src={'static/img/island-type-south.png'}/></Card>
-      <Card onClick={() => setLayoutType(LayoutType.east)}><Image variant='card' src={'static/img/island-type-east.png'}/></Card>
-    </Flex>
+    <Box p={[0, 3]} sx={{position: 'relative'}}>
+      {layoutType && <Box sx={{position: 'absolute', top: [1, 3]}}>
+        <Button variant='icon' onClick={() => setLayoutType(LayoutType.none)}>
+          <Image src='static/img/back.png' />
+        </Button>
+      </Box>}
+      <Heading m={2} sx={{px: layoutType ? 4 : 0, textAlign: 'center'}}>{layoutType ? 'Choose your Island!' : 'Choose your Layout!'}</Heading>
+      {layoutType && <Text m={2} sx={{textAlign: 'center'}}>{'You probably won\'t find an exact match, but pick one that roughly resembles your island.'}</Text>}
+      {content}
+    </Box>
   );
 }
 
 interface CardProps {
   children: React.ReactNode,
   onClick?: React.MouseEventHandler,
+  maxWidth?: number,
 }
-function Card({children, onClick}: CardProps) {
+function Card({children, onClick, maxWidth}: CardProps) {
   return (
     <Button
       p={2}
-      m={2}
+      m={[1, 2]}
       variant='card'
       onClick={onClick}
+      sx={maxWidth ? {maxWidth: maxWidth} : {maxWidth: 185}}
     >
       {children}
     </Button>
