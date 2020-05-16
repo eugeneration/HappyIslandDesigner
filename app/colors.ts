@@ -1,110 +1,107 @@
 import paper from 'paper';
 
-export type Color = { color: paper.Color; key: string; name: string };
+export type Color = { cssColor: string,color: paper.Color; key: string; name: string };
+
+const c = new paper.Color(0); // placeholder color
 
 // if you want to rename a color, you must add a name parameter with the old name
 // otherwise backwards compatibility for encoding/decoding will break
-export const colors: {
-  [key: string]: Color;
-} = {
-  invisible: {
-    color: new paper.Color('rgba(0, 0, 0, 0.00001)'),
-    key: '',
-    name: '',
-  },
+export const colors = {
+  invisible: {cssColor: 'rgba(0, 0, 0, 0.00001)', color: c, key: '', name: ''},
 
   // terrain color
-  water: { color: new paper.Color('#83e1c3'), key: '', name: '' },
-  sand: { color: new paper.Color('#eee9a9'), key: '', name: '' },
-  level1: { color: new paper.Color('#347941'), key: '', name: '' },
-  level2: { color: new paper.Color('#35a043'), key: '', name: '' },
-  level3: { color: new paper.Color('#4ac34e'), key: '', name: '' },
-  rock: { color: new paper.Color('#737a89'), key: '', name: '' },
-  campground: { color: new paper.Color('#b0a280'), key: '', name: '' },
-  townsquare: { color: new paper.Color('#E2AA78'), key: '', name: '' },
+  water: { cssColor: '#83e1c3', color: c, key: '', name: '' },
+  sand: { cssColor: '#eee9a9', color: c, key: '', name: '' },
+  level1: { cssColor: '#347941', color: c, key: '', name: '' },
+  level2: { cssColor: '#35a043', color: c, key: '', name: '' },
+  level3: { cssColor: '#4ac34e', color: c, key: '', name: '' },
+  rock: { cssColor: '#737a89', color: c, key: '', name: '' },
+  campground: { cssColor: '#b0a280', color: c, key: '', name: '' },
+  townsquare: { cssColor: '#E2AA78', color: c, key: '', name: '' },
 
   // paths
-  pathDirt: { color: new paper.Color('#d5ac71'), key: '', name: '' },
-  pathSand: { color: new paper.Color('#f9df96'), key: '', name: '' },
-  pathStone: { color: new paper.Color('#999a8c'), key: '', name: '' },
-  pathBrick: { color: new paper.Color('#e38f68'), key: '', name: '' },
-  pathEraser: { color: new paper.Color('#f1b2c1'), key: '', name: '' },
+  pathDirt: { cssColor: '#d5ac71', color: c, key: '', name: '' },
+  pathSand: { cssColor: '#f9df96', color: c, key: '', name: '' },
+  pathStone: { cssColor: '#999a8c', color: c, key: '', name: '' },
+  pathBrick: { cssColor: '#e38f68', color: c, key: '', name: '' },
+  pathEraser: { cssColor: '#f1b2c1', color: c, key: '', name: '' },
 
   // structures
-  special: { color: new paper.Color('#ffffff'), key: '', name: '' },
-  dock: { color: new paper.Color('#a9926e'), key: '', name: '' },
-  amenity: { color: new paper.Color('#514d40'), key: '', name: '' },
-  amenityWhite: { color: new paper.Color('#efedd5'), key: '', name: '' },
-  human: { color: new paper.Color('#F078B0'), key: '', name: '' },
-  npc: { color: new paper.Color('#f8bd26'), key: '', name: '' },
-  selected: { color: new paper.Color('#ed772f'), key: '', name: '' },
-  pin: { color: new paper.Color('#e75a2e'), key: '', name: '' },
+  special: { cssColor: '#ffffff', color: c, key: '', name: '' },
+  dock: { cssColor: '#a9926e', color: c, key: '', name: '' },
+  amenity: { cssColor: '#514d40', color: c, key: '', name: '' },
+  amenityWhite: { cssColor: '#efedd5', color: c, key: '', name: '' },
+  human: { cssColor: '#F078B0', color: c, key: '', name: '' },
+  npc: { cssColor: '#f8bd26', color: c, key: '', name: '' },
+  selected: { cssColor: '#ed772f', color: c, key: '', name: '' },
+  pin: { cssColor: '#e75a2e', color: c, key: '', name: '' },
 
   // Map drawer UI
-  selection: { color: new paper.Color('#50EEFF'), key: '', name: '' },
+  selection: { cssColor: '#50EEFF', color: c, key: '', name: '' },
 
   // UI
-  white: { color: new paper.Color('#f9f7ed'), key: '', name: '' },
-  paper: { color: new paper.Color('#f5f3e5'), key: '', name: '' }, // general white
-  paperOverlay: { color: new paper.Color('#ecebd5'), key: '', name: '' },
-  paperOverlay2: { color: new paper.Color('#e4e2d0'), key: '', name: '' },
+  white: { cssColor: '#f9f7ed', color: c, key: '', name: '' },
+  paper: { cssColor: '#f5f3e5', color: c, key: '', name: '' }, // general white
+  paperOverlay: { cssColor: '#ecebd5', color: c, key: '', name: '' },
+  paperOverlay2: { cssColor: '#e4e2d0', color: c, key: '', name: '' },
 
   // colors from nookPhone (colors are hued towards red/yellow)
-  purple: { color: new paper.Color('#be84f0'), key: '', name: '' },
-  blue: { color: new paper.Color('#8c97ec'), key: '', name: '' },
-  lightBlue: { color: new paper.Color('#b4bdfd'), key: '', name: '' },
-  orange: { color: new paper.Color('#df8670'), key: '', name: '' },
-  magenta: { color: new paper.Color('#f550ab'), key: '', name: '' },
-  pink: { color: new paper.Color('#f09eb3'), key: '', name: '' },
-  cyan: { color: new paper.Color('#63d5bf'), key: '', name: '' },
-  turquoise: { color: new paper.Color('#86e0bb'), key: '', name: '' },
-  green: { color: new paper.Color('#8dd08a'), key: '', name: '' },
-  lime: { color: new paper.Color('#d2e541'), key: '', name: '' },
-  red: { color: new paper.Color('#ee666e'), key: '', name: '' },
-  offBlack: { color: new paper.Color('#4b3b32'), key: '', name: '' },
-  offWhite: { color: new paper.Color('#f6f2e0'), key: '', name: '' },
-  lightText: { color: new paper.Color('#dcd8ca'), key: '', name: '' },
-  text: { color: new paper.Color('#726a5a'), key: '', name: '' },
-  yellow: { color: new paper.Color('#f5d830'), key: '', name: '' },
-  lightYellow: { color: new paper.Color('#f7e676'), key: '', name: '' },
-  lightBrown: { color: new paper.Color('#bfab76'), key: '', name: '' },
+  purple: { cssColor: '#be84f0', color: c, key: '', name: '' },
+  blue: { cssColor: '#8c97ec', color: c, key: '', name: '' },
+  lightBlue: { cssColor: '#b4bdfd', color: c, key: '', name: '' },
+  orange: { cssColor: '#df8670', color: c, key: '', name: '' },
+  magenta: { cssColor: '#f550ab', color: c, key: '', name: '' },
+  pink: { cssColor: '#f09eb3', color: c, key: '', name: '' },
+  cyan: { cssColor: '#63d5bf', color: c, key: '', name: '' },
+  turquoise: { cssColor: '#86e0bb', color: c, key: '', name: '' },
+  green: { cssColor: '#8dd08a', color: c, key: '', name: '' },
+  lime: { cssColor: '#d2e541', color: c, key: '', name: '' },
+  red: { cssColor: '#ee666e', color: c, key: '', name: '' },
+  offBlack: { cssColor: '#4b3b32', color: c, key: '', name: '' },
+  offWhite: { cssColor: '#f6f2e0', color: c, key: '', name: '' },
+  lightText: { cssColor: '#dcd8ca', color: c, key: '', name: '' },
+  text: { cssColor: '#726a5a', color: c, key: '', name: '' },
+  yellow: { cssColor: '#f5d830', color: c, key: '', name: '' },
+  lightYellow: { cssColor: '#f7e676', color: c, key: '', name: '' },
+  lightBrown: { cssColor: '#bfab76', color: c, key: '', name: '' },
 
   // generic colors
-  firetruck: { color: new paper.Color('#ef3c1d'), key: '', name: '' },
-  flamingo: { color: new paper.Color('#f8ad82'), key: '', name: '' },
-  brick: { color: new paper.Color('#ab4f46'), key: '', name: '' },
+  firetruck: { cssColor: '#ef3c1d', color: c, key: '', name: '' },
+  flamingo: { cssColor: '#f8ad82', color: c, key: '', name: '' },
+  brick: { cssColor: '#ab4f46', color: c, key: '', name: '' },
 
-  safetyOrange: { color: new paper.Color('#f56745'), key: '', name: '' },
-  lifeguardOrange: { color: new paper.Color('#f59447'), key: '', name: '' },
+  safetyOrange: { cssColor: '#f56745', color: c, key: '', name: '' },
+  lifeguardOrange: { cssColor: '#f59447', color: c, key: '', name: '' },
 
-  frogYellow: { color: new paper.Color('#f7d00e'), key: '', name: '' },
-  lightBannerYellow: { color: new paper.Color('#fdf252'), key: '', name: '' },
-  darkBannerYellow: { color: new paper.Color('#c7b451'), key: '', name: '' },
+  frogYellow: { cssColor: '#f7d00e', color: c, key: '', name: '' },
+  lightBannerYellow: { cssColor: '#fdf252', color: c, key: '', name: '' },
+  darkBannerYellow: { cssColor: '#c7b451', color: c, key: '', name: '' },
 
-  tentGreen: { color: new paper.Color('#22b759'), key: '', name: '' },
-  darkBlueGreen: { color: new paper.Color('#11a972'), key: '', name: '' },
-  lightGreen: { color: new paper.Color('#5aeb89'), key: '', name: '' },
-  jaybird: { color: new paper.Color('#42bbf3'), key: '', name: '' },
+  tentGreen: { cssColor: '#22b759', color: c, key: '', name: '' },
+  darkBlueGreen: { cssColor: '#11a972', color: c, key: '', name: '' },
+  lightGreen: { cssColor: '#5aeb89', color: c, key: '', name: '' },
+  jaybird: { cssColor: '#42bbf3', color: c, key: '', name: '' },
 
-  darkGreyBlue: { color: new paper.Color('#7c8da6'), key: '', name: '' },
-  lightGreyBlue: { color: new paper.Color('#9cbbce'), key: '', name: '' },
+  darkGreyBlue: { cssColor: '#7c8da6', color: c, key: '', name: '' },
+  lightGreyBlue: { cssColor: '#9cbbce', color: c, key: '', name: '' },
 
-  highlightCircle: { color: new paper.Color('#2adbb8'), key: '', name: '' },
+  highlightCircle: { cssColor: '#2adbb8', color: c, key: '', name: '' },
 
   // Water UI
   // game trailer had this color panel
-  oceanPanel: { color: new paper.Color('#39ba9c'), key: '', name: '' },
-  oceanPanelDark: { color: new paper.Color('#39ba9c'), key: '', name: '' },
-  oceanText: { color: new paper.Color('#57b499'), key: '', name: '' }, // text on ocean
-  oceanDarker: { color: new paper.Color('#77d6bd'), key: '', name: '' }, // dark overlay
-  oceanDark: { color: new paper.Color('#70cfb6'), key: '', name: '' }, // dark overlay
-  oceanLighter: { color: new paper.Color('#d7fef1'), key: '', name: '' }, // light overlay
-  oceanLight: { color: new paper.Color('#a3f8dd'), key: '', name: '' }, // light overlay
-  oceanWave: { color: new paper.Color('#63d4b2'), key: '', name: '' },
+  oceanPanel: { cssColor: '#39ba9c', color: c, key: '', name: '' },
+  oceanPanelDark: { cssColor: '#39ba9c', color: c, key: '', name: '' },
+  oceanText: { cssColor: '#57b499', color: c, key: '', name: '' }, // text on ocean
+  oceanDarker: { cssColor: '#77d6bd', color: c, key: '', name: '' }, // dark overlay
+  oceanDark: { cssColor: '#70cfb6', color: c, key: '', name: '' }, // dark overlay
+  oceanLighter: { cssColor: '#d7fef1', color: c, key: '', name: '' }, // light overlay
+  oceanLight: { cssColor: '#a3f8dd', color: c, key: '', name: '' }, // light overlay
+  oceanWave: { cssColor: '#63d4b2', color: c, key: '', name: '' },
 };
 
 Object.keys(colors).forEach((colorKey) => {
   const colorData = colors[colorKey];
+  colorData.color = new paper.Color(colorData.cssColor);
   if (!colorData.name) {
     // if it has a custom encoded name, make sure to use that
     colorData.name = colorKey;

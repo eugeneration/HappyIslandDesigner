@@ -15,7 +15,7 @@ export function zoom() {
       view.projectToView(view.center).subtract(event.deltaPosition),
     );
   });
-  
+
   const MouseWheelHandler = (event) => {
     const mousePosition = new paper.Point(event.offsetX, event.offsetY);
 
@@ -40,38 +40,39 @@ export function zoom() {
 
   // doesn't work on some older browsers but whatevs
   view.element.addEventListener("wheel", MouseWheelHandler, false);
-  
+
   // function onResize(event) {
   // Whenever the window is resized, recenter the path:
   // }
-  
+
   // ===============================================
   // MOUSE EVENTS
-  
-  function onMiddleClickDown(event) {
-    console.log(event);
-  }
-  
-  function onMiddleClickDrag(event) {}
-  
-  function onMiddleClickUp(event) {}
-  
+
+  // Todo: add middle click panning functionality for mouse
+  //function onMiddleClickDown(event) {
+  //  console.log(event);
+  //}
+  //
+  //function onMiddleClickDrag(event) {}
+  //
+  //function onMiddleClickUp(event) {}
+
   let isSpaceDown = false;
   let mouseNativeStart: paper.Point | null = null;
   let viewCenterStart: paper.Point | null = null;
-  
+
   view.on('keydown', (event) => {
     if (event.key === 'space') {
       isSpaceDown = true;
     }
   });
-  
+
   view.on('keyup', (event) => {
     if (event.key === 'space') {
       isSpaceDown = false;
     }
   });
-  
+
   // This function is called whenever the user
   // clicks the mouse in the view:
   view.on('mousedown', (event) => {
@@ -83,7 +84,7 @@ export function zoom() {
     //  changes as the view is scrolled.
     mouseNativeStart = new Point(event.event.offsetX, event.event.offsetY);
   });
-  
+
   view.on('mousedrag', (event) => {
     if (!isSpaceDown) {
       return;
@@ -100,20 +101,20 @@ export function zoom() {
       );
     }
   });
-  
-  view.on('mouseup', (event) => {
+
+  view.on('mouseup', () => {
     mouseNativeStart = null;
     viewCenterStart = null;
   });
-  
+
   // ===============================================
   // PUBLIC FUNCTIONS
-  
+
   let _minZoom;
   let _maxZoom;
 
   setZoomRange([view.size.multiply(2), view.size.multiply(0.05)]);
-  
+
   function changeCenterPosition(deltaX, deltaY) {
 
     view.center = view.center.add(new paper.Point(deltaX, -deltaY).divide(view.zoom));
@@ -129,7 +130,7 @@ export function zoom() {
       ),
     );
   }
-  
+
   function setZoomRange(range /* paper.Size[] */) /* number[] */ {
     const { view } = project;
     const aSize = range.shift();
@@ -156,10 +157,10 @@ export function zoom() {
     }
     return [_minZoom, _maxZoom];
   }
-  
+
   // ===============================================
   // ZOOM FUNCTIONS
-  
+
   function setZoomConstrained(zoom) {
     if (_minZoom) {
       zoom = Math.max(zoom, _minZoom);
@@ -174,7 +175,7 @@ export function zoom() {
     }
     return null;
   }
-  
+
   function changeZoomCentered(delta, mousePos) {
     if (!delta) {
       return;
@@ -183,22 +184,22 @@ export function zoom() {
     const oldZoom = view.zoom;
     const oldCenter = view.center;
     const viewPos = view.viewToProject(mousePos);
-  
+
     const factor = 1 + Math.abs(delta) / 500;
     let newZoom = delta > 0 ? view.zoom * factor : view.zoom / factor;
     newZoom = setZoomConstrained(newZoom);
-  
+
     if (!newZoom) {
       return;
     }
-  
+
     const zoomScale = oldZoom / newZoom;
     const centerAdjust = viewPos.subtract(oldCenter);
     const offset = viewPos
       .subtract(centerAdjust.multiply(zoomScale))
       .subtract(oldCenter);
-  
+
     view.center = view.center.add(offset);
   }
-  
+
 }

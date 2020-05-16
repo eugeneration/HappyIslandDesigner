@@ -17,7 +17,7 @@ import { createLeftMenu, addHelpButton } from './ui/leftMenu';
 import { showMainMenu } from './ui/mainMenu';
 import { initLayers, layers } from './layers';
 import { colors } from './colors';
-import { loadTemplate, tryLoadAutosaveMap } from './load';
+import { tryLoadAutosaveMap } from './load';
 import { backgroundInit, drawBackground } from './background';
 import { resizeCoordinates } from './resizeCoordinates';
 import { keys } from './keyboard';
@@ -94,10 +94,10 @@ export function drawer() {
     if (keys.isSpaceDown) {
       return;
     }
-    toolState.onUp();
     if (toolState.toolIsActive) {
       toolState.activeTool.definition.onMouseUp(event);
     }
+    toolState.onUp();
   };
 
   // ===============================================
@@ -219,9 +219,7 @@ export function drawer() {
 
   layers.mapLayer.activate();
 
-  if (!tryLoadAutosaveMap()) {
-    loadTemplate();
-  }
+  tryLoadAutosaveMap();
 
   paper.view.onResize = onResize;
   paper.view.onFrame = onFrame;

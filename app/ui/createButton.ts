@@ -1,4 +1,4 @@
-import { Color, Group, Path, Point } from 'paper';
+import paper from 'paper';
 import { colors } from '../colors';
 
 type buttonOptions = {

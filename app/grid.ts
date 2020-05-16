@@ -8,7 +8,7 @@ import {
 import { addToHistory, drawCommand } from './state';
 import { colors } from './colors';
 import { drawLine, applyDiff } from './paint';
-import { getCurrentPaintColor, getBrushCenteredCoordinate } from './brush';
+import { getCurrentPaintColor, getBrushCenteredCoordinate, updateBrushDirection } from './brush';
 import { layers } from './layers';
 import { uniteCompoundPath } from './helpers/unitCompoundPath';
 import { getDiff } from './helpers/getDiff';
@@ -156,7 +156,7 @@ export function drawGrid(viewPosition: paper.Point) {
 
     Object.keys(diff).forEach((colorKey) => {
       const colorDiff = diff[colorKey];
-      if (!diffCollection.hasOwnProperty(colorKey)) {
+        if (!Object.prototype.hasOwnProperty.call(diffCollection, colorKey)) {
         diffCollection[colorKey] = { isAdd: colorDiff.isAdd, path: [] };
       }
       if (colorDiff.path.children) {
@@ -200,6 +200,7 @@ export function drawGridLinePreview(viewPosition: paper.Point) {
     drawPreview.opacity = 0.6;
     drawPreview.fillColor = getCurrentPaintColor().color;
   }
+  updateBrushDirection(rawCoordinate);
 }
 
 export function endDrawGrid() {

@@ -45,9 +45,6 @@ export function onKeyDown(event) {
     case 'space':
       keys.isSpaceDown = true;
       break;
-    case '0':
-      updatePaintColor(colors.eraser);
-      break;
     case '1':
       updatePaintColor(colors.sand);
       break;
@@ -142,6 +139,7 @@ export function onKeyDown(event) {
       break;
     case '/':
       console.log(encodeMap());
+      navigator.clipboard.writeText(encodeMap());
       break;
     case 'z':
       if (control && shift) {

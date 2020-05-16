@@ -42,7 +42,7 @@ export function renderModal(
     const bottomRight = new Point(view.bounds.width * view.scaling.x, view.bounds.height * view.scaling.y);// + view.bounds.topLeft * 2;
 
     darkFill.bounds = new Rectangle(topLeft, bottomRight);
-    
+
     if (fullscreen) {
       modal.segments = new Path.Rectangle(new Rectangle(
         width, height, bottomRight.x - width * 2, bottomRight.y - height * 2),
@@ -50,7 +50,7 @@ export function renderModal(
     }
     else if (!modal || modal.segments.length == 0) {
       modal.segments = new Path.Rectangle(new Rectangle(
-        center.x - width / 2, 
+        center.x - width / 2,
         center.y - height / 2, width, height),
         new Size(60, 60)).segments;
     }
@@ -101,7 +101,6 @@ export function renderModal(
   modals.push(group);
   group.data.isShown = function() { return group.opacity > 0.8; };
   group.data.show = function(isShown) {
-    var modal = group;
     modals.forEach(function (modal) {
       var show = isShown && modal == group;
       var targetOpacity = show ? 1 : 0;

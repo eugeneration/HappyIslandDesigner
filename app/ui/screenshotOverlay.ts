@@ -13,7 +13,7 @@ function showScreenshotOverlayUI(isShown) {
 
     const closeIcon = new Raster('static/img/ui-x.png');
     closeIcon.scale(0.3);
-    
+
     const closeButton = createButton(closeIcon, 12, stopScreenshotOverlay, {
       alpha: 0.7,
       highlightedColor: colors.paperOverlay.color,
@@ -26,7 +26,7 @@ function showScreenshotOverlayUI(isShown) {
     visibleIcon.position = visibleIcon.position.add(new Point(2, 0));
     invisibleIcon.scale(0.5);
     invisibleIcon.position = invisibleIcon.position.add(new Point(2, 0));
-    
+
     const toggleIcon = new Group();
     toggleIcon.applyMatrix = false;
     toggleIcon.addChildren([visibleIcon, invisibleIcon]);
@@ -38,7 +38,7 @@ function showScreenshotOverlayUI(isShown) {
     toggleIcon.data.set(true);
     var visibilityButton = createButton(toggleIcon, 20, toggleScreenshotVisible,
       {
-        // options  
+        // options
       });
     emitter.on('updateScreenshotVisible', function (visible) {
       toggleIcon.data.set(visible);
@@ -95,7 +95,7 @@ function incrementScreenshotAlpha(increase, amount?: number) {
   if (screenshot == null) return;
   amount = amount ?? 0.1;
   var newOpacity = round(
-    clamp(screenshot.opacity + (increase ? 1 : -1) * 0.1, 0, 1),
+    clamp(screenshot.opacity + (increase ? 1 : -1) * amount, 0, 1),
     2);
   if (newOpacity == 0) return; // don't allow 0 opacity
 
@@ -109,9 +109,10 @@ export function toggleScreenshotVisible() {
   emitter.emit('updateScreenshotVisible', screenshot.visible);
 }
 
-function swapScreenshotLayer() {
-  if (!screenshot) return;
-}
+// TODO - allow moving screenshot behind the map layer
+//function swapScreenshotLayer() {
+//  if (!screenshot) return;
+//}
 
 
 export function updateMapOverlay(raster) {
@@ -161,4 +162,4 @@ function container(components) {
 function round(n, p) {
   const d = Math.pow(10, p);
   return Math.round(n * d) / d;
-};
+}

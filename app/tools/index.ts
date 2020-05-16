@@ -58,8 +58,8 @@ class BaseToolCategoryDefinition {
   onMouseUp(subclass, event: paper.MouseEvent) {
     updateCoordinateLabel(event);
   }
-  onKeyDown(subclass, event: paper.KeyEvent) {}
-  enablePreview(subclass, isEnabled: boolean) {}
+  onKeyDown(/*subclass, event: paper.KeyEvent*/) {}
+  enablePreview(/*subclass, isEnabled: boolean*/) {}
   toggleMenu(subclass) {
     if (subclass.openMenu) {
       subclass.openMenu(!(subclass.iconMenu && subclass.iconMenu.visible));
@@ -111,7 +111,7 @@ class BaseToolCategoryDefinition {
       }
     }
   }
-};
+}
 const baseToolCategoryDefinition = new BaseToolCategoryDefinition();
 
 class BaseObjectCategoryDefinition {
@@ -201,10 +201,10 @@ class BaseObjectCategoryDefinition {
       this.iconMenu.visible = isSelected;
     }
   }
-};
+}
 
 export const toolCategoryDefinition: any = {};
- 
+
   //    pointer: {
   //      base: baseToolCategoryDefinition,
   //      type: 'pointer',
@@ -412,7 +412,7 @@ export function initTools() {
     },
   };
 
-  toolCategoryDefinition.structures = 
+  toolCategoryDefinition.structures =
     new BaseObjectCategoryDefinition({
       type: 'structures',
       icon: 'structure',

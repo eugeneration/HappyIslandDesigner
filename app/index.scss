@@ -5,6 +5,11 @@ body {
   overscroll-behavior: none;
 }
 
+.no-focus-outline a:focus,
+.no-focus-outline button:focus {
+  outline: none;
+}
+
 /* Scale canvas with resize attribute to full size */
 canvas[resize],
 #app {
@@ -46,6 +51,8 @@ canvas[resize],
   src: url('../static/font/TTNorms-Bold.woff') format('woff');
 }
 
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@600&display=swap');
+
 #bobContainer {
   display: none;
   opacity: 0;
@@ -66,4 +73,10 @@ canvas[resize],
 }
 #bob {
   width: 50%;
+}
+
+#ui-container {
+  position: absolute;
+  top: 0;
+  left: 0;
 }

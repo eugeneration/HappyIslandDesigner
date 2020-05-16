@@ -47,28 +47,3 @@ export function createVerticalIncrementControl(increment, decrement, height, ima
   group.addChildren([backing, increment, decrement, image]);
   return group;
 }
-
-function container(components) {
-  var content = new Group();
-  content.applyMatrix = false;
-  content.addChildren(components);
-  var size = 0;
-  var spacing = 12;
-  content.children.forEach(function(component) {
-    component.bounds.topCenter = new Point(0, size);
-    size += component.bounds.height + spacing;
-  });
-
-  var padding = 13;
-  var backing = new Path.Rectangle(
-    new Rectangle(new Point(0, 0), new Point(65, content.bounds.height + padding * 2)),
-    new Size(30, 30));
-  backing.fillColor = colors.paper.color;
-  backing.bounds.topCenter = new Point(0, -padding);
-
-  var container = new Group();
-  container.applyMatrix = false;
-  container.addChildren([backing, content]);
-
-  return container;
-}

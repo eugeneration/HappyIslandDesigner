@@ -4,6 +4,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const DynamicCdnWebpackPlugin = require('dynamic-cdn-webpack-plugin');
 
 module.exports = {
   mode: 'development',
@@ -18,6 +19,14 @@ module.exports = {
   },
   module: {
     rules: [
+      {
+        test: /\.(j|t)s(x)?$/,
+        exclude: /node_modules/,
+        loader: 'eslint-loader',
+        options: {
+          // eslint options (if necessary)
+        },
+      },
       {
         test: /\.scss$/,
         exclude: /node_modules/,
@@ -51,6 +60,7 @@ module.exports = {
                 },
               ],
               '@babel/preset-typescript',
+              '@babel/react',
             ],
             plugins: [
               ['@babel/plugin-proposal-class-properties', { loose: true }],
@@ -60,6 +70,7 @@ module.exports = {
                   regenerator: true,
                 },
               ],
+              ['babel-plugin-typescript-to-proptypes', {}],
             ],
           },
         },
@@ -82,5 +93,19 @@ module.exports = {
     //   filename: '[name].css',
     //   chunkFilename: '[id].css',
     // }),
+    new DynamicCdnWebpackPlugin({
+      exclude: ['file-saver']
+    })
   ],
+  optimization: {
+    splitChunks: {
+      cacheGroups: {
+        commons: {
+          test: /[\\/]node_modules[\\/]/,
+          name: "vendor",
+          chunks: "initial",
+        }
+      }
+    }
+  }
 };
