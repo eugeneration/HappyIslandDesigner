@@ -24,9 +24,10 @@ const customStyles = {
     transform             : 'translate(-50%, -50%)',
     background: 'none',
     border: 0,
-    padding: 20,
     display: 'flex',
-    maxHeight: '98%',
+    padding: 0,
+    maxHeight: '90%',
+    maxWidth: '90%',
   }
 };
 
