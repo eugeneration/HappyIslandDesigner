@@ -31,9 +31,8 @@ class ZoomCanvas {
     zoom.style.display = "block";
     document.body.appendChild(zoom);
 
-    this.update(event, zoomLevel, event.point);
-
     this.canvas = zoom;
+    this.update(event, zoomLevel, event.point);
   }
 
   public update(event, zoomLevel: number, pointGlobalPosition: paper.Point) {
@@ -57,6 +56,10 @@ class ZoomCanvas {
         zoom.style.top = pointCanvasPosition.y - 10 - zoomSize * 2 + "px";
         zoom.style.left = pointCanvasPosition.x - 10 - zoomSize * 2 + "px";
     }
+  }
+
+  public remove() {
+    this.canvas.remove();
   }
 }
 
@@ -329,6 +332,7 @@ function renderScreenshotModal() {
 
           if (mapImage.data.zoom) {
             mapImage.data.zoom.remove();
+            mapImage.data.zoom = null;
           }
 
           if (this.data.grabbedPoint) {
