@@ -44,7 +44,7 @@ export function showHelpMenu(isShown: boolean) {
     versionCode.fontSize = 12;
     versionCode.fontFamily = 'TTNorms, sans-serif';
     versionCode.fillColor = colors.lightText.color;
-    versionCode.content = 'v0.4.0';
+    versionCode.content = 'v0.4.1';
 
     helpMenu.data.contents.addChildren([
       helpTextRaster,
