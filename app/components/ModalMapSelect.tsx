@@ -24,9 +24,10 @@ const customStyles = {
     transform             : 'translate(-50%, -50%)',
     background: 'none',
     border: 0,
-    padding: 20,
     display: 'flex',
-    maxHeight: '98%',
+    padding: 0,
+    maxHeight: '90%',
+    maxWidth: '90%',
   }
 };
 
@@ -123,6 +124,8 @@ function IslandLayoutSelector() {
         return Layouts.south;
       case LayoutType.east:
         return Layouts.east;
+      case LayoutType.blank:
+        return Layouts.blank;
     }
     return [];
   }
@@ -181,7 +184,14 @@ function IslandLayoutSelector() {
         <Card onClick={() => setLayoutType(LayoutType.west)}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
         <Card onClick={() => setLayoutType(LayoutType.south)}><Image variant='card' src={'static/img/island-type-south.png'}/></Card>
         <Card onClick={() => setLayoutType(LayoutType.east)}><Image variant='card' src={'static/img/island-type-east.png'}/></Card>
-      </Flex>
+        <Card onClick={() => {
+          setLayoutType(LayoutType.blank);
+          confirmDestructiveAction(
+            'Clear your map? You will lose all unsaved changes.',
+            () => {
+              setLayout(0);
+            });
+        }}><Image variant='card' src={'static/img/island-type-blank.png'}/></Card>      </Flex>
     );
   }
   return (
