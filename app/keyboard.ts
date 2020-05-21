@@ -17,6 +17,7 @@ import { toggleGrid } from './grid';
 import { redo, undo, state } from './state';
 import { toggleScreenshotVisible } from './ui/screenshotOverlay';
 import { modals } from './ui/modal';
+import { accessibleBrushSetter, accessibleDraw } from './accessibility';
 
 export const keys = {
   isSpaceDown: false,
@@ -33,15 +34,31 @@ export function onKeyUp(event) {
       toggleScreenshotVisible();
       delete keyDownMap['`'];
       break;
-  }
+    case 'up':
+      accessibleDraw('stop');
+      break;
+    case 'down':
+      accessibleDraw('stop');
+      break;
+    case 'left':
+      accessibleDraw('stop');
+      break;
+    case 'right':
+      accessibleDraw('stop');
+      break;
+}
 }
 
 export function onKeyDown(event) {
   const shift = paper.Key.isDown('shift');
   const control = paper.Key.isDown('control') || paper.Key.isDown('meta');
+  // const v = paper.Key.isDown('v');
 
   const prevActiveTool = toolState.activeTool;
   switch (event.key) {
+    case 'a':
+      accessibleBrushSetter();
+      break;
     case 'space':
       keys.isSpaceDown = true;
       break;
@@ -64,7 +81,7 @@ export function onKeyDown(event) {
       updatePaintColor(colors.water);
       break;
     /*    case 'q':
-        changePaintTool(paintTools.grid);
+        changePaintTool(paintTools. );
         break;
       case 'w':
         changePaintTool(paintTools.diagonals);
