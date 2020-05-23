@@ -163,7 +163,7 @@ asyncFlowerDefinition.value = {
     img: 'static/sprite/flower/whitewindflowers.png',
   },
   lilyOfTheValley: {
-    img: 'static/sprite/flower/lilyOfTheValley.png',
+    img: 'static/sprite/flower/lilyofthevalley.png',
   },
   weedBrush: {
     img: 'static/sprite/flower/weed-brush.png',
