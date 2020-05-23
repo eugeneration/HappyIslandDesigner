@@ -3,73 +3,73 @@ import { AsyncObjectDefinition } from '../helpers/AsyncObjectDefinition';
 export const asyncFlowerDefinition = new AsyncObjectDefinition();
 
 asyncFlowerDefinition.value = {
-  blackCosmos: {
+  cosmosBlack: {
     img: 'static/sprite/flower/blackcosmos.png',
   },
-  orangeCosmos: {
+  cosmosOrange: {
     img: 'static/sprite/flower/orangecosmos.png',
   },
-  pinkCosmos: {
+  cosmosPink: {
     img: 'static/sprite/flower/pinkcosmos.png',
   },
-  redCosmos: {
+  cosmosRed: {
     img: 'static/sprite/flower/redcosmos.png',
   },
-  whiteCosmos: {
+  cosmosWhite: {
     img: 'static/sprite/flower/whitecosmos.png',
   },
-  yellowCosmos: {
+  cosmosYellow: {
     img: 'static/sprite/flower/yellowcosmos.png',
   },
-  blackLilies: {
+  lilyBlack: {
     img: 'static/sprite/flower/blacklilies.png',
   },
-  orangeLilies: {
+  lilyOrange: {
     img: 'static/sprite/flower/orangelilies.png',
   },
-  pinkLilies: {
+  lilyPink: {
     img: 'static/sprite/flower/pinklilies.png',
   },
-  redLilies: {
+  lilyRed: {
     img: 'static/sprite/flower/redlilies.png',
   },
   lilyWhite: {
     img: 'static/sprite/flower/whitelilies.png',
   },
-  yellowLilies: {
+  lilyYellow: {
     img: 'static/sprite/flower/yellowlilies.png',
   },
-  blackRoses: {
+  roseBlack: {
     img: 'static/sprite/flower/blackroses.png',
   },
-  blueRoses: {
+  roseBlue: {
     img: 'static/sprite/flower/blueroses.png',
   },
-  goldRoses: {
+  roseGold: {
     img: 'static/sprite/flower/goldroses.png',
   },
-  orangeRoses: {
+  roseOrange: {
     img: 'static/sprite/flower/orangeroses.png',
   },
-  pinkRoses: {
+  rosePink: {
     img: 'static/sprite/flower/pinkroses.png',
   },
-  purpleRoses: {
+  rosePurple: {
     img: 'static/sprite/flower/purpleroses.png',
   },
-  redRoses: {
+  roseRed: {
     img: 'static/sprite/flower/redroses.png',
   },
-  whiteRoses: {
+  roseWhite: {
     img: 'static/sprite/flower/whiteroses.png',
   },
-  yellowRoses: {
+  roseYellow: {
     img: 'static/sprite/flower/yellowroses.png',
   },
-  bluePansies: {
+  pansyBlue: {
     img: 'static/sprite/flower/bluepansies.png',
   },
-  orangePansies: {
+  pansyOrange: {
     img: 'static/sprite/flower/orangepansies.png',
   },
   pansyPurple: {
@@ -78,22 +78,22 @@ asyncFlowerDefinition.value = {
   pansyRed: {
     img: 'static/sprite/flower/redpansies.png',
   },
-  whitePansies: {
+  pansyWhite: {
     img: 'static/sprite/flower/whitepansies.png',
   },
   pansyYellow: {
     img: 'static/sprite/flower/yellowpansies.png',
   },
-  blackTulips: {
+  tulipBlack: {
     img: 'static/sprite/flower/blacktulips.png',
   },
-  orangeTulips: {
+  tulipOrange: {
     img: 'static/sprite/flower/orangetulips.png',
   },
-  pinkTulips: {
+  tulipPink: {
     img: 'static/sprite/flower/pinktulips.png',
   },
-  purpleTulips: {
+  tulipPurple: {
     img: 'static/sprite/flower/purpletulips.png',
   },
   tulipRed: {
@@ -105,16 +105,16 @@ asyncFlowerDefinition.value = {
   tulipYellow: {
     img: 'static/sprite/flower/yellowtulips.png',
   },
-  blueHyacinths: {
+  hyacinthBlue: {
     img: 'static/sprite/flower/bluehyacinths.png',
   },
-  orangeHyacinths: {
+  hyacinthOrange: {
     img: 'static/sprite/flower/orangehyacinths.png',
   },
-  pinkHyacinths: {
+  hyacinthPink: {
     img: 'static/sprite/flower/pinkhyacinths.png',
   },
-  purpleHyacinths: {
+  hyacinthPurple: {
     img: 'static/sprite/flower/purplehyacinths.png',
   },
   hyacinthRed: {
@@ -123,38 +123,38 @@ asyncFlowerDefinition.value = {
   hyacinthWhite: {
     img: 'static/sprite/flower/whitehyacinths.png',
   },
-  yellowHyacinths: {
+  hyacinthYellow: {
     img: 'static/sprite/flower/yellowhyacinths.png',
   },
-  greenMums: {
+  chrysanthemumGreen: {
     img: 'static/sprite/flower/greenmums.png',
   },
-  pinkMums: {
+  chrysanthemumPink: {
     img: 'static/sprite/flower/pinkmums.png',
   },
-  purpleMums: {
+  chrysanthemumPurple: {
     img: 'static/sprite/flower/purplemums.png',
   },
-  redMums: {
+  chrysanthemumRed: {
     img: 'static/sprite/flower/redmums.png',
   },
   chrysanthemumWhite: {
     img: 'static/sprite/flower/whitemums.png',
   },
-  yellowMums: {
+  chrysanthemumYellow: {
     img: 'static/sprite/flower/yellowmums.png',
   },
-  blueWindflowers: {
+  poppyBlue: {
     img: 'static/sprite/flower/bluewindflowers.png',
+  },
+  poppyPink: {
+    img: 'static/sprite/flower/pinkwindflowers.png',
+  },
+  poppyPurple: {
+    img: 'static/sprite/flower/purplewindflowers.png',
   },
   poppyOrange: {
     img: 'static/sprite/flower/orangewindflowers.png',
-  },
-  pinkWindflowers: {
-    img: 'static/sprite/flower/pinkwindflowers.png',
-  },
-  purpleWindflowers: {
-    img: 'static/sprite/flower/purplewindflowers.png',
   },
   poppyRed: {
     img: 'static/sprite/flower/redwindflowers.png',
