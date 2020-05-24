@@ -6,7 +6,7 @@ import i18next from 'i18next';
 import { renderModal } from './modal';
 import { colors } from '../colors';
 import { saveMapToFile } from '../save';
-import { loadMapFromFile, loadTemplate } from '../load';
+import { loadMapFromFile } from '../load';
 import { showSwitchModal } from './screenshotModal';
 import { OpenMapSelectModal } from '../components/ModalMapSelect';
 

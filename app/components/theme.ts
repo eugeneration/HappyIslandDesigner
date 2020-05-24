@@ -1,5 +1,4 @@
 import {colors} from '../colors'
-import { changePaintTool } from '../paint'
 
 const shadowColor = "rgba(75, 59, 50, 0.3)" // offblack
 

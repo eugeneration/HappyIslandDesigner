@@ -9,6 +9,7 @@ import { emitter } from '../emitter';
 import { layers } from '../layers';
 import { updateMapOverlay } from './screenshotOverlay';
 import { loadImage } from '../load';
+import { readMapFromScreenshot } from '../helpers/screenshotReader';
 
 let switchMenu: paper.Group;
 
@@ -116,6 +117,9 @@ function renderScreenshotModal() {
 
   let mapImage;
   function loadMapImage(image) {
+
+    readMapFromScreenshot(image);
+
     if (mapImage) mapImage.remove();
 
     mapImage = new Raster(image);

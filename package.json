@@ -69,6 +69,7 @@
     "browser-update": "^3.3.16",
     "file-saver": "eugeneration/FileSaver.js#master",
     "heic2any": "^0.0.3",
+    "hermite-resize": "https://github.com/viliusle/Hermite-resize.git",
     "i18next": "^19.4.2",
     "lz-string": "1.4.4",
     "paper": "eugeneration/paper.js#develop",
