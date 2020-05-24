@@ -9,6 +9,7 @@ import { layerDefinition } from './layerDefinition';
 import { pathDefinition } from './pathDefinition';
 import { getObjectData } from './helpers/getObjectData';
 import { createObjectPreviewAsync } from './ui/createObject';
+import { accessibleBrush } from './accessibility';
 
 let rawBrushSize = 2;
 let brushSize = 2;
@@ -127,8 +128,16 @@ export function updateObjectPreview() {
   }
 }
 
-export function updateCoordinateLabel(event) {
-  const coordinate = layers.mapOverlayLayer.globalToLocal(event.point);
+export function updateCoordinateLabel(event, coord?:paper.Point) {
+  var coordinate;
+  switch (accessibleBrush) {
+    case true:
+      coordinate = layers.mapOverlayLayer.globalToLocal(coord);
+      break;
+    default:
+      coordinate = layers.mapOverlayLayer.globalToLocal(event.point);
+  }
+  
   // coordinateLabel.content = '' + event.point + '\n' + coordinate.toString();
   // coordinateLabel.position = rawCoordinate;
 

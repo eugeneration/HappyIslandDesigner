@@ -355,44 +355,6 @@ export function initTools() {
     },
     onKeyDown(event) {
       this.base.onKeyDown(this, event);
-      switch (event.key) {
-        case 'left':
-          accessibleCursor.x -= 4;
-          if (shift) {
-            accessibleDraw('start');
-          }
-          if (shift && event.repeat) {
-            accessibleDraw();
-          }
-          break;
-        case 'right':
-          accessibleCursor.x += 4;
-          if (shift) {
-            accessibleDraw('start');
-          }
-          if (shift && event.repeat) {
-            accessibleDraw();
-          }
-          break;
-        case 'up':
-          accessibleCursor.y -= 4;
-          if (shift) {
-            accessibleDraw('start');
-          }
-          if (shift && event.repeat) {
-            accessibleDraw();
-          }
-          break;
-        case 'down':
-          accessibleCursor.y += 4;
-          if (shift) {
-            accessibleDraw('start');
-          }
-          if (shift && event.repeat) {
-            accessibleDraw();
-          }
-          break;
-      }
     },
     enablePreview(isEnabled) {
       this.base.enablePreview(this, isEnabled);

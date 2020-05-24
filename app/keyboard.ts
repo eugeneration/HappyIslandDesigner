@@ -6,6 +6,7 @@ import {
   decrementBrush,
   incrementBrush,
   cycleBrushHead,
+  updateCoordinateLabel
 } from './brush';
 import { colors } from './colors';
 import { saveMapToFile, encodeMap } from './save';
@@ -17,7 +18,7 @@ import { toggleGrid } from './grid';
 import { redo, undo, state } from './state';
 import { toggleScreenshotVisible } from './ui/screenshotOverlay';
 import { modals } from './ui/modal';
-import { accessibleBrushSetter, accessibleDraw } from './accessibility';
+import { accessibleBrushSetter, accessibleCursor, accessibleDraw, cursorIncrement } from './accessibility';
 
 export const keys = {
   isSpaceDown: false,
@@ -46,7 +47,7 @@ export function onKeyUp(event) {
     case 'right':
       accessibleDraw('stop');
       break;
-}
+  }
 }
 
 export function onKeyDown(event) {
@@ -59,6 +60,46 @@ export function onKeyDown(event) {
     case 'a':
       accessibleBrushSetter();
       break;
+      case 'left':
+        accessibleCursor.x -= cursorIncrement;
+        updateCoordinateLabel(event, accessibleCursor);
+        if (shift) {
+          accessibleDraw('start');
+        }
+        if (shift && event.repeat) {
+          accessibleDraw();
+        }
+        break;
+      case 'right':
+        accessibleCursor.x += cursorIncrement;
+        updateCoordinateLabel(event, accessibleCursor);
+        if (shift) {
+          accessibleDraw('start');
+        }
+        if (shift && event.repeat) {
+          accessibleDraw();
+        }
+        break;
+      case 'up':
+        accessibleCursor.y -= cursorIncrement;
+        updateCoordinateLabel(event, accessibleCursor);
+        if (shift) {
+          accessibleDraw('start');
+        }
+        if (shift && event.repeat) {
+          accessibleDraw();
+        }
+        break;
+      case 'down':
+        accessibleCursor.y += cursorIncrement;
+        updateCoordinateLabel(event, accessibleCursor);
+        if (shift) {
+          accessibleDraw('start');
+        }
+        if (shift && event.repeat) {
+          accessibleDraw();
+        }
+        break;
     case 'space':
       keys.isSpaceDown = true;
       break;
