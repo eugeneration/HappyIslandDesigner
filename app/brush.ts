@@ -132,7 +132,7 @@ export function updateCoordinateLabel(event, coord?:paper.Point) {
   var coordinate;
   switch (accessibleBrush) {
     case true:
-      coordinate = layers.mapOverlayLayer.globalToLocal(coord);
+      coordinate = layers.mapOverlayLayer.globalToLocal(<paper.Point>coord);
       break;
     default:
       coordinate = layers.mapOverlayLayer.globalToLocal(event.point);

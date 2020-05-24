@@ -22,6 +22,10 @@ export function accessibleBrushSetter() {
         );
 }
 
+export function updateCursor(event) {
+    accessibleCursor = new paper.Point(event.point);
+}
+
 export function accessibleDraw(state?: string) {
     switch (state) {
         case ('start'): 
