@@ -122,7 +122,7 @@ export function onKeyDown(event) {
       updatePaintColor(colors.water);
       break;
     /*    case 'q':
-        changePaintTool(paintTools.grid );
+        changePaintTool(paintTools.grid);
         break;
       case 'w':
         changePaintTool(paintTools.diagonals);
