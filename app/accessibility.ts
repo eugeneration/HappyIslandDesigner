@@ -10,6 +10,7 @@ export var cursorIncrement:number;
 
 
 export function accessibleBrushSetter() {
+    // Initializes the accessible brush cursor, cursor increment and flag, intended to be called from keyboard.ts
     accessibleBrush = accessibleBrush ? false : true;
     cursorIncrement = layers.mapOverlayLayer.localToGlobal(
             new paper.Point(1, 1)
@@ -23,10 +24,12 @@ export function accessibleBrushSetter() {
 }
 
 export function updateCursor(event) {
+    // Used to update the cursor to a new location from onMouseUp in index.ts
     accessibleCursor = new paper.Point(event.point);
 }
 
 export function accessibleDraw(state?: string) {
+    // Go between for the various drawing functions, to be called from keyboard.ts
     switch (state) {
         case ('start'): 
             startDrawGrid(accessibleCursor);
