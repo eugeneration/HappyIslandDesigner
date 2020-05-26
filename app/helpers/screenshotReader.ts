@@ -1,3 +1,5 @@
+import { loadMapFromJSON } from "../load";
+
 export function detectScreenshot() {
   // look for a particular aspect ratio
 
@@ -33,6 +35,7 @@ interface ColorProperties {
   weight: number,
   minSize?: number,
   adjacency?: string[],
+  under?: number[],
   xMin?: number,
   yMin?: number,
   xMax?: number,
@@ -41,7 +44,9 @@ interface ColorProperties {
   index: number,
 }
 
-type ColorPropertiesPartial = Omit<ColorProperties, 'name' | 'index'>;
+type ColorPropertiesPartial = Omit<ColorProperties, 'name' | 'index' | 'under'> & {
+  under?: string[],
+};
 
 // todo: don't keep this giant dictionary in memory
 
@@ -50,10 +55,19 @@ const colorsPartial: Record<string, ColorPropertiesPartial> = {
     color: [255, 0, 255],
     weight: 1000,
   },
+  none1: {
+    color: [255, 0, 100],
+    weight: 1000,
+  },
+  none2: {
+    color: [100, 0, 255],
+    weight: 1000,
+  },
   sand: {
     color: [237, 229, 163], // #ede5a3
     weight: 10,
     adjacency: ['water', 'level1'],
+    under: ['rock', 'level1', 'level2', 'level3'],
     xMax: 13,
     yMax: 13,
   },
@@ -61,6 +75,7 @@ const colorsPartial: Record<string, ColorPropertiesPartial> = {
     color: [117, 124, 138], // #757c8a
     weight: 5,
     adjacency: ['water', 'sand', 'level1'],
+    under: ['level1', 'level2', 'level3'],
     minSize: 20,
   },
   dock: {
@@ -81,6 +96,7 @@ const colorsPartial: Record<string, ColorPropertiesPartial> = {
     weight: 10,
     minSize: 5,
     adjacency: ['water', 'sand'],
+    under: ['level2', 'level3'],
     yMin: 13,
   },
   level2: {
@@ -88,6 +104,7 @@ const colorsPartial: Record<string, ColorPropertiesPartial> = {
     weight: 10,
     minSize: 5,
     adjacency: ['level1', 'level3'],
+    under: ['level3'],
     xMin: 13,
     yMin: 13,
   },
@@ -146,12 +163,16 @@ const colorArr: ColorProperties[] = [];
 Object.keys(colorsPartial).forEach((colorName, index) => {
   const colorProperty: ColorProperties = {
     ...colorsPartial[colorName],
+    under: undefined,
     name: colorName,
     index: index,
   }
   colors[colorName] = colorProperty;
   colorArr.push(colorProperty);
 });
+Object.keys(colors).forEach(colorName => {
+  colors[colorName].under = colorsPartial[colorName].under?.map(name => colors[name].index) || undefined;
+})
 
 const amenityColors = [
   'amenityBack',
@@ -159,7 +180,7 @@ const amenityColors = [
   'house',
   'playerHouse',
   'markerRed',
-  'markerWhite',
+//  'markerWhite',
 ];
 
 const outerColors = [
@@ -185,7 +206,7 @@ const outerColorArr: ColorProperties[] = outerColors.map(name => colors[name]).c
 console.log(innerColorArr, outerColorArr);
 
 var img = new Image();
-img.src = 'static/screenshots/EYb_4CbVcAAoKcJ.jpg';
+img.src = 'static/screenshots/79497106-71d3b080-8027-11ea-806b-7f268b461b36.jpg';
 readMapFromScreenshot(img);
 
 type Color = [number, number, number];
@@ -211,41 +232,39 @@ const tileDimensions = Point(112, 96);
 
 const p0 = Point(951, 631)
 const px = 85.3;
-const screenshotRectangle = Rect(Point(p0.x - px * 7, p0.y), Point(p0.x, p0.y - px * 6));
-const density = 5;
+
+const p0xPercent = (p0.x - px * 7) / screenshotDimensions.x;
+const p1xPercent = p0.x / screenshotDimensions.x;
+const p0yPercent = p0.y / screenshotDimensions.y;
+const p1yPercent = (p0.y - px * 6) / screenshotDimensions.y;
+const screenshotRectangle = (canvasWidth: number, canvasHeight: number) => Rect(
+  Point(p0xPercent * canvasWidth, p0yPercent * canvasHeight),
+  Point(p1xPercent * canvasWidth, p1yPercent * canvasHeight),
+);
+const density = 6;
 
 const resizedDimensions = Point(tileDimensions.x * density, tileDimensions.y * density);
 const byteWidth = resizedDimensions.x * 4;
 
 export function readMapFromScreenshot(rawImg) {
-  console.log('readmap');
   loadImage(rawImg).then(async image => {
     const rawCanvas = await screenshotCanvas(image);
     image.remove();
-    const cropCanvas = await crop(rawCanvas, screenshotRectangle);
+    const cropCanvas = await crop(rawCanvas, screenshotRectangle(rawCanvas.width, rawCanvas.height));
     rawCanvas.remove();
+
+    // todo: get the houses and amenity locations
+    // await featureMatching(cropCanvas);
+
     await resize(cropCanvas, Point(tileDimensions.x * density, tileDimensions.y * density));
 
     getColors(cropCanvas).then(canvas => {
-      //const canvas = document.createElement('canvas');
-      //canvas.height = image.height;
-      //canvas.width = image.width;
-      //const canvasCtx = canvas.getContext('2d');
-      //if (!canvasCtx) return;
-      //canvasCtx.drawImage(image, 0, 0);
-
-  //    if (canvas.width != screenshotDimensions.x || canvas.height != screenshotDimensions.y) {
-  //      hermite.resample(canvas, screenshotDimensions.x, screenshotDimensions.y, true);
-  //    }
-      //var map = crop(canvas, screenshotRectangle);
-      //canvas.remove();
-
-      console.log(canvas);
-      canvas.style.position = "absolute";
-      canvas.style.top = '0';
-      canvas.style.width = '100%';
-      canvas.style['image-rendering'] = 'pixelated';
-      document.body.appendChild(canvas);
+      // canvas.style.position = "absolute";
+      // canvas.style.top = '0';
+      // canvas.style.width = '100%';
+      // canvas.style['image-rendering'] = 'pixelated';
+      // document.body.appendChild(canvas);
+      canvas.remove();
     });
   });
 }
@@ -280,8 +299,6 @@ function screenshotCanvas(image: HTMLImageElement): Promise<HTMLCanvasElement> {
 }
 
 async function crop(canvas: HTMLCanvasElement, rect: Rect) {
-  console.log('done loading canvas');
-
   const cropCanvas = document.createElement('canvas');
   cropCanvas.width = rect.width;
   cropCanvas.height = rect.height;
@@ -292,13 +309,29 @@ async function crop(canvas: HTMLCanvasElement, rect: Rect) {
   return cropCanvas;
 }
 
+// async function featureMatching(canvas: HTMLCanvasElement) {
+//   const canvasCtx = canvas.getContext('2d');
+//   if (canvasCtx == null) throw "invalid canvas";
+
+//   import('tracking').then(tracking => {
+//     console.log(tracking.default);
+//   });
+// }
+
 async function resize(canvas: HTMLCanvasElement, scale: Point) {
-  // @ts-ignore
   return new Promise<HTMLCanvasElement>((resolve) => {
+    if (canvas.width === scale.x && canvas.height === scale.y) resolve(canvas);
     import("hermite-resize").then(hermiteModule => {
       const hermite = new hermiteModule.default();
       hermite.resample(canvas, scale.x, scale.y, true, () => resolve(canvas));
     });
+    //const canvasCtx = canvas.getContext('2d');
+    //const originalWidth = canvas.width;
+    //const originalHeight = canvas.height;
+    //canvas.width = scale.x;
+    //canvas.height = scale.y;
+    //canvasCtx?.drawImage(canvas, 0, 0, originalWidth, originalHeight, 0, 0, canvas.width, canvas.height);
+    //resolve(canvas);
   });
 }
 
@@ -317,7 +350,7 @@ async function getColors(canvas: HTMLCanvasElement): Promise<HTMLCanvasElement> 
         const tileX = (x / density)
         const isInside = Math.abs(canvas.width / 2 - x) < (canvas.width / 2 - 13 * density) && Math.abs(canvas.height / 2 - y) < (canvas.height / 2 - 13 * density);
         const isDotted = isInside && (
-          (tileX + 0.3) % 16 < .6 && (tileY + 0.6) % 2 < 1.2
+          (tileX + 0.2) % 16 < .6 && (tileY + 0.6) % 2 < 1.2
           || (tileY + 0.3) % 16 < .6  && (tileX + 0.6) % 2 < 1.2
         );
 
@@ -366,6 +399,16 @@ async function getColors(canvas: HTMLCanvasElement): Promise<HTMLCanvasElement> 
   function byteToCoord(i: number): Coord {
     return [(i % byteWidth) / 4, ~~(i / byteWidth)];
   }
+
+  const tileToTileIndex = (x: number, y: number): number => y * tileDimensions.x + x;
+  const tileToByte = (x: number, y: number): number => {
+    return pointToByte(x * density, y * density);
+  }
+  const tileIndexToTile = (i: number): Coord => [i % tileDimensions.x, ~~(i / tileDimensions.x)];
+  //const tileIndexToByte = (i: number): number => {
+  //  var tileCoord = tileIndexToTile(i);
+  //  return tileToByte(tileCoord);
+  //}
 
   function noiseReduction(
     x: number,
@@ -456,57 +499,120 @@ async function getColors(canvas: HTMLCanvasElement): Promise<HTMLCanvasElement> 
     };
   }
 
-  //function checkNeighbors(index: number, arr: Uint8ClampedArray, targetColor: Color, destinationColor: Color) {
-  //  for (let y = 0; y < 3; ++y) {
-  //    for (let x = 0; x < 3; ++x) {
-  //      index++;
-  //    }
-  //    index += rowWidth - 3;
-  //  }
-  //}
+  function forEachTile(tileAction: (tileIndex: number, x: number, y: number) => void, vertical = false) {
+    forEachCell(tileAction, tileDimensions.x, tileDimensions.y, 1, vertical);
+  }
 
-  // handle the marker first, as its white border potentially conflicts with the amenities
-  {
+  function forEachPixel(pixelAction: (pixelIndex: number, x: number, y: number) => void, vertical = false) {
+    forEachCell(pixelAction, resizedDimensions.x, resizedDimensions.y, 4, vertical);
+  }
+
+  function forEachCell(callback: (index: number, x: number, y: number) => void, width: number, height: number, cellSize: number, vertical = false) {
     let index = 0;
-
-    for (let y = 0; y < canvas.height; y++) {
-      //const tileY = (y / density)
-      for (let x = 0; x < canvas.width; x++) {
-        //const tileX = (x / density)
-        var colorIndex = colorBytes[index];
-        switch (colorIndex) {
-          case colors.markerRed.index:
-            magicWandOuterBoundary(x, y, colorBytes, {[colors.markerWhite.index]: true}, {});
-            break;
-          case colors.markerWhite.index:
-            magicWandOuterBoundary(x, y, colorBytes, {}, {});
-            break;
-          case colors.bridge.index: {// bridge overlaps with a lot of features
-            const {interior, boundaryColor} = noiseReduction(x, y, colorBytes);
-            if (boundaryColor != colors.water.index) // bridge is mostly surrounded by water
-              interior?.forEach(i => colorBytes[i] = boundaryColor ?? 0);
-            break;
-          }
-          case colors.level1.index:
-          case colors.level2.index:
-          case colors.level3.index:
-          case colors.water.index:
-          case colors.playerHouse.index:
-          case colors.house.index:
-            noiseReduction(x, y, colorBytes);
-            break;
-          case colors.dock.index:
-            magicWandOuterBoundary(x, y, colorBytes, {}, {});
-            break;
+    if (vertical) {
+      for (let x = 0; x < width; x++) {
+        for (let y = 0; y < height; y++) {
+          callback(index, x, y);
+          index += width * cellSize;
         }
-        index += 4;
+        index = x * cellSize;
+      }
+    } else {
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          callback(index, x, y);
+          index += cellSize;
+        }
       }
     }
   }
 
-  for (let i = 1; i < colorBytes.length; i += 4) {
-    colorBytes[i] = 0;
+  {
+    // go through through the image horizontally and vertically
+    let colorIndices: number[];
+    let currentLine = -1;
+    let prevColor: number;
+    let prevColorIndex: number;
+    let prevIndex: number;
+    let currentColor: number;
+
+    const denoise = (index, x, y, vertical = false) => {
+      const color = colorBytes[index];
+
+      if (vertical && y < 13 * density)  return; // ingore the top area of thin
+
+      const line = vertical ? x : y;
+      if (line !== currentLine) {
+        colorIndices = [index];
+        currentLine = line;
+        prevColor = color;
+        currentColor = color;
+      }
+      else if (color === currentColor) {
+        colorIndices.push(index);
+      }
+      else {
+        if (colorIndices.length <= 3 && (currentColor !== colors.markerWhite.index && currentColor !== colors.amenityIcon.index)) {
+          // fill first half with prev, second half with next
+          const width = colorIndices.length;
+          const halfWidth = Math.floor(width / 2);
+          for (let i = 0; i < width; i++) {
+            let c: number;
+            if (i <= halfWidth) c = prevColor;
+            if (i >= width - halfWidth) c = color;
+            else { // the middle value
+              // choose whichever side has a smaller color distance, stored in the alpha channel
+              c = color === prevColor ? color
+                : colorBytes[prevColorIndex + 3] < colorBytes[index + 3] ? prevColor : color;
+            }
+            colorBytes[colorIndices[i]] = c;
+          }
+        }
+        prevColor = currentColor;
+        prevColorIndex = prevIndex;
+        colorIndices = [index];
+        currentColor = color;
+      }
+      prevIndex = index;
+    }
+
+    forEachPixel((index, x, y) => denoise(index, x, y)) // horizontal
+    forEachPixel((index, x, y) => denoise(index, x, y, true), true) // vertical
   }
+
+  // handle the marker first, as its white border potentially conflicts with the amenities
+  forEachPixel((index, x, y) => {
+    var colorIndex = colorBytes[index];
+    switch (colorIndex) {
+      case colors.markerRed.index:
+        magicWandOuterBoundary(x, y, colorBytes, {[colors.markerWhite.index]: true}, {});
+        break;
+      case colors.markerWhite.index:
+        magicWandOuterBoundary(x, y, colorBytes, {}, {});
+        break;
+      case colors.bridge.index: {// bridge overlaps with a lot of features
+        const {interior, boundaryColor} = noiseReduction(x, y, colorBytes);
+        if (boundaryColor != colors.water.index) // bridge is mostly surrounded by water
+          interior?.forEach(i => colorBytes[i] = boundaryColor ?? 0);
+        break;
+      }
+      case colors.level1.index:
+      case colors.level2.index:
+      case colors.level3.index:
+      case colors.water.index:
+      case colors.playerHouse.index:
+      case colors.house.index:
+        noiseReduction(x, y, colorBytes);
+        break;
+      case colors.dock.index:
+        magicWandOuterBoundary(x, y, colorBytes, {}, {});
+        break;
+    }
+  });
+
+  forEachPixel(i => {
+    colorBytes[i + 1] = 0;
+  });
 
   /*
   function centerOfMass(indices: number[], round): Coord {
@@ -526,73 +632,70 @@ async function getColors(canvas: HTMLCanvasElement): Promise<HTMLCanvasElement> 
 */
 
   // remove all non-terrain features
-  {
-    let index = 0;
+  forEachPixel((index, x, y) => {
+    var colorIndex = colorBytes[index];
+    switch (colorIndex) {
+      case colors.markerRed.index:
+      case colors.playerHouse.index:
+      case colors.house.index:
+      case colors.amenityBack.index:
+        simpleInfill(x, y, colorBytes);
+        break;
+      case colors.amenityIcon.index: {
+        const noiseInterior = noiseReduction(x, y, colorBytes).interior;
+        noiseInterior?.forEach(i => colorBytes[i+1] = 0)
 
-    for (let y = 0; y < canvas.height; y++) {
-      //const tileY = (y / density)
-      for (let x = 0; x < canvas.width; x++) {
-        //const tileX = (x / density)
+        const {interior} = magicWandOuterBoundary(x, y, colorBytes, {
+          [colors.markerWhite.index]: true,
+          //[colors.water.index]: true,
+          [colors.bridge.index]: true}, {});
 
-        var colorIndex = colorBytes[index];
-        switch (colorIndex) {
-          case colors.markerRed.index:
-          case colors.playerHouse.index:
-          case colors.house.index:
-          case colors.amenityBack.index:
-            simpleInfill(x, y, colorBytes);
-            break;
-          case colors.amenityIcon.index: {
-            const {interior} = magicWandOuterBoundary(x, y, colorBytes, {[colors.markerWhite.index]: true, [colors.bridge.index]: true, [colors.bridge.index]: true}, {});
+        interior?.forEach(i => colorBytes[i+1] = 0)
 
-            interior?.forEach(i => colorBytes[i+1] = 0)
-
-            simpleInfill(x, y, colorBytes);
-            break;
-          }
-          case colors.rock.index:
-            noiseReduction(x, y, colorBytes);
-            break;
-          //case colors.playerHouse.index: {
-            //var fill = magicWandOuterBoundary(x, y, colorBytes, {}, {});
-            //if (fill.length > 0) {
-            //  var center = centerOfMass(fill, true);
-            //  colorBytes[coordToByte(center)] = 0;
-            //}
-          //  break;
-          //}
-        }
-
-        //colorBytes[index+0] = color[0];//isInside ? 255 : color[0];
-        //colorBytes[index+1] = color[1];
-        //colorBytes[index+2] = color[2];//isDotted ? 255 : color[2];
-        //colorBytes[index+3] = 255;//distSq;
-        index += 4;
+        simpleInfill(x, y, colorBytes);
+        break;
       }
+      case colors.rock.index:
+        noiseReduction(x, y, colorBytes);
+        break;
+      //case colors.playerHouse.index: {
+        //var fill = magicWandOuterBoundary(x, y, colorBytes, {}, {});
+        //if (fill.length > 0) {
+        //  var center = centerOfMass(fill, true);
+        //  colorBytes[coordToByte(center)] = 0;
+        //}
+      //  break;
+      //}
+    }
+  });
+
+  function generatorForEach<T>(colorGenerator: Generator<T, void>, callback: (value: T) => any) {
+    let result = colorGenerator.next();
+    while (!result.done) {
+      callback(result.value);
+      result = colorGenerator.next();
     }
   }
 
   function getMajorityDelta (colorGenerator: Generator<number, void>):
   {
     delta: number,
-    superMajority: boolean,
     colorCount: Map<number, number>,
     sortedColors: number[],
   } {
     let colorCount: Map<number, number> = new Map();
 
-    let result = colorGenerator.next();
-    while (!result.done) {
-      const color = result.value;
-      result = colorGenerator.next();
+    let total = 0;
+    generatorForEach(colorGenerator, color => {
       colorCount.set(color, (colorCount.get(color) ?? 0) + 1);
-    }
+      total++;
+    });
 
     const sortedColors = Array.from(colorCount.keys()).sort(
       (a, b) => (colorCount.get(a) ?? 0) - (colorCount.get(b) ?? 0)).reverse();
 
-    const leader = (colorCount.get(sortedColors[0]) ?? 0) / sqDensity;
-    const runnerUp = (colorCount.get(sortedColors[1]) ?? 0) / sqDensity;
+    const leader = (colorCount.get(sortedColors[0]) ?? 0) / total;
+    const runnerUp = (colorCount.get(sortedColors[1]) ?? 0) / total;
 
     return {
       delta: leader - runnerUp,
@@ -612,78 +715,482 @@ async function getColors(canvas: HTMLCanvasElement): Promise<HTMLCanvasElement> 
     }
   }
 
-  function isPair(sortedColors: number[], color1: ColorProperties, color2: ColorProperties) {
-    return sortedColors[0] === color1.index && sortedColors[1] === color2.index
-      || sortedColors[1] === color1.index && sortedColors[0] === color2.index;
+  // function* triangle(
+  //   right: boolean,
+  //   top: boolean,
+  //   offset: number,
+  //   startingIndex: number,
+  //   bytes: Uint8ClampedArray) {
+  //   for (let i = 0; i < density - offset; i++) {
+  //     const y = top ? i : density - 1 - i;
+  //     for (let j = 0; j < density - i - offset; j++) {
+  //       const x = right ? density - 1 - j : j;
+  //       yield bytes[startingIndex + x * 4 + y * byteWidth];
+  //     }
+  //   }
+  // }
+
+  // function isPair(sortedColors: number[], color1: number, color2: number) {
+  //   return sortedColors[0] === color1 && sortedColors[1] === color2
+  //     || sortedColors[1] === color1 && sortedColors[0] === color2;
+  // }
+
+  // xy can go to the edges
+  const vertexWidth = tileDimensions.x + 1;
+  function xyToVertexIndex(x: number, y: number) {
+    return x + y * vertexWidth;
+  }
+  function vertexIndexToXY(coord: number): Coord {
+    return [coord % vertexWidth, ~~(coord / vertexWidth)];
   }
 
-  const sqDensity = density * density;
+  const tiles = new Uint8ClampedArray(tileDimensions.x * tileDimensions.y);
+  const deltas = new Float32Array(tileDimensions.x * tileDimensions.y);
+
+  // super simplified version of below
   let index = 0;
   let tileIndex = 0;
 
-  const tiles = new Uint8ClampedArray(tileDimensions.x * tileDimensions.y);
   for (let tiley = 0; tiley < tileDimensions.y; ++tiley) {
     for (let tilex = 0; tilex < tileDimensions.x; ++tilex) {
-
-      const {delta, sortedColors} = getMajorityDelta(fullTile(index, colorBytes));
-
-      if (sortedColors.length == 1) {
-        tiles[] = sortedColors[0];
-      } else {
-        let threshold = 0.6;
-        if (isPair(sortedColors, colors.water, colors.level1)) threshold = 0.7;
-        if (isPair(sortedColors, colors.water, colors.sand)) threshold = 0.2;
-
-        if (delta > threshold) { // if strong majority, declare this a solid tile
-          resolvedColor = sortedColors[0];
-        }
-        else {
-          resolvedColor = 0; // todo
-        }
-      }
-
-      let i = index;
-      for (let y = 0; y < density; y++) {
-        for (let x = 0; x < density; x++) {
-          var cellX = x * 4;
-          colorBytes[i + cellX] = resolvedColor;
-        }
-        i += byteWidth;
-      }
-
+      const {delta, sortedColors} = getMajorityDelta(fullTile(index, colorBytes))
+      deltas[tileIndex] = delta;
+      tiles[tileIndex] = sortedColors[0];
       tileIndex++;
       index += density * 4;
     }
     index += byteWidth * (density - 1);
   }
+  // let index = 0;
+  // let tileIndex = 0;
+  // let diagonalFlag = colorArr.length;
+  // let diagonals: {[key: number]: number[]} = {};
+  // for (let tiley = 0; tiley < tileDimensions.y; ++tiley) {
+  //   for (let tilex = 0; tilex < tileDimensions.x; ++tilex) {
 
-  // fill
+
+  //     const {delta, sortedColors/*, colorCount*/} = getMajorityDelta(fullTile(index, colorBytes))
+
+  //     if (sortedColors.length == 1) {
+  //       tiles[tileIndex] = sortedColors[0];
+  //     } else {
+  //       let threshold = 0.8;
+
+  //       if (delta > threshold) { // if strong majority, declare this a solid tile
+  //         tiles[tileIndex] = sortedColors[0];
+  //       }
+  //       else if (delta > 0.25) {
+  //         threshold = .55;
+  //         //console.log(delta, colorCount);
+  //         const {delta: tlDelta, sortedColors: tlSortedColors} = getMajorityDelta(triangle(false, true, 0, index, colorBytes));
+  //         const {delta: brDelta, sortedColors: brSortedColors} = getMajorityDelta(triangle(true, false, 0, index, colorBytes));
+  //         const tlbrDelta = (tlDelta + brDelta) / 2;
+  //         const tlbrValid = tlbrDelta > threshold && isPair(sortedColors, tlSortedColors[0], brSortedColors[0]);
+
+  //         if (tlbrValid) {
+  //           //console.log('tlbr', tlSortedColors[0], brSortedColors[0]);
+  //           tiles[tileIndex] = colors.house.index;
+  //           diagonals[tileIndex] = [tileIndex, 1, tlSortedColors[0], brSortedColors[0], tlbrDelta];
+  //         } else {
+  //           // bottom left / top right
+  //           const {delta: blDelta, sortedColors: blSortedColors} = getMajorityDelta(triangle(false, false, 0, index, colorBytes));
+  //           const {delta: trDelta, sortedColors: trSortedColors} = getMajorityDelta(triangle(true, true, 0, index, colorBytes));
+  //           const trblDelta = (blDelta + trDelta) / 2;
+  //           const trblValid = trblDelta > threshold && isPair(sortedColors, trSortedColors[0], blSortedColors[0]);
+
+  //           if (trblValid) {
+  //             //console.log('bltr', trSortedColors[0], blSortedColors[0]);
+  //             tiles[tileIndex] = colors.markerRed.index;
+  //             diagonals[tileIndex] = [tileIndex, 0, blSortedColors[0], trSortedColors[0], trblDelta];
+  //           } else {
+  //             tiles[tileIndex] = sortedColors[0];//0;
+  //           }
+  //         }
+  //       } else {
+  //         tiles[tileIndex] = sortedColors[0];
+  //       }
+  //     }
+  //     tileIndex++;
+  //     index += density * 4;
+  //   }
+  //   index += byteWidth * (density - 1);
+  // }
+
+  // function validateDiagonals() {
+  //   const width = tileDimensions.x;
+  //   const height = tileDimensions.y;
+  //   function isDiagonal(color) {
+  //     return color === colors.house.index || color === colors.markerRed.index;
+  //   }
+
+  //   function getColorMajority(index, c0, c1) {
+  //     let c0Count = 0;
+  //     let c1Count = 0;
+  //     const [x, y] = tileIndexToTile(index);
+
+  //     if (x > 0) {
+  //       if (tiles[index - 1] === c0) c0Count++;
+  //       if (tiles[index - 1] === c1) c1Count++;
+  //     }
+  //     if (x < width - 1) {
+  //       if (tiles[index + 1] === c0) c0Count++;
+  //       if (tiles[index + 1] === c1) c1Count++;
+  //     }
+  //     if (y > 0) {
+  //       if (tiles[index - width] === c0) c0Count++;
+  //       if (tiles[index - width] === c1) c1Count++;
+  //     }
+  //     if (y < height - 1) {
+  //       if (tiles[index + width] === c0) c0Count++;
+  //       if (tiles[index + width] === c1) c1Count++;
+  //     }
+  //     return c0Count >= c1Count ? c0 : c1;
+  //   }
+
+  //   const toDelete = {};
+  //   // eslint-disable-next-line
+  //   for (let [index, tlbr, c0, c1] of Object.values(diagonals)) {
+  //     const [x, y] = tileIndexToTile(index);
+
+  //     function checkColor(neighborIndex) {
+  //       if (toDelete[index]) return;
+
+  //       var color = tiles[neighborIndex];
+  //       if (isDiagonal(color)) {
+  //         const weakerDiagonal = (diagonals[index][4] < diagonals[neighborIndex][4]) ? index : neighborIndex;
+  //         tiles[weakerDiagonal] = getColorMajority(weakerDiagonal, diagonals[weakerDiagonal][2], diagonals[weakerDiagonal][3]);
+  //         toDelete[weakerDiagonal] = true;
+  //         if (weakerDiagonal === index)
+  //           isValid = false;
+  //         return;
+  //       }
+  //       if (color === c0) {
+  //         c0Count++;
+  //       } else if (color === c1) {
+  //         c1Count++;
+  //       }
+  //       else {
+  //         isValid = false;
+  //       }
+  //     }
+
+  //     let c0Count = 0;
+  //     let c1Count = 0;
+  //     let isValid = true;
+  //     if (isValid && x > 0) {
+  //       checkColor(index - 1);
+  //     }
+  //     if (isValid && x < width - 1) {
+  //       checkColor(index + 1);
+  //     }
+  //     if (isValid && y > 0) {
+  //       checkColor(index - width);
+  //     }
+  //     if (isValid && y < height - 1) {
+  //       checkColor(index + width);
+  //     }
+
+  //     if (!isValid || c0Count >= 3) {
+  //       tiles[index] = c0;
+  //       toDelete[index] = true;
+  //     } else if (c1Count >= 3) {
+  //       tiles[index] = c1;
+  //       toDelete[index] = true;
+  //     }
+  //   }
+  //   for (let index of Object.keys(toDelete)) {
+  //     delete diagonals[index];
+  //   }
+  // }
+  // validateDiagonals();
+  // validateDiagonals();
+  // validateDiagonals();
+
+
+  //index = 0;
+  //tileIndex = 0;
+  //for (let tiley = 0; tiley < tileDimensions.y; ++tiley) {
+  //  for (let tilex = 0; tilex < tileDimensions.x; ++tilex) {
+  //    var tileColor = tiles[tileIndex];
+  //    let i = index;
+  //    for (let y = 0; y < density; y++) {
+  //      for (let x = 0; x < density; x++) {
+  //        var cellX = x * 4;
+//
+  //        if (tileColor !== 0)
+  //          colorBytes[i + cellX] = tileColor;
+  //      }
+  //      i += byteWidth;
+  //    }
+//
+  //    tileIndex++;
+  //    index += density * 4;
+  //  }
+  //  index += byteWidth * (density - 1);
+  //}
+
+  // calculate vertices
+  const allPolygons: {[key: number]: number[][][]} = {};
   {
-    let index = 0;
+    const markedArray = new Uint8ClampedArray(tileDimensions.x * tileDimensions.y);
+    const width = tileDimensions.x;
+    const height = tileDimensions.y;
+    forEachTile((tileIndex) => {
+      const targetColor = tiles[tileIndex] ?? 0;
+      if (markedArray[tileIndex] === targetColor) return {};
+      const queue: number[] = [tileIndex];
+      const edges: Map<number, number> = new Map();
 
-    for (let y = 0; y < canvas.height; y++) {
-      for (let x = 0; x < canvas.width; x++) {
-        const color = colorArr[colorBytes[index]].color;
-        colorBytes[index+0] = color[0];//isInside ? 255 : color[0];
-        colorBytes[index+1] = color[1];
-        colorBytes[index+2] = color[2];//isDotted ? 255 : color[2];
-        colorBytes[index+3] = 255;//distSq;
-        index += 4;
+      function validate(i: number, validIndex: boolean, currentColor: number, onValid: (i: number) => any, onInvalid: (i: number) => any) {
+        if (!validIndex) onInvalid(i);
+        if (markedArray[i] === targetColor) return;
+        const color = tiles[i];
+        const isUnderColor = colorArr[targetColor].under != null && colorArr[targetColor].under?.indexOf(color) !== -1 && currentColor !== color;
+        if (targetColor === color || isUnderColor) onValid(i);
+        else onInvalid(i);
+      }
 
-        //colorBytes[index+0] = color[0];//isInside ? 255 : color[0];
-        //colorBytes[index+1] = color[1];
-        //colorBytes[index+2] = color[2];//isDotted ? 255 : color[2];
-        //colorBytes[index+3] = 255;//distSq;
-        //index += 4;
+      while (queue.length > 0) {
+        const index = queue.pop() ?? 0;
+        const [x, y] = tileIndexToTile(index);
+
+        markedArray[index] = targetColor;
+
+        const currentColor = tiles[index];
+
+        validate(index - 1, (x > 0), currentColor, i => queue.push(i), () => edges.set(xyToVertexIndex(x, y + 1), xyToVertexIndex(x, y)));
+        validate(index + 1, (x < width - 1), currentColor, i => queue.push(i), () => edges.set(xyToVertexIndex(x + 1, y), xyToVertexIndex(x + 1, y + 1)));
+        validate(index - width, (y > 0), currentColor, i => queue.push(i), () => edges.set(xyToVertexIndex(x, y), xyToVertexIndex(x + 1, y)));
+        validate(index + width, (y < height - 1), currentColor, i => queue.push(i), () => edges.set(xyToVertexIndex(x + 1, y + 1), xyToVertexIndex(x, y + 1)));
+      }
+
+      // // diagonals
+      // const c0Complete = {};
+      // const c1Complete = {};
+
+      // for (let [index, tlbr, c0] of Object.values(diagonals)) {
+      //   var [x, y] = tileIndexToTile(index);
+
+      //   if (c0 === targetColor) {
+      //     if (c0Complete[index]) {
+      //       continue;
+      //     } else {
+      //       c0Complete[index] == 1;
+      //     }
+      //   } else {
+      //     if (c1Complete[index]) {
+      //       continue;
+      //     } else {
+      //       c1Complete[index] == 1;
+      //     }
+      //   }
+
+      //   var start: number = 0, end: number = 0, corner: number = 0;
+      //   let isLeft: boolean, isRight: boolean;
+      //   if (tlbr) {
+      //     isLeft = tiles[tileToTileIndex(x - 1, y)] === targetColor
+      //       && tiles[tileToTileIndex(x, y - 1)] === targetColor;
+      //     isRight = tiles[tileToTileIndex(x + 1, y)] === targetColor
+      //       && tiles[tileToTileIndex(x, y + 1)] === targetColor;
+
+      //     if (isLeft) {
+      //       start = xyToVertexIndex(x + 1, y);
+      //       end = xyToVertexIndex(x, y + 1);
+      //       corner = xyToVertexIndex(x, y);
+      //     }
+      //     if (isRight) {
+      //       start = xyToVertexIndex(x, y + 1);
+      //       end = xyToVertexIndex(x + 1, y);
+      //       corner = xyToVertexIndex(x + 1, y + 1);
+      //     }
+      //   } else {
+      //     isLeft = tiles[tileToTileIndex(x - 1, y)] === targetColor
+      //       && tiles[tileToTileIndex(x, y + 1)] === targetColor;
+      //     isRight = tiles[tileToTileIndex(x + 1, y)] === targetColor
+      //       && tiles[tileToTileIndex(x, y - 1)] === targetColor;
+
+
+      //     if (isLeft) {
+      //       start = xyToVertexIndex(x, y);
+      //       end = xyToVertexIndex(x + 1, y + 1);
+      //       corner = xyToVertexIndex(x, y + 1);
+      //     }
+      //     if (isRight) {
+      //       start = xyToVertexIndex(x + 1, y + 1);
+      //       end = xyToVertexIndex(x, y);
+      //       corner = xyToVertexIndex(x + 1, y);
+      //     }
+      //   }
+      //   if (isLeft || isRight) {
+      //     if (edges.has(end) && edges.has(corner) && edges.has(start)) {
+      //       edges.delete(start);
+      //       edges.delete(corner);
+      //     }
+      //     edges.set(start, end);
+      //     if (!edges.has(end)) {
+      //       //edges.set(end, corner);
+      //     }
+      //   }
+      // }
+
+      function firstElementOfMap<K, V> (map: Map<K, V>): [K, V] | undefined {
+        var firstIt = map.entries().next();
+        if (!firstIt.done) {
+          return firstIt.value;
+        }
+      }
+
+      const polygons: number[][] = [];
+      let currentPolygon: number[] = [];
+      let prevVertex = 0;
+      let nextVertex = 0;
+      let prevDiagonal = false;
+
+      function isDiagonal(prevVertex, currentVertex, nextVertex) {
+        var prevHorizontal = prevVertex + 1 === currentVertex || prevVertex - 1 === currentVertex;
+        var nextHorizontal = currentVertex + 1 === nextVertex || currentVertex - 1 === nextVertex;
+
+        // if one of the sides is diagonal, cannot make this a diagonal
+        if ((!prevHorizontal
+          && prevVertex + vertexWidth !== currentVertex
+          && prevVertex - vertexWidth !== currentVertex)
+          || (!nextHorizontal
+            && currentVertex + vertexWidth !== nextVertex
+            && currentVertex - vertexWidth !== nextVertex)
+            ) {
+          return false;
+        }
+
+        // consider a diagonal at a corner
+        if (prevHorizontal != nextHorizontal) {
+          var prevXY = vertexIndexToXY(prevVertex);
+          var nextXY = vertexIndexToXY(nextVertex);
+          var tileIndex = tileToTileIndex(~~((prevXY[0] + nextXY[0]) / 2), ~~((prevXY[1] + nextXY[1]) / 2));
+          if (deltas[tileIndex] < 0.9) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      while (edges.size > 0) {
+        if (currentPolygon.length == 0) {
+          var randomEdge = firstElementOfMap(edges);
+          if (randomEdge) {
+            currentPolygon.push(randomEdge[0]);
+            edges.delete(randomEdge[0])
+            nextVertex = randomEdge[1];
+          }
+        } else {
+          var nextNextVertex = edges.get(nextVertex);
+          if (nextNextVertex) {
+            // if (targetColor === colors.level1.index) {
+              // let [v0x, v0y] = vertexIndexToXY(nextVertex);
+              // let [v1x, v1y] = vertexIndexToXY(nextNextVertex);
+            //   if (v0x == 112) v0x = 111;
+            //   if (v1x == 112) v1x = 111;
+            //   colorBytes[tileToByte((v0x + v1x) / 2 + (v1x - v0x) * (1/3), (v0y + v1y) / 2 + (v1y - v0y) * (1/3))] = 1;
+            //   colorBytes[tileToByte((v0x + v1x) / 2 - (v1x - v0x) * (1/3), (v0y + v1y) / 2 - (v1y - v0y) * (1/3))] = 2;
+            //   colorBytes[tileToByte((v0x + v1x) / 2, (v0y + v1y) / 2)] = 0;
+            // }
+            if (currentPolygon.length > 0) {
+              let [v0x, v0y] = vertexIndexToXY(prevVertex);
+              let [v1x, v1y] = vertexIndexToXY(nextNextVertex);
+              var delta = deltas[tileToTileIndex(~~((v0x + v1x) / 2), ~~((v0y + v1y) / 2))];
+              colorBytes[tileToByte((v0x + v1x) / 2, (v0y + v1y) / 2)] = delta;
+            }
+
+            currentPolygon.push(nextVertex);
+            if (!prevDiagonal && currentPolygon.length > 0) {
+              if (isDiagonal(prevVertex, nextVertex, nextNextVertex)) {
+                currentPolygon.pop();
+                prevDiagonal = true;
+              }
+            } else {
+              prevDiagonal = false;
+            }
+            edges.delete(nextVertex);
+            prevVertex = prevDiagonal ? prevVertex : nextVertex;
+            nextVertex = nextNextVertex;
+          } else {
+            if (isDiagonal(currentPolygon[currentPolygon.length - 2], currentPolygon[currentPolygon.length - 1], currentPolygon[0])) {
+              currentPolygon.pop();
+            } else if (isDiagonal(currentPolygon[currentPolygon.length - 1], currentPolygon[0], currentPolygon[1])) {
+              currentPolygon.shift();
+            }
+
+            //if (nextVertex == currentPolygon[0])
+            polygons.push(currentPolygon);
+            currentPolygon = [];
+          }
+        }
+      }
+      if (currentPolygon.length > 0) polygons.push(currentPolygon);
+
+      if (!(targetColor in allPolygons)) {
+        allPolygons[targetColor] = [];
+      }
+      allPolygons[targetColor].push(polygons);
+    });
+  }
+  console.log(allPolygons);
+
+  // encode into drawing json
+  const drawingData: {[key: string]: (number[][][] & number[][])} = {
+    sand: [],
+    rock: [],
+    level1: [],
+    level2: [],
+    level3: [],
+  };
+  {
+    for (let [colorIndex, colorPolygons] of Object.entries(allPolygons)) {
+      const colorName = colorArr[colorIndex].name;
+      if (colorName in drawingData) {
+        for (let complexPoly of colorPolygons) {
+          //const polyArray = complexPoly.length === 1 ? drawingData[colorName] : [];
+          const polyArray = drawingData[colorName];
+          for (let polygon of complexPoly) {
+            const points: number[] = [];
+            for (let point of polygon) {
+              var [x, y] = vertexIndexToXY(point as unknown as number);
+              points.push(x, y);
+            }
+            polyArray.push(points);
+          }
+          //if (complexPoly.length > 1) {
+          //  drawingData[colorName].push(polyArray);
+          //}
+        }
       }
     }
+    const mapJson = {
+      version: 1,
+      drawing: drawingData,
+    };
+    console.log(mapJson);
+    loadMapFromJSON(mapJson);
   }
+
+  // fill
+  forEachPixel((index, x, y) => {
+    const color = colorArr[colorBytes[index]].color;
+    colorBytes[index+0] = color[0];//isInside ? 255 : color[0];
+    colorBytes[index+1] = color[1];
+    colorBytes[index+2] = color[2];//isDotted ? 255 : color[2];
+    colorBytes[index+3] = 255;//distSq;
+
+    if (x % density == 0 || y % density == 0) {
+      colorBytes[index+0] += 10;
+      colorBytes[index+1] += 10;
+      colorBytes[index+2] += 10;
+    }
+
+    index += 4;
+  })
 
   canvasCtx.putImageData(imageData, 0, 0);
   return canvas;
-  //const canvasCtx = canvas.getContext('2d');
-  //console.log(rect);
-  //canvasCtx?.drawImage(canvas, rect.p0.x, rect.p1.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
 }
 
 //function fillCell(color: Color, colorBytes: Uint8ClampedArray, x: number, y: number, density: number) {

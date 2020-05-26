@@ -58,6 +58,10 @@ export function loadMapFromJSONString(mapJSONString: string) {
     }
   }
 
+  loadMapFromJSON(json);
+}
+
+export function loadMapFromJSON(json) {
   clearMap();
   const map = decodeMap(json);
   setNewMapData(map);
