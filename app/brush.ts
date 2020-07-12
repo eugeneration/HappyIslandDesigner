@@ -10,6 +10,7 @@ import { pathDefinition } from './pathDefinition';
 import { getObjectData } from './helpers/getObjectData';
 import { createObjectPreviewAsync } from './ui/createObject';
 
+const MAX_BRUSH_SIZE = 60;
 let rawBrushSize = 2;
 let brushSize = 2;
 let brushPoints: Array<paper.Point>;
@@ -325,7 +326,11 @@ export function decrementBrush() {
 }
 
 export function incrementBrush() {
-  rawBrushSize = Math.max(brushSize + 1, 0);
-  brushSize = Math.max(rawBrushSize, 1);
+  if (brushSize >= MAX_BRUSH_SIZE) {
+    brushSize = MAX_BRUSH_SIZE;
+  } else {
+    rawBrushSize = Math.max(brushSize + 1, 0);
+    brushSize = Math.max(rawBrushSize, 1); 
+  }
   updateBrush();
 }
