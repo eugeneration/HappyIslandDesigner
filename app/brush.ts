@@ -321,11 +321,11 @@ export function cycleBrushHead() {
 }
 
 export function decrementBrush() {
-  brushSize = clamp(Math.max(brushSize - 1), 0, MAX_BRUSH_SIZE); 
+  brushSize = clamp(brushSize - 1, 0, MAX_BRUSH_SIZE); 
   updateBrush();
 }
 
 export function incrementBrush() {
-  brushSize = clamp(Math.max(brushSize + 1), 0, MAX_BRUSH_SIZE); 
+  brushSize = clamp(brushSize + 1, 0, MAX_BRUSH_SIZE); 
   updateBrush();
 }
