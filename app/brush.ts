@@ -9,7 +9,9 @@ import { layerDefinition } from './layerDefinition';
 import { pathDefinition } from './pathDefinition';
 import { getObjectData } from './helpers/getObjectData';
 import { createObjectPreviewAsync } from './ui/createObject';
+import { clamp } from './helpers/clamp'
 
+const MAX_BRUSH_SIZE = 60;
 let rawBrushSize = 2;
 let brushSize = 2;
 let brushPoints: Array<paper.Point>;
@@ -319,13 +321,11 @@ export function cycleBrushHead() {
 }
 
 export function decrementBrush() {
-  rawBrushSize = Math.max(brushSize - 1, 0);
-  brushSize = Math.max(rawBrushSize, 1);
+  brushSize = clamp(brushSize - 1, 0, MAX_BRUSH_SIZE); 
   updateBrush();
 }
 
 export function incrementBrush() {
-  rawBrushSize = Math.max(brushSize + 1, 0);
-  brushSize = Math.max(rawBrushSize, 1);
+  brushSize = clamp(brushSize + 1, 0, MAX_BRUSH_SIZE); 
   updateBrush();
 }
