@@ -6,6 +6,7 @@ import {
   decrementBrush,
   incrementBrush,
   cycleBrushHead,
+  updateCoordinateLabel
 } from './brush';
 import { colors } from './colors';
 import { saveMapToFile, encodeMap } from './save';
@@ -17,6 +18,7 @@ import { toggleGrid } from './grid';
 import { redo, undo, state } from './state';
 import { toggleScreenshotVisible } from './ui/screenshotOverlay';
 import { modals } from './ui/modal';
+import { accessibleBrushSetter, accessibleCursor, accessibleDraw, cursorIncrement } from './accessibility';
 
 export const keys = {
   isSpaceDown: false,
@@ -33,15 +35,74 @@ export function onKeyUp(event) {
       toggleScreenshotVisible();
       delete keyDownMap['`'];
       break;
+    case 'up':
+      accessibleDraw('stop');
+      break;
+    case 'down':
+      accessibleDraw('stop');
+      break;
+    case 'left':
+      accessibleDraw('stop');
+      break;
+    case 'right':
+      accessibleDraw('stop');
+      break;
   }
 }
 
 export function onKeyDown(event) {
   const shift = paper.Key.isDown('shift');
   const control = paper.Key.isDown('control') || paper.Key.isDown('meta');
+  // const v = paper.Key.isDown('v');
 
   const prevActiveTool = toolState.activeTool;
   switch (event.key) {
+    case 'a':
+      accessibleBrushSetter();
+      break;
+    case 'left':
+      accessibleCursor.x -= cursorIncrement;
+      updateCoordinateLabel(event, accessibleCursor);
+      if (shift) {
+        accessibleDraw('start');
+      }
+      if (shift && event.repeat) {
+        accessibleDraw();
+      }
+      break;
+    case 'right':
+      accessibleCursor.x += cursorIncrement;
+      updateCoordinateLabel(event, accessibleCursor);
+      if (shift) {
+        accessibleDraw('start');
+      }
+      if (shift && event.repeat) {
+        accessibleDraw();
+      }
+      break;
+    case 'up':
+      accessibleCursor.y -= cursorIncrement;
+      updateCoordinateLabel(event, accessibleCursor);
+      if (shift) {
+        accessibleDraw('start');
+      }
+      if (shift && event.repeat) {
+        accessibleDraw();
+      }
+      break;
+    case 'down':
+      accessibleCursor.y += cursorIncrement;
+      updateCoordinateLabel(event, accessibleCursor);
+      if (shift) {
+        accessibleDraw('start');
+      }
+      if (shift && event.repeat) {
+        accessibleDraw();
+      }
+      break;
+    case 'shift':
+      accessibleDraw('start');
+      break;
     case 'space':
       keys.isSpaceDown = true;
       break;

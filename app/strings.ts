@@ -19,6 +19,7 @@ export const strings = {
                 'b\n'+
                 'n\n'+
                 'm\n'+
+                'a\n'+
                 '\n'+
                 'ctrl + s\n'+
                 'ctrl + o\n'+
@@ -40,6 +41,7 @@ export const strings = {
                 'path tool\n'+
                 'building tool\n'+
                 'amenities tool\n'+
+                'accessible mode\n'+
                 '\n'+
                 'save\n'+
                 'open map file\n'+

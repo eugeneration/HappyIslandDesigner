@@ -29,6 +29,7 @@ import { getObjectData } from '../helpers/getObjectData';
 import { pathDefinition } from '../pathDefinition';
 import { getColorAtCoordinate } from '../getColorAtCoordinate';
 import { startDraw, draw, endDraw } from '../paint';
+import { accessibleBrush, updateCursor } from '../accessibility';
 
 const toolPrefix = 'tool-';
 
@@ -268,15 +269,30 @@ export function initTools() {
         const rawCoordinate = layers.mapOverlayLayer.globalToLocal(event.point);
         updatePaintColor(getColorAtCoordinate(rawCoordinate));
       }
-      startDraw(event);
+      if (!accessibleBrush){
+        startDraw(event);
+      }
     },
     onMouseDrag(event) {
       this.base.onMouseDrag(this, event);
-      draw(event);
+      if (!accessibleBrush) {
+        draw(event);
+      }
     },
     onMouseUp(event) {
       this.base.onMouseUp(this, event);
+      if (!accessibleBrush) {
       endDraw(event);
+      }
+      if (accessibleBrush) {
+        updateCursor(event);
+      }
+      // accessibleCursor.y = getBrushCenteredCoordinate(
+      //   layers.mapOverlayLayer.globalToLocal(event.point)
+      // ).y;
+      // accessibleCursor.x = getBrushCenteredCoordinate(
+      //   layers.mapOverlayLayer.globalToLocal(event.point)
+      // ).x;
     },
     onKeyDown(event) {
       this.base.onKeyDown(this, event);
@@ -343,15 +359,24 @@ export function initTools() {
         const rawCoordinate = layers.mapOverlayLayer.globalToLocal(event.point);
         updatePaintColor(getColorAtCoordinate(rawCoordinate));
       }
-      startDraw(event);
+      if (!accessibleBrush){
+        startDraw(event);
+      }
     },
     onMouseDrag(event) {
       this.base.onMouseDrag(this, event);
-      draw(event);
+      if (!accessibleBrush) {
+        draw(event);
+      }
     },
     onMouseUp(event) {
       this.base.onMouseUp(this, event);
+      if (!accessibleBrush) {
       endDraw(event);
+      }
+      if (accessibleBrush) {
+        updateCursor(event);
+      }
     },
     onKeyDown(event) {
       this.base.onKeyDown(this, event);
