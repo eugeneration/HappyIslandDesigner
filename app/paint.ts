@@ -112,7 +112,7 @@ function getDrawPath(coordinate) {
   const brushPoints = getCurrentBrushPoints();
   const brushSize = getCurrentBrushSize();
 
-  var pos = getBrushCenteredCoordinate(coordinate);
+  const pos = getBrushCenteredCoordinate(coordinate);
   pos.x -= brushSize / 2 - 0.5;
   pos.y -= brushSize / 2 - 0.5;
 

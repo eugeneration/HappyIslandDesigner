@@ -6,7 +6,7 @@ import i18next from 'i18next';
 import { renderModal } from './modal';
 import { colors } from '../colors';
 import { saveMapToFile } from '../save';
-import { loadMapFromFile, loadTemplate } from '../load';
+import { loadMapFromFile } from '../load';
 import { showSwitchModal } from './screenshotModal';
 import { OpenMapSelectModal } from '../components/ModalMapSelect';
 
@@ -128,7 +128,7 @@ export function showMainMenu(isShown: boolean) {
         showMainMenu(false);
       },
     );
-    var switchButton = createMenuButton(
+    const switchButton = createMenuButton(
       i18next.t('load_screenshot'),
       'static/img/menu-switch.png', 0, 1,
       () => showSwitchModal(true));

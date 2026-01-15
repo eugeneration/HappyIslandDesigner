@@ -88,7 +88,8 @@ export function loadImage(onLoad) {
         heic2any({blob: file })
           .then(function(conversionResult) {
             showLoadingScreen(false);
-            var url = URL.createObjectURL(conversionResult);
+            const blob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
+            const url = URL.createObjectURL(blob);
             loadDataURLAsImage(url);
           })
           .catch(function(e) {
@@ -101,7 +102,7 @@ export function loadImage(onLoad) {
     }
 
     function loadDataURLAsImage (dataURL) {
-      var image = new Image();
+      const image = new Image();
       image.src = dataURL;
       image.addEventListener('load', function() {onLoad(image)}, false);
     }
@@ -123,7 +124,7 @@ export function loadFile(onLoad) {
 }
 
 function blobToDataURL(blob, callback) {
-  var a = new FileReader();
+  const a = new FileReader();
   a.onload = function(e) {callback(e.target?.result);}
   a.readAsDataURL(blob);
 }

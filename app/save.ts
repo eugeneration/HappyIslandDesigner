@@ -199,19 +199,19 @@ export function decodeMap(json) {
   if (json == null) return;
   if (json.version == 1 && json.drawing && json.objects && Object.keys(json.objects).length == 0) {
 
-    var index = 0;
+    let index = 0;
     Object.keys(json.drawing).forEach(function(colorName) {
       if (colorName.match(/ØoveØ[0-9]/)) {
-        var newKey = ('level' + colorName.slice(-1));
+        const newKey = ('level' + colorName.slice(-1));
         json.drawing[newKey] = json.drawing[colorName];
 
         // retain order by reordering indices in front
         delete json.drawing[colorName];
 
-        var keys = Object.keys(json.drawing);
-        for (var i = index; i < keys.length - 1; i++) {
-          var key = keys[i];
-          var data = json.drawing[key];
+        const keys = Object.keys(json.drawing);
+        for (let i = index; i < keys.length - 1; i++) {
+          const key = keys[i];
+          const data = json.drawing[key];
           delete json.drawing[key];
           json.drawing[key] = data;
         }
@@ -322,11 +322,11 @@ export function saveMapToFile() {
   image.src = mapRasterData;
 
   const os = getMobileOperatingSystem();
-  var isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1 &&
+  const isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1 &&
     navigator.userAgent &&
     navigator.userAgent.indexOf('CriOS') == -1 &&
     navigator.userAgent.indexOf('FxiOS') == -1;
-  var w;
+  let w;
   if (os == "iOS" && !isSafari) {
     w = window.open('about:blank');
   }

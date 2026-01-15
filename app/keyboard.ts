@@ -114,12 +114,12 @@ export function onKeyDown(event) {
     case 'delete':
       toolState.deleteSelection();
       break;
-    case 'escape':
-      var isMainMenuShown = mainMenu && mainMenu.data.isShown();
+    case 'escape': {
+      const isMainMenuShown = mainMenu && mainMenu.data.isShown();
       if (isMainMenuShown) {
         showMainMenu(false);
       } else {
-        var otherModalShown = false;
+        let otherModalShown = false;
           modals.forEach(function (modal) {
             if (modal != mainMenu && modal.data.isShown()) {
               modal.data.show(false);
@@ -130,10 +130,12 @@ export function onKeyDown(event) {
             showMainMenu(true);
       }
       break;
-    case '?':
-      var isHelpMenuShown = helpMenu && helpMenu.data.isShown();
+    }
+    case '?': {
+      const isHelpMenuShown = helpMenu && helpMenu.data.isShown();
       showHelpMenu(!isHelpMenuShown);
       break;
+    }
     case '\\':
       toggleGrid();
       break;

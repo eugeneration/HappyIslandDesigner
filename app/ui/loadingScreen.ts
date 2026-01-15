@@ -2,14 +2,14 @@ let element;
 
 // this is a hack until React gets added
 function createElement() {
-  let div = document.createElement("div");
+  const div = document.createElement("div");
   div.id = 'bobContainer';
 
-  let img = document.createElement("img");
+  const img = document.createElement("img");
   img.src = "static/gif/bob-loading.gif";
   img.id = "bob";
 
-  let p = document.createElement("p");
+  const p = document.createElement("p");
   p.style.fontFamily = "TTNorms";
   p.style.color = "#726a5a";
   p.textContent = "Please wait a bit...";

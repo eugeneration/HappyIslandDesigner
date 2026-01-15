@@ -2,7 +2,7 @@ import React from "react";
 
 export default function useBlockZoom() {
 
-  var [ref, setRef] = React.useState<HTMLElement | null>(null);
+  const [ref, setRef] = React.useState<HTMLElement | null>(null);
 
   React.useEffect(() => {
     return () => {
@@ -10,7 +10,7 @@ export default function useBlockZoom() {
     };
   }, [ref]);
 
-  function handleScroll(event: MouseWheelEvent) {
+  function handleScroll(event: WheelEvent) {
     if (event.ctrlKey) {
       event.preventDefault();
     }

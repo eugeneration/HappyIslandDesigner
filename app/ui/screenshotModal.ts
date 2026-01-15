@@ -72,7 +72,7 @@ function renderScreenshotModal() {
   uploadGroup.applyMatrix = false;
   switchMenu.data.contents.addChild(uploadGroup);
   {
-    var instructionImage = new Raster(
+    const instructionImage = new Raster(
         isMobile ? 'static/img/screenshot-instructions-mobile.png': 'static/img/screenshot-instructions.png');
     instructionImage.scale(0.5);
     instructionImage.onLoad = function() {
@@ -94,7 +94,7 @@ function renderScreenshotModal() {
 
       const uploadIcon = new Raster('static/img/ui-upload-white.png');
       uploadIcon.scale(0.4);
-      var uploadButton = createButton(uploadIcon, 30, function() {
+      const uploadButton = createButton(uploadIcon, 30, function() {
         loadImage(loadMapImage);
       }, {
         alpha: .9,
@@ -306,7 +306,7 @@ function renderScreenshotModal() {
           }
 
           if (this.data.grabbedPoint) {
-            var zoomLevel = Math.min(0.8, 4 * mapImageGroup.scaling.x) * view.pixelRatio;
+            const zoomLevel = Math.min(0.8, 4 * mapImageGroup.scaling.x) * view.pixelRatio;
             mapImage.data.zoom = new ZoomCanvas(event, zoomLevel);
             // wait for the point to appear before grabbing canvas
             setTimeout(() => mapImage.data.zoom.update(event, zoomLevel, event.point), 100);
@@ -320,7 +320,7 @@ function renderScreenshotModal() {
             const delta = rawCoordinate.subtract(point.data.startPoint);
             point.position = point.data.startPoint.subtract(point.data.grabPivot).add(delta.multiply(isMobile ? 0.08 : 0.2));
 
-            var zoomLevel = Math.min(0.8, 4 * mapImageGroup.scaling.x) * view.pixelRatio;
+            const zoomLevel = Math.min(0.8, 4 * mapImageGroup.scaling.x) * view.pixelRatio;
             mapImage.data.zoom.update(event, zoomLevel, mapImageGroup.localToGlobal(point.position));
 
             if (this.data.outline) {
@@ -353,21 +353,21 @@ function renderScreenshotModal() {
         mapImage.data.sortPoints = function() {
           // reorder the points to clockwise starting from top left
           {
-              var points = mapImage.data.points;
+              const points = mapImage.data.points;
               points.sort(function (a, b) {return a.position.y - b.position.y})
 
-              function slope(a, b) {
+              const slope = function(a, b) {
                 return (a.y - b.y) / (a.x - b.x);
-              }
+              };
 
               // the top/bottom edge must contain the top point and has slope closest to zero
-              function getHorizontalEdge(point, otherPoints) {
+              const getHorizontalEdge = function(point, otherPoints) {
                 otherPoints.sort(function(a, b) {return Math.abs(slope(a.position, point.position)) - Math.abs(slope(b.position, point.position))});
                 const edgePoint = otherPoints[0];
                 const edge = [edgePoint, point];
                 edge.sort(function(a, b){return a.position.x - b.position.x});
                 return edge;
-              }
+              };
 
               const topEdge = getHorizontalEdge(points[0], points.slice(1, -1));
               const bottomEdge = getHorizontalEdge(points[3], points.slice(1, -1));
@@ -420,7 +420,7 @@ function renderScreenshotModal() {
                 acc.push(point.position.x, point.position.y); return acc;
               }, []));
             function calculateLines(p0: paper.Point, p1: paper.Point, axis: paper.Point, numLines: number) {
-              var lines: Array<[number, number]> = [];
+              const lines: Array<[number, number]> = [];
               for (let i = 0; i < numLines; i++) {
                 const offset = new Point(axis.y, axis.x).multiply(1.1);
 
@@ -456,7 +456,7 @@ function renderScreenshotModal() {
           this.outline = outline;
         }
         mapImage.data.perspectiveWarp = function() {
-          return new Promise(function(onComplete) {
+          return new Promise<void>(function(onComplete) {
             const resultSize = new Size(700, 600);
 
             mapImage.data.sortPoints();

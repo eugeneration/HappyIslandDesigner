@@ -3,7 +3,7 @@ import { emitter } from '../emitter';
 import { colors } from '../colors';
 import { layers } from '../layers';
 
-export var modals: Array<paper.Group> = [];
+export const modals: Array<paper.Group> = [];
 
 export function renderModal(
   name: string,
@@ -12,7 +12,7 @@ export function renderModal(
   onDismiss,
   options?: {fullscreen?: boolean}
 ): paper.Group {
-  var fullscreen = options?.fullscreen ?? false;
+  const fullscreen = options?.fullscreen ?? false;
 
   layers.modalLayer.activate();
 
@@ -23,7 +23,7 @@ export function renderModal(
   darkFill.fillColor.alpha = 0.3;
   darkFill.onMouseUp = onDismiss;
 
-  var modal = new Path();
+  const modal = new Path();
   modal.fillColor = colors.paper.color;
   modal.onMouseEnter = function () {
     group.data.text.content = name;
@@ -102,8 +102,8 @@ export function renderModal(
   group.data.isShown = function() { return group.opacity > 0.8; };
   group.data.show = function(isShown) {
     modals.forEach(function (modal) {
-      var show = isShown && modal == group;
-      var targetOpacity = show ? 1 : 0;
+      const show = isShown && modal == group;
+      const targetOpacity = show ? 1 : 0;
       if (modal.opacity != targetOpacity)
         modal.tweenTo({opacity: targetOpacity}, 200);
       modal.locked = !show;

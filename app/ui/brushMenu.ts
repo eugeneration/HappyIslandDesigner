@@ -57,17 +57,17 @@ export function showBrushSizeUI(isShown) {
     brushPreview.strokeColor = colors.lightText.color;
     brushPreview.strokeWidth = 0.1;
 
-    var incrementComponents = createIncrementComponents(incrementBrush, decrementBrush);
+    const incrementComponents = createIncrementComponents(incrementBrush, decrementBrush);
 
     brushSizeText = incrementComponents.text;
     brushSizeText.content = '0';
     brushSizeText.position = new Point(0, 24);
 
-    var incrementImage = new Group();
+    const incrementImage = new Group();
     incrementImage.applyMatrix = false;
     incrementImage.addChildren([brushPreview, brushSizeText]);
 
-    var incrementControl = createVerticalIncrementControl(
+    const incrementControl = createVerticalIncrementControl(
       incrementComponents.increment,
       incrementComponents.decrement,
       153,

@@ -151,8 +151,8 @@ export function updateCoordinateLabel(event) {
 function getBrushPointsTriangle(direction?: paper.Point) {
   direction = direction ?? new paper.Point(0, 0);
 
-  var p1 = direction.clone();
-  var p2 = direction.clone();
+  const p1 = direction.clone();
+  const p2 = direction.clone();
 
   if (direction.x ^ direction.y) { // (1, 0) / (0, 1)
     p1.y = Math.abs(direction.y - 1);

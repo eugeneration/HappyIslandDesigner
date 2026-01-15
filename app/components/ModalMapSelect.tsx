@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Modal from 'react-modal';
-import {Box, Button, Image, Flex, Grid, Heading, Text, Link} from 'theme-ui'
+import {Box, Button, Image, Flex, Grid, Heading, Text, Link} from '@theme-ui/components'
 import { colors } from '../colors';
 import './modal.scss';
 import Layouts, { LayoutType, Layout } from './islandLayouts';
@@ -55,7 +55,7 @@ export default function ModalMapSelect(){
   }
 
   useEffect(() => {
-    Modal.setAppElement('body');
+    Modal.setAppElement(document.body);
   }, []);
 
   const refCallback = useBlockZoom();
@@ -64,6 +64,7 @@ export default function ModalMapSelect(){
     <div>
       <button id="open-map-select" style={{display: 'none'}} onClick={openModal}>Open Modal</button>
       <button id="close-map-select" style={{display: 'none'}} onClick={closeModal}>Open Modal</button>
+      {/* @ts-ignore - react-modal types incompatible with React 16 */}
       <Modal
         isOpen={modalIsOpen}
         closeTimeoutMS={200} // keep in sync with modal.scss
@@ -149,7 +150,7 @@ function IslandLayoutSelector() {
 
   let content;
   if (layoutType != LayoutType.none) {
-    var layouts: Array<Layout> = getLayouts(layoutType);
+    const layouts: Array<Layout> = getLayouts(layoutType);
     content = (
       <Grid
         gap={0}

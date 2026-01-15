@@ -19,9 +19,9 @@ export function zoom() {
   const MouseWheelHandler = (event) => {
     const mousePosition = new paper.Point(event.offsetX, event.offsetY);
 
-    let deltaX = event.deltaX;
+    const deltaX = event.deltaX;
     let deltaY = event.deltaY;
-    let factor = -1;
+    const factor = -1;
     deltaY *= factor;
 
     if (event.altKey || event.ctrlKey) {

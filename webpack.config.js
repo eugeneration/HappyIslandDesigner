@@ -76,7 +76,14 @@ module.exports = {
   },
   devtool: 'eval-source-map',
   plugins: [
-    new ForkTsCheckerWebpackPlugin(),
+    new ForkTsCheckerWebpackPlugin({
+      typescript: {
+        diagnosticOptions: {
+          semantic: true,
+          syntactic: true,
+        },
+      },
+    }),
     new ESLintPlugin({
       extensions: ['js', 'jsx', 'ts', 'tsx'],
     }),
@@ -103,5 +110,19 @@ module.exports = {
         }
       }
     }
+  },
+  devServer: {
+    static: [
+      {
+        directory: path.join(__dirname, 'static'),
+        publicPath: '/static',
+      },
+      {
+        directory: __dirname,
+        publicPath: '/',
+      }
+    ],
+    hot: true,
+    port: 8080,
   }
 };

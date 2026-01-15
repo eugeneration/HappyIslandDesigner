@@ -6,7 +6,7 @@ import { layers } from '../layers';
 import { createButton } from './createButton';
 import { clamp } from '../helpers/clamp';
 
-var screenshotOverlayUI;
+let screenshotOverlayUI;
 function showScreenshotOverlayUI(isShown) {
   if (!screenshotOverlayUI) {
     layers.fixedLayer.activate();
@@ -36,7 +36,7 @@ function showScreenshotOverlayUI(isShown) {
       toggleIcon.children[1].visible = !visible;
     };
     toggleIcon.data.set(true);
-    var visibilityButton = createButton(toggleIcon, 20, toggleScreenshotVisible,
+    const visibilityButton = createButton(toggleIcon, 20, toggleScreenshotVisible,
       {
         // options
       });
@@ -47,11 +47,11 @@ function showScreenshotOverlayUI(isShown) {
     //var icon = new Raster('img/ui-switch.png');
     //icon.scaling = 0.5;
 
-    var incrementComponents = createIncrementComponents(
+    const incrementComponents = createIncrementComponents(
       function () { incrementScreenshotAlpha(true) },
       function () { incrementScreenshotAlpha(false) });
-    var text = incrementComponents.text;
-    var incrementControl = createVerticalIncrementControl(
+    const text = incrementComponents.text;
+    const incrementControl = createVerticalIncrementControl(
       incrementComponents.increment,
       incrementComponents.decrement,
       130,
@@ -79,7 +79,7 @@ function showScreenshotOverlayUI(isShown) {
   screenshotOverlayUI.visible = isShown;
 }
 
-var screenshot: paper.Group;
+let screenshot: paper.Group;
 function startScreenshotOverlay() {
   if (screenshot == null) return;
   screenshot.opacity = 0.5;
@@ -94,7 +94,7 @@ function stopScreenshotOverlay() {
 function incrementScreenshotAlpha(increase, amount?: number) {
   if (screenshot == null) return;
   amount = amount ?? 0.1;
-  var newOpacity = round(
+  const newOpacity = round(
     clamp(screenshot.opacity + (increase ? 1 : -1) * amount, 0, 1),
     2);
   if (newOpacity == 0) return; // don't allow 0 opacity
@@ -137,22 +137,22 @@ function screenCoordinates(percentX, percentY, offsetX, offsetY) {
 }
 
 function container(components) {
-  var content = new Group();
+  const content = new Group();
   content.applyMatrix = false;
   content.addChildren(components);
-  var size = 0;
-  var spacing = 12;
+  let size = 0;
+  const spacing = 12;
   content.children.forEach(function (component) {
     component.bounds.topCenter = new Point(0, size);
     size += component.bounds.height + spacing;
   });
 
-  var padding = 13;
-  var backing = new Path.Rectangle(new Rectangle(new Point(0, 0), new Point(65, content.bounds.height + padding * 2)), new Size(30, 30));
+  const padding = 13;
+  const backing = new Path.Rectangle(new Rectangle(new Point(0, 0), new Point(65, content.bounds.height + padding * 2)), new Size(30, 30));
   backing.fillColor = colors.paper.color;
   backing.bounds.topCenter = new Point(0, -padding);
 
-  var container = new Group();
+  const container = new Group();
   container.applyMatrix = false;
   container.addChildren([backing, content]);
 
