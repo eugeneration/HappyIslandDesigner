@@ -4,14 +4,14 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-const DynamicCdnWebpackPlugin = require('dynamic-cdn-webpack-plugin');
+const ESLintPlugin = require('eslint-webpack-plugin');
 
 module.exports = {
   mode: 'development',
   entry: ['./app/index'],
   output: {
     path: path.join(__dirname),
-    filename: 'bundle.js',
+    filename: '[name].bundle.js',
   },
   resolve: {
     modules: ['node_modules'],
@@ -19,14 +19,6 @@ module.exports = {
   },
   module: {
     rules: [
-      {
-        test: /\.(j|t)s(x)?$/,
-        exclude: /node_modules/,
-        loader: 'eslint-loader',
-        options: {
-          // eslint options (if necessary)
-        },
-      },
       {
         test: /\.scss$/,
         exclude: /node_modules/,
@@ -40,7 +32,12 @@ module.exports = {
       },
       {
         test: /\.(png|woff|woff2|eot|ttf|svg)$/,
-        use: { loader: 'url-loader?limit=100000', },
+        type: 'asset',
+        parser: {
+          dataUrlCondition: {
+            maxSize: 100000
+          }
+        }
       },
       {
         test: /\.(j|t)s(x)?$/,
@@ -60,7 +57,7 @@ module.exports = {
                 },
               ],
               '@babel/preset-typescript',
-              '@babel/react',
+              '@babel/preset-react',
             ],
             plugins: [
               ['@babel/plugin-proposal-class-properties', { loose: true }],
@@ -80,7 +77,9 @@ module.exports = {
   devtool: 'eval-source-map',
   plugins: [
     new ForkTsCheckerWebpackPlugin(),
-    new webpack.NamedModulesPlugin(),
+    new ESLintPlugin({
+      extensions: ['js', 'jsx', 'ts', 'tsx'],
+    }),
     new HtmlWebpackPlugin({
       template: path.resolve(__dirname, 'static', 'index.html'),
       filename: 'index.html',
@@ -93,9 +92,6 @@ module.exports = {
     //   filename: '[name].css',
     //   chunkFilename: '[id].css',
     // }),
-    new DynamicCdnWebpackPlugin({
-      exclude: ['file-saver']
-    })
   ],
   optimization: {
     splitChunks: {
