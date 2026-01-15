@@ -54,10 +54,6 @@ export default function ModalMapSelect(){
       setIsOpen(false);
   }
 
-  useEffect(() => {
-    Modal.setAppElement(document.body);
-  }, []);
-
   const refCallback = useBlockZoom();
 
   return (
@@ -73,6 +69,7 @@ export default function ModalMapSelect(){
         style={customStyles}
         sx={{}}
         contentLabel="Example Modal"
+        ariaHideApp={false}
       >
         <Flex
           ref={refCallback}
