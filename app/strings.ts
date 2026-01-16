@@ -15,10 +15,10 @@ export const strings = {
                 '{{modifier}} + z\n'+
                 '{{modifier}} + y\n'+
                 '\n'+
-                'v\n'+
                 'b\n'+
                 'n\n'+
                 'm\n'+
+                ',\n'+
                 '\n'+
                 '{{modifier}} + s\n'+
                 '{{modifier}} + o\n'+
@@ -71,10 +71,10 @@ export const strings = {
                 '{{modifier}} + z\n'+
                 '{{modifier}} + y\n'+
                 '\n'+
-                'v\n'+
                 'b\n'+
                 'n\n'+
                 'm\n'+
+                ',\n'+
                 '\n'+
                 '{{modifier}} + s\n'+
                 '{{modifier}} + o\n'+
@@ -127,10 +127,10 @@ export const strings = {
                 '{{modifier}} + z\n'+
                 '{{modifier}} + y\n'+
                 '\n'+
-                'v\n'+
                 'b\n'+
                 'n\n'+
                 'm\n'+
+                ',\n'+
                 '\n'+
                 '{{modifier}} + s\n'+
                 '{{modifier}} + o\n'+
@@ -183,10 +183,10 @@ export const strings = {
                 '{{modifier}} + z\n'+
                 '{{modifier}} + y\n'+
                 '\n'+
-                'v\n'+
                 'b\n'+
                 'n\n'+
                 'm\n'+
+                ',\n'+
                 '\n'+
                 '{{modifier}} + s\n'+
                 '{{modifier}} + o\n'+
@@ -239,10 +239,10 @@ export const strings = {
                 '{{modifier}} + z\n'+
                 '{{modifier}} + y\n'+
                 '\n'+
-                'v\n'+
                 'b\n'+
                 'n\n'+
                 'm\n'+
+                ',\n'+
                 '\n'+
                 '{{modifier}} + s\n'+
                 '{{modifier}} + o\n'+
