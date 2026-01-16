@@ -20,7 +20,8 @@ export function showHelpMenu(isShown: boolean) {
     helpText.fontSize = 16;
     helpText.fontFamily = 'TTNorms, sans-serif';
     helpText.fillColor = colors.oceanText.color;
-    helpText.content = i18next.t('hotkey_tips1');
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    helpText.content = i18next.t('hotkey_tips1', { modifier: isMac ? 'cmd' : 'ctrl' });
 
     const helpText2 = new paper.PointText(new paper.Point(100, -10));
     helpText2.justification = 'left';

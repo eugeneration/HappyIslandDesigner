@@ -12,16 +12,16 @@ export const strings = {
                 'p\n'+
                 'alt+click\n'+
                 'delete\n'+
-                'ctrl + z\n'+
-                'ctrl + y\n'+
+                '{{modifier}} + z\n'+
+                '{{modifier}} + y\n'+
                 '\n'+
                 'v\n'+
                 'b\n'+
                 'n\n'+
                 'm\n'+
                 '\n'+
-                'ctrl + s\n'+
-                'ctrl + o\n'+
+                '{{modifier}} + s\n'+
+                '{{modifier}} + o\n'+
                 'esc\n'+
                 '?\n'+
                 '',
@@ -68,16 +68,16 @@ export const strings = {
                 'p\n'+
                 'alt + 单击\n'+
                 'delete\n'+
-                'ctrl + z\n'+
-                'ctrl + y\n'+
+                '{{modifier}} + z\n'+
+                '{{modifier}} + y\n'+
                 '\n'+
                 'v\n'+
                 'b\n'+
                 'n\n'+
                 'm\n'+
                 '\n'+
-                'ctrl + s\n'+
-                'ctrl + o\n'+
+                '{{modifier}} + s\n'+
+                '{{modifier}} + o\n'+
                 'esc\n'+
                 '?\n'+
                 '',
@@ -124,16 +124,16 @@ export const strings = {
                 'p\n'+
                 'alt + 滑鼠單點\n'+
                 'delete\n'+
-                'ctrl + z\n'+
-                'ctrl + y\n'+
+                '{{modifier}} + z\n'+
+                '{{modifier}} + y\n'+
                 '\n'+
                 'v\n'+
                 'b\n'+
                 'n\n'+
                 'm\n'+
                 '\n'+
-                'ctrl + s\n'+
-                'ctrl + o\n'+
+                '{{modifier}} + s\n'+
+                '{{modifier}} + o\n'+
                 'esc\n'+
                 '?\n'+
                 '',
@@ -180,16 +180,16 @@ export const strings = {
                 'p\n'+
                 'alt+click\n'+
                 'retroceso\n'+
-                'ctrl + z\n'+
-                'ctrl + y\n'+
+                '{{modifier}} + z\n'+
+                '{{modifier}} + y\n'+
                 '\n'+
                 'v\n'+
                 'b\n'+
                 'n\n'+
                 'm\n'+
                 '\n'+
-                'ctrl + s\n'+
-                'ctrl + o\n'+
+                '{{modifier}} + s\n'+
+                '{{modifier}} + o\n'+
                 'esc\n'+
                 '?\n'+
                 '',
@@ -236,16 +236,16 @@ export const strings = {
                 'p\n'+
                 'alt+クリック\n'+
                 'delete\n'+
-                'ctrl + z\n'+
-                'ctrl + y\n'+
+                '{{modifier}} + z\n'+
+                '{{modifier}} + y\n'+
                 '\n'+
                 'v\n'+
                 'b\n'+
                 'n\n'+
                 'm\n'+
                 '\n'+
-                'ctrl + s\n'+
-                'ctrl + o\n'+
+                '{{modifier}} + s\n'+
+                '{{modifier}} + o\n'+
                 'esc\n'+
                 '?\n'+
                 '',
