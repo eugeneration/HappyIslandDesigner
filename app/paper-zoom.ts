@@ -7,6 +7,7 @@
 // SCROLL EVENTS
 
 import {project, view, Point} from 'paper';
+import { undo, redo } from './state';
 
 export function zoom() {
   view.on('twofingermove', (event) => {
@@ -14,6 +15,49 @@ export function zoom() {
     view.center = view.viewToProject(
       view.projectToView(view.center).subtract(event.deltaPosition),
     );
+  });
+
+  // ===============================================
+  // MULTI-FINGER TAP GESTURES (undo/redo)
+
+  let touchStartTime = 0;
+  let touchStartFingers = 0;
+  let touchStartPositions: { x: number; y: number }[] = [];
+  const tapMaxDuration = 300; // ms
+  const tapMaxMovement = 20; // pixels
+
+  view.element.addEventListener('touchstart', (event: TouchEvent) => {
+    touchStartTime = Date.now();
+    touchStartFingers = event.touches.length;
+    touchStartPositions = Array.from(event.touches).map(t => ({ x: t.clientX, y: t.clientY }));
+  });
+
+  view.element.addEventListener('touchend', (event: TouchEvent) => {
+    const touchDuration = Date.now() - touchStartTime;
+    const remainingFingers = event.touches.length;
+
+    // Only trigger on final finger release
+    if (remainingFingers > 0) return;
+
+    // Check if it was a quick tap
+    if (touchDuration > tapMaxDuration) return;
+
+    // Check that fingers didn't move much (it's a tap, not a drag)
+    const endPositions = Array.from(event.changedTouches).map(t => ({ x: t.clientX, y: t.clientY }));
+    const moved = touchStartPositions.some((start, i) => {
+      const end = endPositions[i];
+      if (!end) return false;
+      const distance = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
+      return distance > tapMaxMovement;
+    });
+    if (moved) return;
+
+    // Trigger undo/redo based on finger count
+    if (touchStartFingers === 2) {
+      undo();
+    } else if (touchStartFingers === 3) {
+      redo();
+    }
   });
 
   const MouseWheelHandler = (event) => {
