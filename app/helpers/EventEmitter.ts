@@ -18,4 +18,14 @@ export class EventEmitter {
       });
     }
   }
+
+  off(event: string, cb: Callback) {
+    const cbs = this.callbacks[event];
+    if (cbs) {
+      const index = cbs.indexOf(cb);
+      if (index !== -1) {
+        cbs.splice(index, 1);
+      }
+    }
+  }
 }

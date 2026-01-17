@@ -8,6 +8,23 @@ import useBlockZoom from './useBlockZoom';
 
 import { loadMapFromJSONString } from '../load';
 import {confirmDestructiveAction, isMapEmpty} from '../state';
+import { emitter } from '../emitter';
+import { showPositionSelector, hidePositionSelector, SelectionType, getPeninsulaPosition, getAirportBlocks, RiverDirection } from '../ui/mapPositionSelector';
+import { showOptionSelector, OptionDirection } from '../ui/mapOptionSelector';
+import { showEdgeTiles, hideEdgeTiles, replaceBlocks, setRiverTiles } from '../ui/edgeTiles';
+import {
+  WizardState,
+  getWizardState,
+  resetWizard,
+  setRiverDirection,
+  setAirportPosition,
+  setPeninsulaSide,
+  setPeninsulaPosition,
+  setPeninsulaShape,
+  goBack,
+  isModalStep,
+  isMapStep,
+} from '../ui/mapSelectionWizard';
 
 const shadowColor = "rgba(75, 59, 50, 0.3)" // offblack
 
@@ -41,6 +58,8 @@ export function CloseMapSelectModal() {
 
 export default function ModalMapSelect(){
   const [modalIsOpen,setIsOpen] = useState(false);
+  const [wizardState, setWizardState] = useState<WizardState>(getWizardState());
+
   function openModal() {
     setIsOpen(true);
   }
@@ -50,9 +69,99 @@ export default function ModalMapSelect(){
   }
 
   function closeModal(){
-    if (!isMapEmpty())
+    if (!isMapEmpty() && wizardState.step == 'river')
       setIsOpen(false);
   }
+
+  // Listen for wizard state changes - must be at this level since modal content unmounts when closed
+  useEffect(() => {
+    const handleWizardChange = (state: WizardState) => {
+      setWizardState({ ...state });
+
+      // If moving to a modal step, open modal
+      if (isModalStep(state.step)) {
+        openModal();
+      }
+      // If moving to a map step, close modal and show appropriate selector
+      else if (isMapStep(state.step)) {
+        setIsOpen(false);
+        setTimeout(() => {
+          if (state.step === 'airport') {
+            // Show edge tiles only at the start of the wizard flow
+            showEdgeTiles();
+            // Replace placeholders with river tiles based on direction
+            setRiverTiles(state.riverDirection as RiverDirection);
+            showPositionSelector('airport', state.riverDirection as RiverDirection);
+          } else if (state.step === 'peninsulaPos') {
+            const selectorType: SelectionType = state.peninsulaSide === 'left' ? 'peninsulaLeft' : 'peninsulaRight';
+            showPositionSelector(selectorType);
+          } else if (state.step === 'peninsulaShape') {
+            // Show option selector for peninsula shape
+            const side = state.peninsulaSide as 'left' | 'right';
+            const posIndex = state.peninsulaPosition as number;
+            const anchorPoint = getPeninsulaPosition(side, posIndex);
+            const direction: OptionDirection = side === 'left' ? 'left' : 'right';
+
+            showOptionSelector({
+              anchorPoint,
+              options: [
+                { label: '1', value: 0, imageSrc: 'static/img/peninsula-shape-1.png' },
+                { label: '2', value: 1, imageSrc: 'static/img/peninsula-shape-2.png' },
+                { label: '3', value: 2, imageSrc: 'static/img/peninsula-shape-3.png' },
+              ],
+              direction,
+              eventName: 'peninsulaShapeSelected',
+              title: 'Shape?',
+              spacing: 14,
+              buttonSize: 12,
+            });
+          }
+        }, 250);
+      }
+    };
+
+    emitter.on('wizardStateChanged', handleWizardChange);
+    return () => {
+      emitter.off('wizardStateChanged', handleWizardChange);
+    };
+  }, []);
+
+  // Listen for map selection events - must be at this level since modal content unmounts when closed
+  useEffect(() => {
+    const handleAirportSelected = ({ index }: { index: number }) => {
+      // Get current wizard state (not from React state which might be stale in closure)
+      const currentState = getWizardState();
+      const riverDir = currentState.riverDirection as RiverDirection;
+      const airportBlocks = getAirportBlocks(riverDir, index);
+
+      // Replace the placeholder blocks with airport images
+      const airportImages = [
+        'static/tiles/airport/34 - OmmYDBq.png',
+        'static/tiles/airport/35 - bawoPn6.png',
+      ];
+      replaceBlocks(airportBlocks, airportImages, 'airport');
+
+      setAirportPosition(index);
+    };
+
+    const handlePeninsulaPosSelected = ({ index }: { index: number }) => {
+      setPeninsulaPosition(index);
+    };
+
+    const handlePeninsulaShapeSelected = ({ value }: { value: number }) => {
+      setPeninsulaShape(value);
+    };
+
+    emitter.on('airportSelected', handleAirportSelected);
+    emitter.on('peninsulaPosSelected', handlePeninsulaPosSelected);
+    emitter.on('peninsulaShapeSelected', handlePeninsulaShapeSelected);
+
+    return () => {
+      emitter.off('airportSelected', handleAirportSelected);
+      emitter.off('peninsulaPosSelected', handlePeninsulaPosSelected);
+      emitter.off('peninsulaShapeSelected', handlePeninsulaShapeSelected);
+    };
+  }, []);
 
   const refCallback = useBlockZoom();
 
@@ -89,7 +198,7 @@ export default function ModalMapSelect(){
           }}>
             <Image variant='block' sx={{maxWidth: 150}} src='static/img/nook-inc-white.png'/>
           </Box>
-          <IslandLayoutSelector />
+          <IslandLayoutSelector wizardState={wizardState} />
           <Box p={3} sx={{
             backgroundColor: colors.level3.cssColor,
             borderRadius: '4px 30px 30px 4px',
@@ -100,21 +209,25 @@ export default function ModalMapSelect(){
   );
 }
 
-function IslandLayoutSelector() {
-  const [layoutType, setLayoutType] = useState<LayoutType>(LayoutType.none);
+function IslandLayoutSelector({ wizardState }: { wizardState: WizardState }) {
   const [layout, setLayout] = useState<number>(-1);
   const [help, setHelp] = useState<boolean>(false);
 
+  // Handle layout selection in grid
   useEffect(() => {
-    if (layout != -1)
-    {
-      const layoutData = getLayouts(layoutType)[layout];
-      loadMapFromJSONString(layoutData.data);
-      CloseMapSelectModal();
+    if (layout != -1) {
+      const layoutType = wizardState.riverDirection as LayoutType;
+      const layouts = getLayouts(layoutType);
+      if (layouts[layout]) {
+        loadMapFromJSONString(layouts[layout].data);
+        CloseMapSelectModal();
+        resetWizard();
+        hideEdgeTiles();
+      }
     }
-  }, [layoutType, layout]);
+  }, [layout, wizardState.riverDirection]);
 
-  function getLayouts(type: LayoutType) {
+  function getLayouts(type: LayoutType | null): Layout[] {
     switch (type) {
       case LayoutType.west:
         return Layouts.west;
@@ -128,6 +241,7 @@ function IslandLayoutSelector() {
     return [];
   }
 
+  // Help screen
   if (help) {
     return (
       <Flex p={[0, 3]} sx={{flexDirection: 'column', alignItems: 'center', position: 'relative'}}>
@@ -137,72 +251,159 @@ function IslandLayoutSelector() {
           </Button>
         </Box>
         <Image sx={{width: 100, margin: 'auto'}} src={'static/img/blathers.png'}/>
-        <Heading m={3} sx={{px: layoutType ? 4 : 0, textAlign: 'center'}}>{'Please help contribute!'}</Heading>
+        <Heading m={3} sx={{px: 4, textAlign: 'center'}}>{'Please help contribute!'}</Heading>
         <Text my={2}>{'Sorry, we don\'t have all the map templates yet (there are almost 100 river layouts in the game!). Each option you see here has been hand-made by a member of the community.'}</Text>
         <Text my={2}>{'You can use the \'Upload Screenshot\' tool to trace an image of your island. When you\'re done please consider contributing your island map in either the '}<Link href={'https://github.com/eugeneration/HappyIslandDesigner/issues/59'}>Github</Link>{' or '}<Link href={'https://discord.gg/EtaqD5H'}>Discord</Link>!</Text>
         <Text my={2}>{'Please note that your island may have different shaped rock formations, beaches, and building positions than another island with the same river layout.'}</Text>
       </Flex>
-    )
+    );
   }
 
-  let content;
-  if (layoutType != LayoutType.none) {
-    const layouts: Array<Layout> = getLayouts(layoutType);
-    content = (
+  // Render content based on wizard step
+  const renderContent = () => {
+    switch (wizardState.step) {
+      case 'river':
+        return <RiverDirectionStep />;
+      case 'peninsulaSide':
+        return <PeninsulaSideStep onBack={goBack} />;
+      case 'grid':
+        return <IslandGridStep
+          layoutType={wizardState.riverDirection as LayoutType}
+          layouts={getLayouts(wizardState.riverDirection as LayoutType)}
+          onSelect={(index) => {
+            confirmDestructiveAction(
+              'Clear your map? You will lose all unsaved changes.',
+              () => setLayout(index)
+            );
+          }}
+          onHelp={() => setHelp(true)}
+          onBack={goBack}
+        />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <Box p={[0, 3]} sx={{position: 'relative'}}>
+      {renderContent()}
+    </Box>
+  );
+}
+
+// Step 1: River Direction
+function RiverDirectionStep() {
+  const handleClick = (direction: 'west' | 'south' | 'east') => {
+    confirmDestructiveAction(
+      'Clear your map? You will lose all unsaved changes.',
+      () => {
+        // Load blank map
+        const blankLayout = Layouts.blank[0];
+        loadMapFromJSONString(blankLayout.data);
+
+        // Set direction and move to next step - wizard state handler will show airport selector
+        setRiverDirection(direction);
+        CloseMapSelectModal();
+      }
+    );
+  };
+
+  const handleBlankClick = () => {
+    confirmDestructiveAction(
+      'Clear your map? You will lose all unsaved changes.',
+      () => {
+        const blankLayout = Layouts.blank[0];
+        loadMapFromJSONString(blankLayout.data);
+        CloseMapSelectModal();
+        resetWizard();
+        hideEdgeTiles();
+      }
+    );
+  };
+
+  return (
+    <>
+      <Heading m={2} sx={{textAlign: 'center'}}>{'Choose your Layout!'}</Heading>
+      <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center'}}>
+        <Card onClick={() => handleClick('west')}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
+        <Card onClick={() => handleClick('south')}><Image variant='card' src={'static/img/island-type-south.png'}/></Card>
+        <Card onClick={() => handleClick('east')}><Image variant='card' src={'static/img/island-type-east.png'}/></Card>
+        <Card onClick={handleBlankClick}><Image variant='card' src={'static/img/island-type-blank.png'}/></Card>
+      </Flex>
+    </>
+  );
+}
+
+// Step 3: Peninsula Side
+function PeninsulaSideStep({ onBack }: { onBack: () => void }) {
+  const handleClick = (side: 'left' | 'right') => {
+    setPeninsulaSide(side);
+    CloseMapSelectModal();
+
+    // Show peninsula position selector
+    setTimeout(() => {
+      const selectorType: SelectionType = side === 'left' ? 'peninsulaLeft' : 'peninsulaRight';
+      showPositionSelector(selectorType);
+    }, 250);
+  };
+
+  return (
+    <>
+      <Box sx={{position: 'absolute', left: 0, top: [1, 3]}}>
+        <Button variant='icon' onClick={() => { hidePositionSelector(); onBack(); }}>
+          <Image src='static/img/back.png' />
+        </Button>
+      </Box>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Peninsula Side?'}</Heading>
+      <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center', justifyContent: 'center'}}>
+        <Card onClick={() => handleClick('left')}>
+          <Image variant='card' src={'static/img/island-peninsula-left.png'}/>
+        </Card>
+        <Card onClick={() => handleClick('right')}>
+          <Image variant='card' src={'static/img/island-peninsula-right.png'}/>
+        </Card>
+      </Flex>
+    </>
+  );
+}
+
+// Step 6: Island Grid
+interface IslandGridStepProps {
+  layoutType: LayoutType;
+  layouts: Layout[];
+  onSelect: (index: number) => void;
+  onHelp: () => void;
+  onBack: () => void;
+}
+
+function IslandGridStep({ layoutType, layouts, onSelect, onHelp, onBack }: IslandGridStepProps) {
+  return (
+    <>
+      <Box sx={{position: 'absolute', left: 0, top: [1, 3]}}>
+        <Button variant='icon' onClick={onBack}>
+          <Image src='static/img/back.png' />
+        </Button>
+      </Box>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Choose your Island!'}</Heading>
+      <Text m={2} sx={{textAlign: 'center'}}>{'You probably won\'t find an exact match, but pick one that roughly resembles your island.'}</Text>
       <Grid
         gap={0}
         columns={[2, 3, 4]}
         sx={{justifyItems: 'center' }}>
-        {
-          layouts.map((layout, index) => (
-            <Card
-              key={index}
-              onClick={() => {
-                confirmDestructiveAction(
-                  'Clear your map? You will lose all unsaved changes.',
-                  () => {
-                    setLayout(index);
-                  });
-              }}>
-              <Image variant='card' src={`static/img/layouts/${layoutType}-${layout.name}.png`}/>
-            </Card>
-          )).concat(
-            <Card key={'help'} onClick={()=>{setHelp(true)}}>
-              <Image sx={{width: 24}} src={'static/img/menu-help.png'} />
-              <Text sx={{fontFamily: 'body'}}>{'Why isn\'t my map here?'}</Text>
-            </Card>
-          )
-        }
+        {layouts.map((layout, index) => (
+          <Card
+            key={index}
+            onClick={() => onSelect(index)}>
+            <Image variant='card' src={`static/img/layouts/${layoutType}-${layout.name}.png`}/>
+          </Card>
+        )).concat(
+          <Card key={'help'} onClick={onHelp}>
+            <Image sx={{width: 24}} src={'static/img/menu-help.png'} />
+            <Text sx={{fontFamily: 'body'}}>{'Why isn\'t my map here?'}</Text>
+          </Card>
+        )}
       </Grid>
-    );
-  }
-  else {
-    content = (
-      <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center'}}>
-        <Card onClick={() => setLayoutType(LayoutType.west)}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
-        <Card onClick={() => setLayoutType(LayoutType.south)}><Image variant='card' src={'static/img/island-type-south.png'}/></Card>
-        <Card onClick={() => setLayoutType(LayoutType.east)}><Image variant='card' src={'static/img/island-type-east.png'}/></Card>
-        <Card onClick={() => {
-          setLayoutType(LayoutType.blank);
-          confirmDestructiveAction(
-            'Clear your map? You will lose all unsaved changes.',
-            () => {
-              setLayout(0);
-            });
-        }}><Image variant='card' src={'static/img/island-type-blank.png'}/></Card>      </Flex>
-    );
-  }
-  return (
-    <Box p={[0, 3]} sx={{position: 'relative'}}>
-      {layoutType && <Box sx={{position: 'absolute', top: [1, 3]}}>
-        <Button variant='icon' onClick={() => setLayoutType(LayoutType.none)}>
-          <Image src='static/img/back.png' />
-        </Button>
-      </Box>}
-      <Heading m={2} sx={{px: layoutType ? 4 : 0, textAlign: 'center'}}>{layoutType ? 'Choose your Island!' : 'Choose your Layout!'}</Heading>
-      {layoutType && <Text m={2} sx={{textAlign: 'center'}}>{'You probably won\'t find an exact match, but pick one that roughly resembles your island.'}</Text>}
-      {content}
-    </Box>
+    </>
   );
 }
 
