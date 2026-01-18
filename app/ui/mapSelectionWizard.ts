@@ -1,6 +1,6 @@
 import { emitter } from '../emitter';
 
-export type WizardStep = 'river' | 'riverMouth1' | 'riverMouth2' | 'airport' | 'peninsulaSide' | 'peninsulaPos' | 'peninsulaShape' | 'dockSide' | 'dockShape' | 'secretBeachPos' | 'secretBeachShape' | 'leftRockPos' | 'leftRockShape' | 'rightRockPos' | 'rightRockShape' | 'grid';
+export type WizardStep = 'river' | 'riverMouth1' | 'riverMouth2' | 'airport' | 'peninsulaSide' | 'peninsulaPos' | 'peninsulaShape' | 'dockSide' | 'dockShape' | 'secretBeachPos' | 'secretBeachShape' | 'leftRockPos' | 'leftRockShape' | 'rightRockPos' | 'rightRockShape' | 'fillPlaceholder' | 'grid';
 
 export type WizardState = {
   step: WizardStep;
@@ -19,6 +19,7 @@ export type WizardState = {
   leftRockShape: number | null;
   rightRockPosition: number | null;
   rightRockShape: number | null;
+  currentPlaceholderIndex: number;
 };
 
 const initialState: WizardState = {
@@ -38,16 +39,17 @@ const initialState: WizardState = {
   leftRockShape: null,
   rightRockPosition: null,
   rightRockShape: null,
+  currentPlaceholderIndex: 0,
 };
 
 let wizardState: WizardState = { ...initialState };
 
 // Step order for navigation
-const stepOrder: WizardStep[] = ['river', 'riverMouth1', 'riverMouth2', 'airport', 'peninsulaSide', 'peninsulaPos', 'peninsulaShape', 'dockSide', 'dockShape', 'secretBeachPos', 'secretBeachShape', 'leftRockPos', 'leftRockShape', 'rightRockPos', 'rightRockShape', 'grid'];
+const stepOrder: WizardStep[] = ['river', 'riverMouth1', 'riverMouth2', 'airport', 'peninsulaSide', 'peninsulaPos', 'peninsulaShape', 'dockSide', 'dockShape', 'secretBeachPos', 'secretBeachShape', 'leftRockPos', 'leftRockShape', 'rightRockPos', 'rightRockShape', 'fillPlaceholder', 'grid'];
 
 // Steps that show modal vs map selection
 export const modalSteps: WizardStep[] = ['river', 'peninsulaSide', 'dockSide', 'grid'];
-export const mapSteps: WizardStep[] = ['riverMouth1', 'riverMouth2', 'airport', 'peninsulaPos', 'peninsulaShape', 'dockShape', 'secretBeachPos', 'secretBeachShape', 'leftRockPos', 'leftRockShape', 'rightRockPos', 'rightRockShape'];
+export const mapSteps: WizardStep[] = ['riverMouth1', 'riverMouth2', 'airport', 'peninsulaPos', 'peninsulaShape', 'dockShape', 'secretBeachPos', 'secretBeachShape', 'leftRockPos', 'leftRockShape', 'rightRockPos', 'rightRockShape', 'fillPlaceholder'];
 
 export function getWizardState(): WizardState {
   return { ...wizardState };
@@ -144,6 +146,20 @@ export function setRightRockPosition(position: number): void {
 
 export function setRightRockShape(shape: number): void {
   wizardState.rightRockShape = shape;
+  wizardState.step = 'fillPlaceholder';
+  wizardState.currentPlaceholderIndex = 0;
+  emitter.emit('wizardStateChanged', wizardState);
+}
+
+export function advanceToNextPlaceholder(): void {
+  // Increment to track how many placeholders we've filled (used by goBack)
+  // Note: we always use index 0 for accessing getRemainingPlaceholders() since it
+  // returns only remaining items, but we track the count for goBack logic
+  wizardState.currentPlaceholderIndex++;
+  emitter.emit('wizardStateChanged', wizardState);
+}
+
+export function finishPlaceholders(): void {
   wizardState.step = 'grid';
   emitter.emit('wizardStateChanged', wizardState);
 }
@@ -154,7 +170,7 @@ export function goBack(): void {
     const prevStep = stepOrder[currentIndex - 1];
     wizardState.step = prevStep;
 
-    // Clear the selection for the step we're going back from
+    // Clear the selection for the step we're going back to, and restore tiles if needed
     switch (wizardState.step) {
       case 'river':
         wizardState.riverDirection = null;
@@ -175,31 +191,74 @@ export function goBack(): void {
         wizardState.peninsulaPosition = null;
         break;
       case 'peninsulaShape':
+        // Restore the peninsula tile before clearing shape
+        if (wizardState.peninsulaSide !== null && wizardState.peninsulaPosition !== null) {
+          const blockX = wizardState.peninsulaSide === 'left' ? 0 : 6;
+          const blockY = wizardState.peninsulaPosition + 1;
+          emitter.emit('restoreTile', { x: blockX, y: blockY });
+        }
         wizardState.peninsulaShape = null;
         break;
       case 'dockSide':
         wizardState.dockSide = null;
         break;
       case 'dockShape':
+        // Restore the dock tile before clearing shape
+        if (wizardState.dockSide !== null) {
+          const blockX = wizardState.dockSide === 'left' ? 0 : 6;
+          emitter.emit('restoreTile', { x: blockX, y: 5 });
+        }
         wizardState.dockShape = null;
         break;
       case 'secretBeachPos':
         wizardState.secretBeachPosition = null;
         break;
       case 'secretBeachShape':
+        // Restore the secret beach tile before clearing shape
+        if (wizardState.riverDirection !== null && wizardState.secretBeachPosition !== null) {
+          let columns: number[];
+          switch (wizardState.riverDirection) {
+            case 'west': columns = [3, 4, 5]; break;
+            case 'south': columns = [2, 3, 4]; break;
+            case 'east': columns = [1, 2, 3]; break;
+          }
+          const blockX = columns[wizardState.secretBeachPosition];
+          emitter.emit('restoreTile', { x: blockX, y: 0 });
+        }
         wizardState.secretBeachShape = null;
         break;
       case 'leftRockPos':
         wizardState.leftRockPosition = null;
         break;
       case 'leftRockShape':
+        // Restore the left rock tile before clearing shape
+        if (wizardState.leftRockPosition !== null) {
+          const blockY = wizardState.leftRockPosition + 1;
+          emitter.emit('restoreTile', { x: 0, y: blockY });
+        }
         wizardState.leftRockShape = null;
         break;
       case 'rightRockPos':
         wizardState.rightRockPosition = null;
         break;
       case 'rightRockShape':
+        // Restore the right rock tile before clearing shape
+        if (wizardState.rightRockPosition !== null) {
+          const blockY = wizardState.rightRockPosition + 1;
+          emitter.emit('restoreTile', { x: 6, y: blockY });
+        }
         wizardState.rightRockShape = null;
+        break;
+      case 'fillPlaceholder':
+        // For fillPlaceholder, if we're past the first placeholder, go back to previous placeholder
+        // Otherwise we've already moved to the previous step (rightRockShape)
+        if (wizardState.currentPlaceholderIndex > 0) {
+          // Restore the most recently filled placeholder tile
+          emitter.emit('restoreFilledPlaceholder');
+          wizardState.currentPlaceholderIndex--;
+          // Stay on fillPlaceholder step, just with decremented index
+          wizardState.step = 'fillPlaceholder';
+        }
         break;
     }
 

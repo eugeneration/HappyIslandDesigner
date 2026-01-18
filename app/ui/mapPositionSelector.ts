@@ -56,11 +56,11 @@ function getAirportPositions(riverDirection: RiverDirection): paper.Point[] {
 export function getSecretBeachColumns(riverDirection: RiverDirection): number[] {
   switch (riverDirection) {
     case 'west':
-      return [4, 5, 6];
-    case 'south':
       return [3, 4, 5];
-    case 'east':
+    case 'south':
       return [2, 3, 4];
+    case 'east':
+      return [1, 2, 3];
   }
 }
 
@@ -159,22 +159,22 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
     }
     case 'secretBeach': {
       // Secret beach positions depend on river direction
-      // West: columns 4, 5, 6 | South: columns 3, 4, 5 | East: columns 2, 3, 4
+      // West: columns 3, 4, 5 | South: columns 2, 3, 4 | East: columns 1, 2, 3
       const y = blockSize / 2; // Center of top row (block 0)
       let columns: number[];
 
       switch (riverDirection) {
         case 'west':
-          columns = [4, 5, 6];
+          columns = [3, 4, 5];
           break;
         case 'south':
-          columns = [3, 4, 5];
-          break;
-        case 'east':
           columns = [2, 3, 4];
           break;
+        case 'east':
+          columns = [1, 2, 3];
+          break;
         default:
-          columns = [3, 4, 5];
+          columns = [2, 3, 4];
       }
 
       // Filter out occupied positions

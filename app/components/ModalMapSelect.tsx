@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Modal from 'react-modal';
 import paper from 'paper';
 import {Box, Button, Image, Flex, Grid, Heading, Text, Link} from '@theme-ui/components'
@@ -12,7 +12,7 @@ import {confirmDestructiveAction, isMapEmpty} from '../state';
 import { emitter } from '../emitter';
 import { showPositionSelector, hidePositionSelector, SelectionType, getPeninsulaPosition, getAirportBlocks, getSecretBeachBlock, getSecretBeachPosition, getRockPosition, getRockBlock, RiverDirection } from '../ui/mapPositionSelector';
 import { showOptionSelector, OptionDirection } from '../ui/mapOptionSelector';
-import { showEdgeTiles, hideEdgeTiles, replaceBlocks, setRiverTiles } from '../ui/edgeTiles';
+import { showEdgeTiles, hideEdgeTiles, replaceBlocks, restoreBlocks, setRiverTiles, getRemainingPlaceholders, PlaceholderType } from '../ui/edgeTiles';
 import {
   WizardState,
   getWizardState,
@@ -32,6 +32,8 @@ import {
   setLeftRockShape,
   setRightRockPosition,
   setRightRockShape,
+  advanceToNextPlaceholder,
+  finishPlaceholders,
   goBack,
   isModalStep,
   isMapStep,
@@ -59,6 +61,73 @@ const customStyles = {
   }
 };
 
+// Tile images for each placeholder type
+const tileImages: Record<PlaceholderType, string[]> = {
+  top_left: [
+    'static/tiles/top_left/26 - 3sy5W7R.png',
+    'static/tiles/top_left/27 - mKkuBGS.png',
+    'static/tiles/top_left/28 - Wsc0wcG.png',
+  ],
+  top_right: [
+    'static/tiles/top_right/13 - PCgPfdN.png',
+    'static/tiles/top_right/14 - f8zzseF.png',
+    'static/tiles/top_right/15 - IXhHmuY.png',
+  ],
+  bottom_left: [
+    'static/tiles/bottom_left/48 - iLjCW2O.png',
+    'static/tiles/bottom_left/49 - epj7EMt.png',
+    'static/tiles/bottom_left/50 - keMBShp.png',
+    'static/tiles/bottom_left/51 - rjaAFsj.png',
+  ],
+  bottom_right: [
+    'static/tiles/bottom_right/39 - AjicFEz.png',
+    'static/tiles/bottom_right/40 - BsmCSdo.png',
+    'static/tiles/bottom_right/41 - Ubewm2Y.png',
+    'static/tiles/bottom_right/42 - 3TX1fOO.png',
+  ],
+  left: [
+    'static/tiles/left/54 - qCe5VxM.png',
+    'static/tiles/left/55 - MJwO2PW.png',
+    'static/tiles/left/56 - G7cJXjm.png',
+    'static/tiles/left/57 - pJU2kTE.png',
+    'static/tiles/left/58 - r720Voz.png',
+  ],
+  right: [
+    'static/tiles/right/1 - ISdNX8N.png',
+    'static/tiles/right/2 - 0Nl1fz8.png',
+    'static/tiles/right/3 - 8lHF1d5.png',
+    'static/tiles/right/68 - KBHEtY0.png',
+    'static/tiles/right/69 - BCpO1K5.png',
+  ],
+  top: [
+    'static/tiles/top/19 - ZN9h9K4.png',
+    'static/tiles/top/20 - hTYvr5L.png',
+    'static/tiles/top/21 - 2lzjMi4.png',
+    'static/tiles/top/22 - 1w29p5L.png',
+    'static/tiles/top/23 - 5JzK0IN.png',
+    'static/tiles/top/24 - qtgHzOc.png',
+    'static/tiles/top/25 - pN01yZH.png',
+  ],
+  bottom: [
+    'static/tiles/bottom/29 - QJsmplp.png',
+    'static/tiles/bottom/30 - X7FbpvK.png',
+    'static/tiles/bottom/31 - LRICn1q.png',
+    'static/tiles/bottom/32 - BJ16eY9.png',
+  ],
+};
+
+// Option selector direction for each placeholder type
+const placeholderDirection: Record<PlaceholderType, OptionDirection> = {
+  top_left: 'bottom',
+  top_right: 'bottom',
+  bottom_left: 'left',
+  bottom_right: 'right',
+  left: 'left',
+  right: 'right',
+  top: 'bottom',
+  bottom: 'bottom',
+};
+
 export function OpenMapSelectModal() {
   document.getElementById('open-map-select')?.click();
 }
@@ -70,6 +139,9 @@ export function CloseMapSelectModal() {
 export default function ModalMapSelect(){
   const [modalIsOpen,setIsOpen] = useState(false);
   const [wizardState, setWizardState] = useState<WizardState>(getWizardState());
+
+  // Track filled placeholder positions for going back during fillPlaceholder step
+  const filledPlaceholderPositions = useRef<{x: number, y: number}[]>([]);
 
   function openModal() {
     setIsOpen(true);
@@ -300,6 +372,42 @@ export default function ModalMapSelect(){
               spacing: 14,
               buttonSize: 12,
             });
+          } else if (state.step === 'fillPlaceholder') {
+            // Get remaining placeholders and show option selector for the first one
+            const placeholders = getRemainingPlaceholders();
+
+            if (placeholders.length > 0) {
+              // Always use index 0 since getRemainingPlaceholders() returns only remaining items
+              const placeholder = placeholders[0];
+              const images = tileImages[placeholder.type];
+              const direction = placeholderDirection[placeholder.type];
+
+              // Calculate anchor point (center of the block)
+              const anchorPoint = new paper.Point(
+                placeholder.x * 16 + 8,
+                placeholder.y * 16 + 8
+              );
+
+              // Create options from images
+              const options = images.map((imageSrc, idx) => ({
+                label: `${idx + 1}`,
+                value: idx,
+                imageSrc,
+              }));
+
+              showOptionSelector({
+                anchorPoint,
+                options,
+                direction,
+                eventName: 'placeholderShapeSelected',
+                title: 'Shape?',
+                spacing: 14,
+                buttonSize: 12,
+              });
+            } else {
+              // No more placeholders, move to grid
+              finishPlaceholders();
+            }
           }
         }, 250);
       }
@@ -308,6 +416,18 @@ export default function ModalMapSelect(){
     emitter.on('wizardStateChanged', handleWizardChange);
     return () => {
       emitter.off('wizardStateChanged', handleWizardChange);
+    };
+  }, []);
+
+  // Listen for tile restore events (when going back from shape steps)
+  useEffect(() => {
+    const handleRestoreTile = ({ x, y }: { x: number; y: number }) => {
+      restoreBlocks([{ x, y }]);
+    };
+
+    emitter.on('restoreTile', handleRestoreTile);
+    return () => {
+      emitter.off('restoreTile', handleRestoreTile);
     };
   }, []);
 
@@ -518,6 +638,43 @@ export default function ModalMapSelect(){
       setRightRockShape(value);
     };
 
+    const handlePlaceholderShapeSelected = ({ value }: { value: number }) => {
+      const placeholders = getRemainingPlaceholders();
+
+      if (placeholders.length > 0) {
+        // Always use index 0 since getRemainingPlaceholders() returns only remaining items
+        const placeholder = placeholders[0];
+        const images = tileImages[placeholder.type];
+
+        // Track the position being filled (for going back)
+        filledPlaceholderPositions.current.push({ x: placeholder.x, y: placeholder.y });
+
+        // Replace the placeholder with selected tile
+        replaceBlocks(
+          [{ x: placeholder.x, y: placeholder.y }],
+          [images[value]],
+          'filled'
+        );
+
+        // Check if there are more placeholders
+        const remainingAfter = getRemainingPlaceholders();
+        if (remainingAfter.length > 0) {
+          // Show next placeholder (don't increment index, just re-emit state)
+          advanceToNextPlaceholder();
+        } else {
+          // All done, move to grid
+          finishPlaceholders();
+        }
+      }
+    };
+
+    const handleRestoreFilledPlaceholder = () => {
+      const position = filledPlaceholderPositions.current.pop();
+      if (position) {
+        restoreBlocks([position]);
+      }
+    };
+
     emitter.on('riverMouth1ShapeSelected', handleRiverMouth1ShapeSelected);
     emitter.on('riverMouth2ShapeSelected', handleRiverMouth2ShapeSelected);
     emitter.on('airportSelected', handleAirportSelected);
@@ -530,6 +687,8 @@ export default function ModalMapSelect(){
     emitter.on('leftRockShapeSelected', handleLeftRockShapeSelected);
     emitter.on('rightRockPosSelected', handleRightRockPosSelected);
     emitter.on('rightRockShapeSelected', handleRightRockShapeSelected);
+    emitter.on('placeholderShapeSelected', handlePlaceholderShapeSelected);
+    emitter.on('restoreFilledPlaceholder', handleRestoreFilledPlaceholder);
 
     return () => {
       emitter.off('riverMouth1ShapeSelected', handleRiverMouth1ShapeSelected);
@@ -544,6 +703,8 @@ export default function ModalMapSelect(){
       emitter.off('leftRockShapeSelected', handleLeftRockShapeSelected);
       emitter.off('rightRockPosSelected', handleRightRockPosSelected);
       emitter.off('rightRockShapeSelected', handleRightRockShapeSelected);
+      emitter.off('placeholderShapeSelected', handlePlaceholderShapeSelected);
+      emitter.off('restoreFilledPlaceholder', handleRestoreFilledPlaceholder);
     };
   }, []);
 
