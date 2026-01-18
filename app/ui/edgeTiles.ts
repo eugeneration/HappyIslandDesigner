@@ -8,8 +8,8 @@ const blockWidth = horizontalDivisions; // 16
 const blockHeight = verticalDivisions; // 16
 const tilesPath = 'static/tiles/';
 
-// Block state tracking
-export type BlockState = 'placeholder' | 'airport' | 'filled';
+// Block state tracking - tracks what type of content occupies each edge block
+export type BlockState = 'placeholder' | 'airport' | 'river' | 'peninsula' | 'dock' | 'secretBeach' | 'rock';
 export type BlockPosition = { x: number; y: number };
 
 // Track state and raster reference for each edge block
@@ -131,12 +131,12 @@ export function setRiverTiles(riverDirection: 'west' | 'south' | 'east'): void {
       replaceBlocks(
         [{ x: 4, y: bottomRow }],
         [`${tilesPath}placeholder_bottom_river.png`],
-        'filled'
+        'river'
       );
       replaceBlocks(
         [{ x: 0, y: 2 }],
         [`${tilesPath}placeholder_left_river.png`],
-        'filled'
+        'river'
       );
       break;
     case 'east':
@@ -145,12 +145,12 @@ export function setRiverTiles(riverDirection: 'west' | 'south' | 'east'): void {
       replaceBlocks(
         [{ x: 2, y: bottomRow }],
         [`${tilesPath}placeholder_bottom_river.png`],
-        'filled'
+        'river'
       );
       replaceBlocks(
         [{ x: horizontalBlocks - 1, y: 2 }],
         [`${tilesPath}placeholder_right_river.png`],
-        'filled'
+        'river'
       );
       break;
     case 'south':
@@ -158,12 +158,12 @@ export function setRiverTiles(riverDirection: 'west' | 'south' | 'east'): void {
       replaceBlocks(
         [{ x: 1, y: bottomRow }],
         [`${tilesPath}placeholder_bottom_river.png`],
-        'filled'
+        'river'
       );
       replaceBlocks(
         [{ x: 5, y: bottomRow }],
         [`${tilesPath}placeholder_bottom_river.png`],
-        'filled'
+        'river'
       );
       break;
   }

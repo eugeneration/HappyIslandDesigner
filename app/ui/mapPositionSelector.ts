@@ -5,13 +5,14 @@ import { layers } from '../layers';
 import { createButton } from './createButton';
 import { horizontalBlocks, verticalBlocks, horizontalDivisions, verticalDivisions } from '../constants';
 import { goBack } from './mapSelectionWizard';
+import { getBlockState } from './edgeTiles';
 
 let selectorUI: paper.Group | null = null;
 
 const mapWidth = horizontalBlocks * horizontalDivisions; // 112
 const mapHeight = verticalBlocks * verticalDivisions; // 96
 
-export type SelectionType = 'airport' | 'peninsulaLeft' | 'peninsulaRight';
+export type SelectionType = 'airport' | 'peninsulaLeft' | 'peninsulaRight' | 'secretBeach' | 'leftRock' | 'rightRock';
 export type RiverDirection = 'west' | 'south' | 'east';
 
 const blockSize = 16; // Each block is 16x16
@@ -19,6 +20,7 @@ const blockSize = 16; // Each block is 16x16
 type SelectionConfig = {
   label: string;
   positions: paper.Point[];
+  originalIndices?: number[]; // Maps filtered positions back to original indices
   zoomBounds: paper.Rectangle;
   eventName: string;
 };
@@ -48,6 +50,36 @@ function getAirportPositions(riverDirection: RiverDirection): paper.Point[] {
         new paper.Point(4 * blockSize, y), // Center between blocks 4-5
       ];
   }
+}
+
+// Get the secret beach columns based on river direction
+export function getSecretBeachColumns(riverDirection: RiverDirection): number[] {
+  switch (riverDirection) {
+    case 'west':
+      return [4, 5, 6];
+    case 'south':
+      return [3, 4, 5];
+    case 'east':
+      return [2, 3, 4];
+  }
+}
+
+// Get the block coordinates for a given secret beach selection
+export function getSecretBeachBlock(
+  riverDirection: RiverDirection,
+  positionIndex: number
+): { x: number; y: number } {
+  const columns = getSecretBeachColumns(riverDirection);
+  return { x: columns[positionIndex], y: 0 };
+}
+
+// Get the secret beach position point for the shape selector anchor
+export function getSecretBeachPosition(
+  riverDirection: RiverDirection,
+  positionIndex: number
+): paper.Point {
+  const block = getSecretBeachBlock(riverDirection, positionIndex);
+  return new paper.Point(block.x * blockSize + blockSize / 2, blockSize / 2);
 }
 
 // Get the block coordinates for a given airport selection
@@ -91,30 +123,111 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
         zoomBounds: new paper.Rectangle(0, mapHeight - 30, mapWidth, 30),
         eventName: 'airportSelected',
       };
-    case 'peninsulaLeft':
+    case 'peninsulaLeft': {
+      // Filter out positions where the left edge block is occupied by river
+      const leftCandidates = [
+        { point: new paper.Point(8, mapHeight * 0.2), blockY: 1, originalIndex: 0 },
+        { point: new paper.Point(8, mapHeight * 0.4), blockY: 2, originalIndex: 1 },
+        { point: new paper.Point(8, mapHeight * 0.6), blockY: 3, originalIndex: 2 },
+        { point: new paper.Point(8, mapHeight * 0.8), blockY: 4, originalIndex: 3 },
+      ].filter(p => getBlockState(0, p.blockY) === 'placeholder' || getBlockState(0, p.blockY) === undefined);
+
       return {
         label: 'Select Peninsula Position',
-        positions: [
-          new paper.Point(8, mapHeight * 0.2),
-          new paper.Point(8, mapHeight * 0.4),
-          new paper.Point(8, mapHeight * 0.6),
-          new paper.Point(8, mapHeight * 0.8),
-        ],
+        positions: leftCandidates.map(p => p.point),
+        originalIndices: leftCandidates.map(p => p.originalIndex),
         zoomBounds: new paper.Rectangle(0, 0, 30, mapHeight),
         eventName: 'peninsulaPosSelected',
       };
-    case 'peninsulaRight':
+    }
+    case 'peninsulaRight': {
+      // Filter out positions where the right edge block is occupied by river
+      const rightCandidates = [
+        { point: new paper.Point(mapWidth - 8, mapHeight * 0.2), blockY: 1, originalIndex: 0 },
+        { point: new paper.Point(mapWidth - 8, mapHeight * 0.4), blockY: 2, originalIndex: 1 },
+        { point: new paper.Point(mapWidth - 8, mapHeight * 0.6), blockY: 3, originalIndex: 2 },
+        { point: new paper.Point(mapWidth - 8, mapHeight * 0.8), blockY: 4, originalIndex: 3 },
+      ].filter(p => getBlockState(horizontalBlocks - 1, p.blockY) === 'placeholder' || getBlockState(horizontalBlocks - 1, p.blockY) === undefined);
+
       return {
         label: 'Select Peninsula Position',
-        positions: [
-          new paper.Point(mapWidth - 8, mapHeight * 0.2),
-          new paper.Point(mapWidth - 8, mapHeight * 0.4),
-          new paper.Point(mapWidth - 8, mapHeight * 0.6),
-          new paper.Point(mapWidth - 8, mapHeight * 0.8),
-        ],
+        positions: rightCandidates.map(p => p.point),
+        originalIndices: rightCandidates.map(p => p.originalIndex),
         zoomBounds: new paper.Rectangle(mapWidth - 30, 0, 30, mapHeight),
         eventName: 'peninsulaPosSelected',
       };
+    }
+    case 'secretBeach': {
+      // Secret beach positions depend on river direction
+      // West: columns 4, 5, 6 | South: columns 3, 4, 5 | East: columns 2, 3, 4
+      const y = blockSize / 2; // Center of top row (block 0)
+      let columns: number[];
+
+      switch (riverDirection) {
+        case 'west':
+          columns = [4, 5, 6];
+          break;
+        case 'south':
+          columns = [3, 4, 5];
+          break;
+        case 'east':
+          columns = [2, 3, 4];
+          break;
+        default:
+          columns = [3, 4, 5];
+      }
+
+      // Filter out occupied positions
+      const beachCandidates = columns
+        .map((col, idx) => ({
+          point: new paper.Point(col * blockSize + blockSize / 2, y),
+          blockX: col,
+          originalIndex: idx,
+        }))
+        .filter(p => getBlockState(p.blockX, 0) === 'placeholder' || getBlockState(p.blockX, 0) === undefined);
+
+      return {
+        label: 'Select Secret Beach Position',
+        positions: beachCandidates.map(p => p.point),
+        originalIndices: beachCandidates.map(p => p.originalIndex),
+        zoomBounds: new paper.Rectangle(0, 0, mapWidth, 30),
+        eventName: 'secretBeachPosSelected',
+      };
+    }
+    case 'leftRock': {
+      // Left rock on column 0, rows 1-4 (excluding corners and occupied tiles)
+      const leftRockCandidates = [
+        { point: new paper.Point(8, mapHeight * 0.2), blockY: 1, originalIndex: 0 },
+        { point: new paper.Point(8, mapHeight * 0.4), blockY: 2, originalIndex: 1 },
+        { point: new paper.Point(8, mapHeight * 0.6), blockY: 3, originalIndex: 2 },
+        { point: new paper.Point(8, mapHeight * 0.8), blockY: 4, originalIndex: 3 },
+      ].filter(p => getBlockState(0, p.blockY) === 'placeholder' || getBlockState(0, p.blockY) === undefined);
+
+      return {
+        label: 'Select Left Rock Position',
+        positions: leftRockCandidates.map(p => p.point),
+        originalIndices: leftRockCandidates.map(p => p.originalIndex),
+        zoomBounds: new paper.Rectangle(0, 0, 30, mapHeight),
+        eventName: 'leftRockPosSelected',
+      };
+    }
+    case 'rightRock': {
+      // Right rock on column 6, rows 1-4 (excluding corners and occupied tiles)
+      const rightRockCandidates = [
+        { point: new paper.Point(mapWidth - 8, mapHeight * 0.2), blockY: 1, originalIndex: 0 },
+        { point: new paper.Point(mapWidth - 8, mapHeight * 0.4), blockY: 2, originalIndex: 1 },
+        { point: new paper.Point(mapWidth - 8, mapHeight * 0.6), blockY: 3, originalIndex: 2 },
+        { point: new paper.Point(mapWidth - 8, mapHeight * 0.8), blockY: 4, originalIndex: 3 },
+      ].filter(p => getBlockState(horizontalBlocks - 1, p.blockY) === 'placeholder' || getBlockState(horizontalBlocks - 1, p.blockY) === undefined);
+
+      return {
+        label: 'Select Right Rock Position',
+        positions: rightRockCandidates.map(p => p.point),
+        originalIndices: rightRockCandidates.map(p => p.originalIndex),
+        zoomBounds: new paper.Rectangle(mapWidth - 30, 0, 30, mapHeight),
+        eventName: 'rightRockPosSelected',
+      };
+    }
   }
 }
 
@@ -209,12 +322,23 @@ export function showPositionSelector(type: SelectionType, riverDirection?: River
     case 'peninsulaRight':
       labelGroup.position = new paper.Point(mapWidth - 20, mapHeight * 0.1);
       break;
+    case 'secretBeach':
+      labelGroup.position = new paper.Point(mapWidth / 2, 20);
+      break;
+    case 'leftRock':
+      labelGroup.position = new paper.Point(20, mapHeight * 0.1);
+      break;
+    case 'rightRock':
+      labelGroup.position = new paper.Point(mapWidth - 20, mapHeight * 0.1);
+      break;
   }
   selectorUI.addChild(labelGroup);
 
   // Add position buttons
   config.positions.forEach((pos, index) => {
-    const button = createPositionButton(index, pos, config.eventName);
+    // Use original index if available (for filtered peninsula positions)
+    const originalIndex = config.originalIndices ? config.originalIndices[index] : index;
+    const button = createPositionButton(originalIndex, pos, config.eventName);
     selectorUI!.addChild(button);
   });
 
@@ -228,6 +352,15 @@ export function showPositionSelector(type: SelectionType, riverDirection?: River
       backButton.position = new paper.Point(20, mapHeight * 0.05);
       break;
     case 'peninsulaRight':
+      backButton.position = new paper.Point(mapWidth - 20, mapHeight * 0.05);
+      break;
+    case 'secretBeach':
+      backButton.position = new paper.Point(mapWidth / 2 - 30, 20);
+      break;
+    case 'leftRock':
+      backButton.position = new paper.Point(20, mapHeight * 0.05);
+      break;
+    case 'rightRock':
       backButton.position = new paper.Point(mapWidth - 20, mapHeight * 0.05);
       break;
   }
@@ -283,4 +416,34 @@ export function getPeninsulaPosition(side: 'left' | 'right', index: number): pap
       ];
 
   return positions[index] || positions[0];
+}
+
+// Get rock position coordinates by index and side
+export function getRockPosition(side: 'left' | 'right', index: number): paper.Point {
+  const positions = side === 'left'
+    ? [
+        new paper.Point(8, mapHeight * 0.2),
+        new paper.Point(8, mapHeight * 0.4),
+        new paper.Point(8, mapHeight * 0.6),
+        new paper.Point(8, mapHeight * 0.8),
+      ]
+    : [
+        new paper.Point(mapWidth - 8, mapHeight * 0.2),
+        new paper.Point(mapWidth - 8, mapHeight * 0.4),
+        new paper.Point(mapWidth - 8, mapHeight * 0.6),
+        new paper.Point(mapWidth - 8, mapHeight * 0.8),
+      ];
+
+  return positions[index] || positions[0];
+}
+
+// Get the block coordinates for a given rock selection
+export function getRockBlock(
+  side: 'left' | 'right',
+  positionIndex: number
+): { x: number; y: number } {
+  const x = side === 'left' ? 0 : horizontalBlocks - 1;
+  // Position index 0-3 corresponds to rows 1-4
+  const y = positionIndex + 1;
+  return { x, y };
 }
