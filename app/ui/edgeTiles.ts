@@ -7,6 +7,69 @@ let tilesGroup: paper.Group | null = null;
 const blockWidth = horizontalDivisions; // 16
 const blockHeight = verticalDivisions; // 16
 const tilesPath = 'static/tiles/';
+const tilesDataPath = 'static/tiles_data/';
+
+// Convert PNG path to potential SVG path in tiles_data folder
+function getSvgPath(pngPath: string): string | null {
+  // e.g., "static/tiles/placeholder_top_left.png" -> "static/tiles_data/placeholder_top_left.svg"
+  const filename = pngPath.split('/').pop()?.replace('.png', '.svg');
+  if (!filename) return null;
+  return `${tilesDataPath}${filename}`;
+}
+
+// Load PNG tile as fallback
+function loadPngTile(
+  imageSrc: string,
+  blockX: number,
+  blockY: number,
+  callback: (item: paper.Item) => void
+): void {
+  const raster = new paper.Raster(imageSrc);
+  const x = blockX * blockWidth + blockWidth / 2;
+  const y = blockY * blockHeight + blockHeight / 2;
+
+  raster.onLoad = () => {
+    const scaleX = blockWidth / raster.width;
+    const scaleY = blockHeight / raster.height;
+    raster.scaling = new paper.Point(scaleX, scaleY);
+    callback(raster);
+  };
+
+  raster.position = new paper.Point(x, y);
+}
+
+// Create tile image - tries SVG first, falls back to PNG
+function createTileImage(
+  imageSrc: string,
+  blockX: number,
+  blockY: number,
+  callback: (item: paper.Item) => void
+): void {
+  const svgPath = getSvgPath(imageSrc);
+
+  if (svgPath) {
+    // Try to load SVG first
+    paper.project.importSVG(svgPath, {
+      onLoad: (item: paper.Item) => {
+        // Scale to fit the tile
+        const scaleX = blockWidth / item.bounds.width;
+        const scaleY = blockHeight / item.bounds.height;
+        item.scale(scaleX, scaleY, item.bounds.topLeft);
+        item.bounds.topLeft = new paper.Point(
+          blockX * blockWidth,
+          blockY * blockHeight
+        );
+        callback(item);
+      },
+      onError: () => {
+        // Fall back to PNG
+        loadPngTile(imageSrc, blockX, blockY, callback);
+      }
+    });
+  } else {
+    loadPngTile(imageSrc, blockX, blockY, callback);
+  }
+}
 
 // Block state tracking - tracks what type of content occupies each edge block
 export type BlockState = 'placeholder' | 'airport' | 'river' | 'peninsula' | 'dock' | 'secretBeach' | 'rock' | 'filled';
@@ -68,23 +131,8 @@ function getEdgePlaceholders(): PlaceholderConfig[] {
   return placeholders;
 }
 
-function createPlaceholderImage(config: PlaceholderConfig): paper.Raster {
-  const raster = new paper.Raster(config.imageSrc);
-
-  // Position at center of the block
-  const x = config.blockX * blockWidth + blockWidth / 2;
-  const y = config.blockY * blockHeight + blockHeight / 2;
-
-  raster.onLoad = () => {
-    // Scale image to fit exactly one block (16x16)
-    const scaleX = blockWidth / raster.width;
-    const scaleY = blockHeight / raster.height;
-    raster.scaling = new paper.Point(scaleX, scaleY);
-  };
-
-  raster.position = new paper.Point(x, y);
-
-  return raster;
+function createPlaceholderImage(config: PlaceholderConfig, callback: (item: paper.Item) => void): void {
+  createTileImage(config.imageSrc, config.blockX, config.blockY, callback);
 }
 
 export function showEdgeTiles(): void {
@@ -98,14 +146,15 @@ export function showEdgeTiles(): void {
   const placeholders = getEdgePlaceholders();
 
   placeholders.forEach((config) => {
-    const raster = createPlaceholderImage(config);
-    tilesGroup!.addChild(raster);
+    createPlaceholderImage(config, (item) => {
+      tilesGroup!.addChild(item);
 
-    // Track the block state and raster
-    const key = getBlockKey(config.blockX, config.blockY);
-    blockStates.set(key, 'placeholder');
-    blockRasters.set(key, raster);
-    originalPlaceholders.set(key, config.imageSrc);
+      // Track the block state and raster
+      const key = getBlockKey(config.blockX, config.blockY);
+      blockStates.set(key, 'placeholder');
+      blockRasters.set(key, item as paper.Raster);
+      originalPlaceholders.set(key, config.imageSrc);
+    });
   });
 
   // Send to back of overlay layer so UI elements appear on top
@@ -200,27 +249,15 @@ export function replaceBlocks(
       existingRaster.remove();
     }
 
-    // Create new raster with the new image
+    // Create new tile with the new image (SVG preferred, PNG fallback)
     const imageSrc = imageSrcs[index] || imageSrcs[0];
-    const newRaster = new paper.Raster(imageSrc);
+    createTileImage(imageSrc, pos.x, pos.y, (item) => {
+      tilesGroup!.addChild(item);
 
-    // Position at center of the block
-    const x = pos.x * blockWidth + blockWidth / 2;
-    const y = pos.y * blockHeight + blockHeight / 2;
-
-    newRaster.onLoad = () => {
-      // Scale image to fit exactly one block (16x16)
-      const scaleX = blockWidth / newRaster.width;
-      const scaleY = blockHeight / newRaster.height;
-      newRaster.scaling = new paper.Point(scaleX, scaleY);
-    };
-
-    newRaster.position = new paper.Point(x, y);
-    tilesGroup!.addChild(newRaster);
-
-    // Update tracking
-    blockStates.set(key, newState);
-    blockRasters.set(key, newRaster);
+      // Update tracking
+      blockStates.set(key, newState);
+      blockRasters.set(key, item as paper.Raster);
+    });
   });
 
   // Send group to back to keep UI elements on top
@@ -240,25 +277,14 @@ export function restoreBlocks(positions: BlockPosition[]): void {
       // Remove the existing raster
       existingRaster.remove();
 
-      // Create new raster with original placeholder image
-      const newRaster = new paper.Raster(originalSrc);
+      // Create new tile with original placeholder image (SVG preferred, PNG fallback)
+      createTileImage(originalSrc, pos.x, pos.y, (item) => {
+        tilesGroup!.addChild(item);
 
-      // Position at center of the block
-      const x = pos.x * blockWidth + blockWidth / 2;
-      const y = pos.y * blockHeight + blockHeight / 2;
-
-      newRaster.onLoad = () => {
-        const scaleX = blockWidth / newRaster.width;
-        const scaleY = blockHeight / newRaster.height;
-        newRaster.scaling = new paper.Point(scaleX, scaleY);
-      };
-
-      newRaster.position = new paper.Point(x, y);
-      tilesGroup!.addChild(newRaster);
-
-      // Update tracking
-      blockStates.set(key, 'placeholder');
-      blockRasters.set(key, newRaster);
+        // Update tracking
+        blockStates.set(key, 'placeholder');
+        blockRasters.set(key, item as paper.Raster);
+      });
     }
   });
 

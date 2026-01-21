@@ -12,6 +12,7 @@ class ToolState {
   isCanvasFocused = false;
   toolIsActive = false;
   isDown = false;
+  isDevModeActive = false;
   toolMapValue(definition, tool, modifiers) {
     return {
       type: definition.type,
@@ -83,7 +84,7 @@ class ToolState {
   onUp() {
     this.isDown = false;
 
-    const isActive = this.isCanvasFocused && !this.isSomethingSelected();
+    const isActive = this.isCanvasFocused && !this.isSomethingSelected() && !this.isDevModeActive;
     if (this.toolIsActive !== isActive) {
       this.toolIsActive = isActive;
       if (this.activeTool) {
@@ -94,7 +95,7 @@ class ToolState {
   focusOnCanvas(isFocused) {
     this.isCanvasFocused = isFocused;
     if (!this.isDown) {
-      const isActive = this.isCanvasFocused && !this.isSomethingSelected();
+      const isActive = this.isCanvasFocused && !this.isSomethingSelected() && !this.isDevModeActive;
       if (this.toolIsActive !== isActive) {
         this.toolIsActive = isActive;
         if (this.activeTool) {

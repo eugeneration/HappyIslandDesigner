@@ -81,6 +81,11 @@ module.exports = {
   },
   devtool: 'eval-source-map',
   plugins: [
+    new webpack.DefinePlugin({
+      // Since mode is hardcoded to 'development', __DEV__ is always true
+      // For production builds, change mode to 'production' and this to false
+      __DEV__: true,
+    }),
     new ForkTsCheckerWebpackPlugin({
       typescript: {
         diagnosticOptions: {
