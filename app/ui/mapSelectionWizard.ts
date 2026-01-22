@@ -1,6 +1,6 @@
 import { emitter } from '../emitter';
 
-export type WizardStep = 'river' | 'riverMouth1' | 'riverMouth2' | 'airport' | 'peninsulaSide' | 'peninsulaPos' | 'peninsulaShape' | 'dockSide' | 'dockShape' | 'secretBeachPos' | 'secretBeachShape' | 'leftRockPos' | 'leftRockShape' | 'rightRockPos' | 'rightRockShape' | 'fillPlaceholder' | 'grid';
+export type WizardStep = 'start' | 'river' | 'riverMouth1' | 'riverMouth2' | 'airport' | 'peninsulaSide' | 'peninsulaPos' | 'peninsulaShape' | 'dockSide' | 'dockShape' | 'secretBeachPos' | 'secretBeachShape' | 'leftRockPos' | 'leftRockShape' | 'rightRockPos' | 'rightRockShape' | 'fillPlaceholder' | 'grid' | 'legacyriver' | 'legacygrid';
 
 export type WizardState = {
   step: WizardStep;
@@ -23,7 +23,7 @@ export type WizardState = {
 };
 
 const initialState: WizardState = {
-  step: 'river',
+  step: 'start',
   riverDirection: null,
   riverMouth1Shape: null,
   riverMouth2Shape: null,
@@ -46,13 +46,47 @@ let wizardState: WizardState = { ...initialState };
 
 // Step order for navigation
 const stepOrder: WizardStep[] = ['river', 'riverMouth1', 'riverMouth2', 'airport', 'peninsulaSide', 'peninsulaPos', 'peninsulaShape', 'dockSide', 'dockShape', 'secretBeachPos', 'secretBeachShape', 'leftRockPos', 'leftRockShape', 'rightRockPos', 'rightRockShape', 'fillPlaceholder', 'grid'];
+const legacyStepOrder: WizardStep[] = ['river', 'legacyriver', 'legacygrid'];
 
 // Steps that show modal vs map selection
-export const modalSteps: WizardStep[] = ['river', 'peninsulaSide', 'dockSide', 'grid'];
+export const modalSteps: WizardStep[] = ['river', 'peninsulaSide', 'dockSide', 'grid', 'legacyriver', 'legacygrid'];
 export const mapSteps: WizardStep[] = ['riverMouth1', 'riverMouth2', 'airport', 'peninsulaPos', 'peninsulaShape', 'dockShape', 'secretBeachPos', 'secretBeachShape', 'leftRockPos', 'leftRockShape', 'rightRockPos', 'rightRockShape', 'fillPlaceholder'];
 
 export function getWizardState(): WizardState {
   return { ...wizardState };
+}
+
+
+function setPrevStep(): void {
+  const currentIndex = stepOrder.indexOf(wizardState.step);
+  if (currentIndex > 0) {
+    const prevStep = stepOrder[currentIndex - 1];
+    wizardState.step = prevStep;
+
+    if (stepShouldBeSkipped(prevStep)) {
+      setPrevStep();
+    }
+  }
+}
+
+function setNextStep(): void {
+  const currentIndex = stepOrder.indexOf(wizardState.step);
+  if (currentIndex != -1 && currentIndex < stepOrder.length - 1) {
+    const nextStep = stepOrder[currentIndex + 1];
+    wizardState.step = nextStep;
+
+    if (stepShouldBeSkipped(nextStep)) {
+      setNextStep();
+    }
+  }
+}
+
+function stepShouldBeSkipped(step: WizardStep): boolean {
+  switch(step) {
+    case 'dockSide':
+      return wizardState.riverDirection != 'south' && wizardState.dockSide != null;
+  }
+  return false;
 }
 
 export function resetWizard(): void {
@@ -60,21 +94,32 @@ export function resetWizard(): void {
   emitter.emit('wizardStateChanged', wizardState);
 }
 
+export function startWizard(): void {
+  wizardState.step = 'river';
+  emitter.emit('wizardStateChanged', wizardState);
+}
+
 export function setRiverDirection(direction: 'west' | 'south' | 'east'): void {
   wizardState.riverDirection = direction;
-  wizardState.step = 'riverMouth1';
+  
+  if (direction == 'west')
+    wizardState.dockSide = 'right';
+  else if (direction == 'east')
+    wizardState.dockSide = 'left';
+  setNextStep();
+
   emitter.emit('wizardStateChanged', wizardState);
 }
 
 export function setRiverMouth1Shape(shape: number): void {
   wizardState.riverMouth1Shape = shape;
-  wizardState.step = 'riverMouth2';
+  setNextStep();
   emitter.emit('wizardStateChanged', wizardState);
 }
 
 export function setRiverMouth2Shape(shape: number): void {
   wizardState.riverMouth2Shape = shape;
-  wizardState.step = 'airport';
+  setNextStep();
   emitter.emit('wizardStateChanged', wizardState);
 }
 
@@ -86,67 +131,67 @@ export function setAirportPosition(position: number): void {
 
 export function setPeninsulaSide(side: 'left' | 'right'): void {
   wizardState.peninsulaSide = side;
-  wizardState.step = 'peninsulaPos';
+  setNextStep();
   emitter.emit('wizardStateChanged', wizardState);
 }
 
 export function setPeninsulaPosition(position: number): void {
   wizardState.peninsulaPosition = position;
-  wizardState.step = 'peninsulaShape';
+  setNextStep();
   emitter.emit('wizardStateChanged', wizardState);
 }
 
 export function setPeninsulaShape(shape: number): void {
   wizardState.peninsulaShape = shape;
-  wizardState.step = 'dockSide';
+  setNextStep();
   emitter.emit('wizardStateChanged', wizardState);
 }
 
 export function setDockSide(side: 'left' | 'right'): void {
   wizardState.dockSide = side;
-  wizardState.step = 'dockShape';
+  setNextStep();
   emitter.emit('wizardStateChanged', wizardState);
 }
 
 export function setDockShape(shape: number): void {
   wizardState.dockShape = shape;
-  wizardState.step = 'secretBeachPos';
+  setNextStep();
   emitter.emit('wizardStateChanged', wizardState);
 }
 
 export function setSecretBeachPosition(position: number): void {
   wizardState.secretBeachPosition = position;
-  wizardState.step = 'secretBeachShape';
+  setNextStep();
   emitter.emit('wizardStateChanged', wizardState);
 }
 
 export function setSecretBeachShape(shape: number): void {
   wizardState.secretBeachShape = shape;
-  wizardState.step = 'leftRockPos';
+  setNextStep();
   emitter.emit('wizardStateChanged', wizardState);
 }
 
 export function setLeftRockPosition(position: number): void {
   wizardState.leftRockPosition = position;
-  wizardState.step = 'leftRockShape';
+  setNextStep();
   emitter.emit('wizardStateChanged', wizardState);
 }
 
 export function setLeftRockShape(shape: number): void {
   wizardState.leftRockShape = shape;
-  wizardState.step = 'rightRockPos';
+  setNextStep();
   emitter.emit('wizardStateChanged', wizardState);
 }
 
 export function setRightRockPosition(position: number): void {
   wizardState.rightRockPosition = position;
-  wizardState.step = 'rightRockShape';
+  setNextStep();
   emitter.emit('wizardStateChanged', wizardState);
 }
 
 export function setRightRockShape(shape: number): void {
   wizardState.rightRockShape = shape;
-  wizardState.step = 'fillPlaceholder';
+  setNextStep();
   wizardState.currentPlaceholderIndex = 0;
   emitter.emit('wizardStateChanged', wizardState);
 }
@@ -160,15 +205,26 @@ export function advanceToNextPlaceholder(): void {
 }
 
 export function finishPlaceholders(): void {
-  wizardState.step = 'grid';
+  setNextStep();
+  emitter.emit('wizardStateChanged', wizardState);
+}
+
+export function goToLegacyRiverSelection(): void {
+  wizardState.step = 'legacyriver';
+  emitter.emit('wizardStateChanged', wizardState);
+}
+
+export function setLegacyRiverDirection(direction: 'west' | 'south' | 'east'): void {
+  wizardState.riverDirection = direction;
+  wizardState.step = 'legacygrid';
   emitter.emit('wizardStateChanged', wizardState);
 }
 
 export function goBack(): void {
   const currentIndex = stepOrder.indexOf(wizardState.step);
+
   if (currentIndex > 0) {
-    const prevStep = stepOrder[currentIndex - 1];
-    wizardState.step = prevStep;
+    setPrevStep();
 
     // Clear the selection for the step we're going back to, and restore tiles if needed
     switch (wizardState.step) {
@@ -260,9 +316,31 @@ export function goBack(): void {
           wizardState.step = 'fillPlaceholder';
         }
         break;
+      case 'legacyriver':
+        wizardState.step = 'river';
+        break;
+      case 'legacygrid':
+        wizardState.riverDirection = null;
+        break;
     }
 
     emitter.emit('wizardStateChanged', wizardState);
+  }
+  else {
+    const currentLegacyIndex = legacyStepOrder.indexOf(wizardState.step);
+    if (currentLegacyIndex > 0) {
+      const prevStep = legacyStepOrder[currentLegacyIndex - 1];
+      wizardState.step = prevStep;
+
+      switch (wizardState.step) {
+        case 'legacyriver':
+          break;
+        case 'legacygrid':
+          wizardState.riverDirection = null;
+          break;
+      }
+      emitter.emit('wizardStateChanged', wizardState);
+    }
   }
 }
 

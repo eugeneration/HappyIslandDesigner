@@ -65,6 +65,8 @@ export const colors = {
   lightYellow: { cssColor: '#f7e676', color: c, key: '', name: '' },
   lightBrown: { cssColor: '#bfab76', color: c, key: '', name: '' },
 
+  secondaryText: { cssColor: '#bdb7aa', color: c, key: '', name: '' },
+
   // generic colors
   firetruck: { cssColor: '#ef3c1d', color: c, key: '', name: '' },
   flamingo: { cssColor: '#f8ad82', color: c, key: '', name: '' },

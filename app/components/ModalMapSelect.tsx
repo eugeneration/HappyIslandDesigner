@@ -17,6 +17,7 @@ import {
   WizardState,
   getWizardState,
   resetWizard,
+  startWizard,
   setRiverDirection,
   setRiverMouth1Shape,
   setRiverMouth2Shape,
@@ -34,6 +35,8 @@ import {
   setRightRockShape,
   advanceToNextPlaceholder,
   finishPlaceholders,
+  goToLegacyRiverSelection,
+  setLegacyRiverDirection,
   goBack,
   isModalStep,
   isMapStep,
@@ -143,6 +146,12 @@ export default function ModalMapSelect(){
   // Track filled placeholder positions for going back during fillPlaceholder step
   const filledPlaceholderPositions = useRef<{x: number, y: number}[]>([]);
 
+  // only called by external triggers
+  function startModal() {
+    startWizard();
+    openModal();
+  }
+
   function openModal() {
     setIsOpen(true);
   }
@@ -152,7 +161,7 @@ export default function ModalMapSelect(){
   }
 
   function closeModal(){
-    if (!isMapEmpty() && wizardState.step == 'river')
+    if (!isMapEmpty())
       setIsOpen(false);
   }
 
@@ -162,12 +171,10 @@ export default function ModalMapSelect(){
       setWizardState({ ...state });
 
       // If moving to a modal step, open modal
-      if (isModalStep(state.step)) {
-        openModal();
-      }
-      // If moving to a map step, close modal and show appropriate selector
-      else if (isMapStep(state.step)) {
-        setIsOpen(false);
+      setIsOpen(isModalStep(state.step));
+
+      // If moving to a map step, show appropriate selector
+      if (isMapStep(state.step)) {
         setTimeout(() => {
           if (state.step === 'riverMouth1') {
             // Show edge tiles at the start of the wizard flow
@@ -639,11 +646,12 @@ export default function ModalMapSelect(){
     };
 
     const handlePlaceholderShapeSelected = ({ value }: { value: number }) => {
+      const currentState = getWizardState();
       const placeholders = getRemainingPlaceholders();
+      const currentIndex = currentState.currentPlaceholderIndex;
 
-      if (placeholders.length > 0) {
-        // Always use index 0 since getRemainingPlaceholders() returns only remaining items
-        const placeholder = placeholders[0];
+      if (currentIndex < placeholders.length) {
+        const placeholder = placeholders[currentIndex];
         const images = tileImages[placeholder.type];
 
         // Track the position being filled (for going back)
@@ -659,7 +667,7 @@ export default function ModalMapSelect(){
         // Check if there are more placeholders
         const remainingAfter = getRemainingPlaceholders();
         if (remainingAfter.length > 0) {
-          // Show next placeholder (don't increment index, just re-emit state)
+          // Advance to next placeholder
           advanceToNextPlaceholder();
         } else {
           // All done, move to grid
@@ -712,7 +720,7 @@ export default function ModalMapSelect(){
 
   return (
     <div>
-      <button id="open-map-select" style={{display: 'none'}} onClick={openModal}>Open Modal</button>
+      <button id="open-map-select" style={{display: 'none'}} onClick={startModal}>Open Modal</button>
       <button id="close-map-select" style={{display: 'none'}} onClick={closeModal}>Open Modal</button>
       {/* @ts-ignore - react-modal types incompatible with React 16 */}
       <Modal
@@ -765,7 +773,6 @@ function IslandLayoutSelector({ wizardState }: { wizardState: WizardState }) {
       const layouts = getLayouts(layoutType);
       if (layouts[layout]) {
         loadMapFromJSONString(layouts[layout].data);
-        CloseMapSelectModal();
         resetWizard();
         hideEdgeTiles();
       }
@@ -813,6 +820,9 @@ function IslandLayoutSelector({ wizardState }: { wizardState: WizardState }) {
         return <PeninsulaSideStep onBack={goBack} />;
       case 'dockSide':
         return <DockSideStep onBack={goBack} />;
+      case 'legacyriver':
+        return <LegacyRiverDirectionStep onBack={goBack} />;
+      case 'legacygrid':
       case 'grid':
         return <IslandGridStep
           layoutType={wizardState.riverDirection as LayoutType}
@@ -850,9 +860,36 @@ function RiverDirectionStep() {
 
         // Set direction and move to next step - wizard state handler will show airport selector
         setRiverDirection(direction);
-        CloseMapSelectModal();
       }
     );
+  };
+
+  const handleLegacyClick = () => {
+    goToLegacyRiverSelection();
+  }
+
+  return (
+    <>
+      <Heading m={2} sx={{textAlign: 'center'}}>{'Choose your Layout!'}</Heading>
+      <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center'}}>
+        <Card onClick={() => handleClick('west')}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
+        <Card onClick={() => handleClick('south')}><Image variant='card' src={'static/img/island-type-south.png'}/></Card>
+        <Card onClick={() => handleClick('east')}><Image variant='card' src={'static/img/island-type-east.png'}/></Card>
+      </Flex>
+      <Flex sx={{flexDirection: ['column', 'row'], justifyContent: 'center', alignItems: 'center'}}>
+        <Button variant='borderless' onClick={handleLegacyClick}>
+          <Text variant='secondary'>or enter creative mode</Text>
+        </Button>
+      </Flex>
+    </>
+  );
+}
+
+// Step 1: River Direction
+function LegacyRiverDirectionStep({ onBack }: { onBack: () => void }) {
+  const handleClick = (direction: 'west' | 'south' | 'east') => {
+    // Set direction and move to next step - wizard state handler will show airport selector
+    setLegacyRiverDirection(direction);
   };
 
   const handleBlankClick = () => {
@@ -861,7 +898,6 @@ function RiverDirectionStep() {
       () => {
         const blankLayout = Layouts.blank[0];
         loadMapFromJSONString(blankLayout.data);
-        CloseMapSelectModal();
         resetWizard();
         hideEdgeTiles();
       }
@@ -870,7 +906,13 @@ function RiverDirectionStep() {
 
   return (
     <>
-      <Heading m={2} sx={{textAlign: 'center'}}>{'Choose your Layout!'}</Heading>
+      <Box sx={{position: 'absolute', left: 0, top: [1, 3]}}>
+        <Button variant='icon' onClick={() => { onBack(); }}>
+          <Image src='static/img/back.png' />
+        </Button>
+      </Box>
+      <Heading m={2} sx={{textAlign: 'center'}}>{'Choose a Template!'}</ Heading>
+      <Text m={2} sx={{textAlign: 'center'}}>{'Creative mode lets you redraw the entire island for fun, but not everything will work in game.'}</ Text>
       <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center'}}>
         <Card onClick={() => handleClick('west')}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
         <Card onClick={() => handleClick('south')}><Image variant='card' src={'static/img/island-type-south.png'}/></Card>
@@ -885,7 +927,6 @@ function RiverDirectionStep() {
 function PeninsulaSideStep({ onBack }: { onBack: () => void }) {
   const handleClick = (side: 'left' | 'right') => {
     setPeninsulaSide(side);
-    CloseMapSelectModal();
 
     // Show peninsula position selector
     setTimeout(() => {
@@ -918,7 +959,6 @@ function PeninsulaSideStep({ onBack }: { onBack: () => void }) {
 function DockSideStep({ onBack }: { onBack: () => void }) {
   const handleClick = (side: 'left' | 'right') => {
     setDockSide(side);
-    CloseMapSelectModal();
   };
 
   return (
