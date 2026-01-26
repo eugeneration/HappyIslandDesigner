@@ -5,6 +5,14 @@ import { layers } from '../layers';
 import { createButton } from './createButton';
 import { goBack } from './mapSelectionWizard';
 
+const tilesDataPath = 'static/tiles_data/';
+
+function getSvgPath(pngPath: string): string | null {
+  const filename = pngPath.split('/').pop()?.replace('.png', '.svg');
+  if (!filename) return null;
+  return `${tilesDataPath}${filename}`;
+}
+
 let selectorUI: paper.Group | null = null;
 
 export type OptionDirection = 'left' | 'right' | 'bottom';
@@ -91,15 +99,49 @@ function createOptionButton(
 
   // Add image if provided
   if (option.imageSrc) {
-    const raster = new paper.Raster(option.imageSrc);
-    raster.onLoad = () => {
-      // Scale image to fit within button with padding
-      const scale = (buttonSize - 2) / Math.max(raster.width, raster.height);
-      raster.scale(scale);
+    const svgPath = getSvgPath(option.imageSrc);
+
+    if (svgPath) {
+      // Try SVG first
+      paper.project.importSVG(svgPath, {
+        onLoad: (item: paper.Item) => {
+          const scale = (buttonSize - 2) / Math.max(item.bounds.width, item.bounds.height);
+          item.scale(scale, item.bounds.center);
+          item.position = new paper.Point(0, 0);
+
+          // Add green background rectangle behind the SVG
+          const bgSize = buttonSize - 2;
+          const greenBg = new paper.Path.Rectangle(
+            new paper.Rectangle(-bgSize / 2, -bgSize / 2, bgSize, bgSize)
+          );
+          greenBg.fillColor = colors.level1.color;
+          group.addChild(greenBg);
+
+          group.addChild(item);
+        },
+        onError: () => {
+          // Fall back to PNG
+          const raster = new paper.Raster(option.imageSrc);
+          raster.onLoad = () => {
+            const scale = (buttonSize - 2) / Math.max(raster.width, raster.height);
+            raster.scale(scale);
+            raster.position = new paper.Point(0, 0);
+          };
+          raster.position = new paper.Point(0, 0);
+          group.addChild(raster);
+        }
+      });
+    } else {
+      // No SVG path, use PNG directly
+      const raster = new paper.Raster(option.imageSrc);
+      raster.onLoad = () => {
+        const scale = (buttonSize - 2) / Math.max(raster.width, raster.height);
+        raster.scale(scale);
+        raster.position = new paper.Point(0, 0);
+      };
       raster.position = new paper.Point(0, 0);
-    };
-    raster.position = new paper.Point(0, 0);
-    group.addChild(raster);
+      group.addChild(raster);
+    }
   } else {
     // Fallback to label if no image
     const label = new paper.PointText(new paper.Point(0, 1));

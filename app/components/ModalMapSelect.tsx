@@ -646,12 +646,11 @@ export default function ModalMapSelect(){
     };
 
     const handlePlaceholderShapeSelected = ({ value }: { value: number }) => {
-      const currentState = getWizardState();
       const placeholders = getRemainingPlaceholders();
-      const currentIndex = currentState.currentPlaceholderIndex;
 
-      if (currentIndex < placeholders.length) {
-        const placeholder = placeholders[currentIndex];
+      if (placeholders.length > 0) {
+        // Always use index 0 since getRemainingPlaceholders() returns only remaining items
+        const placeholder = placeholders[0];
         const images = tileImages[placeholder.type];
 
         // Track the position being filled (for going back)
