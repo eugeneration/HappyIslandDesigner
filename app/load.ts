@@ -5,6 +5,9 @@ import LZString from 'lz-string';
 import { showLoadingScreen } from "./ui/loadingScreen";
 import { OpenMapSelectModal } from './components/ModalMapSelect';
 
+// todo - this file should be merged with save.ts, then optionally split into different modules
+// right now, very similar logic is split between two files which makes no sense
+
 function clickElem(elem) {
   // Thx user1601638 on Stack Overflow (6/6/2018 - https://stackoverflow.com/questions/13405129/javascript-create-and-save-file )
   const eventMouse = document.createEvent('MouseEvents');

@@ -12,7 +12,8 @@ import {confirmDestructiveAction, isMapEmpty} from '../state';
 import { emitter } from '../emitter';
 import { showPositionSelector, hidePositionSelector, SelectionType, getPeninsulaPosition, getAirportBlocks, getSecretBeachBlock, getSecretBeachPosition, getRockPosition, getRockBlock, RiverDirection } from '../ui/mapPositionSelector';
 import { showOptionSelector, OptionDirection } from '../ui/mapOptionSelector';
-import { showEdgeTiles, hideEdgeTiles, replaceBlocks, restoreBlocks, setRiverTiles, getRemainingPlaceholders, PlaceholderType } from '../ui/edgeTiles';
+import { initializeEdgeTiles, fillEdgeTilesWithPlaceholders, replaceBlocks, restoreBlocks, setRiverTiles, getRemainingPlaceholders } from '../ui/edgeTiles';
+import { tileAssetIndices, getAssetByIndex, type TileDirection } from '../ui/edgeTileAssets';
 import {
   WizardState,
   getWizardState,
@@ -65,62 +66,9 @@ const customStyles = {
 };
 
 // Tile images for each placeholder type
-const tileImages: Record<PlaceholderType, string[]> = {
-  top_left: [
-    'static/tiles/top_left/26 - 3sy5W7R.png',
-    'static/tiles/top_left/27 - mKkuBGS.png',
-    'static/tiles/top_left/28 - Wsc0wcG.png',
-  ],
-  top_right: [
-    'static/tiles/top_right/13 - PCgPfdN.png',
-    'static/tiles/top_right/14 - f8zzseF.png',
-    'static/tiles/top_right/15 - IXhHmuY.png',
-  ],
-  bottom_left: [
-    'static/tiles/bottom_left/48 - iLjCW2O.png',
-    'static/tiles/bottom_left/49 - epj7EMt.png',
-    'static/tiles/bottom_left/50 - keMBShp.png',
-    'static/tiles/bottom_left/51 - rjaAFsj.png',
-  ],
-  bottom_right: [
-    'static/tiles/bottom_right/39 - AjicFEz.png',
-    'static/tiles/bottom_right/40 - BsmCSdo.png',
-    'static/tiles/bottom_right/41 - Ubewm2Y.png',
-    'static/tiles/bottom_right/42 - 3TX1fOO.png',
-  ],
-  left: [
-    'static/tiles/left/54 - qCe5VxM.png',
-    'static/tiles/left/55 - MJwO2PW.png',
-    'static/tiles/left/56 - G7cJXjm.png',
-    'static/tiles/left/57 - pJU2kTE.png',
-    'static/tiles/left/58 - r720Voz.png',
-  ],
-  right: [
-    'static/tiles/right/1 - ISdNX8N.png',
-    'static/tiles/right/2 - 0Nl1fz8.png',
-    'static/tiles/right/3 - 8lHF1d5.png',
-    'static/tiles/right/68 - KBHEtY0.png',
-    'static/tiles/right/69 - BCpO1K5.png',
-  ],
-  top: [
-    'static/tiles/top/19 - ZN9h9K4.png',
-    'static/tiles/top/20 - hTYvr5L.png',
-    'static/tiles/top/21 - 2lzjMi4.png',
-    'static/tiles/top/22 - 1w29p5L.png',
-    'static/tiles/top/23 - 5JzK0IN.png',
-    'static/tiles/top/24 - qtgHzOc.png',
-    'static/tiles/top/25 - pN01yZH.png',
-  ],
-  bottom: [
-    'static/tiles/bottom/29 - QJsmplp.png',
-    'static/tiles/bottom/30 - X7FbpvK.png',
-    'static/tiles/bottom/31 - LRICn1q.png',
-    'static/tiles/bottom/32 - BJ16eY9.png',
-  ],
-};
 
 // Option selector direction for each placeholder type
-const placeholderDirection: Record<PlaceholderType, OptionDirection> = {
+const placeholderDirection: Record<TileDirection, OptionDirection> = {
   top_left: 'bottom',
   top_right: 'bottom',
   bottom_left: 'left',
@@ -178,7 +126,8 @@ export default function ModalMapSelect(){
         setTimeout(() => {
           if (state.step === 'riverMouth1') {
             // Show edge tiles at the start of the wizard flow
-            showEdgeTiles();
+            initializeEdgeTiles();
+            fillEdgeTilesWithPlaceholders();
             // Show river placeholder tiles (will be replaced when shapes are selected)
             setRiverTiles(state.riverDirection as RiverDirection);
 
@@ -386,7 +335,7 @@ export default function ModalMapSelect(){
             if (placeholders.length > 0) {
               // Always use index 0 since getRemainingPlaceholders() returns only remaining items
               const placeholder = placeholders[0];
-              const images = tileImages[placeholder.type];
+              const indices = tileAssetIndices[placeholder.type];
               const direction = placeholderDirection[placeholder.type];
 
               // Calculate anchor point (center of the block)
@@ -395,11 +344,11 @@ export default function ModalMapSelect(){
                 placeholder.y * 16 + 8
               );
 
-              // Create options from images
-              const options = images.map((imageSrc, idx) => ({
+              // Create options from asset indices
+              const options = indices.map((assetIndex, idx) => ({
                 label: `${idx + 1}`,
                 value: idx,
-                imageSrc,
+                imageSrc: getAssetByIndex(assetIndex)?.imageSrc || '',
               }));
 
               showOptionSelector({
@@ -452,13 +401,9 @@ export default function ModalMapSelect(){
         case 'south': blockX = 1; break;
       }
 
-      const riverImages = [
-        'static/tiles/bottom_river/45 - iaL3IcU.png',
-        'static/tiles/bottom_river/46 - TIj5eT1.png',
-        'static/tiles/bottom_river/47 - szIJe08.png',
-      ];
+      const riverAssetIndices = [45, 46, 47];
 
-      replaceBlocks([{ x: blockX, y: 5 }], [riverImages[value]], 'river');
+      replaceBlocks({ x: blockX, y: 5, assetIndex: riverAssetIndices[value] });
       setRiverMouth1Shape(value);
     };
 
@@ -467,37 +412,24 @@ export default function ModalMapSelect(){
       const riverDir = currentState.riverDirection as RiverDirection;
 
       let block: { x: number; y: number };
-      let riverImages: string[];
+      let riverAssetIndices: number[];
 
       switch (riverDir) {
         case 'west':
-          // Left river at (0, 2)
           block = { x: 0, y: 2 };
-          riverImages = [
-            'static/tiles/left_river/62 - 3EvOplj.png',
-            'static/tiles/left_river/63 - EX7BYGw.png',
-          ];
+          riverAssetIndices = [62, 63];
           break;
         case 'east':
-          // Right river at (6, 2)
           block = { x: 6, y: 2 };
-          riverImages = [
-            'static/tiles/right_river/7 - OZtIhTC.png',
-            'static/tiles/right_river/8 - hWGQub0.png',
-          ];
+          riverAssetIndices = [7, 8];
           break;
         case 'south':
-          // Second bottom river at (5, 5)
           block = { x: 5, y: 5 };
-          riverImages = [
-            'static/tiles/bottom_river/45 - iaL3IcU.png',
-            'static/tiles/bottom_river/46 - TIj5eT1.png',
-            'static/tiles/bottom_river/47 - szIJe08.png',
-          ];
+          riverAssetIndices = [45, 46, 47];
           break;
       }
 
-      replaceBlocks([block], [riverImages[value]], 'river');
+      replaceBlocks({ ...block, assetIndex: riverAssetIndices[value] });
       setRiverMouth2Shape(value);
     };
 
@@ -507,12 +439,11 @@ export default function ModalMapSelect(){
       const riverDir = currentState.riverDirection as RiverDirection;
       const airportBlocks = getAirportBlocks(riverDir, index);
 
-      // Replace the placeholder blocks with airport images
-      const airportImages = [
-        'static/tiles/airport/34 - OmmYDBq.png',
-        'static/tiles/airport/35 - bawoPn6.png',
-      ];
-      replaceBlocks(airportBlocks, airportImages, 'airport');
+      // Replace the placeholder blocks with airport tiles
+      const airportAssetIndices = [34, 35];
+      for (let i = 0; i < airportBlocks.length; i++) {
+        replaceBlocks({ x: airportBlocks[i].x, y: airportBlocks[i].y, assetIndex: airportAssetIndices[i] });
+      }
 
       setAirportPosition(index);
     };
@@ -531,20 +462,11 @@ export default function ModalMapSelect(){
       const blockY = posIndex + 1;
       const blockX = side === 'left' ? 0 : 6; // horizontalBlocks - 1
 
-      // Get the peninsula image based on side and shape
-      const peninsulaImages = side === 'left'
-        ? [
-            'static/tiles/left_peninsula/59 - Dy1isCL.png',
-            'static/tiles/left_peninsula/60 - oTGqpUF.png',
-            'static/tiles/left_peninsula/61 - 4w4i9nr.png',
-          ]
-        : [
-            'static/tiles/right_peninsula/4 - ZLMp5LA.png',
-            'static/tiles/right_peninsula/5 - gZVRJnv.png',
-            'static/tiles/right_peninsula/6 - ydnTxJO.png',
-          ];
+      const peninsulaAssetIndices = side === 'left'
+        ? [59, 60, 61]
+        : [4, 5, 6];
 
-      replaceBlocks([{ x: blockX, y: blockY }], [peninsulaImages[value]], 'peninsula');
+      replaceBlocks({ x: blockX, y: blockY, assetIndex: peninsulaAssetIndices[value] });
 
       setPeninsulaShape(value);
     };
@@ -557,18 +479,11 @@ export default function ModalMapSelect(){
       const blockX = dockSide === 'left' ? 0 : 6;
       const blockY = 5;
 
-      // Get the dock image based on side and shape
-      const dockImages = dockSide === 'left'
-        ? [
-            'static/tiles/bottom_left_dock/52 - bvT1yJ7.png',
-            'static/tiles/bottom_left_dock/53 - W1DZoXV.png',
-          ]
-        : [
-            'static/tiles/bottom_right_dock/43 - lRh7pLD.png',
-            'static/tiles/bottom_right_dock/44 - Kkxl2RH.png',
-          ];
+      const dockAssetIndices = dockSide === 'left'
+        ? [52, 53]
+        : [43, 44];
 
-      replaceBlocks([{ x: blockX, y: blockY }], [dockImages[value]], 'dock');
+      replaceBlocks({ x: blockX, y: blockY, assetIndex: dockAssetIndices[value] });
 
       setDockShape(value);
     };
@@ -585,14 +500,9 @@ export default function ModalMapSelect(){
       // Get the block position for the secret beach
       const block = getSecretBeachBlock(riverDir, posIndex);
 
-      // Get the secret beach image based on shape
-      const beachImages = [
-        'static/tiles/top_secret_beach/16 - J9KTWix.png',
-        'static/tiles/top_secret_beach/17 - TJTblBV.png',
-        'static/tiles/top_secret_beach/18 - 4F6lHPo.png',
-      ];
+      const beachAssetIndices = [16, 17, 18];
 
-      replaceBlocks([block], [beachImages[value]], 'secretBeach');
+      replaceBlocks({ ...block, assetIndex: beachAssetIndices[value] });
 
       setSecretBeachShape(value);
     };
@@ -608,15 +518,9 @@ export default function ModalMapSelect(){
       // Get the block position for the left rock
       const block = getRockBlock('left', posIndex);
 
-      // Get the left rock image based on shape
-      const rockImages = [
-        'static/tiles/left_rock/64 - xifLxPa.png',
-        'static/tiles/left_rock/65 - pFh72wi.png',
-        'static/tiles/left_rock/66 - TnsI1wo.png',
-        'static/tiles/left_rock/67 - mQNwwge.png',
-      ];
+      const rockAssetIndices = [64, 65, 66, 67];
 
-      replaceBlocks([block], [rockImages[value]], 'rock');
+      replaceBlocks({ ...block, assetIndex: rockAssetIndices[value] });
 
       setLeftRockShape(value);
     };
@@ -632,15 +536,9 @@ export default function ModalMapSelect(){
       // Get the block position for the right rock
       const block = getRockBlock('right', posIndex);
 
-      // Get the right rock image based on shape
-      const rockImages = [
-        'static/tiles/right_rock/9 - YSjtaWO.png',
-        'static/tiles/right_rock/10 - ByrJZyo.png',
-        'static/tiles/right_rock/11 - Ar9LNtJ.png',
-        'static/tiles/right_rock/12 - UgoRJy3.png',
-      ];
+      const rockAssetIndices = [9, 10, 11, 12];
 
-      replaceBlocks([block], [rockImages[value]], 'rock');
+      replaceBlocks({ ...block, assetIndex: rockAssetIndices[value] });
 
       setRightRockShape(value);
     };
@@ -651,17 +549,13 @@ export default function ModalMapSelect(){
       if (placeholders.length > 0) {
         // Always use index 0 since getRemainingPlaceholders() returns only remaining items
         const placeholder = placeholders[0];
-        const images = tileImages[placeholder.type];
+        const indices = tileAssetIndices[placeholder.type];
 
         // Track the position being filled (for going back)
         filledPlaceholderPositions.current.push({ x: placeholder.x, y: placeholder.y });
 
         // Replace the placeholder with selected tile
-        replaceBlocks(
-          [{ x: placeholder.x, y: placeholder.y }],
-          [images[value]],
-          'filled'
-        );
+        replaceBlocks({ x: placeholder.x, y: placeholder.y, assetIndex: indices[value] });
 
         // Check if there are more placeholders
         const remainingAfter = getRemainingPlaceholders();
@@ -682,6 +576,85 @@ export default function ModalMapSelect(){
       }
     };
 
+    // Function that returns a promise that resolves after 'ms' milliseconds
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+    const handleAutoIslandFlow = async (state: WizardState) => {
+      // Set all wizard state values (first/simplest options)
+      state.riverDirection = 'west';
+      state.dockSide = 'right'; // auto-set by west
+      state.riverMouth1Shape = 0;
+      state.riverMouth2Shape = 0;
+      state.airportPosition = 0;
+      state.dockShape = 0;
+      state.peninsulaSide = 'left';
+      state.peninsulaPosition = 0;
+      state.peninsulaShape = 0;
+      state.secretBeachPosition = 0;
+      state.secretBeachShape = 0;
+      state.leftRockPosition = 0;
+      state.leftRockShape = 0;
+      state.rightRockPosition = 0;
+      state.rightRockShape = 0;
+
+      // Load blank map first
+      const blankLayout = Layouts.blank[0];
+      loadMapFromJSONString(blankLayout.data);
+
+      // Show edge tiles and set river tiles
+      initializeEdgeTiles();
+
+      setRiverTiles(state.riverDirection as RiverDirection);
+
+      // Replace tiles sequentially to avoid async race conditions
+      // River mouth 1 (west: block (4,5))
+      replaceBlocks({ x: 4, y: 5, assetIndex: 45 });
+
+      // River mouth 2 (west: left river at (0,2))
+      replaceBlocks({ x: 0, y: 2, assetIndex: 62 });
+
+      // Airport (west, position 0: blocks (1,5) and (2,5))
+      const airportBlocks = getAirportBlocks('west', 0);
+      replaceBlocks({ x: airportBlocks[0].x, y: airportBlocks[0].y, assetIndex: 34 });
+      replaceBlocks({ x: airportBlocks[1].x, y: airportBlocks[1].y, assetIndex: 35 });
+
+      // Dock (right side, shape 0: block (6,5))
+      replaceBlocks({ x: 6, y: 5, assetIndex: 43 });
+
+      // Peninsula (left side, position 0, shape 0: block (0,1))
+      replaceBlocks({ x: 0, y: 1, assetIndex: 59 });
+
+      // Secret beach (west, position 0, shape 0)
+      const secretBeachBlock = getSecretBeachBlock('west', 0);
+      replaceBlocks({ ...secretBeachBlock, assetIndex: 16 });
+
+      // Left rock (position 0, shape 0)
+      const leftRockBlock = getRockBlock('left', 0);
+      replaceBlocks({ ...leftRockBlock, assetIndex: 64 });
+
+      // Right rock (position 0, shape 0)
+      const rightRockBlock = getRockBlock('right', 0);
+      replaceBlocks({ ...rightRockBlock, assetIndex: 9 });
+
+      // hacky, wait for edge tiles to load first
+      await delay(400);
+
+      // Fill all remaining placeholders with first option
+      let placeholders = getRemainingPlaceholders();
+      while (placeholders.length > 0) {
+        const placeholder = placeholders[0];
+        const indices = tileAssetIndices[placeholder.type];
+        replaceBlocks({ x: placeholder.x, y: placeholder.y, assetIndex: indices[0] });
+        // hacky, wait for edge tile to load first
+        await delay(200);
+        placeholders = getRemainingPlaceholders();
+      }
+
+      // Now open modal at grid step
+      setWizardState({ ...state });
+      emitter.emit('wizardStateChanged', state);
+    };
+
     emitter.on('riverMouth1ShapeSelected', handleRiverMouth1ShapeSelected);
     emitter.on('riverMouth2ShapeSelected', handleRiverMouth2ShapeSelected);
     emitter.on('airportSelected', handleAirportSelected);
@@ -696,6 +669,7 @@ export default function ModalMapSelect(){
     emitter.on('rightRockShapeSelected', handleRightRockShapeSelected);
     emitter.on('placeholderShapeSelected', handlePlaceholderShapeSelected);
     emitter.on('restoreFilledPlaceholder', handleRestoreFilledPlaceholder);
+    emitter.on('autoIslandFlow', handleAutoIslandFlow);
 
     return () => {
       emitter.off('riverMouth1ShapeSelected', handleRiverMouth1ShapeSelected);
@@ -712,6 +686,7 @@ export default function ModalMapSelect(){
       emitter.off('rightRockShapeSelected', handleRightRockShapeSelected);
       emitter.off('placeholderShapeSelected', handlePlaceholderShapeSelected);
       emitter.off('restoreFilledPlaceholder', handleRestoreFilledPlaceholder);
+      emitter.off('autoIslandFlow', handleAutoIslandFlow);
     };
   }, []);
 
@@ -773,7 +748,6 @@ function IslandLayoutSelector({ wizardState }: { wizardState: WizardState }) {
       if (layouts[layout]) {
         loadMapFromJSONString(layouts[layout].data);
         resetWizard();
-        hideEdgeTiles();
       }
     }
   }, [layout, wizardState.riverDirection]);
@@ -877,7 +851,7 @@ function RiverDirectionStep() {
       </Flex>
       <Flex sx={{flexDirection: ['column', 'row'], justifyContent: 'center', alignItems: 'center'}}>
         <Button variant='borderless' onClick={handleLegacyClick}>
-          <Text variant='secondary'>or enter creative mode</Text>
+          <Text variant='secondary'>or use a Creative Mode template</Text>
         </Button>
       </Flex>
     </>
@@ -898,7 +872,6 @@ function LegacyRiverDirectionStep({ onBack }: { onBack: () => void }) {
         const blankLayout = Layouts.blank[0];
         loadMapFromJSONString(blankLayout.data);
         resetWizard();
-        hideEdgeTiles();
       }
     );
   };
@@ -911,7 +884,7 @@ function LegacyRiverDirectionStep({ onBack }: { onBack: () => void }) {
         </Button>
       </Box>
       <Heading m={2} sx={{textAlign: 'center'}}>{'Choose a Template!'}</ Heading>
-      <Text m={2} sx={{textAlign: 'center'}}>{'Creative mode lets you redraw the entire island for fun, but not everything will work in game.'}</ Text>
+      <Text m={2} sx={{textAlign: 'center'}}>{'Creative Mode lets you redraw the entire island, but not everything will work in game.'}</ Text>
       <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center'}}>
         <Card onClick={() => handleClick('west')}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
         <Card onClick={() => handleClick('south')}><Image variant='card' src={'static/img/island-type-south.png'}/></Card>

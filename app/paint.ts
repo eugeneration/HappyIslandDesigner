@@ -20,6 +20,7 @@ import { sweepPath } from './helpers/sweepPath';
 import { uniteCompoundPath } from './helpers/unitCompoundPath';
 import { layers } from './layers';
 import { colors } from './colors';
+import { isEdgeTilesVisible, getInnerDrawableBounds } from './ui/edgeTiles';
 
 const paintTools = {
   grid: 'grid',
@@ -198,15 +199,37 @@ export function addPath(isAdd, path, colorKey) {
     state.drawing[colorKey] = new paper.Path();
     state.drawing[colorKey].locked = true;
   }
+
+  // For V2 maps (with edge tiles), clip the path to the inner drawable area
+  let clippedPath = path;
+  if (isEdgeTilesVisible()) {
+    const innerBounds = getInnerDrawableBounds();
+    const clipPath = new paper.Path.Rectangle(innerBounds);
+    const intersected = path.intersect(clipPath, { insert: false });
+    clipPath.remove();
+
+    // Only proceed if there's something left after clipping
+    if (intersected && !intersected.isEmpty()) {
+      clippedPath = intersected;
+    } else {
+      // Path was entirely outside the drawable area
+      path.remove();
+      return;
+    }
+  }
+
   const combined = isAdd
-    ? state.drawing[colorKey].unite(path)
-    : state.drawing[colorKey].subtract(path);
+    ? state.drawing[colorKey].unite(clippedPath)
+    : state.drawing[colorKey].subtract(clippedPath);
   combined.locked = true;
   combined.fillColor = colors[colorKey].color;
   combined.insertAbove(state.drawing[colorKey]);
 
   state.drawing[colorKey].remove();
-  path.remove();
+  clippedPath.remove();
+  if (clippedPath !== path) {
+    path.remove();
+  }
 
   state.drawing[colorKey] = combined;
 }

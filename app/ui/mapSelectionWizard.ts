@@ -45,12 +45,12 @@ const initialState: WizardState = {
 let wizardState: WizardState = { ...initialState };
 
 // Step order for navigation
-const stepOrder: WizardStep[] = ['river', 'riverMouth1', 'riverMouth2', 'airport', 'peninsulaSide', 'peninsulaPos', 'peninsulaShape', 'dockSide', 'dockShape', 'secretBeachPos', 'secretBeachShape', 'leftRockPos', 'leftRockShape', 'rightRockPos', 'rightRockShape', 'fillPlaceholder', 'grid'];
+const stepOrder: WizardStep[] = ['river', 'riverMouth1', 'riverMouth2', 'airport', 'dockSide', 'dockShape', 'peninsulaSide', 'peninsulaPos', 'peninsulaShape', 'secretBeachPos', 'secretBeachShape', 'leftRockPos', 'leftRockShape', 'rightRockPos', 'rightRockShape', 'fillPlaceholder', 'grid'];
 const legacyStepOrder: WizardStep[] = ['river', 'legacyriver', 'legacygrid'];
 
 // Steps that show modal vs map selection
 export const modalSteps: WizardStep[] = ['river', 'peninsulaSide', 'dockSide', 'grid', 'legacyriver', 'legacygrid'];
-export const mapSteps: WizardStep[] = ['riverMouth1', 'riverMouth2', 'airport', 'peninsulaPos', 'peninsulaShape', 'dockShape', 'secretBeachPos', 'secretBeachShape', 'leftRockPos', 'leftRockShape', 'rightRockPos', 'rightRockShape', 'fillPlaceholder'];
+export const mapSteps: WizardStep[] = ['riverMouth1', 'riverMouth2', 'airport', 'dockShape', 'peninsulaPos', 'peninsulaShape', 'secretBeachPos', 'secretBeachShape', 'leftRockPos', 'leftRockShape', 'rightRockPos', 'rightRockShape', 'fillPlaceholder'];
 
 export function getWizardState(): WizardState {
   return { ...wizardState };
@@ -125,7 +125,19 @@ export function setRiverMouth2Shape(shape: number): void {
 
 export function setAirportPosition(position: number): void {
   wizardState.airportPosition = position;
-  wizardState.step = 'peninsulaSide';
+  setNextStep();
+  emitter.emit('wizardStateChanged', wizardState);
+}
+
+export function setDockSide(side: 'left' | 'right'): void {
+  wizardState.dockSide = side;
+  setNextStep();
+  emitter.emit('wizardStateChanged', wizardState);
+}
+
+export function setDockShape(shape: number): void {
+  wizardState.dockShape = shape;
+  setNextStep();
   emitter.emit('wizardStateChanged', wizardState);
 }
 
@@ -143,18 +155,6 @@ export function setPeninsulaPosition(position: number): void {
 
 export function setPeninsulaShape(shape: number): void {
   wizardState.peninsulaShape = shape;
-  setNextStep();
-  emitter.emit('wizardStateChanged', wizardState);
-}
-
-export function setDockSide(side: 'left' | 'right'): void {
-  wizardState.dockSide = side;
-  setNextStep();
-  emitter.emit('wizardStateChanged', wizardState);
-}
-
-export function setDockShape(shape: number): void {
-  wizardState.dockShape = shape;
   setNextStep();
   emitter.emit('wizardStateChanged', wizardState);
 }
@@ -240,6 +240,17 @@ export function goBack(): void {
       case 'airport':
         wizardState.airportPosition = null;
         break;
+      case 'dockSide':
+        wizardState.dockSide = null;
+        break;
+      case 'dockShape':
+        // Restore the dock tile before clearing shape
+        if (wizardState.dockSide !== null) {
+          const blockX = wizardState.dockSide === 'left' ? 0 : 6;
+          emitter.emit('restoreTile', { x: blockX, y: 5 });
+        }
+        wizardState.dockShape = null;
+        break;
       case 'peninsulaSide':
         wizardState.peninsulaSide = null;
         break;
@@ -254,17 +265,6 @@ export function goBack(): void {
           emitter.emit('restoreTile', { x: blockX, y: blockY });
         }
         wizardState.peninsulaShape = null;
-        break;
-      case 'dockSide':
-        wizardState.dockSide = null;
-        break;
-      case 'dockShape':
-        // Restore the dock tile before clearing shape
-        if (wizardState.dockSide !== null) {
-          const blockX = wizardState.dockSide === 'left' ? 0 : 6;
-          emitter.emit('restoreTile', { x: blockX, y: 5 });
-        }
-        wizardState.dockShape = null;
         break;
       case 'secretBeachPos':
         wizardState.secretBeachPosition = null;
@@ -316,12 +316,6 @@ export function goBack(): void {
           wizardState.step = 'fillPlaceholder';
         }
         break;
-      case 'legacyriver':
-        wizardState.step = 'river';
-        break;
-      case 'legacygrid':
-        wizardState.riverDirection = null;
-        break;
     }
 
     emitter.emit('wizardStateChanged', wizardState);
@@ -354,4 +348,19 @@ export function isMapStep(step: WizardStep): boolean {
 
 export function canGoBack(): boolean {
   return stepOrder.indexOf(wizardState.step) > 0;
+}
+
+/**
+ * Dev tool: auto-complete the island wizard flow up to the grid step,
+ * selecting the first option at every choice.
+ * Uses river direction 'west'.
+ */
+export function autoCompleteToGrid(): void {
+  // Reset wizard state
+  wizardState = { ...initialState };
+
+  // Emit so ModalMapSelect picks up the state, then do tile replacements
+  // We use a slight delay so the blank map loads first
+  wizardState.step = 'grid';
+  emitter.emit('autoIslandFlow', wizardState);
 }

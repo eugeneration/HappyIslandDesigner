@@ -7,6 +7,7 @@ import { emitter } from '../emitter';
 import { horizontalBlocks, verticalBlocks, horizontalDivisions, verticalDivisions } from '../constants';
 import { createButton } from './createButton';
 import { toolState } from '../tools/state';
+import { autoCompleteToGrid } from './mapSelectionWizard';
 
 // Only initialize in dev builds
 declare const __DEV__: boolean;
@@ -1393,6 +1394,11 @@ function showDevMenu(): void {
       hideDevMenu();
       isMenuOpen = false;
       toggleTileTracerMode();
+    }},
+    { label: 'Auto Island Flow', action: () => {
+      hideDevMenu();
+      isMenuOpen = false;
+      autoCompleteToGrid();
     }},
   ];
 
