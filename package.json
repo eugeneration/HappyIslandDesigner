@@ -53,9 +53,9 @@
     "yarn": "^1.19.1"
   },
   "scripts": {
-    "dev": "webpack serve",
+    "dev": "webpack serve --mode development",
     "lint": "eslint --ext .ts,.js ./app/",
-    "build": "webpack"
+    "build": "webpack --mode production"
   },
   "prettier": {
     "tabWidth": 2,
