@@ -19,7 +19,7 @@ export type OptionDirection = 'left' | 'right' | 'bottom';
 
 export type OptionConfig = {
   label: string;
-  value: number;
+  value: number | string;
   imageSrc?: string;
 };
 
@@ -31,6 +31,7 @@ export type MapOptionSelectorConfig = {
   title?: string;
   spacing?: number;
   buttonSize?: number;
+  fixedItemCount?: number; // If set, calculate zoom as if this many items exist
 };
 
 function getOptionPositions(
@@ -315,7 +316,10 @@ export function showOptionSelector(config: MapOptionSelectorConfig): void {
   selectorUI.addChild(backButton);
 
   // Zoom to fit the selector and anchor
-  zoomToFit(config.anchorPoint, positions, config.direction, spacing);
+  // Use fixedItemCount for consistent zoom across selection steps
+  const itemCountForZoom = config.fixedItemCount ?? config.options.length;
+  const zoomPositions = getOptionPositions(config.anchorPoint, itemCountForZoom, config.direction, spacing);
+  zoomToFit(config.anchorPoint, zoomPositions, config.direction, spacing);
 }
 
 export function hideOptionSelector(): void {

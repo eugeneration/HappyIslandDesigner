@@ -2,7 +2,12 @@ import { horizontalBlocks, verticalBlocks } from '../constants';
 
 export type BlockState = 'placeholder' | 'airport' | 'river' | 'peninsula' | 'dock' | 'secretBeach' | 'rock' | 'filled';
 export type TileDirection = 'top_left' | 'top_right' | 'bottom_left' | 'bottom_right' | 'left' | 'right' | 'top' | 'bottom';
-export type AssetData = { state: BlockState; imageSrc: string; direction: TileDirection };
+export type TileCategory =
+  | 'left' | 'left_peninsula' | 'left_river' | 'left_rock'
+  | 'right' | 'right_peninsula' | 'right_river' | 'right_rock'
+  | 'top' | 'top_secret_beach' | 'top_left' | 'top_right'
+  | 'bottom' | 'airport' | 'bottom_river' | 'bottom_left' | 'bottom_left_dock' | 'bottom_right' | 'bottom_right_dock';
+export type AssetData = { state: BlockState; imageSrc: string; direction: TileDirection; category?: TileCategory };
 
 const tilesPath = 'static/tiles/';
 
@@ -170,3 +175,82 @@ export const tileAssetIndices: Record<TileDirection, number[]> = (() => {
   }
   return result as Record<TileDirection, number[]>;
 })();
+
+// ============================================================================
+// Category System for Two-Step Selection
+// ============================================================================
+
+// Asset indices grouped by category
+export const categoryAssetIndices: Record<TileCategory, number[]> = {
+  // Left edge categories
+  left: [54, 55, 56, 57, 58],
+  left_peninsula: [59, 60, 61],
+  left_river: [62, 63],
+  left_rock: [64, 65, 66, 67],
+  // Right edge categories
+  right: [1, 2, 3, 68, 69],
+  right_peninsula: [4, 5, 6],
+  right_river: [7, 8],
+  right_rock: [9, 10, 11, 12],
+  // Top edge categories
+  top: [19, 20, 21, 22, 23, 24, 25],
+  top_secret_beach: [16, 17, 18],
+  top_left: [26, 27, 28],
+  top_right: [13, 14, 15],
+  // Bottom edge categories
+  bottom: [29, 30, 31, 32],
+  airport: [34, 35],
+  bottom_river: [45, 46, 47],
+  bottom_left: [48, 49, 50, 51],
+  bottom_left_dock: [52, 53],
+  bottom_right: [39, 40, 41, 42],
+  bottom_right_dock: [43, 44],
+};
+
+// Map direction to available categories
+const directionToCategories: Record<TileDirection, TileCategory[]> = {
+  left: ['left', 'left_peninsula', 'left_river', 'left_rock'],
+  right: ['right', 'right_peninsula', 'right_river', 'right_rock'],
+  top: ['top', 'top_secret_beach'],
+  bottom: ['bottom', 'airport', 'bottom_river'],
+  top_left: ['top_left'],
+  top_right: ['top_right'],
+  bottom_left: ['bottom_left', 'bottom_left_dock'],
+  bottom_right: ['bottom_right', 'bottom_right_dock'],
+};
+
+// Categories that have placeholder images
+const categoriesWithPlaceholders: TileCategory[] = [
+  'left', 'left_river', 'right', 'right_river',
+  'top', 'top_left', 'top_right',
+  'bottom', 'bottom_left', 'bottom_right', 'bottom_river',
+];
+
+// Get categories available for a tile direction
+export function getCategoriesForDirection(direction: TileDirection): TileCategory[] {
+  return directionToCategories[direction] ?? [];
+}
+
+// Get category icon path (placeholder if exists, else first tile from category)
+export function getCategoryIcon(category: TileCategory): string {
+  if (categoriesWithPlaceholders.includes(category)) {
+    return `${tilesPath}placeholder_${category}.png`;
+  }
+
+  // Return first tile from category folder
+  const firstTileIndex = categoryAssetIndices[category]?.[0];
+  return assetIndexToData.get(firstTileIndex)?.imageSrc ?? `${tilesPath}placeholder_${category}.png`;
+}
+
+// Get tile options for a specific category
+export function getTileOptionsForCategory(category: TileCategory): { label: string; value: number; imageSrc?: string }[] {
+  const indices = categoryAssetIndices[category] ?? [];
+  return indices.map((index, i) => ({
+    label: String(i + 1),
+    value: index,
+    imageSrc: assetIndexToData.get(index)?.imageSrc,
+  }));
+}
+
+// Maximum items across all categories (for consistent zoom)
+export const MAX_CATEGORY_ITEMS = 7; // "top" category has 7 options

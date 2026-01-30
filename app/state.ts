@@ -3,6 +3,8 @@ import { applyCreateObject } from './ui/createObject';
 import { applyMoveCommand, applyDiff } from './paint';
 import { autosaveMap } from './save';
 import objectIsEmpty from './helpers/objectIsEmpty';
+import { setEdgeTilesFromAssetIndices } from './ui/edgeTiles';
+import { setMapVersion } from './mapState';
 
 /* eslint-disable default-case */
 export type State = {
@@ -54,6 +56,14 @@ export function clearMap() {
 export function setNewMapData(mapData) {
   // state.objects = mapData.objects; // objects are loaded asynchronously
   state.drawing = mapData.drawing;
+
+  // todo: edgetiles and mapversion should also be saved in this state file so undo/redo works
+  if (mapData.edgeTiles) {
+    setEdgeTilesFromAssetIndices(mapData.edgeTiles);
+  }
+  
+  // Set global map version state so V2 features (edge tool) are enabled
+  setMapVersion(mapData.version);
 }
 
 export function canRedo() {

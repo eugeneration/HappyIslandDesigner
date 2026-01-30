@@ -2,6 +2,8 @@ import { layerDefinition } from '../layerDefinition';
 import { pathDefinition } from '../pathDefinition';
 import { state } from '../state';
 import { correctPath } from './correctPath';
+import { isV2Map } from '../mapState';
+import { colors } from '../colors';
 
 export function getDiff(path: paper.Path, colorKey: string) {
   if (!path.children && path.segments.length < 3) {
@@ -19,15 +21,25 @@ export function getDiff(path: paper.Path, colorKey: string) {
   //   path = union;
   // }
 
+  // In V2 maps, filter out sand and rock from layer operations
+  // V2 maps use edge tiles for beach/cliff aesthetics instead of separate sand/rock layers
+  const v2RestrictedColors = isV2Map()
+    ? [colors.sand.key, colors.rock.key]
+    : [];
+
   const editLayers = {};
   if (definition.addLayers) {
     definition.addLayers.forEach((ck) => {
-      editLayers[ck] = true;
+      if (!v2RestrictedColors.includes(ck)) {
+        editLayers[ck] = true;
+      }
     });
   }
   if (definition.cutLayers) {
     definition.cutLayers.forEach((ck) => {
-      editLayers[ck] = false;
+      if (!v2RestrictedColors.includes(ck)) {
+        editLayers[ck] = false;
+      }
     });
   }
 

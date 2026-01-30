@@ -1,4 +1,5 @@
 // @ts-nocheck
+import paper from 'paper';
 import {
   updateCoordinateLabel,
   updateObjectPreview,
@@ -31,6 +32,7 @@ import { getObjectData } from '../helpers/getObjectData';
 import { pathDefinition } from '../pathDefinition';
 import { getColorAtCoordinate } from '../getColorAtCoordinate';
 import { startDraw, draw, endDraw } from '../paint';
+import { enterEdgeEditMode, exitEdgeEditMode, isEdgeEditModeActive } from '../ui/edgeTileEditor';
 
 const toolPrefix = 'tool-';
 
@@ -482,6 +484,73 @@ export function initTools() {
       yPos: 360,
     });
 
+  // Edge tool - only for V2 maps
+  toolCategoryDefinition.edge = {
+    base: baseToolCategoryDefinition,
+    type: 'edge',
+    icon: null, // Will be set to button
+    iconMenu: null,
+    data: {},
+    onSelect(isSelected, isReselected) {
+      this.base.onSelect(this, isSelected, isReselected);
+      // Exit edge edit mode when deselecting
+      if (!isSelected && isEdgeEditModeActive()) {
+        exitEdgeEditMode();
+      }
+    },
+    onMouseMove(event) {
+      this.base.onMouseMove(this, event);
+    },
+    onMouseDown(event) {
+      this.base.onMouseDown(this, event);
+    },
+    onMouseDrag(event) {
+      this.base.onMouseDrag(this, event);
+    },
+    onMouseUp(event) {
+      this.base.onMouseUp(this, event);
+    },
+    onKeyDown(event) {
+      this.base.onKeyDown(this, event);
+    },
+    enablePreview(isEnabled) {
+      this.base.enablePreview(this, isEnabled);
+    },
+    openMenu(isSelected) {
+      if (this.iconMenu === null) {
+        layers.fixedLayer.activate();
+
+        const menuGroup = new paper.Group();
+        menuGroup.applyMatrix = false;
+
+        // "Adjust Edges" button
+        const adjustIcon = new paper.Path.Rectangle({
+          rectangle: new paper.Rectangle(-8, -8, 16, 16),
+          fillColor: colors.oceanDark.color,
+          strokeColor: colors.text.color,
+          strokeWidth: 1,
+        });
+
+        const adjustButton = createButton(adjustIcon, 16, () => {
+          enterEdgeEditMode();
+        });
+
+        menuGroup.addChild(adjustButton);
+        this.iconMenu = menuGroup;
+        this.iconMenu.pivot = new paper.Point(0, 0);
+      }
+
+      // Position menu next to tool icon
+      if (this.icon) {
+        this.iconMenu.position = new paper.Point(
+          this.icon.position.x + 50,
+          this.icon.position.y
+        );
+      }
+      this.iconMenu.visible = isSelected;
+    },
+  };
+
   amenitiesDef.load();
   structureDef.load();
   constructionDef.load();
@@ -522,6 +591,11 @@ export function initTools() {
       def.base.updateTool(def, prevToolData, nextToolData, isToolTypeSwitch);
     };
 
+    // Handle edge tool specially - uses programmatic icon
+    if (toolType === 'edge') {
+      return; // Skip, will be added separately below
+    }
+
     const tool = new paper.Raster(`${imgPath + toolPrefix + def.icon}.png`);
 
     const button = createButton(tool, 20, () => {
@@ -537,4 +611,31 @@ export function initTools() {
     addToLeftToolMenu(button);
     def.icon = button;
   });
+
+  // Edge tool - V2 only, programmatic icon
+  {
+    const edgeDef = toolCategoryDefinition.edge;
+
+    // Create colored square icon
+    const edgeIcon = new paper.Path.Rectangle({
+      rectangle: new paper.Rectangle(-10, -10, 20, 20),
+      fillColor: colors.oceanDark.color,
+      strokeColor: colors.text.color,
+      strokeWidth: 1,
+    });
+
+    const edgeButton = createButton(edgeIcon, 20, () => {
+      toolState.switchToolType('edge');
+    });
+
+    addToLeftToolMenu(edgeButton);
+    edgeDef.icon = edgeButton;
+
+    // Set visibility based on map version
+    const updateEdgeToolVisibility = () => {
+      edgeButton.visible = isV2Map();
+    };
+    updateEdgeToolVisibility();
+    emitter.on('mapVersionChanged', updateEdgeToolVisibility);
+  }
 }

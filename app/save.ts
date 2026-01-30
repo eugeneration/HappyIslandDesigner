@@ -11,7 +11,7 @@ import { getGridRaster } from './grid';
 import { getMobileOperatingSystem } from "./helpers/getMobileOperatingSystem";
 
 import { encodeMapV1, decodeMapV1, encodeObjectGroups, encodeDrawing } from './save-legacy';
-import { getEdgeAssetIndices, setEdgeTilesFromAssetIndices, isEdgeTilesVisible } from './ui/edgeTiles';
+import { getEdgeAssetIndices, isEdgeTilesVisible } from './ui/edgeTiles';
 
 export function encodeMap() {
   // V1 map if no edge tiles are present
@@ -62,8 +62,7 @@ function decodeMapV2(json) {
   // Load edge tiles from array
   result.version = 2;
   if (json.edgeTiles) {
-    result.edgeTiles = result;
-    setEdgeTilesFromAssetIndices(json.edgeTiles);
+    result.edgeTiles = json.edgeTiles;
   }
 
   return result;
