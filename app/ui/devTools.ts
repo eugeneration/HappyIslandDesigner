@@ -8,6 +8,14 @@ import { horizontalBlocks, verticalBlocks, horizontalDivisions, verticalDivision
 import { createButton } from './createButton';
 import { toolState } from '../tools/state';
 import { autoCompleteToGrid } from './mapSelectionWizard';
+import {
+  assetIndexToData,
+  getTileDirection,
+  getPlaceholderIndexForPosition,
+  type TileDirection,
+} from './edgeTileAssets';
+import { setEdgeTilesFromAssetIndices } from './edgeTiles';
+import { setMapVersion } from '../mapState';
 
 // Only initialize in dev builds
 declare const __DEV__: boolean;
@@ -162,7 +170,25 @@ function encodePathItem(pathItem: paper.PathItem): number[] | number[][] {
   }
 }
 
-function extractTileData(blockX: number, blockY: number): object {
+function decodeToPathItem(pathData: number[] | number[][]): paper.PathItem {
+  if (typeof pathData[0] === 'number') {
+    // Single path
+    const path = new paper.Path(decodePathPoints(pathData as number[]));
+    path.closed = true;
+    return path;
+  } else {
+    // Compound path
+    return new paper.CompoundPath({
+      children: (pathData as number[][]).map(pd => {
+        const path = new paper.Path(decodePathPoints(pd));
+        path.closed = true;
+        return path;
+      }),
+    });
+  }
+}
+
+function extractTileData(blockX: number, blockY: number): Record<string, number[] | number[][]> {
   const offsetX = blockX * blockWidth;
   const offsetY = blockY * blockHeight;
   const tileRect = new paper.Rectangle(
@@ -196,36 +222,17 @@ function extractTileData(blockX: number, blockY: number): object {
     }
   });
 
-  return { version: 1, drawing: extractedPaths };
+  return extractedPaths;
 }
 
-function decodeToPathItem(pathData: number[] | number[][]): paper.PathItem {
-  if (typeof pathData[0] === 'number') {
-    // Single path
-    const path = new paper.Path(decodePathPoints(pathData as number[]));
-    path.closed = true;
-    return path;
-  } else {
-    // Compound path
-    return new paper.CompoundPath({
-      children: (pathData as number[][]).map(pd => {
-        const path = new paper.Path(decodePathPoints(pd));
-        path.closed = true;
-        return path;
-      }),
-    });
-  }
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
-function prepTileDataForExport(data: { version: number; drawing: Record<string, number[] | number[][]> }): { version: number; drawing: Record<string, number[] | number[][]> } {
+function prepTileDataForExport(drawing: Record<string, number[] | number[][]>) : Record<string, number[] | number[][]> {
   const grassColorNames = ['level1', 'level2', 'level3'];
   const result: Record<string, number[] | number[][]> = {};
 
   // Step 1: Collect and unite all grass paths using Paper.js unite()
   let unitedGrass: paper.PathItem | null = null;
 
-  for (const [colorName, pathData] of Object.entries(data.drawing)) {
+  for (const [colorName, pathData] of Object.entries(drawing)) {
     if (grassColorNames.includes(colorName) && pathData && pathData.length > 0) {
       const grassPath = decodeToPathItem(pathData);
       if (unitedGrass === null) {
@@ -261,7 +268,7 @@ function prepTileDataForExport(data: { version: number; drawing: Record<string, 
   }
 
   // Process non-grass layers: subtract grass from each
-  for (const [colorName, pathData] of Object.entries(data.drawing)) {
+  for (const [colorName, pathData] of Object.entries(drawing)) {
     if (grassColorNames.includes(colorName)) {
       continue; // Skip grass layers (already merged into level1)
     }
@@ -287,7 +294,7 @@ function prepTileDataForExport(data: { version: number; drawing: Record<string, 
     unitedGrass.remove();
   }
 
-  return { version: data.version, drawing: result };
+  return result;
 }
 
 function downloadTileData(data: object, filename: string): void {
@@ -390,6 +397,7 @@ function hidePostfixDropdown(): void {
     postfixDropdown = null;
   }
 }
+
 
 function exportTile(blockX: number, blockY: number, filename: string): void {
   const data = extractTileData(blockX, blockY);
@@ -727,10 +735,14 @@ function showSvgExportDropdown(blockX: number, blockY: number, screenX: number, 
   document.body.appendChild(postfixDropdown);
 }
 
-function exportTileSvg(blockX: number, blockY: number, filename: string): void {
-  const data = extractTileData(blockX, blockY) as { version: number; drawing: Record<string, number[] | number[][]> };
+function tileToSvg(blockX: number, blockY: number): string {
+  const data = extractTileData(blockX, blockY);
   const preppedData = prepTileDataForExport(data);
-  const svg = tileDataToSvg(preppedData);
+  return tileDataToSvg(preppedData);
+}
+
+function exportTileSvg(blockX: number, blockY: number, filename: string): void {
+  const svg = tileToSvg(blockX, blockY);
   downloadSvg(svg, `${filename}.svg`);
   hidePostfixDropdown();
   clearHighlight();
@@ -739,16 +751,16 @@ function exportTileSvg(blockX: number, blockY: number, filename: string): void {
   }
 }
 
-function tileDataToSvg(data: { version: number; drawing: Record<string, number[] | number[][]> }): string {
+function tileDataToSvg(drawing: Record<string, number[] | number[][]> ): string {
   // Data is already prepped by prepTileDataForExport: grass merged, water added, subtractions done
   const paths: string[] = [];
 
-  Object.entries(data.drawing).forEach(([colorName, pathData]) => {
+  Object.entries(drawing).forEach(([colorName, pathData]) => {
     const colorKey = Object.keys(colors).find(k => colors[k].name === colorName) || colorName;
     const color = colors[colorKey]?.cssColor || '#808080';
 
     // Skip grass terrain - don't include in output
-    if (colorKey == 'level1') {
+    if (colorKey == 'level1' || colorKey == 'level2' || colorKey == 'level3') {
       return;
     }
 
@@ -1330,6 +1342,11 @@ function saveTileTracerSvg(): void {
   exportTileSvg(0, 0, filename);
 }
 
+function toggleEdgeTileLayerVisibility(): void {
+  layers.mapEdgeLayer.visible = !layers.mapEdgeLayer.visible;
+  console.log(`Edge tile layer visibility: ${layers.mapEdgeLayer.visible}`);
+}
+
 function toggleMenu(): void {
   isMenuOpen = !isMenuOpen;
 
@@ -1346,6 +1363,254 @@ function toggleMenu(): void {
       button.data.select(isMenuOpen);
     }
   }
+}
+
+// ============ V1 to V2 Conversion Functions ============
+
+type SvgAssetData = {
+  assetIndex: number;
+  direction: TileDirection;
+  svgContent: string;
+};
+
+async function buildSvgReferenceLibrary(): Promise<Map<number, SvgAssetData>> {
+  const library = new Map<number, SvgAssetData>();
+  const tilesDataPath = 'static/tiles_data/';
+
+  for (const [index, data] of assetIndexToData) {
+    // Derive SVG path from PNG path
+    const filename = data.imageSrc.split('/').pop()?.replace('.png', '.svg');
+    if (!filename) continue;
+
+    const svgPath = `${tilesDataPath}${filename}`;
+
+    try {
+      const response = await fetch(svgPath);
+      if (!response.ok) continue;  // No SVG for this tile
+
+      const svgContent = await response.text();
+      library.set(index, {
+        assetIndex: index,
+        direction: data.direction,
+        svgContent,
+      });
+    } catch {
+      // Skip tiles without SVG
+    }
+  }
+
+  return library;
+}
+
+function computeSvgSimilarity(extractedSvg: string, referenceSvg: string): number {
+  const extractedItem = paper.project.importSVG(extractedSvg, { insert: false });
+  const referenceItem = paper.project.importSVG(referenceSvg, { insert: false });
+
+  if (!extractedItem || !referenceItem) {
+    if (extractedItem) extractedItem.remove();
+    if (referenceItem) referenceItem.remove();
+    return 0;
+  }
+
+  // Edge tile colors only, ordered top to bottom
+  const layerOrder = ['rock', 'sand', 'water'];
+
+  const extractedPaths = extractedItem.getItems({ class: paper.Path }) as paper.Path[];
+  const referencePaths = referenceItem.getItems({ class: paper.Path }) as paper.Path[];
+
+  // Helper to find path by color key
+  const findPathByColorKey = (paths: paper.Path[], colorKey: string): paper.Path | null => {
+    const cssColor = colors[colorKey]?.cssColor;
+    if (!cssColor) return null;
+    return paths.find(p => p.fillColor?.toCSS(true).toLowerCase() === cssColor.toLowerCase()) || null;
+  };
+
+  // Compute visible portion of a layer by subtracting all layers above it
+  const getVisiblePortion = (paths: paper.Path[], colorKey: string, layerIndex: number): paper.PathItem | null => {
+    const path = findPathByColorKey(paths, colorKey);
+    if (!path) return null;
+
+    let visible: paper.PathItem = path.clone() as paper.PathItem;
+
+    // Subtract all layers above this one
+    for (let i = 0; i < layerIndex; i++) {
+      const abovePath = findPathByColorKey(paths, layerOrder[i]);
+      if (abovePath) {
+        const subtracted = visible.subtract(abovePath, { insert: false });
+        visible.remove();
+        visible = subtracted;
+      }
+    }
+
+    return visible;
+  };
+
+  let totalArea = 0;
+  let matchingArea = 0;
+
+  // Always compare all colors in layerOrder
+  for (let i = 0; i < layerOrder.length; i++) {
+    const colorKey = layerOrder[i];
+
+    const extVisible = getVisiblePortion(extractedPaths, colorKey, i);
+    const refVisible = getVisiblePortion(referencePaths, colorKey, i);
+
+    if (extVisible && refVisible && !extVisible.isEmpty() && !refVisible.isEmpty()) {
+      try {
+        const intersection = extVisible.intersect(refVisible, { insert: false }) as paper.Path;
+        const union = extVisible.unite(refVisible, { insert: false }) as paper.Path;
+
+        if (intersection && intersection.area !== undefined) {
+          matchingArea += Math.abs(intersection.area);
+        }
+        if (union && union.area !== undefined) {
+          totalArea += Math.abs(union.area);
+        }
+
+        intersection.remove();
+        union.remove();
+      } catch (e) {
+        // Skip if boolean operation fails
+      }
+    } else if (extVisible && !refVisible) {
+      // Extracted has this layer but reference doesn't - count as mismatch
+      totalArea += Math.abs((extVisible as paper.Path).area || 0);
+    } else if (!extVisible && refVisible) {
+      // Reference has this layer but extracted doesn't - count as mismatch
+      totalArea += Math.abs((refVisible as paper.Path).area || 0);
+    }
+
+    // Cleanup
+    if (extVisible) extVisible.remove();
+    if (refVisible) refVisible.remove();
+  }
+
+  extractedItem.remove();
+  referenceItem.remove();
+
+  return totalArea > 0 ? matchingArea / totalArea : 0;
+}
+
+function findBestMatchingAsset(
+  extractedSvg: string,
+  direction: TileDirection,
+  svgLibrary: Map<number, SvgAssetData>
+): { index: number; score: number } | null {
+  let bestIndex: number | null = null;
+  let bestScore = 0;
+
+  for (const [index, assetData] of svgLibrary) {
+    // Only compare tiles with matching direction
+    if (assetData.direction !== direction) continue;
+
+    const score = computeSvgSimilarity(extractedSvg, assetData.svgContent);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  }
+
+  // Require minimum 70% match
+  if (bestIndex !== null && bestScore >= 0.7) {
+    return { index: bestIndex, score: bestScore };
+  }
+  return null;
+}
+
+function mergeSandRockIntoLevel1(): void {
+  layers.mapLayer.activate();
+
+  const sandPath = state.drawing['sand'];
+  const rockPath = state.drawing['rock'];
+  const level1Path = state.drawing['level1'];
+
+  if (!sandPath && !rockPath) return;
+
+  let mergedPath: paper.PathItem = level1Path ? level1Path.clone() as paper.PathItem : new paper.Path();
+
+  if (sandPath && !sandPath.isEmpty()) {
+    const newMerged = mergedPath.unite(sandPath, { insert: false });
+    mergedPath.remove();
+    mergedPath = newMerged;
+  }
+
+  if (rockPath && !rockPath.isEmpty()) {
+    const newMerged = mergedPath.unite(rockPath, { insert: false });
+    mergedPath.remove();
+    mergedPath = newMerged;
+  }
+
+  mergedPath.locked = true;
+  mergedPath.fillColor = colors.level1.color;
+
+  if (level1Path) {
+    mergedPath.insertAbove(level1Path);
+    level1Path.remove();
+  }
+  state.drawing['level1'] = mergedPath;
+
+  if (sandPath) {
+    sandPath.remove();
+    delete state.drawing['sand'];
+  }
+  if (rockPath) {
+    rockPath.remove();
+    delete state.drawing['rock'];
+  }
+
+  console.log('Merged sand and rock into level1');
+}
+
+async function convertV1ToV2(): Promise<void> {
+  console.log('Starting V1 to V2 conversion...');
+
+  // Build SVG reference library
+  const svgLibrary = await buildSvgReferenceLibrary();
+  console.log(`Loaded ${svgLibrary.size} SVG references`);
+
+  // CCW edge tile positions (24 total)
+  const ccwPositions: [number, number][] = [
+    [0, 1], [0, 2], [0, 3], [0, 4],  // Left edge
+    [0, 5],                          // Bottom-left corner
+    [1, 5], [2, 5], [3, 5], [4, 5], [5, 5],  // Bottom edge
+    [6, 5],                          // Bottom-right corner
+    [6, 4], [6, 3], [6, 2], [6, 1],  // Right edge
+    [6, 0],                          // Top-right corner
+    [5, 0], [4, 0], [3, 0], [2, 0], [1, 0],  // Top edge
+    [0, 0],                          // Top-left corner
+  ];
+
+  const edgeTiles: number[] = [];
+
+  for (const [x, y] of ccwPositions) {
+    const direction = getTileDirection(x, y);
+    const extractedSvg = tileToSvg(x, y);
+
+    const match = findBestMatchingAsset(extractedSvg, direction, svgLibrary);
+
+    if (match !== null) {
+      edgeTiles.push(match.index);
+      console.log(`(${x},${y}) ${direction}: matched asset ${match.index} (score: ${(match.score * 100).toFixed(1)}%)`);
+    } else {
+      // Use placeholder for no match
+      const placeholderIndex = getPlaceholderIndexForPosition(x, y);
+      edgeTiles.push(placeholderIndex);
+      console.log(`(${x},${y}) ${direction}: no match, using placeholder ${placeholderIndex}`);
+    }
+  }
+
+  // Merge sand/rock into level1
+  mergeSandRockIntoLevel1();
+
+  // Apply edge tiles
+  setEdgeTilesFromAssetIndices(edgeTiles);
+
+  // Update version
+  setMapVersion(2);
+
+  console.log('V1 to V2 conversion complete!');
+  console.log('Edge tiles:', edgeTiles);
 }
 
 function showDevMenu(): void {
@@ -1399,6 +1664,16 @@ function showDevMenu(): void {
       hideDevMenu();
       isMenuOpen = false;
       autoCompleteToGrid();
+    }},
+    { label: 'Convert V1 to V2', action: () => {
+      hideDevMenu();
+      isMenuOpen = false;
+      convertV1ToV2();
+    }},
+    { label: 'Toggle Edge Tiles', action: () => {
+      hideDevMenu();
+      isMenuOpen = false;
+      toggleEdgeTileLayerVisibility();
     }},
   ];
 
@@ -1462,9 +1737,10 @@ function updateMenuPosition(): void {
 
   // Position menu above the dev tools button
   const buttonPos = devToolsGroup.position;
+  const menuHeight = devMenuGroup.bounds.height;
   devMenuGroup.position = new paper.Point(
     buttonPos.x - 30,
-    buttonPos.y - 60
+    buttonPos.y - menuHeight / 2 - 30
   );
 }
 

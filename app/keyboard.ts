@@ -8,6 +8,7 @@ import {
   cycleBrushHead,
 } from './brush';
 import { colors } from './colors';
+import { isV2Map } from './mapState';
 import { saveMapToFile, encodeMap } from './save';
 import { loadMapFromFile } from './load';
 import { toolCategoryDefinition } from './tools';
@@ -46,10 +47,14 @@ export function onKeyDown(event) {
       keys.isSpaceDown = true;
       break;
     case '1':
-      updatePaintColor(colors.sand);
+      if (!isV2Map()) {
+        updatePaintColor(colors.sand);
+      }
       break;
     case '2':
-      updatePaintColor(colors.rock);
+      if (!isV2Map()) {
+        updatePaintColor(colors.rock);
+      }
       break;
     case '3':
       updatePaintColor(colors.level1);

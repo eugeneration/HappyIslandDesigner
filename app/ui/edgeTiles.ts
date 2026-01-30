@@ -19,14 +19,14 @@ const tileImageSize = 18; // Source images have 1 tile buffer around edge, scale
 const tilesPath = 'static/tiles/';
 const tilesDataPath = 'static/tiles_data/';
 
-// Inner drawable area bounds (excluding edge tiles)
+// Inner drawable area bounds (extends one block into edge tiles)
 // Edge tiles occupy: x=0 and x=6, y=0 and y=5
-// Inner area: x=1-5 (5 blocks), y=1-4 (4 blocks)
+// Drawable area: full map (drawing can overlap with edge tiles)
 const innerBoundsRect = {
-  x: blockWidth,                                    // 16
-  y: blockHeight,                                   // 16
-  width: (horizontalBlocks - 2) * blockWidth,       // 5 * 16 = 80
-  height: (verticalBlocks - 2) * blockHeight,       // 4 * 16 = 64
+  x: 0,
+  y: 0,
+  width: horizontalBlocks * blockWidth,             // 7 * 16 = 112
+  height: verticalBlocks * blockHeight,             // 6 * 16 = 96
 };
 
 // Get the inner drawable bounds as a paper.Rectangle (for V2 maps)
@@ -166,8 +166,7 @@ function getEdgePlaceholders(): PlaceholderConfig[] {
 export function initializeEdgeTiles(): void {
   deleteEdgeTiles();
 
-  // todo: create a new edge layer - we will want to be able to draw over it eventually
-  layers.mapOverlayLayer.activate();
+  layers.mapEdgeLayer.activate();
 
   if (tilesGroup) {
     console.error("Edge Tiles initialized twice!");

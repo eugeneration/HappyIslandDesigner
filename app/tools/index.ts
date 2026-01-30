@@ -25,6 +25,8 @@ import { objectMap } from '../helpers/objectMap';
 import { createObjectIcon, placeObject } from '../ui/createObject';
 import { layerDefinition } from '../layerDefinition';
 import { showBrushSizeUI } from '../ui/brushMenu';
+import { isV2Map } from '../mapState';
+import { emitter } from '../emitter';
 import { getObjectData } from '../helpers/getObjectData';
 import { pathDefinition } from '../pathDefinition';
 import { getColorAtCoordinate } from '../getColorAtCoordinate';
@@ -311,6 +313,30 @@ export function initTools() {
         this.iconMenu.position = new paper.Point(100, 45);
         // this is a little messy
         this.iconMenu.data.update(this.data.paintColorData.key);
+
+        // Update visibility of sand/rock buttons based on map version
+        const updateV2Colors = () => {
+          const v2 = isV2Map();
+          const buttonMap = this.iconMenu.data.buttonMap;
+          if (buttonMap[colors.sand.key]) {
+            buttonMap[colors.sand.key].visible = !v2;
+          }
+          if (buttonMap[colors.rock.key]) {
+            buttonMap[colors.rock.key].visible = !v2;
+          }
+          // If currently selected color is sand/rock and we're in V2, switch to level1
+          if (v2 && (this.data.paintColorData.key === colors.sand.key || this.data.paintColorData.key === colors.rock.key)) {
+            updatePaintColor(colors.level1);
+            this.data.paintColorData = colors.level1;
+            this.iconMenu.data.update(colors.level1.key);
+          }
+        };
+
+        // Initial update
+        updateV2Colors();
+
+        // Listen for map version changes
+        emitter.on('mapVersionChanged', updateV2Colors);
       }
       if (isSelected && this.data.paintColorData) {
         updatePaintColor(this.data.paintColorData);

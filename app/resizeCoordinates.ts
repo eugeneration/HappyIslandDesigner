@@ -78,6 +78,9 @@ export function resizeCoordinates() {
   layers.mapLayer.position = new paper.Point(marginX, marginY);
   layers.mapLayer.scaling = new paper.Point(cellWidth, cellHeight);
 
+  layers.mapEdgeLayer.position = new paper.Point(marginX, marginY);
+  layers.mapEdgeLayer.scaling = new paper.Point(cellWidth, cellHeight);
+
   layers.mapOverlayLayer.position = new paper.Point(marginX, marginY);
   layers.mapOverlayLayer.scaling = new paper.Point(cellWidth, cellHeight);
 

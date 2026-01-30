@@ -99,6 +99,11 @@ export function saveMapToFile() {
     layers.mapLayer.bounds.topLeft,
   );
 
+  const mapEdgeRaster = layers.mapEdgeLayer.rasterize();
+  const mapEdgePositionDelta = layers.mapEdgeLayer.globalToLocal(
+    layers.mapEdgeLayer.bounds.topLeft,
+  );
+
   const iconsRaster = layers.mapIconLayer.rasterize();
   const iconsPositionDelta = layers.mapIconLayer.globalToLocal(
     layers.mapIconLayer.bounds.topLeft,
@@ -136,6 +141,7 @@ export function saveMapToFile() {
     mapBoundsClippingMask,
     background,
     mapRaster,
+    mapEdgeRaster,
     iconsRaster,
     gridClone,
     text,
@@ -145,6 +151,9 @@ export function saveMapToFile() {
   mapRaster.scaling = mapRaster.scaling.divide(layers.mapLayer.scaling);
   mapRaster.bounds.topLeft = mapPositionDelta;
 
+  mapEdgeRaster.scaling = mapEdgeRaster.scaling.divide(layers.mapLayer.scaling);
+  mapEdgeRaster.bounds.topLeft = mapEdgePositionDelta;
+  
   iconsRaster.scaling = iconsRaster.scaling.divide(layers.mapLayer.scaling);
   iconsRaster.bounds.topLeft = iconsPositionDelta;
 

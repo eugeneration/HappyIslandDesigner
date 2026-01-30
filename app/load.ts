@@ -4,6 +4,8 @@ import steg from './vendors/steganography';
 import LZString from 'lz-string';
 import { showLoadingScreen } from "./ui/loadingScreen";
 import { OpenMapSelectModal } from './components/ModalMapSelect';
+import { deleteEdgeTiles } from './ui/edgeTiles';
+import { emitMapLoaded } from './mapState';
 
 // todo - this file should be merged with save.ts, then optionally split into different modules
 // right now, very similar logic is split between two files which makes no sense
@@ -36,8 +38,10 @@ export function tryLoadAutosaveMap() {
   if (localStorage) {
     const autosave = localStorage.getItem('autosave');
     if (autosave !== null) {
+      deleteEdgeTiles();
       clearMap();
       setNewMapData(decodeMap(JSON.parse(autosave)));
+      emitMapLoaded();
       return true;
     }
   }
@@ -61,10 +65,12 @@ export function loadMapFromJSONString(mapJSONString: string) {
     }
   }
 
+  deleteEdgeTiles();
   clearMap();
   const map = decodeMap(json);
   setNewMapData(map);
   autosaveTrigger();
+  emitMapLoaded();
 }
 
 export function loadMapFromFile() {
