@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="160" height="160">
-  <path d="M 0 16 L 0 3 L 2 3 L 3 4 L 6 4 L 6 0 L 10 0 L 10 4 L 12 4 L 13 3 L 16 3 L 16 16 Z" fill="#83e1c3" />
+  <path d="M 0 16 L 0 3 L 2 3 L 3 4 L 12 4 L 13 3 L 16 3 L 16 16 Z" fill="#83e1c3" />
   <path d="M 12 13 L 11 12 L 11 9 L 10 8 L 10 4 L 12 4 L 13 3 L 16 3 L 16 13 Z M 6 6 L 5 6 L 4 7 L 4 11 L 2 13 L 0 13 L 0 3 L 2 3 L 3 4 L 6 4 Z" fill="#eee9a9" />
   <path d="M 12 11 L 12 10 L 11 9 L 11 11 Z M 4 7 L 3 8 L 4 8 Z M 4 11 L 4 10 L 3 10 L 2 11 L 3 12 Z" fill="#737a89" />
 </svg>
