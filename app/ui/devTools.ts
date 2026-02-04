@@ -16,6 +16,8 @@ import {
 } from './edgeTileAssets';
 import { setEdgeTilesFromAssetIndices } from './edgeTiles';
 import { setMapVersion } from '../mapState';
+import Layouts, { Layout } from '../components/islandLayouts';
+import { loadMapFromJSONString } from '../load';
 
 // Only initialize in dev builds
 declare const __DEV__: boolean;
@@ -39,6 +41,9 @@ let tileTracerButtons: HTMLDivElement | null = null;
 let tileTracerImageIndex = 0;
 let highlightRect: paper.Path.Rectangle | null = null;
 let postfixDropdown: HTMLDivElement | null = null;
+let isLayoutNavigatorActive = false;
+let layoutNavigatorButtons: HTMLDivElement | null = null;
+let layoutNavigatorIndex = 0;
 
 // List of tile images (excluding placeholders)
 const tileImages: string[] = [
@@ -1342,6 +1347,116 @@ function saveTileTracerSvg(): void {
   exportTileSvg(0, 0, filename);
 }
 
+// ============ Layout Navigator Functions ============
+
+// Flatten all layouts into a single array for navigation
+function getAllLayouts(): { category: string; layout: Layout; index: number }[] {
+  const all: { category: string; layout: Layout; index: number }[] = [];
+
+  Layouts.blank.forEach((l, i) => all.push({ category: 'blank', layout: l, index: i }));
+  Layouts.west.forEach((l, i) => all.push({ category: 'west', layout: l, index: i }));
+  Layouts.south.forEach((l, i) => all.push({ category: 'south', layout: l, index: i }));
+  Layouts.east.forEach((l, i) => all.push({ category: 'east', layout: l, index: i }));
+
+  return all;
+}
+
+function toggleLayoutNavigator(): void {
+  isLayoutNavigatorActive = !isLayoutNavigatorActive;
+
+  if (isLayoutNavigatorActive) {
+    showLayoutNavigatorButtons();
+    loadLayoutAtIndex(layoutNavigatorIndex);
+  } else {
+    hideLayoutNavigatorButtons();
+  }
+}
+
+function showLayoutNavigatorButtons(): void {
+  if (layoutNavigatorButtons) return;
+
+  layoutNavigatorButtons = document.createElement('div');
+  layoutNavigatorButtons.style.cssText = `
+    position: fixed;
+    left: 20px;
+    bottom: 20px;
+    background: #f5f3e5;
+    border: 2px solid #726a5a;
+    border-radius: 8px;
+    padding: 8px;
+    z-index: 10000;
+    font-family: TTNorms, sans-serif;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  `;
+
+  // Title showing current layout
+  const title = document.createElement('div');
+  title.id = 'layout-navigator-title';
+  title.style.cssText = 'text-align: center; margin-bottom: 8px; font-size: 12px; color: #726a5a;';
+  layoutNavigatorButtons.appendChild(title);
+
+  // Button row
+  const buttonRow = document.createElement('div');
+  buttonRow.style.cssText = 'display: flex; gap: 4px;';
+
+  const allLayouts = getAllLayouts();
+
+  // Left arrow
+  const leftBtn = createDropdownButton('←', () => {
+    layoutNavigatorIndex = (layoutNavigatorIndex - 1 + allLayouts.length) % allLayouts.length;
+    loadLayoutAtIndex(layoutNavigatorIndex);
+    updateLayoutNavigatorTitle();
+  });
+  leftBtn.style.width = '40px';
+  buttonRow.appendChild(leftBtn);
+
+  // Right arrow
+  const rightBtn = createDropdownButton('→', () => {
+    layoutNavigatorIndex = (layoutNavigatorIndex + 1) % allLayouts.length;
+    loadLayoutAtIndex(layoutNavigatorIndex);
+    updateLayoutNavigatorTitle();
+  });
+  rightBtn.style.width = '40px';
+  buttonRow.appendChild(rightBtn);
+
+  layoutNavigatorButtons.appendChild(buttonRow);
+
+  // Close button
+  const closeBtn = createDropdownButton('Close', () => {
+    toggleLayoutNavigator();
+  }, true);  // true = cancel style
+  closeBtn.style.marginTop = '4px';
+  closeBtn.style.width = '100%';
+  layoutNavigatorButtons.appendChild(closeBtn);
+
+  document.body.appendChild(layoutNavigatorButtons);
+  updateLayoutNavigatorTitle();
+}
+
+function hideLayoutNavigatorButtons(): void {
+  if (layoutNavigatorButtons) {
+    layoutNavigatorButtons.remove();
+    layoutNavigatorButtons = null;
+  }
+}
+
+function updateLayoutNavigatorTitle(): void {
+  const title = document.getElementById('layout-navigator-title');
+  if (!title) return;
+
+  const allLayouts = getAllLayouts();
+  const current = allLayouts[layoutNavigatorIndex];
+  title.textContent = `${layoutNavigatorIndex + 1}/${allLayouts.length}: ${current.category}/${current.layout.name}`;
+}
+
+function loadLayoutAtIndex(index: number): void {
+  const allLayouts = getAllLayouts();
+  if (index < 0 || index >= allLayouts.length) return;
+
+  const { layout } = allLayouts[index];
+  loadMapFromJSONString(layout.data);
+}
+
 function toggleEdgeTileLayerVisibility(): void {
   layers.mapEdgeLayer.visible = !layers.mapEdgeLayer.visible;
   console.log(`Edge tile layer visibility: ${layers.mapEdgeLayer.visible}`);
@@ -1491,32 +1606,32 @@ function computeSvgSimilarity(extractedSvg: string, referenceSvg: string): numbe
   return totalArea > 0 ? matchingArea / totalArea : 0;
 }
 
-function findBestMatchingAsset(
-  extractedSvg: string,
-  direction: TileDirection,
-  svgLibrary: Map<number, SvgAssetData>
-): { index: number; score: number } | null {
-  let bestIndex: number | null = null;
-  let bestScore = 0;
+// function findBestMatchingAsset(
+//   extractedSvg: string,
+//   direction: TileDirection,
+//   svgLibrary: Map<number, SvgAssetData>
+// ): { index: number; score: number } | null {
+//   let bestIndex: number | null = null;
+//   let bestScore = 0;
 
-  for (const [index, assetData] of svgLibrary) {
-    // Only compare tiles with matching direction
-    if (assetData.direction !== direction) continue;
+//   for (const [index, assetData] of svgLibrary) {
+//     // Only compare tiles with matching direction
+//     if (assetData.direction !== direction) continue;
 
-    const score = computeSvgSimilarity(extractedSvg, assetData.svgContent);
+//     const score = computeSvgSimilarity(extractedSvg, assetData.svgContent);
 
-    if (score > bestScore) {
-      bestScore = score;
-      bestIndex = index;
-    }
-  }
+//     if (score > bestScore) {
+//       bestScore = score;
+//       bestIndex = index;
+//     }
+//   }
 
-  // Require minimum 70% match
-  if (bestIndex !== null && bestScore >= 0.7) {
-    return { index: bestIndex, score: bestScore };
-  }
-  return null;
-}
+//   // Require minimum 70% match
+//   if (bestIndex !== null && bestScore >= 0.7) {
+//     return { index: bestIndex, score: bestScore };
+//   }
+//   return null;
+// }
 
 function mergeSandRockIntoLevel1(): void {
   layers.mapLayer.activate();
@@ -1571,32 +1686,297 @@ async function convertV1ToV2(): Promise<void> {
 
   // CCW edge tile positions (24 total)
   const ccwPositions: [number, number][] = [
-    [0, 1], [0, 2], [0, 3], [0, 4],  // Left edge
-    [0, 5],                          // Bottom-left corner
-    [1, 5], [2, 5], [3, 5], [4, 5], [5, 5],  // Bottom edge
-    [6, 5],                          // Bottom-right corner
-    [6, 4], [6, 3], [6, 2], [6, 1],  // Right edge
-    [6, 0],                          // Top-right corner
-    [5, 0], [4, 0], [3, 0], [2, 0], [1, 0],  // Top edge
-    [0, 0],                          // Top-left corner
+    [0, 1], [0, 2], [0, 3], [0, 4],  // Left edge (indices 0-3)
+    [0, 5],                          // Bottom-left corner (index 4)
+    [1, 5], [2, 5], [3, 5], [4, 5], [5, 5],  // Bottom edge (indices 5-9)
+    [6, 5],                          // Bottom-right corner (index 10)
+    [6, 4], [6, 3], [6, 2], [6, 1],  // Right edge (indices 11-14)
+    [6, 0],                          // Top-right corner (index 15)
+    [5, 0], [4, 0], [3, 0], [2, 0], [1, 0],  // Top edge (indices 16-20)
+    [0, 0],                          // Top-left corner (index 21)
   ];
 
-  const edgeTiles: number[] = [];
+  // Step 1: Score all positions against all asset types
+  type PositionScore = {
+    x: number;
+    y: number;
+    ccwIndex: number;
+    direction: TileDirection;
+    scores: Map<number, number>;
+  };
 
-  for (const [x, y] of ccwPositions) {
+  const positionScores: PositionScore[] = [];
+
+  for (let i = 0; i < ccwPositions.length; i++) {
+    const [x, y] = ccwPositions[i];
     const direction = getTileDirection(x, y);
     const extractedSvg = tileToSvg(x, y);
 
-    const match = findBestMatchingAsset(extractedSvg, direction, svgLibrary);
+    const scores = new Map<number, number>();
+    for (const [assetIndex, assetData] of svgLibrary) {
+      if (assetData.direction === direction) {
+        scores.set(assetIndex, computeSvgSimilarity(extractedSvg, assetData.svgContent));
+      }
+    }
 
-    if (match !== null) {
-      edgeTiles.push(match.index);
-      console.log(`(${x},${y}) ${direction}: matched asset ${match.index} (score: ${(match.score * 100).toFixed(1)}%)`);
+    positionScores.push({ x, y, ccwIndex: i, direction, scores });
+  }
+
+  // Step 2: Detect river direction
+  const riverConfigs = {
+    west: { river1Idx: 8, river2Idx: 1, river1Assets: [45, 46, 47], river2Assets: [62, 63] },
+    east: { river1Idx: 6, river2Idx: 13, river1Assets: [45, 46, 47], river2Assets: [7, 8] },
+    south: { river1Idx: 5, river2Idx: 9, river1Assets: [45, 46, 47], river2Assets: [45, 46, 47] },
+  };
+
+  function getBestScoreForAssets(pos: PositionScore, assets: number[]): number {
+    return Math.max(...assets.map(a => pos.scores.get(a) ?? 0));
+  }
+
+  let detectedDirection: 'west' | 'east' | 'south' | null = null;
+  let bestDirectionScore = 0;
+
+  for (const [dir, config] of Object.entries(riverConfigs)) {
+    const score1 = getBestScoreForAssets(positionScores[config.river1Idx], config.river1Assets);
+    const score2 = getBestScoreForAssets(positionScores[config.river2Idx], config.river2Assets);
+    const avgScore = (score1 + score2) / 2;
+
+    if (avgScore > bestDirectionScore) {
+      bestDirectionScore = avgScore;
+      detectedDirection = dir as 'west' | 'east' | 'south';
+    }
+  }
+
+  let isValid = true;
+
+  if (!detectedDirection || bestDirectionScore < 0.7) {
+    console.log('Could not detect river direction - island may be invalid');
+    isValid = false;
+    detectedDirection = 'west'; // fallback
+  } else {
+    console.log(`Detected river direction: ${detectedDirection} (score: ${(bestDirectionScore * 100).toFixed(1)}%)`);
+  }
+
+  // Step 3: Apply constrained tile selection
+  const assignedTiles: Map<number, number> = new Map();
+  const usedPositions = new Set<number>();
+
+  // Helper to find best asset for a position
+  function getBestAsset(ccwIdx: number, assetIndices: number[]): { asset: number; score: number } | null {
+    const pos = positionScores[ccwIdx];
+    let best: { asset: number; score: number } | null = null;
+    let tieCount = 0;
+
+    for (const asset of assetIndices) {
+      const score = pos.scores.get(asset) ?? 0;
+      if (!best || score > best.score) {
+        best = { asset, score };
+        tieCount = 1;
+      } else if (best && score === best.score && score > 0) {
+        tieCount++;
+      }
+    }
+
+    if (tieCount > 1 && best) {
+      console.log(`Tie at position (${pos.x},${pos.y}) for ${tieCount} assets with score ${(best.score * 100).toFixed(1)}%, choosing first`);
+    }
+
+    return best;
+  }
+
+  // 1. RIVER MOUTHS (exactly 2, based on detected direction)
+  const riverConfig = riverConfigs[detectedDirection];
+  const river1 = getBestAsset(riverConfig.river1Idx, riverConfig.river1Assets);
+  const river2 = getBestAsset(riverConfig.river2Idx, riverConfig.river2Assets);
+
+  if (river1 && river1.score >= 0.7) {
+    assignedTiles.set(riverConfig.river1Idx, river1.asset);
+    usedPositions.add(riverConfig.river1Idx);
+    console.log(`River 1 at CCW ${riverConfig.river1Idx}: asset ${river1.asset} (score: ${(river1.score * 100).toFixed(1)}%)`);
+  }
+  if (river2 && river2.score >= 0.7) {
+    assignedTiles.set(riverConfig.river2Idx, river2.asset);
+    usedPositions.add(riverConfig.river2Idx);
+    console.log(`River 2 at CCW ${riverConfig.river2Idx}: asset ${river2.asset} (score: ${(river2.score * 100).toFixed(1)}%)`);
+  }
+
+  // 2. AIRPORT (exactly 2 adjacent, based on river direction)
+  const airportOptions: { blocks: number[] }[] =
+    detectedDirection === 'west' ? [{ blocks: [5, 6] }, { blocks: [6, 7] }] :
+    detectedDirection === 'east' ? [{ blocks: [7, 8] }, { blocks: [8, 9] }] :
+    [{ blocks: [6, 7] }, { blocks: [7, 8] }]; // south
+
+  let bestAirport: { startIdx: number; score: number } | null = null;
+  for (const opt of airportOptions) {
+    if (usedPositions.has(opt.blocks[0]) || usedPositions.has(opt.blocks[1])) continue;
+    const s1 = positionScores[opt.blocks[0]].scores.get(34) ?? 0;
+    const s2 = positionScores[opt.blocks[1]].scores.get(35) ?? 0;
+    const avg = (s1 + s2) / 2;
+    if (!bestAirport || avg > bestAirport.score) {
+      bestAirport = { startIdx: opt.blocks[0], score: avg };
+    }
+  }
+
+  if (bestAirport && bestAirport.score >= 0.7) {
+    assignedTiles.set(bestAirport.startIdx, 34);
+    assignedTiles.set(bestAirport.startIdx + 1, 35);
+    usedPositions.add(bestAirport.startIdx);
+    usedPositions.add(bestAirport.startIdx + 1);
+    console.log(`Airport at CCW ${bestAirport.startIdx}-${bestAirport.startIdx + 1}: assets 34, 35 (score: ${(bestAirport.score * 100).toFixed(1)}%)`);
+  } else {
+    console.log('Airport detection failed');
+    isValid = false;
+  }
+
+  // 3. DOCK (exactly 1, based on river direction)
+  const dockConfig =
+    detectedDirection === 'west' ? { ccwIdx: 10, assets: [43, 44] } :  // right
+    detectedDirection === 'east' ? { ccwIdx: 4, assets: [52, 53] } :   // left
+    null;  // south: detect which side
+
+  if (dockConfig) {
+    const dock = getBestAsset(dockConfig.ccwIdx, dockConfig.assets);
+    if (dock && dock.score >= 0.7) {
+      assignedTiles.set(dockConfig.ccwIdx, dock.asset);
+      usedPositions.add(dockConfig.ccwIdx);
+      console.log(`Dock at CCW ${dockConfig.ccwIdx}: asset ${dock.asset} (score: ${(dock.score * 100).toFixed(1)}%)`);
     } else {
-      // Use placeholder for no match
-      const placeholderIndex = getPlaceholderIndexForPosition(x, y);
-      edgeTiles.push(placeholderIndex);
-      console.log(`(${x},${y}) ${direction}: no match, using placeholder ${placeholderIndex}`);
+      console.log('Dock detection failed');
+      isValid = false;
+    }
+  } else {
+    // South direction: try both sides, pick higher score
+    const leftDock = getBestAsset(4, [52, 53]);
+    const rightDock = getBestAsset(10, [43, 44]);
+    const leftScore = leftDock?.score ?? 0;
+    const rightScore = rightDock?.score ?? 0;
+
+    if (leftScore >= rightScore && leftDock && leftScore >= 0.7) {
+      assignedTiles.set(4, leftDock.asset);
+      usedPositions.add(4);
+      console.log(`Dock at CCW 4 (left): asset ${leftDock.asset} (score: ${(leftScore * 100).toFixed(1)}%)`);
+    } else if (rightDock && rightScore >= 0.7) {
+      assignedTiles.set(10, rightDock.asset);
+      usedPositions.add(10);
+      console.log(`Dock at CCW 10 (right): asset ${rightDock.asset} (score: ${(rightScore * 100).toFixed(1)}%)`);
+    } else {
+      console.log('Dock detection failed');
+      isValid = false;
+    }
+  }
+
+  // 4. PENINSULA (exactly 1, left or right edge rows 1-4)
+  const peninsulaLeftAssets = [59, 60, 61];
+  const peninsulaRightAssets = [4, 5, 6];
+
+  let bestPeninsula: { ccwIdx: number; asset: number; score: number } | null = null;
+  for (const ccwIdx of [0, 1, 2, 3]) {  // left edge
+    if (usedPositions.has(ccwIdx)) continue;
+    const result = getBestAsset(ccwIdx, peninsulaLeftAssets);
+    if (result && (!bestPeninsula || result.score > bestPeninsula.score)) {
+      bestPeninsula = { ccwIdx, ...result };
+    }
+  }
+  for (const ccwIdx of [11, 12, 13, 14]) {  // right edge
+    if (usedPositions.has(ccwIdx)) continue;
+    const result = getBestAsset(ccwIdx, peninsulaRightAssets);
+    if (result && (!bestPeninsula || result.score > bestPeninsula.score)) {
+      bestPeninsula = { ccwIdx, ...result };
+    }
+  }
+
+  if (bestPeninsula && bestPeninsula.score >= 0.7) {
+    assignedTiles.set(bestPeninsula.ccwIdx, bestPeninsula.asset);
+    usedPositions.add(bestPeninsula.ccwIdx);
+    console.log(`Peninsula at CCW ${bestPeninsula.ccwIdx}: asset ${bestPeninsula.asset} (score: ${(bestPeninsula.score * 100).toFixed(1)}%)`);
+  } else {
+    console.log('Peninsula detection failed');
+    isValid = false;
+  }
+
+  // 5. SECRET BEACH (exactly 1, based on river direction)
+  const secretBeachAssets = [16, 17, 18];
+  const secretBeachCols =
+    detectedDirection === 'west' ? [18, 17, 16] :   // columns 3,4,5 -> CCW 18,17,16
+    detectedDirection === 'east' ? [20, 19, 18] :   // columns 1,2,3 -> CCW 20,19,18
+    [19, 18, 17];                                    // south: columns 2,3,4 -> CCW 19,18,17
+
+  let bestSecretBeach: { ccwIdx: number; asset: number; score: number } | null = null;
+  for (const ccwIdx of secretBeachCols) {
+    if (usedPositions.has(ccwIdx)) continue;
+    const result = getBestAsset(ccwIdx, secretBeachAssets);
+    if (result && (!bestSecretBeach || result.score > bestSecretBeach.score)) {
+      bestSecretBeach = { ccwIdx, ...result };
+    }
+  }
+
+  if (bestSecretBeach && bestSecretBeach.score >= 0.7) {
+    assignedTiles.set(bestSecretBeach.ccwIdx, bestSecretBeach.asset);
+    usedPositions.add(bestSecretBeach.ccwIdx);
+    console.log(`Secret beach at CCW ${bestSecretBeach.ccwIdx}: asset ${bestSecretBeach.asset} (score: ${(bestSecretBeach.score * 100).toFixed(1)}%)`);
+  }
+  // Note: Secret beach failure doesn't invalidate (optional feature)
+
+  // 6. ROCKS (exactly 1 per side)
+  const leftRockAssets = [64, 65, 66, 67];
+  const rightRockAssets = [9, 10, 11, 12];
+
+  let bestLeftRock: { ccwIdx: number; asset: number; score: number } | null = null;
+  for (const ccwIdx of [0, 1, 2, 3]) {
+    if (usedPositions.has(ccwIdx)) continue;
+    const result = getBestAsset(ccwIdx, leftRockAssets);
+    if (result && (!bestLeftRock || result.score > bestLeftRock.score)) {
+      bestLeftRock = { ccwIdx, ...result };
+    }
+  }
+  if (bestLeftRock && bestLeftRock.score >= 0.7) {
+    assignedTiles.set(bestLeftRock.ccwIdx, bestLeftRock.asset);
+    usedPositions.add(bestLeftRock.ccwIdx);
+    console.log(`Left rock at CCW ${bestLeftRock.ccwIdx}: asset ${bestLeftRock.asset} (score: ${(bestLeftRock.score * 100).toFixed(1)}%)`);
+  }
+
+  let bestRightRock: { ccwIdx: number; asset: number; score: number } | null = null;
+  for (const ccwIdx of [11, 12, 13, 14]) {
+    if (usedPositions.has(ccwIdx)) continue;
+    const result = getBestAsset(ccwIdx, rightRockAssets);
+    if (result && (!bestRightRock || result.score > bestRightRock.score)) {
+      bestRightRock = { ccwIdx, ...result };
+    }
+  }
+  if (bestRightRock && bestRightRock.score >= 0.7) {
+    assignedTiles.set(bestRightRock.ccwIdx, bestRightRock.asset);
+    usedPositions.add(bestRightRock.ccwIdx);
+    console.log(`Right rock at CCW ${bestRightRock.ccwIdx}: asset ${bestRightRock.asset} (score: ${(bestRightRock.score * 100).toFixed(1)}%)`);
+  }
+
+  // Step 4: Fill remaining positions with best 'filled' tile or placeholder
+  const edgeTiles: number[] = [];
+
+  for (let i = 0; i < ccwPositions.length; i++) {
+    if (assignedTiles.has(i)) {
+      edgeTiles.push(assignedTiles.get(i)!);
+    } else {
+      // Find best 'filled' type tile
+      const pos = positionScores[i];
+      let bestIndex: number | null = null;
+      let bestScore = 0;
+
+      for (const [assetIndex, score] of pos.scores) {
+        const assetData = assetIndexToData.get(assetIndex);
+        if (assetData?.state === 'filled' && score > bestScore) {
+          bestScore = score;
+          bestIndex = assetIndex;
+        }
+      }
+
+      if (bestIndex !== null && bestScore >= 0.7) {
+        edgeTiles.push(bestIndex);
+        console.log(`Filled at CCW ${i}: asset ${bestIndex} (score: ${(bestScore * 100).toFixed(1)}%)`);
+      } else {
+        const placeholder = getPlaceholderIndexForPosition(pos.x, pos.y);
+        edgeTiles.push(placeholder);
+        console.log(`Placeholder at CCW ${i}: ${placeholder}`);
+      }
     }
   }
 
@@ -1609,7 +1989,13 @@ async function convertV1ToV2(): Promise<void> {
   // Update version
   setMapVersion(2);
 
-  console.log('V1 to V2 conversion complete!');
+  // Log final validity status
+  if (isValid) {
+    console.log('V1 to V2 conversion complete - island is VALID');
+  } else {
+    console.log('V1 to V2 conversion complete - island is INVALID (missing required features)');
+  }
+
   console.log('Edge tiles:', edgeTiles);
 }
 
@@ -1659,6 +2045,11 @@ function showDevMenu(): void {
       hideDevMenu();
       isMenuOpen = false;
       toggleTileTracerMode();
+    }},
+    { label: 'Layout Navigator', action: () => {
+      hideDevMenu();
+      isMenuOpen = false;
+      toggleLayoutNavigator();
     }},
     { label: 'Auto Island Flow', action: () => {
       hideDevMenu();

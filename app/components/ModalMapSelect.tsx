@@ -45,6 +45,27 @@ import {
 
 const shadowColor = "rgba(75, 59, 50, 0.3)" // offblack
 
+// Helper to create options array from asset indices
+function createOptionsFromAssets(assetIndices: number[]): { label: string; value: number; imageSrc: string }[] {
+  return assetIndices.map((index, i) => ({
+    label: String(i + 1),
+    value: i,
+    imageSrc: getAssetByIndex(index)?.imageSrc || '',
+  }));
+}
+
+// Asset indices for each tile type
+const BOTTOM_RIVER_ASSETS = [45, 46, 47];
+const LEFT_RIVER_ASSETS = [62, 63];
+const RIGHT_RIVER_ASSETS = [7, 8];
+const LEFT_PENINSULA_ASSETS = [59, 60, 61];
+const RIGHT_PENINSULA_ASSETS = [4, 5, 6];
+const LEFT_DOCK_ASSETS = [52, 53];
+const RIGHT_DOCK_ASSETS = [43, 44];
+const SECRET_BEACH_ASSETS = [16, 17, 18];
+const LEFT_ROCK_ASSETS = [64, 65, 66, 67];
+const RIGHT_ROCK_ASSETS = [9, 10, 11, 12];
+
 const customStyles = {
   overlay: {
     backgroundColor: shadowColor,
@@ -143,11 +164,7 @@ export default function ModalMapSelect(){
 
             showOptionSelector({
               anchorPoint,
-              options: [
-                { label: '1', value: 0, imageSrc: 'static/tiles/bottom_river/45 - iaL3IcU.png' },
-                { label: '2', value: 1, imageSrc: 'static/tiles/bottom_river/46 - TIj5eT1.png' },
-                { label: '3', value: 2, imageSrc: 'static/tiles/bottom_river/47 - szIJe08.png' },
-              ],
+              options: createOptionsFromAssets(BOTTOM_RIVER_ASSETS),
               direction: 'bottom',
               eventName: 'riverMouth1ShapeSelected',
               title: 'Shape?',
@@ -165,29 +182,19 @@ export default function ModalMapSelect(){
               case 'west':
                 // Left river at (0, 2)
                 anchorPoint = new paper.Point(8, 2 * 16 + 8);
-                options = [
-                  { label: '1', value: 0, imageSrc: 'static/tiles/left_river/62 - 3EvOplj.png' },
-                  { label: '2', value: 1, imageSrc: 'static/tiles/left_river/63 - EX7BYGw.png' },
-                ];
+                options = createOptionsFromAssets(LEFT_RIVER_ASSETS);
                 direction = 'left';
                 break;
               case 'east':
                 // Right river at (6, 2)
                 anchorPoint = new paper.Point(6 * 16 + 8, 2 * 16 + 8);
-                options = [
-                  { label: '1', value: 0, imageSrc: 'static/tiles/right_river/7 - OZtIhTC.png' },
-                  { label: '2', value: 1, imageSrc: 'static/tiles/right_river/8 - hWGQub0.png' },
-                ];
+                options = createOptionsFromAssets(RIGHT_RIVER_ASSETS);
                 direction = 'right';
                 break;
               case 'south':
                 // Second bottom river at (5, 5)
                 anchorPoint = new paper.Point(5 * 16 + 8, 5 * 16 + 8);
-                options = [
-                  { label: '1', value: 0, imageSrc: 'static/tiles/bottom_river/45 - iaL3IcU.png' },
-                  { label: '2', value: 1, imageSrc: 'static/tiles/bottom_river/46 - TIj5eT1.png' },
-                  { label: '3', value: 2, imageSrc: 'static/tiles/bottom_river/47 - szIJe08.png' },
-                ];
+                options = createOptionsFromAssets(BOTTOM_RIVER_ASSETS);
                 direction = 'bottom';
                 break;
             }
@@ -215,16 +222,8 @@ export default function ModalMapSelect(){
 
             // Use peninsula tile images based on side
             const peninsulaOptions = side === 'left'
-              ? [
-                  { label: '1', value: 0, imageSrc: 'static/tiles/left_peninsula/59 - Dy1isCL.png' },
-                  { label: '2', value: 1, imageSrc: 'static/tiles/left_peninsula/60 - oTGqpUF.png' },
-                  { label: '3', value: 2, imageSrc: 'static/tiles/left_peninsula/61 - 4w4i9nr.png' },
-                ]
-              : [
-                  { label: '1', value: 0, imageSrc: 'static/tiles/right_peninsula/4 - ZLMp5LA.png' },
-                  { label: '2', value: 1, imageSrc: 'static/tiles/right_peninsula/5 - gZVRJnv.png' },
-                  { label: '3', value: 2, imageSrc: 'static/tiles/right_peninsula/6 - ydnTxJO.png' },
-                ];
+              ? createOptionsFromAssets(LEFT_PENINSULA_ASSETS)
+              : createOptionsFromAssets(RIGHT_PENINSULA_ASSETS);
 
             showOptionSelector({
               anchorPoint,
@@ -244,14 +243,8 @@ export default function ModalMapSelect(){
             const direction: OptionDirection = dockSide === 'left' ? 'left' : 'right';
 
             const dockOptions = dockSide === 'left'
-              ? [
-                  { label: '1', value: 0, imageSrc: 'static/tiles/bottom_left_dock/52 - bvT1yJ7.png' },
-                  { label: '2', value: 1, imageSrc: 'static/tiles/bottom_left_dock/53 - W1DZoXV.png' },
-                ]
-              : [
-                  { label: '1', value: 0, imageSrc: 'static/tiles/bottom_right_dock/43 - lRh7pLD.png' },
-                  { label: '2', value: 1, imageSrc: 'static/tiles/bottom_right_dock/44 - Kkxl2RH.png' },
-                ];
+              ? createOptionsFromAssets(LEFT_DOCK_ASSETS)
+              : createOptionsFromAssets(RIGHT_DOCK_ASSETS);
 
             showOptionSelector({
               anchorPoint,
@@ -273,11 +266,7 @@ export default function ModalMapSelect(){
 
             showOptionSelector({
               anchorPoint,
-              options: [
-                { label: '1', value: 0, imageSrc: 'static/tiles/top_secret_beach/16 - J9KTWix.png' },
-                { label: '2', value: 1, imageSrc: 'static/tiles/top_secret_beach/17 - TJTblBV.png' },
-                { label: '3', value: 2, imageSrc: 'static/tiles/top_secret_beach/18 - 4F6lHPo.png' },
-              ],
+              options: createOptionsFromAssets(SECRET_BEACH_ASSETS),
               direction: 'bottom',
               eventName: 'secretBeachShapeSelected',
               title: 'Shape?',
@@ -294,12 +283,7 @@ export default function ModalMapSelect(){
 
             showOptionSelector({
               anchorPoint,
-              options: [
-                { label: '1', value: 0, imageSrc: 'static/tiles/left_rock/64 - xifLxPa.png' },
-                { label: '2', value: 1, imageSrc: 'static/tiles/left_rock/65 - pFh72wi.png' },
-                { label: '3', value: 2, imageSrc: 'static/tiles/left_rock/66 - TnsI1wo.png' },
-                { label: '4', value: 3, imageSrc: 'static/tiles/left_rock/67 - mQNwwge.png' },
-              ],
+              options: createOptionsFromAssets(LEFT_ROCK_ASSETS),
               direction: 'left',
               eventName: 'leftRockShapeSelected',
               title: 'Shape?',
@@ -316,12 +300,7 @@ export default function ModalMapSelect(){
 
             showOptionSelector({
               anchorPoint,
-              options: [
-                { label: '1', value: 0, imageSrc: 'static/tiles/right_rock/9 - YSjtaWO.png' },
-                { label: '2', value: 1, imageSrc: 'static/tiles/right_rock/10 - ByrJZyo.png' },
-                { label: '3', value: 2, imageSrc: 'static/tiles/right_rock/11 - Ar9LNtJ.png' },
-                { label: '4', value: 3, imageSrc: 'static/tiles/right_rock/12 - UgoRJy3.png' },
-              ],
+              options: createOptionsFromAssets(RIGHT_ROCK_ASSETS),
               direction: 'right',
               eventName: 'rightRockShapeSelected',
               title: 'Shape?',
