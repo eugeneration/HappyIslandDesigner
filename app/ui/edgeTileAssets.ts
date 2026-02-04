@@ -1,6 +1,6 @@
 import { horizontalBlocks, verticalBlocks } from '../constants';
 
-export type BlockState = 'placeholder' | 'airport' | 'river' | 'peninsula' | 'dock' | 'secretBeach' | 'rock' | 'filled';
+export type BlockState = 'placeholder' | 'airport' | 'river' | 'peninsula' | 'dock' | 'secretBeach' | 'rock' | 'rock_small' | 'filled';
 export type TileDirection = 'top_left' | 'top_right' | 'bottom_left' | 'bottom_right' | 'left' | 'right' | 'top' | 'bottom';
 export type TileCategory =
   | 'left' | 'left_peninsula' | 'left_river' | 'left_rock'
@@ -163,18 +163,18 @@ export const assetIndexToData: Map<number, AssetData> = new Map([
   [72, { state: 'filled', direction: 'left', imageSrc: `${tilesPath}72_left_0.svg` }],
   [73, { state: 'filled', direction: 'left', imageSrc: `${tilesPath}73_left_1.svg` }],
   // Left rock small
-  [74, { state: 'rock', direction: 'left', imageSrc: `${tilesPath}74_left_rock_small_0.svg` }],
-  [75, { state: 'rock', direction: 'left', imageSrc: `${tilesPath}75_left_rock_small_1.svg` }],
-  [76, { state: 'rock', direction: 'left', imageSrc: `${tilesPath}76_left_rock_small_2.svg` }],
-  [77, { state: 'rock', direction: 'left', imageSrc: `${tilesPath}77_left_rock_small_3.svg` }],
+  [74, { state: 'filled', direction: 'left', imageSrc: `${tilesPath}74_left_rock_small_0.svg` }],
+  [75, { state: 'filled', direction: 'left', imageSrc: `${tilesPath}75_left_rock_small_1.svg` }],
+  [76, { state: 'filled', direction: 'left', imageSrc: `${tilesPath}76_left_rock_small_2.svg` }],
+  [77, { state: 'filled', direction: 'left', imageSrc: `${tilesPath}77_left_rock_small_3.svg` }],
   // More right edge tiles
   [78, { state: 'filled', direction: 'right', imageSrc: `${tilesPath}78_right_0.svg` }],
   [79, { state: 'filled', direction: 'right', imageSrc: `${tilesPath}79_right_1.svg` }],
   // Right rock small
-  [80, { state: 'rock', direction: 'right', imageSrc: `${tilesPath}80_right_rock_small_0.svg` }],
-  [81, { state: 'rock', direction: 'right', imageSrc: `${tilesPath}81_right_rock_small_1.svg` }],
-  [82, { state: 'rock', direction: 'right', imageSrc: `${tilesPath}82_right_rock_small_2.svg` }],
-  [83, { state: 'rock', direction: 'right', imageSrc: `${tilesPath}83_right_rock_small_3.svg` }],
+  [80, { state: 'filled', direction: 'right', imageSrc: `${tilesPath}80_right_rock_small_0.svg` }],
+  [81, { state: 'filled', direction: 'right', imageSrc: `${tilesPath}81_right_rock_small_1.svg` }],
+  [82, { state: 'filled', direction: 'right', imageSrc: `${tilesPath}82_right_rock_small_2.svg` }],
+  [83, { state: 'filled', direction: 'right', imageSrc: `${tilesPath}83_right_rock_small_3.svg` }],
 ]);
 
 export function getAssetByIndex(num: number): AssetData | undefined {
@@ -202,15 +202,15 @@ export const tileAssetIndices: Record<TileDirection, number[]> = (() => {
 // Asset indices grouped by category
 export const categoryAssetIndices: Record<TileCategory, number[]> = {
   // Left edge categories
-  left: [54, 55, 56, 57, 58, 72, 73],
+  left: [54, 55, 56, 57, 58, 72, 73, /* small rocks */ 74, 75, 76, 77],
   left_peninsula: [59, 60, 61],
   left_river: [62, 63],
-  left_rock: [64, 65, 66, 67, 74, 75, 76, 77],
+  left_rock: [64, 65, 66, 67],
   // Right edge categories
-  right: [1, 2, 3, 68, 69, 78, 79],
+  right: [1, 2, 3, 68, 69, 78, 79, /* small rocks */ 80, 81, 82, 83],
   right_peninsula: [4, 5, 6],
   right_river: [7, 8],
-  right_rock: [9, 10, 11, 12, 80, 81, 82, 83],
+  right_rock: [9, 10, 11, 12],
   // Top edge categories
   top: [19, 20, 21, 22, 23, 24, 25],
   top_secret_beach: [16, 17, 18],

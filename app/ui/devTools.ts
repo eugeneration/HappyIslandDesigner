@@ -45,75 +45,8 @@ let isLayoutNavigatorActive = false;
 let layoutNavigatorButtons: HTMLDivElement | null = null;
 let layoutNavigatorIndex = 0;
 
-// List of tile images (excluding placeholders)
-const tileImages: string[] = [
-  'static/tiles/airport/34 - OmmYDBq.png',
-  'static/tiles/airport/35 - bawoPn6.png',
-  'static/tiles/bottom/29 - QJsmplp copy.png',
-  'static/tiles/bottom/29 - QJsmplp.png',
-  'static/tiles/bottom/30 - X7FbpvK.png',
-  'static/tiles/bottom/31 - LRICn1q.png',
-  'static/tiles/bottom/32 - BJ16eY9.png',
-  'static/tiles/bottom_left/48 - iLjCW2O.png',
-  'static/tiles/bottom_left/49 - epj7EMt.png',
-  'static/tiles/bottom_left/50 - keMBShp.png',
-  'static/tiles/bottom_left/51 - rjaAFsj.png',
-  'static/tiles/bottom_left_dock/52 - bvT1yJ7.png',
-  'static/tiles/bottom_left_dock/53 - W1DZoXV.png',
-  'static/tiles/bottom_right/39 - AjicFEz.png',
-  'static/tiles/bottom_right/40 - BsmCSdo.png',
-  'static/tiles/bottom_right/41 - Ubewm2Y.png',
-  'static/tiles/bottom_right/42 - 3TX1fOO.png',
-  'static/tiles/bottom_right_dock/43 - lRh7pLD.png',
-  'static/tiles/bottom_right_dock/44 - Kkxl2RH.png',
-  'static/tiles/bottom_river/45 - iaL3IcU.png',
-  'static/tiles/bottom_river/46 - TIj5eT1.png',
-  'static/tiles/bottom_river/47 - szIJe08.png',
-  'static/tiles/left/54 - qCe5VxM.png',
-  'static/tiles/left/55 - MJwO2PW.png',
-  'static/tiles/left/56 - G7cJXjm.png',
-  'static/tiles/left/57 - pJU2kTE.png',
-  'static/tiles/left/58 - r720Voz.png',
-  'static/tiles/left_peninsula/59 - Dy1isCL.png',
-  'static/tiles/left_peninsula/60 - oTGqpUF.png',
-  'static/tiles/left_peninsula/61 - 4w4i9nr.png',
-  'static/tiles/left_river/62 - 3EvOplj.png',
-  'static/tiles/left_river/63 - EX7BYGw.png',
-  'static/tiles/left_rock/64 - xifLxPa.png',
-  'static/tiles/left_rock/65 - pFh72wi.png',
-  'static/tiles/left_rock/66 - TnsI1wo.png',
-  'static/tiles/left_rock/67 - mQNwwge.png',
-  'static/tiles/right/1 - ISdNX8N.png',
-  'static/tiles/right/2 - 0Nl1fz8.png',
-  'static/tiles/right/3 - 8lHF1d5.png',
-  'static/tiles/right/68 - KBHEtY0.png',
-  'static/tiles/right/69 - BCpO1K5.png',
-  'static/tiles/right_peninsula/4 - ZLMp5LA.png',
-  'static/tiles/right_peninsula/5 - gZVRJnv.png',
-  'static/tiles/right_peninsula/6 - ydnTxJO.png',
-  'static/tiles/right_river/7 - OZtIhTC.png',
-  'static/tiles/right_river/8 - hWGQub0.png',
-  'static/tiles/right_rock/10 - ByrJZyo.png',
-  'static/tiles/right_rock/11 - Ar9LNtJ.png',
-  'static/tiles/right_rock/12 - UgoRJy3.png',
-  'static/tiles/right_rock/9 - YSjtaWO.png',
-  'static/tiles/top/19 - ZN9h9K4.png',
-  'static/tiles/top/20 - hTYvr5L.png',
-  'static/tiles/top/21 - 2lzjMi4.png',
-  'static/tiles/top/22 - 1w29p5L.png',
-  'static/tiles/top/23 - 5JzK0IN.png',
-  'static/tiles/top/24 - qtgHzOc.png',
-  'static/tiles/top/25 - pN01yZH.png',
-  'static/tiles/top_left/26 - 3sy5W7R.png',
-  'static/tiles/top_left/27 - mKkuBGS.png',
-  'static/tiles/top_left/28 - Wsc0wcG.png',
-  'static/tiles/top_right/13 - PCgPfdN.png',
-  'static/tiles/top_right/14 - f8zzseF.png',
-  'static/tiles/top_right/15 - IXhHmuY.png',
-  'static/tiles/top_secret_beach/16 - J9KTWix.png',
-  'static/tiles/top_secret_beach/17 - TJTblBV.png',
-  'static/tiles/top_secret_beach/18 - 4F6lHPo.png',
-];
+// Sorted list of asset indices for tile tracer navigation
+const assetIndices: number[] = Array.from(assetIndexToData.keys()).sort((a, b) => a - b);
 
 // Position-filtered postfix options
 const postfixOptions: Record<string, string[]> = {
@@ -193,6 +126,39 @@ function decodeToPathItem(pathData: number[] | number[][]): paper.PathItem {
   }
 }
 
+function getExclusionPath(direction: TileDirection): paper.PathItem | null {
+  const size = blockWidth; // 16
+
+  switch (direction) {
+    case 'left':
+      // Exclude right 3 columns (x 13-15)
+      return new paper.Path.Rectangle(new paper.Rectangle(13, 0, 3, size));
+    case 'right':
+      // Exclude left 3 columns (x 0-2)
+      return new paper.Path.Rectangle(new paper.Rectangle(0, 0, 3, size));
+    case 'top':
+      // Exclude bottom 3 rows (y 13-15)
+      return new paper.Path.Rectangle(new paper.Rectangle(0, 13, size, 3));
+    case 'bottom':
+      // Exclude top 3 rows (y 0-2)
+      return new paper.Path.Rectangle(new paper.Rectangle(0, 0, size, 3));
+    case 'top_left':
+      // Exclude bottom-right triangle
+      return new paper.Path({ segments: [[13, 16], [16, 13], [16, 16]], closed: true });
+    case 'top_right':
+      // Exclude bottom-left triangle
+      return new paper.Path({ segments: [[3, 16], [0, 13], [0, 16]], closed: true });
+    case 'bottom_left':
+      // Exclude top-right triangle
+      return new paper.Path({ segments: [[13, 0], [16, 3], [16, 0]], closed: true });
+    case 'bottom_right':
+      // Exclude top-left triangle
+      return new paper.Path({ segments: [[3, 0], [0, 3], [0, 0]], closed: true });
+    default:
+      return null;
+  }
+}
+
 function extractTileData(blockX: number, blockY: number): Record<string, number[] | number[][]> {
   const offsetX = blockX * blockWidth;
   const offsetY = blockY * blockHeight;
@@ -230,7 +196,7 @@ function extractTileData(blockX: number, blockY: number): Record<string, number[
   return extractedPaths;
 }
 
-function prepTileDataForExport(drawing: Record<string, number[] | number[][]>) : Record<string, number[] | number[][]> {
+function prepTileDataForExport(drawing: Record<string, number[] | number[][]>, direction: TileDirection) : Record<string, number[] | number[][]> {
   const grassColorNames = ['level1', 'level2', 'level3'];
   const result: Record<string, number[] | number[][]> = {};
 
@@ -248,6 +214,19 @@ function prepTileDataForExport(drawing: Record<string, number[] | number[][]>) :
         grassPath.remove();
         unitedGrass = newUnited;
       }
+    }
+  }
+
+  // Step 1.5: Unite exclusion zone with grass (so it gets subtracted from other layers)
+  const exclusionPath = getExclusionPath(direction);
+  if (exclusionPath) {
+    if (unitedGrass === null) {
+      unitedGrass = exclusionPath;
+    } else {
+      const newUnited = unitedGrass.unite(exclusionPath, { insert: false });
+      unitedGrass.remove();
+      exclusionPath.remove();
+      unitedGrass = newUnited;
     }
   }
 
@@ -742,7 +721,8 @@ function showSvgExportDropdown(blockX: number, blockY: number, screenX: number, 
 
 function tileToSvg(blockX: number, blockY: number): string {
   const data = extractTileData(blockX, blockY);
-  const preppedData = prepTileDataForExport(data);
+  const direction = getTileDirection(blockX, blockY);
+  const preppedData = prepTileDataForExport(data, direction);
   return tileDataToSvg(preppedData);
 }
 
@@ -1222,12 +1202,15 @@ function toggleTileTracerMode(): void {
 function loadTileTracerImage(index: number): void {
   hideTileTracerImage();
 
-  if (index < 0 || index >= tileImages.length) return;
+  if (index < 0 || index >= assetIndices.length) return;
 
   layers.mapOverlayLayer.activate();
 
-  const imagePath = tileImages[index];
-  tileTracerRaster = new paper.Raster(imagePath);
+  const assetIndex = assetIndices[index];
+  const assetData = assetIndexToData.get(assetIndex);
+  if (!assetData) return;
+
+  tileTracerRaster = new paper.Raster(assetData.imageSrc);
 
   // Position at center of top-left block (0,0)
   const x = blockWidth / 2;
@@ -1235,8 +1218,7 @@ function loadTileTracerImage(index: number): void {
 
   tileTracerRaster.onLoad = () => {
     if (tileTracerRaster) {
-      // Scale to 18x18 (source images have 1 tile buffer around edge)
-      const targetSize = 18;
+      const targetSize = 16;
       const scaleX = targetSize / tileTracerRaster.width;
       const scaleY = targetSize / tileTracerRaster.height;
       tileTracerRaster.scaling = new paper.Point(scaleX, scaleY);
@@ -1288,7 +1270,7 @@ function showTileTracerButtons(): void {
 
   // Left button
   const leftBtn = createDropdownButton('←', () => {
-    tileTracerImageIndex = (tileTracerImageIndex - 1 + tileImages.length) % tileImages.length;
+    tileTracerImageIndex = (tileTracerImageIndex - 1 + assetIndices.length) % assetIndices.length;
     loadTileTracerImage(tileTracerImageIndex);
   });
   leftBtn.style.width = '40px';
@@ -1302,7 +1284,7 @@ function showTileTracerButtons(): void {
 
   // Right button
   const rightBtn = createDropdownButton('→', () => {
-    tileTracerImageIndex = (tileTracerImageIndex + 1) % tileImages.length;
+    tileTracerImageIndex = (tileTracerImageIndex + 1) % assetIndices.length;
     loadTileTracerImage(tileTracerImageIndex);
   });
   rightBtn.style.width = '40px';
@@ -1330,15 +1312,17 @@ function hideTileTracerButtons(): void {
 function updateTileTracerTitle(): void {
   const title = document.getElementById('tile-tracer-title');
   if (title) {
-    title.textContent = `${tileTracerImageIndex + 1}/${tileImages.length}: ${getImageDisplayName(tileTracerImageIndex)}`;
+    title.textContent = `${tileTracerImageIndex + 1}/${assetIndices.length}: ${getImageDisplayName(tileTracerImageIndex)}`;
   }
 }
 
 function getImageDisplayName(index: number): string {
-  const path = tileImages[index];
-  // Extract filename without extension
-  const filename = path.split('/').pop() || path;
-  return filename.replace(/\.[^/.]+$/, '');
+  const assetIndex = assetIndices[index];
+  const assetData = assetIndexToData.get(assetIndex);
+  if (!assetData) return `[${assetIndex}] unknown`;
+  // Extract filename without extension from SVG path
+  const filename = assetData.imageSrc.split('/').pop() || assetData.imageSrc;
+  return `[${assetIndex}] ${filename.replace(/\.[^/.]+$/, '')}`;
 }
 
 function saveTileTracerSvg(): void {
@@ -1490,18 +1474,18 @@ type SvgAssetData = {
 
 async function buildSvgReferenceLibrary(): Promise<Map<number, SvgAssetData>> {
   const library = new Map<number, SvgAssetData>();
-  const tilesDataPath = 'static/tiles_data/';
 
+  // Iterate over all non-placeholder tiles (indices 1-83)
   for (const [index, data] of assetIndexToData) {
-    // Derive SVG path from PNG path
-    const filename = data.imageSrc.split('/').pop()?.replace('.png', '.svg');
-    if (!filename) continue;
-
-    const svgPath = `${tilesDataPath}${filename}`;
+    // imageSrc is already an SVG path (e.g., 'static/tiles_data/1 - ISdNX8N.svg')
+    const svgPath = data.imageSrc;
 
     try {
       const response = await fetch(svgPath);
-      if (!response.ok) continue;  // No SVG for this tile
+      if (!response.ok) {
+        console.warn(`Failed to load SVG for asset ${index}: ${svgPath}`);
+        continue;
+      }
 
       const svgContent = await response.text();
       library.set(index, {
@@ -1509,11 +1493,12 @@ async function buildSvgReferenceLibrary(): Promise<Map<number, SvgAssetData>> {
         direction: data.direction,
         svgContent,
       });
-    } catch {
-      // Skip tiles without SVG
+    } catch (e) {
+      console.warn(`Error loading SVG for asset ${index}:`, e);
     }
   }
 
+  console.log(`Loaded ${library.size} of ${assetIndexToData.size} SVG references`);
   return library;
 }
 
@@ -1539,6 +1524,25 @@ function computeSvgSimilarity(extractedSvg: string, referenceSvg: string): numbe
     if (!cssColor) return null;
     return paths.find(p => p.fillColor?.toCSS(true).toLowerCase() === cssColor.toLowerCase()) || null;
   };
+
+  // Determine which colors are present in each SVG
+  const getColorSet = (paths: paper.Path[]): Set<string> => {
+    const colorSet = new Set<string>();
+    for (const colorKey of layerOrder) {
+      const path = findPathByColorKey(paths, colorKey);
+      if (path && !path.isEmpty()) {
+        colorSet.add(colorKey);
+      }
+    }
+    return colorSet;
+  };
+
+  const extractedColors = getColorSet(extractedPaths);
+  const referenceColors = getColorSet(referencePaths);
+
+  // Check if color sets match
+  const colorSetsMatch = extractedColors.size === referenceColors.size &&
+    [...extractedColors].every(c => referenceColors.has(c));
 
   // Compute visible portion of a layer by subtracting all layers above it
   const getVisiblePortion = (paths: paper.Path[], colorKey: string, layerIndex: number): paper.PathItem | null => {
@@ -1586,6 +1590,7 @@ function computeSvgSimilarity(extractedSvg: string, referenceSvg: string): numbe
         union.remove();
       } catch (e) {
         // Skip if boolean operation fails
+        console.log(`Error computing similarity: ${e}`);
       }
     } else if (extVisible && !refVisible) {
       // Extracted has this layer but reference doesn't - count as mismatch
@@ -1603,7 +1608,15 @@ function computeSvgSimilarity(extractedSvg: string, referenceSvg: string): numbe
   extractedItem.remove();
   referenceItem.remove();
 
-  return totalArea > 0 ? matchingArea / totalArea : 0;
+  // Base similarity score
+  let score = totalArea > 0 ? matchingArea / totalArea : 0;
+
+  // Apply slight boost (5%) when color sets match exactly
+  if (colorSetsMatch && score > 0) {
+    score = Math.min(1.0, score * 1.05);
+  }
+
+  return score;
 }
 
 // function findBestMatchingAsset(
@@ -1677,6 +1690,50 @@ function mergeSandRockIntoLevel1(): void {
   console.log('Merged sand and rock into level1');
 }
 
+// Find airport object position from state.objects
+// Returns both block coordinates and raw position (for determining which block boundary)
+function findAirportObjectPosition(): { blockX: number; blockY: number; posX: number; posY: number } | null {
+  for (const object of Object.values(state.objects)) {
+    if (object.data?.category === 'amenities' &&
+        (object.data.type === 'airport' || object.data.type?.startsWith('airport'))) {
+      return {
+        blockX: Math.floor(object.position.x / blockWidth),
+        blockY: Math.floor(object.position.y / blockHeight),
+        posX: object.position.x,
+        posY: object.position.y,
+      };
+    }
+  }
+  return null;
+}
+
+// Find dock object position from state.objects
+function findDockObjectPosition(): { blockX: number; blockY: number } | null {
+  for (const object of Object.values(state.objects)) {
+    if (object.data?.category === 'amenities' && object.data.type === 'dock') {
+      return {
+        blockX: Math.floor(object.position.x / blockWidth),
+        blockY: Math.floor(object.position.y / blockHeight),
+      };
+    }
+  }
+  return null;
+}
+
+// Convert block position to CCW index (for bottom edge only, where airport/dock are)
+function blockToCcwIndex(blockX: number, blockY: number): number | null {
+  // CCW positions array for reference:
+  // Bottom edge: [1,5]=5, [2,5]=6, [3,5]=7, [4,5]=8, [5,5]=9
+  // Bottom-left corner: [0,5]=4
+  // Bottom-right corner: [6,5]=10
+  if (blockY === 5) {  // Bottom row
+    if (blockX === 0) return 4;      // bottom-left corner
+    if (blockX === 6) return 10;     // bottom-right corner
+    if (blockX >= 1 && blockX <= 5) return blockX + 4;  // bottom edge
+  }
+  return null;
+}
+
 async function convertV1ToV2(): Promise<void> {
   console.log('Starting V1 to V2 conversion...');
 
@@ -1718,6 +1775,13 @@ async function convertV1ToV2(): Promise<void> {
         scores.set(assetIndex, computeSvgSimilarity(extractedSvg, assetData.svgContent));
       }
     }
+
+    // Verbose logging: format scores as { assetIndex: percentage, ... }
+    const scoreEntries = Array.from(scores.entries())
+      .map(([assetIndex, score]) => `${assetIndex}: ${(score * 100).toFixed(0)}%`)
+      .join(', ');
+    const verboseScoreLog = `{ ${scoreEntries} }`;
+    console.log(`Tile (${x},${y}) CCW ${i} [${direction}] scores: ${verboseScoreLog}`);
 
     positionScores.push({ x, y, ccwIndex: i, direction, scores });
   }
@@ -1801,67 +1865,123 @@ async function convertV1ToV2(): Promise<void> {
   }
 
   // 2. AIRPORT (exactly 2 adjacent, based on river direction)
-  const airportOptions: { blocks: number[] }[] =
-    detectedDirection === 'west' ? [{ blocks: [5, 6] }, { blocks: [6, 7] }] :
-    detectedDirection === 'east' ? [{ blocks: [7, 8] }, { blocks: [8, 9] }] :
-    [{ blocks: [6, 7] }, { blocks: [7, 8] }]; // south
+  // First, check if airport object exists - use as strong signal
+  const airportObjectPos = findAirportObjectPosition();
+  let airportFromObject = false;
 
-  let bestAirport: { startIdx: number; score: number } | null = null;
-  for (const opt of airportOptions) {
-    if (usedPositions.has(opt.blocks[0]) || usedPositions.has(opt.blocks[1])) continue;
-    const s1 = positionScores[opt.blocks[0]].scores.get(34) ?? 0;
-    const s2 = positionScores[opt.blocks[1]].scores.get(35) ?? 0;
-    const avg = (s1 + s2) / 2;
-    if (!bestAirport || avg > bestAirport.score) {
-      bestAirport = { startIdx: opt.blocks[0], score: avg };
+  if (airportObjectPos && airportObjectPos.blockY === 5) {
+    // Airport object is placed BETWEEN the two blocks it spans
+    // Determine which block boundary the airport straddles based on x position
+    // The boundary between blocks N and N+1 is at x = (N+1) * blockWidth
+    const nearestBoundaryBlock = Math.round(airportObjectPos.posX / blockWidth);
+    // Airport spans blocks (nearestBoundaryBlock - 1) and nearestBoundaryBlock
+    let startBlockX = nearestBoundaryBlock - 1;
+
+    // Clamp to valid bottom edge range (blocks 1-4 can be start of airport)
+    startBlockX = Math.max(1, Math.min(startBlockX, 4));
+    const startIdx = startBlockX + 4;  // Convert to CCW index (block 1 = CCW 5, etc.)
+
+    if (!usedPositions.has(startIdx) && !usedPositions.has(startIdx + 1)) {
+      assignedTiles.set(startIdx, 34);
+      assignedTiles.set(startIdx + 1, 35);
+      usedPositions.add(startIdx);
+      usedPositions.add(startIdx + 1);
+      console.log(`Airport from object at CCW ${startIdx}-${startIdx + 1}: assets 34, 35`);
+      airportFromObject = true;
     }
   }
 
-  if (bestAirport && bestAirport.score >= 0.7) {
-    assignedTiles.set(bestAirport.startIdx, 34);
-    assignedTiles.set(bestAirport.startIdx + 1, 35);
-    usedPositions.add(bestAirport.startIdx);
-    usedPositions.add(bestAirport.startIdx + 1);
-    console.log(`Airport at CCW ${bestAirport.startIdx}-${bestAirport.startIdx + 1}: assets 34, 35 (score: ${(bestAirport.score * 100).toFixed(1)}%)`);
-  } else {
-    console.log('Airport detection failed');
-    isValid = false;
+  // Fall back to terrain matching if no object found
+  if (!airportFromObject) {
+    const airportOptions: { blocks: number[] }[] =
+      detectedDirection === 'west' ? [{ blocks: [5, 6] }, { blocks: [6, 7] }] :
+      detectedDirection === 'east' ? [{ blocks: [7, 8] }, { blocks: [8, 9] }] :
+      [{ blocks: [6, 7] }, { blocks: [7, 8] }]; // south
+
+    let bestAirport: { startIdx: number; score: number } | null = null;
+    for (const opt of airportOptions) {
+      if (usedPositions.has(opt.blocks[0]) || usedPositions.has(opt.blocks[1])) continue;
+      const s1 = positionScores[opt.blocks[0]].scores.get(34) ?? 0;
+      const s2 = positionScores[opt.blocks[1]].scores.get(35) ?? 0;
+      const avg = (s1 + s2) / 2;
+      if (!bestAirport || avg > bestAirport.score) {
+        bestAirport = { startIdx: opt.blocks[0], score: avg };
+      }
+    }
+
+    if (bestAirport && bestAirport.score >= 0.7) {
+      assignedTiles.set(bestAirport.startIdx, 34);
+      assignedTiles.set(bestAirport.startIdx + 1, 35);
+      usedPositions.add(bestAirport.startIdx);
+      usedPositions.add(bestAirport.startIdx + 1);
+      console.log(`Airport at CCW ${bestAirport.startIdx}-${bestAirport.startIdx + 1}: assets 34, 35 (score: ${(bestAirport.score * 100).toFixed(1)}%)`);
+    } else {
+      console.log('Airport detection failed');
+      isValid = false;
+    }
   }
 
   // 3. DOCK (exactly 1, based on river direction)
-  const dockConfig =
-    detectedDirection === 'west' ? { ccwIdx: 10, assets: [43, 44] } :  // right
-    detectedDirection === 'east' ? { ccwIdx: 4, assets: [52, 53] } :   // left
-    null;  // south: detect which side
+  // First, check if dock object exists - use as strong signal
+  const dockObjectPos = findDockObjectPosition();
+  let dockFromObject = false;
 
-  if (dockConfig) {
-    const dock = getBestAsset(dockConfig.ccwIdx, dockConfig.assets);
-    if (dock && dock.score >= 0.7) {
-      assignedTiles.set(dockConfig.ccwIdx, dock.asset);
-      usedPositions.add(dockConfig.ccwIdx);
-      console.log(`Dock at CCW ${dockConfig.ccwIdx}: asset ${dock.asset} (score: ${(dock.score * 100).toFixed(1)}%)`);
-    } else {
-      console.log('Dock detection failed');
-      isValid = false;
-    }
-  } else {
-    // South direction: try both sides, pick higher score
-    const leftDock = getBestAsset(4, [52, 53]);
-    const rightDock = getBestAsset(10, [43, 44]);
-    const leftScore = leftDock?.score ?? 0;
-    const rightScore = rightDock?.score ?? 0;
-
-    if (leftScore >= rightScore && leftDock && leftScore >= 0.7) {
-      assignedTiles.set(4, leftDock.asset);
+  if (dockObjectPos) {
+    const ccwIdx = blockToCcwIndex(dockObjectPos.blockX, dockObjectPos.blockY);
+    // Dock can be at CCW 4 (bottom-left) or CCW 10 (bottom-right)
+    if (ccwIdx === 4 && !usedPositions.has(4)) {
+      const dock = getBestAsset(4, [52, 53]);
+      const asset = dock?.asset ?? 52;  // Default to first asset if scoring fails
+      assignedTiles.set(4, asset);
       usedPositions.add(4);
-      console.log(`Dock at CCW 4 (left): asset ${leftDock.asset} (score: ${(leftScore * 100).toFixed(1)}%)`);
-    } else if (rightDock && rightScore >= 0.7) {
-      assignedTiles.set(10, rightDock.asset);
+      console.log(`Dock from object at CCW 4 (left): asset ${asset}`);
+      dockFromObject = true;
+    } else if (ccwIdx === 10 && !usedPositions.has(10)) {
+      const dock = getBestAsset(10, [43, 44]);
+      const asset = dock?.asset ?? 43;
+      assignedTiles.set(10, asset);
       usedPositions.add(10);
-      console.log(`Dock at CCW 10 (right): asset ${rightDock.asset} (score: ${(rightScore * 100).toFixed(1)}%)`);
+      console.log(`Dock from object at CCW 10 (right): asset ${asset}`);
+      dockFromObject = true;
+    }
+  }
+
+  // Fall back to terrain/direction matching if no object found
+  if (!dockFromObject) {
+    const dockConfig =
+      detectedDirection === 'west' ? { ccwIdx: 10, assets: [43, 44] } :  // right
+      detectedDirection === 'east' ? { ccwIdx: 4, assets: [52, 53] } :   // left
+      null;  // south: detect which side
+
+    if (dockConfig) {
+      const dock = getBestAsset(dockConfig.ccwIdx, dockConfig.assets);
+      if (dock && dock.score >= 0.7) {
+        assignedTiles.set(dockConfig.ccwIdx, dock.asset);
+        usedPositions.add(dockConfig.ccwIdx);
+        console.log(`Dock at CCW ${dockConfig.ccwIdx}: asset ${dock.asset} (score: ${(dock.score * 100).toFixed(1)}%)`);
+      } else {
+        console.log('Dock detection failed');
+        isValid = false;
+      }
     } else {
-      console.log('Dock detection failed');
-      isValid = false;
+      // South direction: try both sides, pick higher score
+      const leftDock = getBestAsset(4, [52, 53]);
+      const rightDock = getBestAsset(10, [43, 44]);
+      const leftScore = leftDock?.score ?? 0;
+      const rightScore = rightDock?.score ?? 0;
+
+      if (leftScore >= rightScore && leftDock && leftScore >= 0.7) {
+        assignedTiles.set(4, leftDock.asset);
+        usedPositions.add(4);
+        console.log(`Dock at CCW 4 (left): asset ${leftDock.asset} (score: ${(leftScore * 100).toFixed(1)}%)`);
+      } else if (rightDock && rightScore >= 0.7) {
+        assignedTiles.set(10, rightDock.asset);
+        usedPositions.add(10);
+        console.log(`Dock at CCW 10 (right): asset ${rightDock.asset} (score: ${(rightScore * 100).toFixed(1)}%)`);
+      } else {
+        console.log('Dock detection failed');
+        isValid = false;
+      }
     }
   }
 
@@ -1917,9 +2037,9 @@ async function convertV1ToV2(): Promise<void> {
   }
   // Note: Secret beach failure doesn't invalidate (optional feature)
 
-  // 6. ROCKS (exactly 1 per side)
-  const leftRockAssets = [64, 65, 66, 67];
-  const rightRockAssets = [9, 10, 11, 12];
+  // 6. ROCKS (exactly 1 per side) - includes both regular and small rock variants
+  const leftRockAssets = [64, 65, 66, 67, 74, 75, 76, 77];
+  const rightRockAssets = [9, 10, 11, 12, 80, 81, 82, 83];
 
   let bestLeftRock: { ccwIdx: number; asset: number; score: number } | null = null;
   for (const ccwIdx of [0, 1, 2, 3]) {
@@ -1975,7 +2095,7 @@ async function convertV1ToV2(): Promise<void> {
       } else {
         const placeholder = getPlaceholderIndexForPosition(pos.x, pos.y);
         edgeTiles.push(placeholder);
-        console.log(`Placeholder at CCW ${i}: ${placeholder}`);
+        console.log(`asset ${bestIndex} (score: ${(bestScore * 100).toFixed(1)}%) below threshold. Placeholder at CCW ${i}: ${placeholder}`);
       }
     }
   }

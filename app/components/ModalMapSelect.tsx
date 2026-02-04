@@ -13,7 +13,7 @@ import { emitter } from '../emitter';
 import { showPositionSelector, hidePositionSelector, SelectionType, getPeninsulaPosition, getAirportBlocks, getSecretBeachBlock, getSecretBeachPosition, getRockPosition, getRockBlock, RiverDirection } from '../ui/mapPositionSelector';
 import { showOptionSelector, OptionDirection } from '../ui/mapOptionSelector';
 import { initializeEdgeTiles, fillEdgeTilesWithPlaceholders, replaceBlocks, restoreBlocks, setRiverTiles, getRemainingPlaceholders } from '../ui/edgeTiles';
-import { tileAssetIndices, getAssetByIndex, type TileDirection } from '../ui/edgeTileAssets';
+import { tileAssetIndices, getAssetByIndex, categoryAssetIndices, type TileDirection } from '../ui/edgeTileAssets';
 import {
   WizardState,
   getWizardState,
@@ -54,17 +54,6 @@ function createOptionsFromAssets(assetIndices: number[]): { label: string; value
   }));
 }
 
-// Asset indices for each tile type
-const BOTTOM_RIVER_ASSETS = [45, 46, 47];
-const LEFT_RIVER_ASSETS = [62, 63];
-const RIGHT_RIVER_ASSETS = [7, 8];
-const LEFT_PENINSULA_ASSETS = [59, 60, 61];
-const RIGHT_PENINSULA_ASSETS = [4, 5, 6];
-const LEFT_DOCK_ASSETS = [52, 53];
-const RIGHT_DOCK_ASSETS = [43, 44];
-const SECRET_BEACH_ASSETS = [16, 17, 18];
-const LEFT_ROCK_ASSETS = [64, 65, 66, 67];
-const RIGHT_ROCK_ASSETS = [9, 10, 11, 12];
 
 const customStyles = {
   overlay: {
@@ -164,7 +153,7 @@ export default function ModalMapSelect(){
 
             showOptionSelector({
               anchorPoint,
-              options: createOptionsFromAssets(BOTTOM_RIVER_ASSETS),
+              options: createOptionsFromAssets(categoryAssetIndices.bottom_river),
               direction: 'bottom',
               eventName: 'riverMouth1ShapeSelected',
               title: 'Shape?',
@@ -182,19 +171,19 @@ export default function ModalMapSelect(){
               case 'west':
                 // Left river at (0, 2)
                 anchorPoint = new paper.Point(8, 2 * 16 + 8);
-                options = createOptionsFromAssets(LEFT_RIVER_ASSETS);
+                options = createOptionsFromAssets(categoryAssetIndices.left_river);
                 direction = 'left';
                 break;
               case 'east':
                 // Right river at (6, 2)
                 anchorPoint = new paper.Point(6 * 16 + 8, 2 * 16 + 8);
-                options = createOptionsFromAssets(RIGHT_RIVER_ASSETS);
+                options = createOptionsFromAssets(categoryAssetIndices.right_river);
                 direction = 'right';
                 break;
               case 'south':
                 // Second bottom river at (5, 5)
                 anchorPoint = new paper.Point(5 * 16 + 8, 5 * 16 + 8);
-                options = createOptionsFromAssets(BOTTOM_RIVER_ASSETS);
+                options = createOptionsFromAssets(categoryAssetIndices.bottom_river);
                 direction = 'bottom';
                 break;
             }
@@ -222,8 +211,8 @@ export default function ModalMapSelect(){
 
             // Use peninsula tile images based on side
             const peninsulaOptions = side === 'left'
-              ? createOptionsFromAssets(LEFT_PENINSULA_ASSETS)
-              : createOptionsFromAssets(RIGHT_PENINSULA_ASSETS);
+              ? createOptionsFromAssets(categoryAssetIndices.left_peninsula)
+              : createOptionsFromAssets(categoryAssetIndices.right_peninsula);
 
             showOptionSelector({
               anchorPoint,
@@ -243,8 +232,8 @@ export default function ModalMapSelect(){
             const direction: OptionDirection = dockSide === 'left' ? 'left' : 'right';
 
             const dockOptions = dockSide === 'left'
-              ? createOptionsFromAssets(LEFT_DOCK_ASSETS)
-              : createOptionsFromAssets(RIGHT_DOCK_ASSETS);
+              ? createOptionsFromAssets(categoryAssetIndices.bottom_left_dock)
+              : createOptionsFromAssets(categoryAssetIndices.bottom_right_dock);
 
             showOptionSelector({
               anchorPoint,
@@ -266,7 +255,7 @@ export default function ModalMapSelect(){
 
             showOptionSelector({
               anchorPoint,
-              options: createOptionsFromAssets(SECRET_BEACH_ASSETS),
+              options: createOptionsFromAssets(categoryAssetIndices.top_secret_beach),
               direction: 'bottom',
               eventName: 'secretBeachShapeSelected',
               title: 'Shape?',
@@ -283,7 +272,7 @@ export default function ModalMapSelect(){
 
             showOptionSelector({
               anchorPoint,
-              options: createOptionsFromAssets(LEFT_ROCK_ASSETS),
+              options: createOptionsFromAssets(categoryAssetIndices.left_rock),
               direction: 'left',
               eventName: 'leftRockShapeSelected',
               title: 'Shape?',
@@ -300,7 +289,7 @@ export default function ModalMapSelect(){
 
             showOptionSelector({
               anchorPoint,
-              options: createOptionsFromAssets(RIGHT_ROCK_ASSETS),
+              options: createOptionsFromAssets(categoryAssetIndices.right_rock),
               direction: 'right',
               eventName: 'rightRockShapeSelected',
               title: 'Shape?',
@@ -380,9 +369,7 @@ export default function ModalMapSelect(){
         case 'south': blockX = 1; break;
       }
 
-      const riverAssetIndices = [45, 46, 47];
-
-      replaceBlocks({ x: blockX, y: 5, assetIndex: riverAssetIndices[value] });
+      replaceBlocks({ x: blockX, y: 5, assetIndex: categoryAssetIndices.bottom_river[value] });
       setRiverMouth1Shape(value);
     };
 
@@ -391,24 +378,24 @@ export default function ModalMapSelect(){
       const riverDir = currentState.riverDirection as RiverDirection;
 
       let block: { x: number; y: number };
-      let riverAssetIndices: number[];
+      let riverAssets: number[];
 
       switch (riverDir) {
         case 'west':
           block = { x: 0, y: 2 };
-          riverAssetIndices = [62, 63];
+          riverAssets = categoryAssetIndices.left_river;
           break;
         case 'east':
           block = { x: 6, y: 2 };
-          riverAssetIndices = [7, 8];
+          riverAssets = categoryAssetIndices.right_river;
           break;
         case 'south':
           block = { x: 5, y: 5 };
-          riverAssetIndices = [45, 46, 47];
+          riverAssets = categoryAssetIndices.bottom_river;
           break;
       }
 
-      replaceBlocks({ ...block, assetIndex: riverAssetIndices[value] });
+      replaceBlocks({ ...block, assetIndex: riverAssets[value] });
       setRiverMouth2Shape(value);
     };
 
@@ -419,9 +406,8 @@ export default function ModalMapSelect(){
       const airportBlocks = getAirportBlocks(riverDir, index);
 
       // Replace the placeholder blocks with airport tiles
-      const airportAssetIndices = [34, 35];
       for (let i = 0; i < airportBlocks.length; i++) {
-        replaceBlocks({ x: airportBlocks[i].x, y: airportBlocks[i].y, assetIndex: airportAssetIndices[i] });
+        replaceBlocks({ x: airportBlocks[i].x, y: airportBlocks[i].y, assetIndex: categoryAssetIndices.airport[i] });
       }
 
       setAirportPosition(index);
@@ -441,11 +427,11 @@ export default function ModalMapSelect(){
       const blockY = posIndex + 1;
       const blockX = side === 'left' ? 0 : 6; // horizontalBlocks - 1
 
-      const peninsulaAssetIndices = side === 'left'
-        ? [59, 60, 61]
-        : [4, 5, 6];
+      const peninsulaAssets = side === 'left'
+        ? categoryAssetIndices.left_peninsula
+        : categoryAssetIndices.right_peninsula;
 
-      replaceBlocks({ x: blockX, y: blockY, assetIndex: peninsulaAssetIndices[value] });
+      replaceBlocks({ x: blockX, y: blockY, assetIndex: peninsulaAssets[value] });
 
       setPeninsulaShape(value);
     };
@@ -458,11 +444,11 @@ export default function ModalMapSelect(){
       const blockX = dockSide === 'left' ? 0 : 6;
       const blockY = 5;
 
-      const dockAssetIndices = dockSide === 'left'
-        ? [52, 53]
-        : [43, 44];
+      const dockAssets = dockSide === 'left'
+        ? categoryAssetIndices.bottom_left_dock
+        : categoryAssetIndices.bottom_right_dock;
 
-      replaceBlocks({ x: blockX, y: blockY, assetIndex: dockAssetIndices[value] });
+      replaceBlocks({ x: blockX, y: blockY, assetIndex: dockAssets[value] });
 
       setDockShape(value);
     };
@@ -479,9 +465,7 @@ export default function ModalMapSelect(){
       // Get the block position for the secret beach
       const block = getSecretBeachBlock(riverDir, posIndex);
 
-      const beachAssetIndices = [16, 17, 18];
-
-      replaceBlocks({ ...block, assetIndex: beachAssetIndices[value] });
+      replaceBlocks({ ...block, assetIndex: categoryAssetIndices.top_secret_beach[value] });
 
       setSecretBeachShape(value);
     };
@@ -497,9 +481,7 @@ export default function ModalMapSelect(){
       // Get the block position for the left rock
       const block = getRockBlock('left', posIndex);
 
-      const rockAssetIndices = [64, 65, 66, 67];
-
-      replaceBlocks({ ...block, assetIndex: rockAssetIndices[value] });
+      replaceBlocks({ ...block, assetIndex: categoryAssetIndices.left_rock[value] });
 
       setLeftRockShape(value);
     };
@@ -515,9 +497,7 @@ export default function ModalMapSelect(){
       // Get the block position for the right rock
       const block = getRockBlock('right', posIndex);
 
-      const rockAssetIndices = [9, 10, 11, 12];
-
-      replaceBlocks({ ...block, assetIndex: rockAssetIndices[value] });
+      replaceBlocks({ ...block, assetIndex: categoryAssetIndices.right_rock[value] });
 
       setRightRockShape(value);
     };
@@ -587,33 +567,33 @@ export default function ModalMapSelect(){
 
       // Replace tiles sequentially to avoid async race conditions
       // River mouth 1 (west: block (4,5))
-      replaceBlocks({ x: 4, y: 5, assetIndex: 45 });
+      replaceBlocks({ x: 4, y: 5, assetIndex: categoryAssetIndices.bottom_river[0] });
 
       // River mouth 2 (west: left river at (0,2))
-      replaceBlocks({ x: 0, y: 2, assetIndex: 62 });
+      replaceBlocks({ x: 0, y: 2, assetIndex: categoryAssetIndices.left_river[0] });
 
       // Airport (west, position 0: blocks (1,5) and (2,5))
       const airportBlocks = getAirportBlocks('west', 0);
-      replaceBlocks({ x: airportBlocks[0].x, y: airportBlocks[0].y, assetIndex: 34 });
-      replaceBlocks({ x: airportBlocks[1].x, y: airportBlocks[1].y, assetIndex: 35 });
+      replaceBlocks({ x: airportBlocks[0].x, y: airportBlocks[0].y, assetIndex: categoryAssetIndices.airport[0] });
+      replaceBlocks({ x: airportBlocks[1].x, y: airportBlocks[1].y, assetIndex: categoryAssetIndices.airport[1] });
 
       // Dock (right side, shape 0: block (6,5))
-      replaceBlocks({ x: 6, y: 5, assetIndex: 43 });
+      replaceBlocks({ x: 6, y: 5, assetIndex: categoryAssetIndices.bottom_right_dock[0] });
 
       // Peninsula (left side, position 0, shape 0: block (0,1))
-      replaceBlocks({ x: 0, y: 1, assetIndex: 59 });
+      replaceBlocks({ x: 0, y: 1, assetIndex: categoryAssetIndices.left_peninsula[0] });
 
       // Secret beach (west, position 0, shape 0)
       const secretBeachBlock = getSecretBeachBlock('west', 0);
-      replaceBlocks({ ...secretBeachBlock, assetIndex: 16 });
+      replaceBlocks({ ...secretBeachBlock, assetIndex: categoryAssetIndices.top_secret_beach[0] });
 
       // Left rock (position 0, shape 0)
       const leftRockBlock = getRockBlock('left', 0);
-      replaceBlocks({ ...leftRockBlock, assetIndex: 64 });
+      replaceBlocks({ ...leftRockBlock, assetIndex: categoryAssetIndices.left_rock[0] });
 
       // Right rock (position 0, shape 0)
       const rightRockBlock = getRockBlock('right', 0);
-      replaceBlocks({ ...rightRockBlock, assetIndex: 9 });
+      replaceBlocks({ ...rightRockBlock, assetIndex: categoryAssetIndices.right_rock[0] });
 
       // hacky, wait for edge tiles to load first
       await delay(400);
