@@ -18,6 +18,7 @@ import { setEdgeTilesFromAssetIndices } from './edgeTiles';
 import { setMapVersion } from '../mapState';
 import Layouts, { Layout } from '../components/islandLayouts';
 import { loadMapFromJSONString } from '../load';
+import { safeCompoundIntersection } from '../helpers/safeCompoundIntersection';
 
 // Only initialize in dev builds
 declare const __DEV__: boolean;
@@ -100,8 +101,10 @@ function encodePath(p: paper.Path): number[] {
 }
 
 function encodePathItem(pathItem: paper.PathItem): number[] | number[][] {
-  if ((pathItem as paper.CompoundPath).children) {
-    return (pathItem as paper.CompoundPath).children.map((path) => {
+  const children = (pathItem as paper.CompoundPath).children;
+  if (children && children.length > 0) {
+    console.log(`[encodePathItem] Encoding CompoundPath with ${children.length} children`);
+    return children.map((path) => {
       return encodePath(path as paper.Path);
     });
   } else {
@@ -174,26 +177,74 @@ function extractTileData(blockX: number, blockY: number): Record<string, number[
 
   const extractedPaths: Record<string, number[] | number[][]> = {};
 
+  // Debug: log state.drawing keys
+  console.log(`[extractTileData] state.drawing keys:`, Object.keys(state.drawing));
+
+  // Create 4 large rectangles around the tile for fallback subtraction clipping
+  const largeSize = 10000;
+  const subtractRects = [
+    new paper.Path.Rectangle(new paper.Rectangle(-largeSize, -largeSize, largeSize + offsetX, largeSize * 2 + blockHeight)), // Left
+    new paper.Path.Rectangle(new paper.Rectangle(offsetX + blockWidth, -largeSize, largeSize, largeSize * 2 + blockHeight)), // Right
+    new paper.Path.Rectangle(new paper.Rectangle(-largeSize, -largeSize, largeSize * 2 + blockWidth, largeSize + offsetY)), // Top
+    new paper.Path.Rectangle(new paper.Rectangle(-largeSize, offsetY + blockHeight, largeSize * 2 + blockWidth, largeSize)), // Bottom
+  ];
+
   // Iterate through state.drawing (all terrain/path layers)
   Object.entries(state.drawing).forEach(([colorKey, pathItem]) => {
     if (pathItem) {
+      const isCompound = !!(pathItem as paper.CompoundPath).children?.length;
+      const pathArea = Math.abs((pathItem as paper.Path).area || 0);
+      const pathBounds = pathItem.bounds;
+      const intersectsTile = pathBounds.intersects(tileRect);
+      console.log(`[extractTileData] Processing ${colorKey}: isCompound: ${isCompound}, area: ${pathArea.toFixed(2)}, bounds: [${pathBounds.x.toFixed(1)},${pathBounds.y.toFixed(1)},${pathBounds.width.toFixed(1)},${pathBounds.height.toFixed(1)}], intersectsTile: ${intersectsTile}`);
+
       try {
-        // Intersect with tile boundary
-        const clipped = pathItem.intersect(clipPath, { insert: false });
-        if (clipped && !clipped.isEmpty()) {
+        // Use safe intersection that handles compound paths
+        let clipped = safeCompoundIntersection(pathItem, clipPath);
+        let clippedIsEmpty = clipped.isEmpty();
+        let clippedArea = Math.abs((clipped as paper.Path).area || 0);
+        const clippedIsCompound = !!(clipped as paper.CompoundPath)?.children?.length;
+
+        console.log(`[extractTileData] ${colorKey} intersect result: isEmpty: ${clippedIsEmpty}, area: ${clippedArea.toFixed(2)}, isCompound: ${clippedIsCompound}`);
+
+        // Fallback: use subtraction with surrounding rectangles if intersection still fails
+        if (clippedIsEmpty && isCompound && intersectsTile) {
+          console.warn(`[extractTileData] ${colorKey} using subtraction fallback for compound path`);
+          clipped.remove();
+          clipped = pathItem.clone() as paper.PathItem;
+          for (const rect of subtractRects) {
+            const subtracted = clipped.subtract(rect, { insert: false });
+            clipped.remove();
+            clipped = subtracted;
+          }
+          clippedIsEmpty = clipped.isEmpty();
+          clippedArea = Math.abs((clipped as paper.Path).area || 0);
+          console.log(`[extractTileData] ${colorKey} fallback result: isEmpty: ${clippedIsEmpty}, area: ${clippedArea.toFixed(2)}`);
+        }
+
+        if (!clipped.isEmpty()) {
           // Translate to origin (0,0) so data is position-independent
           clipped.translate(new paper.Point(-offsetX, -offsetY));
           // Encode the clipped path using color name for compatibility
           const colorName = colors[colorKey]?.name || colorKey;
-          extractedPaths[colorName] = encodePathItem(clipped);
+          const encoded = encodePathItem(clipped);
+          console.log(`[extractTileData] ${colorKey} encoded as '${colorName}', encodedLength: ${encoded.length}, isEncodedCompound: ${Array.isArray(encoded[0])}`);
+          extractedPaths[colorName] = encoded;
+          clipped.remove();
+        } else {
+          console.log(`[extractTileData] ${colorKey} skipped - clipped is empty`);
           clipped.remove();
         }
       } catch (e) {
-        console.warn(`Failed to clip path for ${colorKey}:`, e);
+        console.warn(`[extractTileData] Failed to clip path for ${colorKey}:`, e);
       }
     }
   });
 
+  // Cleanup subtraction rectangles
+  subtractRects.forEach(r => r.remove());
+
+  console.log(`[extractTileData] Final extracted keys:`, Object.keys(extractedPaths));
   return extractedPaths;
 }
 
@@ -253,6 +304,7 @@ function prepTileDataForExport(drawing: Record<string, number[] | number[][]>, d
   }
 
   // Process non-grass layers: subtract grass from each
+  console.log(`[prepTileDataForExport] Input keys:`, Object.keys(drawing));
   for (const [colorName, pathData] of Object.entries(drawing)) {
     if (grassColorNames.includes(colorName)) {
       continue; // Skip grass layers (already merged into level1)
@@ -262,17 +314,27 @@ function prepTileDataForExport(drawing: Record<string, number[] | number[][]>, d
       continue;
     }
 
+    const isCompoundData = Array.isArray(pathData[0]);
+    console.log(`[prepTileDataForExport] Processing ${colorName}, isCompoundData: ${isCompoundData}, pathData length: ${pathData.length}`);
     const layerPath = decodeToPathItem(pathData);
+    const decodedIsCompound = !!(layerPath as paper.CompoundPath).children?.length;
+    console.log(`[prepTileDataForExport] ${colorName} decoded, isCompound: ${decodedIsCompound}`);
 
     if (unitedGrass) {
       const subtracted = layerPath.subtract(unitedGrass, { insert: false });
+      const subtractedIsCompound = !!(subtracted as paper.CompoundPath).children?.length;
+      const subtractedIsEmpty = subtracted.isEmpty();
+      console.log(`[prepTileDataForExport] ${colorName} after subtract: isCompound: ${subtractedIsCompound}, isEmpty: ${subtractedIsEmpty}`);
       result[colorName] = encodePathItem(subtracted);
+      const resultIsCompound = Array.isArray(result[colorName][0]);
+      console.log(`[prepTileDataForExport] ${colorName} encoded, resultIsCompound: ${resultIsCompound}, length: ${result[colorName]?.length || 0}`);
       subtracted.remove();
     } else {
       result[colorName] = pathData;
     }
     layerPath.remove();
   }
+  console.log(`[prepTileDataForExport] Final result keys:`, Object.keys(result));
 
   // Clean up united grass path
   if (unitedGrass) {
@@ -695,26 +757,33 @@ function exportTileSvg(blockX: number, blockY: number, filename: string): void {
 
 function tileDataToSvg(drawing: Record<string, number[] | number[][]> ): string {
   // Data is already prepped by prepTileDataForExport: grass merged, water added, subtractions done
+  console.log(`[tileDataToSvg] Input keys:`, Object.keys(drawing));
   const paths: string[] = [];
 
   Object.entries(drawing).forEach(([colorName, pathData]) => {
     const colorKey = Object.keys(colors).find(k => colors[k].name === colorName) || colorName;
     const color = colors[colorKey]?.cssColor || '#808080';
+    const isCompound = Array.isArray(pathData[0]);
+    console.log(`[tileDataToSvg] Processing ${colorName} -> colorKey: ${colorKey}, color: ${color}, isCompound: ${isCompound}, dataLength: ${pathData?.length}`);
 
     // Skip grass terrain - don't include in output
     if (colorKey == 'level1' || colorKey == 'level2' || colorKey == 'level3') {
+      console.log(`[tileDataToSvg] Skipping grass layer: ${colorKey}`);
       return;
     }
 
     if (!pathData || (Array.isArray(pathData) && pathData.length === 0)) {
+      console.log(`[tileDataToSvg] Skipping empty pathData for ${colorName}`);
       return;
     }
 
     if (typeof pathData[0] === 'number') {
       const d = coordsToSvgPath(pathData as number[]);
+      console.log(`[tileDataToSvg] Added simple path for ${colorName} with color ${color}`);
       paths.push(`  <path d="${d}" fill="${color}" />`);
     } else {
       const subPaths = (pathData as number[][]).map(pd => coordsToSvgPath(pd)).join(' ');
+      console.log(`[tileDataToSvg] Added compound path for ${colorName} with ${(pathData as number[][]).length} subpaths, color ${color}`);
       paths.push(`  <path d="${subPaths}" fill="${color}" />`);
     }
   });
