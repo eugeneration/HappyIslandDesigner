@@ -35,6 +35,7 @@ let isSvgExportModeActive = false;
 let isSvgImportModeActive = false;
 let isSvgExportFromFileModeActive = false;
 let isSvgToTerrainModeActive = false;
+let isVisiblePortionsExportModeActive = false;
 let isTileTracerModeActive = false;
 let tileTracerRaster: paper.Raster | null = null;
 let tileTracerButtons: HTMLDivElement | null = null;
@@ -295,57 +296,31 @@ function downloadTileData(data: object, filename: string): void {
 }
 
 function showPostfixDropdown(blockX: number, blockY: number, screenX: number, screenY: number): void {
-  hidePostfixDropdown();
-
   const positionName = getTilePositionName(blockX, blockY);
   const options = postfixOptions[positionName] || [];
-
-  postfixDropdown = document.createElement('div');
-  postfixDropdown.style.cssText = `
-    position: fixed;
-    left: ${screenX}px;
-    top: ${screenY}px;
-    background: #f5f3e5;
-    border: 2px solid #726a5a;
-    border-radius: 8px;
-    padding: 8px;
-    z-index: 10000;
-    font-family: TTNorms, sans-serif;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  `;
-
-  const title = document.createElement('div');
-  title.textContent = `Export: ${positionName}`;
-  title.style.cssText = 'font-weight: bold; margin-bottom: 8px; color: #726a5a;';
-  postfixDropdown.appendChild(title);
+  const dropdown = createDropdownContainer(screenX, screenY, `Export: ${positionName}`);
 
   // Base option (no postfix)
-  const baseButton = createDropdownButton(positionName, () => {
+  dropdown.appendChild(createDropdownButton(positionName, () => {
     exportTile(blockX, blockY, positionName);
-  });
-  postfixDropdown.appendChild(baseButton);
+  }));
 
   // Postfix options
   options.forEach((postfix) => {
     const fullName = `${positionName}_${postfix}`;
-    const button = createDropdownButton(fullName, () => {
+    dropdown.appendChild(createDropdownButton(fullName, () => {
       exportTile(blockX, blockY, fullName);
-    });
-    postfixDropdown!.appendChild(button);
+    }));
   });
 
   // Cancel button
-  const cancelButton = createDropdownButton('Cancel', () => {
+  dropdown.appendChild(createDropdownButton('Cancel', () => {
     hidePostfixDropdown();
     clearHighlight();
-    // Fully deactivate extract mode
-    if (isExtractModeActive) {
-      toggleExtractMode();
-    }
-  }, true);
-  postfixDropdown.appendChild(cancelButton);
+    if (isExtractModeActive) toggleExtractMode();
+  }, true));
 
-  document.body.appendChild(postfixDropdown);
+  showDropdown(dropdown);
 }
 
 function createDropdownButton(label: string, onClick: () => void, isCancel = false): HTMLButtonElement {
@@ -373,6 +348,36 @@ function createDropdownButton(label: string, onClick: () => void, isCancel = fal
   };
   button.onclick = onClick;
   return button;
+}
+
+function createDropdownContainer(screenX: number, screenY: number, title: string): HTMLDivElement {
+  hidePostfixDropdown();
+
+  const dropdown = document.createElement('div');
+  dropdown.style.cssText = `
+    position: fixed;
+    left: ${screenX}px;
+    top: ${screenY}px;
+    background: #f5f3e5;
+    border: 2px solid #726a5a;
+    border-radius: 8px;
+    padding: 8px;
+    z-index: 10000;
+    font-family: TTNorms, sans-serif;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  `;
+
+  const titleEl = document.createElement('div');
+  titleEl.textContent = title;
+  titleEl.style.cssText = 'font-weight: bold; margin-bottom: 8px; color: #726a5a;';
+  dropdown.appendChild(titleEl);
+
+  postfixDropdown = dropdown;
+  return dropdown;
+}
+
+function showDropdown(dropdown: HTMLDivElement): void {
+  document.body.appendChild(dropdown);
 }
 
 function hidePostfixDropdown(): void {
@@ -506,42 +511,19 @@ function handleLoadModeClick(event: paper.MouseEvent): void {
 }
 
 function showLoadDropdown(blockX: number, blockY: number, screenX: number, screenY: number): void {
-  hidePostfixDropdown();
+  const dropdown = createDropdownContainer(screenX, screenY, `Load into tile (${blockX}, ${blockY})`);
 
-  postfixDropdown = document.createElement('div');
-  postfixDropdown.style.cssText = `
-    position: fixed;
-    left: ${screenX}px;
-    top: ${screenY}px;
-    background: #f5f3e5;
-    border: 2px solid #726a5a;
-    border-radius: 8px;
-    padding: 8px;
-    z-index: 10000;
-    font-family: TTNorms, sans-serif;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  `;
-
-  const title = document.createElement('div');
-  title.textContent = `Load into tile (${blockX}, ${blockY})`;
-  title.style.cssText = 'font-weight: bold; margin-bottom: 8px; color: #726a5a;';
-  postfixDropdown.appendChild(title);
-
-  const loadButton = createDropdownButton('Load File...', () => {
+  dropdown.appendChild(createDropdownButton('Load File...', () => {
     openFileDialog(blockX, blockY);
-  });
-  postfixDropdown.appendChild(loadButton);
+  }));
 
-  const cancelButton = createDropdownButton('Cancel', () => {
+  dropdown.appendChild(createDropdownButton('Cancel', () => {
     hidePostfixDropdown();
     clearHighlight();
-    if (isLoadModeActive) {
-      toggleLoadMode();
-    }
-  }, true);
-  postfixDropdown.appendChild(cancelButton);
+    if (isLoadModeActive) toggleLoadMode();
+  }, true));
 
-  document.body.appendChild(postfixDropdown);
+  showDropdown(dropdown);
 }
 
 function openFileDialog(blockX: number, blockY: number): void {
@@ -667,56 +649,31 @@ function handleSvgExportClick(event: paper.MouseEvent): void {
 }
 
 function showSvgExportDropdown(blockX: number, blockY: number, screenX: number, screenY: number): void {
-  hidePostfixDropdown();
-
   const positionName = getTilePositionName(blockX, blockY);
   const options = postfixOptions[positionName] || [];
-
-  postfixDropdown = document.createElement('div');
-  postfixDropdown.style.cssText = `
-    position: fixed;
-    left: ${screenX}px;
-    top: ${screenY}px;
-    background: #f5f3e5;
-    border: 2px solid #726a5a;
-    border-radius: 8px;
-    padding: 8px;
-    z-index: 10000;
-    font-family: TTNorms, sans-serif;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  `;
-
-  const title = document.createElement('div');
-  title.textContent = `Export SVG: ${positionName}`;
-  title.style.cssText = 'font-weight: bold; margin-bottom: 8px; color: #726a5a;';
-  postfixDropdown.appendChild(title);
+  const dropdown = createDropdownContainer(screenX, screenY, `Export SVG: ${positionName}`);
 
   // Base option
-  const baseButton = createDropdownButton(positionName, () => {
+  dropdown.appendChild(createDropdownButton(positionName, () => {
     exportTileSvg(blockX, blockY, positionName);
-  });
-  postfixDropdown.appendChild(baseButton);
+  }));
 
   // Postfix options
   options.forEach((postfix) => {
     const fullName = `${positionName}_${postfix}`;
-    const button = createDropdownButton(fullName, () => {
+    dropdown.appendChild(createDropdownButton(fullName, () => {
       exportTileSvg(blockX, blockY, fullName);
-    });
-    postfixDropdown!.appendChild(button);
+    }));
   });
 
   // Cancel button
-  const cancelButton = createDropdownButton('Cancel', () => {
+  dropdown.appendChild(createDropdownButton('Cancel', () => {
     hidePostfixDropdown();
     clearHighlight();
-    if (isSvgExportModeActive) {
-      toggleSvgExportMode();
-    }
-  }, true);
-  postfixDropdown.appendChild(cancelButton);
+    if (isSvgExportModeActive) toggleSvgExportMode();
+  }, true));
 
-  document.body.appendChild(postfixDropdown);
+  showDropdown(dropdown);
 }
 
 function tileToSvg(blockX: number, blockY: number): string {
@@ -824,40 +781,19 @@ function handleSvgImportClick(event: paper.MouseEvent): void {
 }
 
 function showSvgImportDropdown(blockX: number, blockY: number, screenX: number, screenY: number): void {
-  hidePostfixDropdown();
+  const dropdown = createDropdownContainer(screenX, screenY, `Import SVG at (${blockX}, ${blockY})`);
 
-  postfixDropdown = document.createElement('div');
-  postfixDropdown.style.cssText = `
-    position: fixed;
-    left: ${screenX}px;
-    top: ${screenY}px;
-    background: #f5f3e5;
-    border: 2px solid #726a5a;
-    border-radius: 8px;
-    padding: 8px;
-    z-index: 10000;
-    font-family: TTNorms, sans-serif;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  `;
-
-  const title = document.createElement('div');
-  title.textContent = `Import SVG at (${blockX}, ${blockY})`;
-  title.style.cssText = 'font-weight: bold; margin-bottom: 8px; color: #726a5a;';
-  postfixDropdown.appendChild(title);
-
-  const loadButton = createDropdownButton('Select SVG File...', () => {
+  dropdown.appendChild(createDropdownButton('Select SVG File...', () => {
     openSvgFileDialog(blockX, blockY);
-  });
-  postfixDropdown.appendChild(loadButton);
+  }));
 
-  const cancelButton = createDropdownButton('Cancel', () => {
+  dropdown.appendChild(createDropdownButton('Cancel', () => {
     hidePostfixDropdown();
     clearHighlight();
     if (isSvgImportModeActive) toggleSvgImportMode();
-  }, true);
-  postfixDropdown.appendChild(cancelButton);
+  }, true));
 
-  document.body.appendChild(postfixDropdown);
+  showDropdown(dropdown);
 }
 
 function openSvgFileDialog(blockX: number, blockY: number): void {
@@ -941,40 +877,19 @@ function handleSvgToTerrainClick(event: paper.MouseEvent): void {
 }
 
 function showSvgToTerrainDropdown(blockX: number, blockY: number, screenX: number, screenY: number): void {
-  hidePostfixDropdown();
+  const dropdown = createDropdownContainer(screenX, screenY, `Import SVG to terrain at (${blockX}, ${blockY})`);
 
-  postfixDropdown = document.createElement('div');
-  postfixDropdown.style.cssText = `
-    position: fixed;
-    left: ${screenX}px;
-    top: ${screenY}px;
-    background: #f5f3e5;
-    border: 2px solid #726a5a;
-    border-radius: 8px;
-    padding: 8px;
-    z-index: 10000;
-    font-family: TTNorms, sans-serif;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  `;
-
-  const title = document.createElement('div');
-  title.textContent = `Import SVG to terrain at (${blockX}, ${blockY})`;
-  title.style.cssText = 'font-weight: bold; margin-bottom: 8px; color: #726a5a;';
-  postfixDropdown.appendChild(title);
-
-  const loadButton = createDropdownButton('Select SVG File...', () => {
+  dropdown.appendChild(createDropdownButton('Select SVG File...', () => {
     openSvgForTerrain(blockX, blockY);
-  });
-  postfixDropdown.appendChild(loadButton);
+  }));
 
-  const cancelButton = createDropdownButton('Cancel', () => {
+  dropdown.appendChild(createDropdownButton('Cancel', () => {
     hidePostfixDropdown();
     clearHighlight();
     if (isSvgToTerrainModeActive) toggleSvgToTerrainMode();
-  }, true);
-  postfixDropdown.appendChild(cancelButton);
+  }, true));
 
-  document.body.appendChild(postfixDropdown);
+  showDropdown(dropdown);
 }
 
 function openSvgForTerrain(blockX: number, blockY: number): void {
@@ -1126,40 +1041,19 @@ function handleSvgExportFromFileClick(event: paper.MouseEvent): void {
 }
 
 function showSvgExportFromFileDropdown(blockX: number, blockY: number, screenX: number, screenY: number): void {
-  hidePostfixDropdown();
+  const dropdown = createDropdownContainer(screenX, screenY, `Export SVG from tile (${blockX}, ${blockY})`);
 
-  postfixDropdown = document.createElement('div');
-  postfixDropdown.style.cssText = `
-    position: fixed;
-    left: ${screenX}px;
-    top: ${screenY}px;
-    background: #f5f3e5;
-    border: 2px solid #726a5a;
-    border-radius: 8px;
-    padding: 8px;
-    z-index: 10000;
-    font-family: TTNorms, sans-serif;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  `;
-
-  const title = document.createElement('div');
-  title.textContent = `Export SVG from tile (${blockX}, ${blockY})`;
-  title.style.cssText = 'font-weight: bold; margin-bottom: 8px; color: #726a5a;';
-  postfixDropdown.appendChild(title);
-
-  const selectButton = createDropdownButton('Select Reference File...', () => {
+  dropdown.appendChild(createDropdownButton('Select Reference File...', () => {
     openReferenceFileDialog(blockX, blockY);
-  });
-  postfixDropdown.appendChild(selectButton);
+  }));
 
-  const cancelButton = createDropdownButton('Cancel', () => {
+  dropdown.appendChild(createDropdownButton('Cancel', () => {
     hidePostfixDropdown();
     clearHighlight();
     if (isSvgExportFromFileModeActive) toggleSvgExportFromFileMode();
-  }, true);
-  postfixDropdown.appendChild(cancelButton);
+  }, true));
 
-  document.body.appendChild(postfixDropdown);
+  showDropdown(dropdown);
 }
 
 function openReferenceFileDialog(blockX: number, blockY: number): void {
@@ -1180,6 +1074,118 @@ function openReferenceFileDialog(blockX: number, blockY: number): void {
   hidePostfixDropdown();
   clearHighlight();
   if (isSvgExportFromFileModeActive) toggleSvgExportFromFileMode();
+}
+
+// ============ Visible Portions Export Mode Functions ============
+
+function visiblePortionsToDrawingData(portions: VisiblePortions): Record<string, number[] | number[][]> {
+  const result: Record<string, number[] | number[][]> = {};
+  const layerOrder: (keyof VisiblePortions)[] = ['rock', 'sand', 'water'];
+
+  // Paper.js importSVG scales paths by width/height vs viewBox ratio (160/16 = 10x)
+  // Scale down to get back to original 16x16 coordinate system
+  const scaleFactor = 1 / 10;
+
+  for (const colorKey of layerOrder) {
+    const portion = portions[colorKey];
+    if (!portion || portion.isEmpty()) continue;
+
+    // Clone and scale down before encoding
+    const scaled = portion.clone() as paper.PathItem;
+    scaled.scale(scaleFactor, new paper.Point(0, 0));
+
+    // Use the color name that tileDataToSvg expects
+    const colorName = colors[colorKey]?.name || colorKey;
+    result[colorName] = encodePathItem(scaled);
+
+    scaled.remove();
+  }
+
+  return result;
+}
+
+function toggleVisiblePortionsExportMode(): void {
+  isVisiblePortionsExportModeActive = !isVisiblePortionsExportModeActive;
+  toolState.isDevModeActive = isVisiblePortionsExportModeActive;
+
+  if (isVisiblePortionsExportModeActive) {
+    console.log('Visible portions export mode activated. Click an edge tile.');
+    toolState.focusOnCanvas(false);
+    paper.view.onClick = handleVisiblePortionsExportClick;
+  } else {
+    console.log('Visible portions export mode deactivated.');
+    paper.view.onClick = null;
+    hidePostfixDropdown();
+    clearHighlight();
+    toolState.focusOnCanvas(true);
+  }
+}
+
+function handleVisiblePortionsExportClick(event: paper.MouseEvent): void {
+  if (!isVisiblePortionsExportModeActive) return;
+
+  const mapPoint = layers.mapLayer.globalToLocal(event.point);
+  const blockX = Math.floor(mapPoint.x / blockWidth);
+  const blockY = Math.floor(mapPoint.y / blockHeight);
+
+  if (!isEdgeTile(blockX, blockY)) {
+    console.log('Not an edge tile');
+    return;
+  }
+
+  highlightTile(blockX, blockY);
+
+  const viewPoint = paper.view.projectToView(event.point);
+  showVisiblePortionsExportDropdown(blockX, blockY, viewPoint.x + 20, viewPoint.y);
+}
+
+function showVisiblePortionsExportDropdown(blockX: number, blockY: number, screenX: number, screenY: number): void {
+  const positionName = getTilePositionName(blockX, blockY);
+  const options = postfixOptions[positionName] || [];
+  const dropdown = createDropdownContainer(screenX, screenY, `Export Visible Portions: ${positionName}`);
+
+  // Base option
+  dropdown.appendChild(createDropdownButton(positionName, () => {
+    exportVisiblePortionsSvg(blockX, blockY, positionName);
+  }));
+
+  // Postfix options
+  options.forEach((postfix) => {
+    const fullName = `${positionName}_${postfix}`;
+    dropdown.appendChild(createDropdownButton(fullName, () => {
+      exportVisiblePortionsSvg(blockX, blockY, fullName);
+    }));
+  });
+
+  // Cancel button
+  dropdown.appendChild(createDropdownButton('Cancel', () => {
+    hidePostfixDropdown();
+    clearHighlight();
+    if (isVisiblePortionsExportModeActive) toggleVisiblePortionsExportMode();
+  }, true));
+
+  showDropdown(dropdown);
+}
+
+function exportVisiblePortionsSvg(blockX: number, blockY: number, filename: string): void {
+  // Extract tile data and convert to SVG string first
+  const extractedSvg = tileToSvg(blockX, blockY);
+
+  // Compute visible portions from the SVG
+  const portions = computeVisiblePortions(extractedSvg);
+
+  // Convert to drawing data format and then to SVG using shared function
+  const drawingData = visiblePortionsToDrawingData(portions);
+  const svg = tileDataToSvg(drawingData);
+
+  // Cleanup portions
+  Object.values(portions).forEach(p => p?.remove());
+
+  // Download
+  downloadSvg(svg, `${filename}.svg`);
+  hidePostfixDropdown();
+  clearHighlight();
+  if (isVisiblePortionsExportModeActive) toggleVisiblePortionsExportMode();
 }
 
 // ============ Tile Tracer Mode Functions ============
@@ -1466,11 +1472,86 @@ function toggleMenu(): void {
 
 // ============ V1 to V2 Conversion Functions ============
 
+type VisiblePortions = {
+  rock: paper.PathItem | null;
+  sand: paper.PathItem | null;
+  water: paper.PathItem | null;
+};
+
 type SvgAssetData = {
   assetIndex: number;
   direction: TileDirection;
   svgContent: string;
+  visiblePortions: VisiblePortions;
 };
+
+function computeVisiblePortions(svgContent: string): VisiblePortions {
+  const layerOrder = ['rock', 'sand', 'water'];
+  const item = paper.project.importSVG(svgContent, { insert: false });
+
+  if (!item) return { rock: null, sand: null, water: null };
+
+  const paths = item.getItems({ class: paper.Path }) as paper.Path[];
+  const compoundPaths = item.getItems({ class: paper.CompoundPath }) as paper.CompoundPath[];
+  const result: VisiblePortions = { rock: null, sand: null, water: null };
+
+  // // Debug logging
+  // console.log(`[computeVisiblePortions] Found ${paths.length} paths, ${compoundPaths.length} compound paths`);
+  // paths.forEach((p, i) => {
+  //   console.log(`  Path ${i}: color=${p.fillColor?.toCSS(true)}, area=${Math.abs(p.area || 0).toFixed(2)}`);
+  // });
+  // compoundPaths.forEach((p, i) => {
+  //   console.log(`  CompoundPath ${i}: color=${p.fillColor?.toCSS(true)}`);
+  // });
+
+  // Find path by color key helper - searches both paths and compound paths
+  const findPathByColorKey = (colorKey: string): paper.PathItem | null => {
+    const cssColor = colors[colorKey]?.cssColor;
+    if (!cssColor) return null;
+    const targetColor = cssColor.toLowerCase();
+
+    // Check simple paths first
+    const simplePath = paths.find(p => p.fillColor?.toCSS(true).toLowerCase() === targetColor);
+    if (simplePath) return simplePath;
+
+    // Check compound paths
+    const compoundPath = compoundPaths.find(cp => cp.fillColor?.toCSS(true).toLowerCase() === targetColor);
+    if (compoundPath) return compoundPath;
+
+    return null;
+  };
+
+  // // Log what was found for each layer
+  // for (const colorKey of layerOrder) {
+  //   const expectedColor = colors[colorKey]?.cssColor;
+  //   const found = findPathByColorKey(colorKey);
+  //   console.log(`  Looking for ${colorKey} (${expectedColor}): ${found ? 'FOUND' : 'NOT FOUND'}`);
+  // }
+
+  // Compute visible portion for each layer
+  for (let i = 0; i < layerOrder.length; i++) {
+    const colorKey = layerOrder[i];
+    const path = findPathByColorKey(colorKey);
+    if (!path) continue;
+
+    let visible: paper.PathItem = path.clone() as paper.PathItem;
+
+    // Subtract all layers above
+    for (let j = 0; j < i; j++) {
+      const abovePath = findPathByColorKey(layerOrder[j]);
+      if (abovePath) {
+        const subtracted = visible.subtract(abovePath, { insert: false });
+        visible.remove();
+        visible = subtracted;
+      }
+    }
+
+    result[colorKey as keyof VisiblePortions] = visible;
+  }
+
+  item.remove();
+  return result;
+}
 
 async function buildSvgReferenceLibrary(): Promise<Map<number, SvgAssetData>> {
   const library = new Map<number, SvgAssetData>();
@@ -1488,10 +1569,12 @@ async function buildSvgReferenceLibrary(): Promise<Map<number, SvgAssetData>> {
       }
 
       const svgContent = await response.text();
+      const visiblePortions = computeVisiblePortions(svgContent);
       library.set(index, {
         assetIndex: index,
         direction: data.direction,
         svgContent,
+        visiblePortions,
       });
     } catch (e) {
       console.warn(`Error loading SVG for asset ${index}:`, e);
@@ -1502,77 +1585,41 @@ async function buildSvgReferenceLibrary(): Promise<Map<number, SvgAssetData>> {
   return library;
 }
 
-function computeSvgSimilarity(extractedSvg: string, referenceSvg: string): number {
-  const extractedItem = paper.project.importSVG(extractedSvg, { insert: false });
-  const referenceItem = paper.project.importSVG(referenceSvg, { insert: false });
-
-  if (!extractedItem || !referenceItem) {
-    if (extractedItem) extractedItem.remove();
-    if (referenceItem) referenceItem.remove();
-    return 0;
-  }
-
-  // Edge tile colors only, ordered top to bottom
-  const layerOrder = ['rock', 'sand', 'water'];
-
-  const extractedPaths = extractedItem.getItems({ class: paper.Path }) as paper.Path[];
-  const referencePaths = referenceItem.getItems({ class: paper.Path }) as paper.Path[];
-
-  // Helper to find path by color key
-  const findPathByColorKey = (paths: paper.Path[], colorKey: string): paper.Path | null => {
-    const cssColor = colors[colorKey]?.cssColor;
-    if (!cssColor) return null;
-    return paths.find(p => p.fillColor?.toCSS(true).toLowerCase() === cssColor.toLowerCase()) || null;
-  };
-
-  // Determine which colors are present in each SVG
-  const getColorSet = (paths: paper.Path[]): Set<string> => {
-    const colorSet = new Set<string>();
-    for (const colorKey of layerOrder) {
-      const path = findPathByColorKey(paths, colorKey);
-      if (path && !path.isEmpty()) {
-        colorSet.add(colorKey);
-      }
-    }
-    return colorSet;
-  };
-
-  const extractedColors = getColorSet(extractedPaths);
-  const referenceColors = getColorSet(referencePaths);
-
-  // Check if color sets match
-  const colorSetsMatch = extractedColors.size === referenceColors.size &&
-    [...extractedColors].every(c => referenceColors.has(c));
-
-  // Compute visible portion of a layer by subtracting all layers above it
-  const getVisiblePortion = (paths: paper.Path[], colorKey: string, layerIndex: number): paper.PathItem | null => {
-    const path = findPathByColorKey(paths, colorKey);
-    if (!path) return null;
-
-    let visible: paper.PathItem = path.clone() as paper.PathItem;
-
-    // Subtract all layers above this one
-    for (let i = 0; i < layerIndex; i++) {
-      const abovePath = findPathByColorKey(paths, layerOrder[i]);
-      if (abovePath) {
-        const subtracted = visible.subtract(abovePath, { insert: false });
-        visible.remove();
-        visible = subtracted;
-      }
-    }
-
-    return visible;
-  };
+function compareVisiblePortions(
+  extractedPortions: VisiblePortions,
+  referencePortions: VisiblePortions,
+  debugCcwIndex?: number
+): number {
+  const layerOrder: (keyof VisiblePortions)[] = ['rock', 'sand', 'water'];
 
   let totalArea = 0;
   let matchingArea = 0;
 
-  // Always compare all colors in layerOrder
-  for (let i = 0; i < layerOrder.length; i++) {
-    const colorKey = layerOrder[i];
+  // Check which colors are present in each
+  const extractedColors = new Set<string>();
+  const referenceColors = new Set<string>();
+  for (const colorKey of layerOrder) {
+    if (extractedPortions[colorKey] && !extractedPortions[colorKey]!.isEmpty()) {
+      extractedColors.add(colorKey);
+    }
+    if (referencePortions[colorKey] && !referencePortions[colorKey]!.isEmpty()) {
+      referenceColors.add(colorKey);
+    }
+  }
 
-    const extVisible = getVisiblePortion(extractedPaths, colorKey, i);
-    const refVisible = getVisiblePortion(referencePaths, colorKey, i);
+  const colorSetsMatch = extractedColors.size === referenceColors.size &&
+    [...extractedColors].every(c => referenceColors.has(c));
+
+  for (const colorKey of layerOrder) {
+    const extVisible = extractedPortions[colorKey];
+    const refVisible = referencePortions[colorKey];
+
+    // Debug logging for CCW index 0
+    if (debugCcwIndex === 0) {
+      const extArea = extVisible ? Math.abs((extVisible as paper.Path).area || 0) : 0;
+      const refArea = refVisible ? Math.abs((refVisible as paper.Path).area || 0) : 0;
+      console.log(`  [CCW 0 DEBUG] ${colorKey}: extracted area=${extArea.toFixed(2)}, ref area=${refArea.toFixed(2)}`);
+    }
 
     if (extVisible && refVisible && !extVisible.isEmpty() && !refVisible.isEmpty()) {
       try {
@@ -1590,23 +1637,13 @@ function computeSvgSimilarity(extractedSvg: string, referenceSvg: string): numbe
         union.remove();
       } catch (e) {
         // Skip if boolean operation fails
-        console.log(`Error computing similarity: ${e}`);
       }
     } else if (extVisible && !refVisible) {
-      // Extracted has this layer but reference doesn't - count as mismatch
       totalArea += Math.abs((extVisible as paper.Path).area || 0);
     } else if (!extVisible && refVisible) {
-      // Reference has this layer but extracted doesn't - count as mismatch
       totalArea += Math.abs((refVisible as paper.Path).area || 0);
     }
-
-    // Cleanup
-    if (extVisible) extVisible.remove();
-    if (refVisible) refVisible.remove();
   }
-
-  extractedItem.remove();
-  referenceItem.remove();
 
   // Base similarity score
   let score = totalArea > 0 ? matchingArea / totalArea : 0;
@@ -1769,19 +1806,43 @@ async function convertV1ToV2(): Promise<void> {
     const direction = getTileDirection(x, y);
     const extractedSvg = tileToSvg(x, y);
 
+    // Pre-compute visible portions for this extracted tile (once per tile, not per comparison)
+    const extractedPortions = computeVisiblePortions(extractedSvg);
+
+    // Debug logging for CCW index 0
+    if (i === 0) {
+      console.log(`=== DEBUG CCW 0 Tile (${x},${y}) ===`);
+      console.log(`Extracted SVG:`, extractedSvg.substring(0, 200) + '...');
+      const layerOrder: (keyof VisiblePortions)[] = ['rock', 'sand', 'water'];
+      for (const colorKey of layerOrder) {
+        const portion = extractedPortions[colorKey];
+        const area = portion ? Math.abs((portion as paper.Path).area || 0) : 0;
+        console.log(`  ${colorKey} visible area: ${area.toFixed(2)}`);
+      }
+    }
+
     const scores = new Map<number, number>();
     for (const [assetIndex, assetData] of svgLibrary) {
       if (assetData.direction === direction) {
-        scores.set(assetIndex, computeSvgSimilarity(extractedSvg, assetData.svgContent));
+        const debugIndex = i === 0 ? 0 : undefined;
+        scores.set(assetIndex, compareVisiblePortions(extractedPortions, assetData.visiblePortions, debugIndex));
       }
     }
+
+    // Cleanup extracted portions
+    Object.values(extractedPortions).forEach(p => p?.remove());
 
     // Verbose logging: format scores as { assetIndex: percentage, ... }
     const scoreEntries = Array.from(scores.entries())
       .map(([assetIndex, score]) => `${assetIndex}: ${(score * 100).toFixed(0)}%`)
       .join(', ');
     const verboseScoreLog = `{ ${scoreEntries} }`;
-    console.log(`Tile (${x},${y}) CCW ${i} [${direction}] scores: ${verboseScoreLog}`);
+    const maxScore = Math.max(...Array.from(scores.values()));
+    if (maxScore < 0.7) {
+      console.warn(`Tile (${x},${y}) CCW ${i} [${direction}] scores: ${verboseScoreLog} (max score below 70%)`);
+    } else {
+      console.log(`Tile (${x},${y}) CCW ${i} [${direction}] scores: ${verboseScoreLog}`);
+    }
 
     positionScores.push({ x, y, ccwIndex: i, direction, scores });
   }
@@ -1814,7 +1875,7 @@ async function convertV1ToV2(): Promise<void> {
   let isValid = true;
 
   if (!detectedDirection || bestDirectionScore < 0.7) {
-    console.log('Could not detect river direction - island may be invalid');
+    console.warn('Could not detect river direction - island may be invalid');
     isValid = false;
     detectedDirection = 'west'; // fallback
   } else {
@@ -1960,7 +2021,7 @@ async function convertV1ToV2(): Promise<void> {
         usedPositions.add(dockConfig.ccwIdx);
         console.log(`Dock at CCW ${dockConfig.ccwIdx}: asset ${dock.asset} (score: ${(dock.score * 100).toFixed(1)}%)`);
       } else {
-        console.log('Dock detection failed');
+        console.warn('Dock detection failed');
         isValid = false;
       }
     } else {
@@ -1979,7 +2040,7 @@ async function convertV1ToV2(): Promise<void> {
         usedPositions.add(10);
         console.log(`Dock at CCW 10 (right): asset ${rightDock.asset} (score: ${(rightScore * 100).toFixed(1)}%)`);
       } else {
-        console.log('Dock detection failed');
+        console.warn('Dock detection failed');
         isValid = false;
       }
     }
@@ -2010,7 +2071,7 @@ async function convertV1ToV2(): Promise<void> {
     usedPositions.add(bestPeninsula.ccwIdx);
     console.log(`Peninsula at CCW ${bestPeninsula.ccwIdx}: asset ${bestPeninsula.asset} (score: ${(bestPeninsula.score * 100).toFixed(1)}%)`);
   } else {
-    console.log('Peninsula detection failed');
+    console.warn('Peninsula detection failed');
     isValid = false;
   }
 
@@ -2037,9 +2098,9 @@ async function convertV1ToV2(): Promise<void> {
   }
   // Note: Secret beach failure doesn't invalidate (optional feature)
 
-  // 6. ROCKS (exactly 1 per side) - includes both regular and small rock variants
-  const leftRockAssets = [64, 65, 66, 67, 74, 75, 76, 77];
-  const rightRockAssets = [9, 10, 11, 12, 80, 81, 82, 83];
+  // 6. ROCKS (exactly 1 per side)
+  const leftRockAssets = [64, 65, 66, 67];
+  const rightRockAssets = [9, 10, 11, 12];
 
   let bestLeftRock: { ccwIdx: number; asset: number; score: number } | null = null;
   for (const ccwIdx of [0, 1, 2, 3]) {
@@ -2053,6 +2114,8 @@ async function convertV1ToV2(): Promise<void> {
     assignedTiles.set(bestLeftRock.ccwIdx, bestLeftRock.asset);
     usedPositions.add(bestLeftRock.ccwIdx);
     console.log(`Left rock at CCW ${bestLeftRock.ccwIdx}: asset ${bestLeftRock.asset} (score: ${(bestLeftRock.score * 100).toFixed(1)}%)`);
+  } else {
+    console.warn('Left rock detection failed');
   }
 
   let bestRightRock: { ccwIdx: number; asset: number; score: number } | null = null;
@@ -2067,6 +2130,8 @@ async function convertV1ToV2(): Promise<void> {
     assignedTiles.set(bestRightRock.ccwIdx, bestRightRock.asset);
     usedPositions.add(bestRightRock.ccwIdx);
     console.log(`Right rock at CCW ${bestRightRock.ccwIdx}: asset ${bestRightRock.asset} (score: ${(bestRightRock.score * 100).toFixed(1)}%)`);
+  } else {
+    console.warn('Right rock detection failed');
   }
 
   // Step 4: Fill remaining positions with best 'filled' tile or placeholder
@@ -2095,7 +2160,7 @@ async function convertV1ToV2(): Promise<void> {
       } else {
         const placeholder = getPlaceholderIndexForPosition(pos.x, pos.y);
         edgeTiles.push(placeholder);
-        console.log(`asset ${bestIndex} (score: ${(bestScore * 100).toFixed(1)}%) below threshold. Placeholder at CCW ${i}: ${placeholder}`);
+        console.warn(`Placeholder at CCW ${i}: ${placeholder} - asset ${bestIndex} (score: ${(bestScore * 100).toFixed(1)}%) below threshold.`);
       }
     }
   }
@@ -2160,6 +2225,11 @@ function showDevMenu(): void {
       hideDevMenu();
       isMenuOpen = false;
       toggleSvgExportFromFileMode();
+    }},
+    { label: 'Export Visible Portions', action: () => {
+      hideDevMenu();
+      isMenuOpen = false;
+      toggleVisiblePortionsExportMode();
     }},
     { label: 'Tile Tracer', action: () => {
       hideDevMenu();
