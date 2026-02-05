@@ -1796,6 +1796,73 @@ function mergeSandRockIntoLevel1(): void {
   console.log('Merged sand and rock into level1');
 }
 
+function unionEdgeTilesToLevel1(
+  edgeTiles: number[],
+  ccwPositions: [number, number][],
+  svgLibrary: Map<number, SvgAssetData>
+): void {
+  layers.mapLayer.activate();
+
+  let level1Path = state.drawing['level1']
+    ? state.drawing['level1'].clone() as paper.PathItem
+    : new paper.Path();
+
+  // Colors to extract (non-grass, non-transparent)
+  const colorsToExtract = ['water', 'sand', 'rock'];
+
+  for (let i = 0; i < edgeTiles.length; i++) {
+    const assetIndex = edgeTiles[i];
+    const [blockX, blockY] = ccwPositions[i];
+
+    // Get cached SVG data
+    const assetData = svgLibrary.get(assetIndex);
+    if (!assetData) continue;
+
+    // Import SVG and extract paths
+    const item = paper.project.importSVG(assetData.svgContent, { insert: false });
+    if (!item) continue;
+
+    const paths = item.getItems({ class: paper.Path }) as paper.Path[];
+    const compoundPaths = item.getItems({ class: paper.CompoundPath }) as paper.CompoundPath[];
+
+    // Find and union paths matching our target colors
+    for (const colorKey of colorsToExtract) {
+      const targetColor = colors[colorKey]?.cssColor?.toLowerCase();
+      if (!targetColor) continue;
+
+      const allPaths = [...paths, ...compoundPaths];
+      for (const p of allPaths) {
+        if (p.fillColor?.toCSS(true).toLowerCase() === targetColor) {
+          const cloned = p.clone() as paper.PathItem;
+          // Scale from SVG coords (160x160) to block coords (16x16)
+          cloned.scale(1/10, new paper.Point(0, 0));
+          // Translate to block position
+          cloned.translate(new paper.Point(blockX * blockWidth, blockY * blockHeight));
+          // Union to level1
+          const newLevel1 = level1Path.unite(cloned, { insert: false });
+          level1Path.remove();
+          cloned.remove();
+          level1Path = newLevel1;
+        }
+      }
+    }
+
+    item.remove();
+  }
+
+  // Update level1 in state
+  level1Path.locked = true;
+  level1Path.fillColor = colors.level1.color;
+
+  if (state.drawing['level1']) {
+    level1Path.insertAbove(state.drawing['level1']);
+    state.drawing['level1'].remove();
+  }
+  state.drawing['level1'] = level1Path;
+
+  console.log('Unioned edge tile terrain to level1');
+}
+
 // Find airport object position from state.objects
 // Returns both block coordinates and raw position (for determining which block boundary)
 function findAirportObjectPosition(): { blockX: number; blockY: number; posX: number; posY: number } | null {
@@ -2239,6 +2306,9 @@ async function convertV1ToV2(): Promise<void> {
 
   // Apply edge tiles
   setEdgeTilesFromAssetIndices(edgeTiles);
+
+  // Union edge tile terrain (water, sand, rock) to level1
+  unionEdgeTilesToLevel1(edgeTiles, ccwPositions, svgLibrary);
 
   // Update version
   setMapVersion(2);
