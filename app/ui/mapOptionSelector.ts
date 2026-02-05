@@ -4,6 +4,7 @@ import { colors } from '../colors';
 import { layers } from '../layers';
 import { createButton } from './createButton';
 import { goBack } from './mapSelectionWizard';
+import { getCachedSvgContent } from '../generatedTilesCache';
 
 let selectorUI: paper.Group | null = null;
 
@@ -92,26 +93,41 @@ function createOptionButton(
 
   // Add image if provided (imageSrc is already the SVG path)
   if (option.imageSrc) {
-    paper.project.importSVG(option.imageSrc, {
-      onLoad: (item: paper.Item) => {
-        const scale = (buttonSize - 2) / Math.max(item.bounds.width, item.bounds.height);
-        item.scale(scale, item.bounds.center);
-        item.position = new paper.Point(0, 0);
+    // Helper to add SVG item to button
+    const addSvgToButton = (item: paper.Item) => {
+      const scale = (buttonSize - 2) / Math.max(item.bounds.width, item.bounds.height);
+      item.scale(scale, item.bounds.center);
+      item.position = new paper.Point(0, 0);
 
-        // Add green background rectangle behind the SVG
-        const bgSize = buttonSize - 2;
-        const greenBg = new paper.Path.Rectangle(
-          new paper.Rectangle(-bgSize / 2, -bgSize / 2, bgSize, bgSize)
-        );
-        greenBg.fillColor = colors.level1.color;
-        group.addChild(greenBg);
+      // Add green background rectangle behind the SVG
+      const bgSize = buttonSize - 2;
+      const greenBg = new paper.Path.Rectangle(
+        new paper.Rectangle(-bgSize / 2, -bgSize / 2, bgSize, bgSize)
+      );
+      greenBg.fillColor = colors.level1.color;
+      group.addChild(greenBg);
 
-        group.addChild(item);
-      },
-      onError: () => {
-        console.warn('Failed to load SVG:', option.imageSrc);
+      group.addChild(item);
+    };
+
+    // Try cached SVG first
+    const cachedSvg = getCachedSvgContent(option.imageSrc);
+    if (cachedSvg) {
+      const item = paper.project.importSVG(cachedSvg, { insert: false });
+      if (item) {
+        addSvgToButton(item);
       }
-    });
+    } else {
+      // Fall back to fetching
+      paper.project.importSVG(option.imageSrc, {
+        onLoad: (item: paper.Item) => {
+          addSvgToButton(item);
+        },
+        onError: () => {
+          console.warn('Failed to load SVG:', option.imageSrc);
+        }
+      });
+    }
   } else {
     // Fallback to label if no image
     const label = new paper.PointText(new paper.Point(0, 1));

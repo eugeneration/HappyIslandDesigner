@@ -10,14 +10,12 @@ import {
   getTileDirection,
   isPlaceholderIndex,
 } from './edgeTileAssets';
+import { getCachedSvgContent } from '../generatedTilesCache';
 
 let tilesGroup: paper.Group | null = null;
 
 const blockWidth = horizontalDivisions; // 16
 const blockHeight = verticalDivisions; // 16
-const tileImageSize = 18; // Source images have 1 tile buffer around edge, scale to 18 units
-const tilesPath = 'static/tiles/';
-const tilesDataPath = 'static/tiles_data/';
 
 // Inner drawable area bounds (extends one block into edge tiles)
 // Edge tiles occupy: x=0 and x=6, y=0 and y=5
@@ -39,67 +37,56 @@ export function getInnerDrawableBounds(): paper.Rectangle {
   );
 }
 
-// Convert PNG path to potential SVG path in tiles_data folder
-function getSvgPath(pngPath: string): string | null {
-  // e.g., "static/tiles/placeholder_top_left.png" -> "static/tiles_data/placeholder_top_left.svg"
-  const filename = pngPath.split('/').pop()?.replace('.png', '.svg');
-  if (!filename) return null;
-  return `${tilesDataPath}${filename}`;
+// Get imageSrc for an asset index from either regular or placeholder assets
+function getImageSrcForAsset(assetIndex: number): string | undefined {
+  return assetIndexToData.get(assetIndex)?.imageSrc
+    ?? placeholderAssetIndexToData.get(assetIndex)?.imageSrc;
 }
 
-// Load PNG tile as fallback
-function loadPngTile(
-  imageSrc: string,
+// Create tile image from asset index - uses cached SVG first, then fetches
+function createTileImage(
+  assetIndex: number,
   blockX: number,
   blockY: number,
   callback: (item: paper.Item) => void
 ): void {
-  const raster = new paper.Raster(imageSrc);
-  const x = blockX * blockWidth + blockWidth / 2;
-  const y = blockY * blockHeight + blockHeight / 2;
+  const imageSrc = getImageSrcForAsset(assetIndex);
+  if (!imageSrc) {
+    console.error(`No imageSrc for asset index: ${assetIndex}`);
+    return;
+  }
 
-  raster.onLoad = () => {
-    // Scale to 18x18 (source images have 1 tile buffer around edge)
-    const scaleX = tileImageSize / raster.width;
-    const scaleY = tileImageSize / raster.height;
-    raster.scaling = new paper.Point(scaleX, scaleY);
-    callback(raster);
+  // Helper to position and scale SVG item
+  const positionItem = (item: paper.Item) => {
+    const scaleX = blockWidth / item.bounds.width;
+    const scaleY = blockHeight / item.bounds.height;
+    item.scale(scaleX, scaleY, item.bounds.topLeft);
+    item.bounds.topLeft = new paper.Point(
+      blockX * blockWidth,
+      blockY * blockHeight
+    );
+    callback(item);
   };
 
-  raster.position = new paper.Point(x, y);
-}
-
-// Create tile image - tries SVG first, falls back to PNG
-function createTileImage(
-  imageSrc: string,
-  blockX: number,
-  blockY: number,
-  callback: (item: paper.Item) => void
-): void {
-  const svgPath = getSvgPath(imageSrc);
-
-  if (svgPath) {
-    // Try to load SVG first
-    paper.project.importSVG(svgPath, {
-      onLoad: (item: paper.Item) => {
-        // Scale SVG to fit block size (16x16) - SVGs are designed without buffer
-        const scaleX = blockWidth / item.bounds.width;
-        const scaleY = blockHeight / item.bounds.height;
-        item.scale(scaleX, scaleY, item.bounds.topLeft);
-        item.bounds.topLeft = new paper.Point(
-          blockX * blockWidth,
-          blockY * blockHeight
-        );
-        callback(item);
-      },
-      onError: () => {
-        // Fall back to PNG
-        loadPngTile(imageSrc, blockX, blockY, callback);
-      }
-    });
-  } else {
-    loadPngTile(imageSrc, blockX, blockY, callback);
+  // Try cached SVG content first
+  const cachedSvg = getCachedSvgContent(imageSrc);
+  if (cachedSvg) {
+    const item = paper.project.importSVG(cachedSvg, { insert: false });
+    if (item) {
+      positionItem(item);
+      return;
+    }
   }
+
+  // Fall back to fetching SVG
+  paper.project.importSVG(imageSrc, {
+    onLoad: (item: paper.Item) => {
+      positionItem(item);
+    },
+    onError: () => {
+      console.error(`Failed to load SVG for asset ${assetIndex}: ${imageSrc}`);
+    }
+  });
 }
 
 export type BlockPosition = { x: number; y: number };
@@ -119,48 +106,10 @@ export type BlockData = {
 // Track state and raster reference for each edge block
 const blockData: Map<string, BlockData> = new Map();
 const blockItems: Map<string, paper.Item> = new Map();
-const originalPlaceholders: Map<string, string> = new Map(); // Store original placeholder image paths
+const originalPlaceholderIndices: Map<string, number> = new Map(); // Store original placeholder asset indices
 
 function getBlockKey(x: number, y: number): string {
   return `${x},${y}`;
-}
-
-type PlaceholderConfig = {
-  x: number;
-  y: number;
-  imageSrc: string;
-};
-
-function getEdgePlaceholders(): PlaceholderConfig[] {
-  const placeholders: PlaceholderConfig[] = [];
-
-  // Corners
-  placeholders.push({ imageSrc: `${tilesPath}placeholder_top_left.png`, x: 0, y: 0 });
-  placeholders.push({ imageSrc: `${tilesPath}placeholder_top_right.png`, x: horizontalBlocks - 1, y: 0 });
-  placeholders.push({ imageSrc: `${tilesPath}placeholder_bottom_left.png`, x: 0, y: verticalBlocks - 1 });
-  placeholders.push({ imageSrc: `${tilesPath}placeholder_bottom_right.png`, x: horizontalBlocks - 1, y: verticalBlocks - 1 });
-
-  // Left edge (excluding corners)
-  for (let y = 1; y < verticalBlocks - 1; y++) {
-    placeholders.push({ imageSrc: `${tilesPath}placeholder_left.png`, x: 0, y: y });
-  }
-
-  // Right edge (excluding corners)
-  for (let y = 1; y < verticalBlocks - 1; y++) {
-    placeholders.push({ imageSrc: `${tilesPath}placeholder_right.png`, x: horizontalBlocks - 1, y: y });
-  }
-
-  // Top edge (excluding corners)
-  for (let x = 1; x < horizontalBlocks - 1; x++) {
-    placeholders.push({ imageSrc: `${tilesPath}placeholder_top.png`, x: x, y: 0 });
-  }
-
-  // Bottom edge (excluding corners)
-  for (let x = 1; x < horizontalBlocks - 1; x++) {
-    placeholders.push({ imageSrc: `${tilesPath}placeholder_bottom.png`, x: x, y: verticalBlocks - 1 });
-  }
-
-  return placeholders;
 }
 
 export function initializeEdgeTiles(): void {
@@ -182,15 +131,14 @@ export function initializeEdgeTiles(): void {
 
 // we only need to actually show the placeholders for the creation flow
 export function fillEdgeTilesWithPlaceholders(): void {
-  const placeholders = getEdgePlaceholders();
-
-  for (const {x, y, imageSrc} of placeholders) {
+  for (const [x, y] of ccwPositions) {
     const key = getBlockKey(x, y);
-    originalPlaceholders.set(key, imageSrc);
-    createTileImage(imageSrc, x, y, (item) => {
+    const assetIndex = getPlaceholderIndexForPosition(x, y);
+    originalPlaceholderIndices.set(key, assetIndex);
+    createTileImage(assetIndex, x, y, (item) => {
       tilesGroup!.addChild(item);
       blockItems.set(key, item);
-      blockData.set(key, {x, y, assetIndex: getPlaceholderIndexForPosition(x, y)})
+      blockData.set(key, {x, y, assetIndex});
     });
   }
   // Send to back of overlay layer so UI elements appear on top
@@ -205,7 +153,7 @@ export function deleteEdgeTiles(): void {
   // Clear tracking maps
   blockData.clear();
   blockItems.clear();
-  originalPlaceholders.clear();
+  originalPlaceholderIndices.clear();
 }
 
 export function isEdgeTilesVisible(): boolean {
@@ -254,18 +202,10 @@ export function replaceBlocks(
   if (!tilesGroup) return;
   const {x, y, assetIndex} = newBlockData;
 
-  // Create new tile with the new image (SVG preferred, PNG fallback)
-  const imageSrc = assetIndexToData.get(assetIndex)?.imageSrc
-    ?? placeholderAssetIndexToData.get(assetIndex)?.imageSrc;
-  if (!imageSrc) {
-    console.error("Invalid block assetID", assetIndex);
-    return;
-  }
-
-  createTileImage(imageSrc, x, y, (item) => {
+  createTileImage(assetIndex, x, y, (item) => {
     const key = getBlockKey(x, y);
 
-    // Remove the existing raster
+    // Remove the existing item
     blockItems.get(key)?.remove();
 
     tilesGroup!.addChild(item);
@@ -285,17 +225,17 @@ export function restoreBlocks(positions: BlockPosition[]): void {
 
   positions.forEach((pos) => {
     const key = getBlockKey(pos.x, pos.y);
-    const existingRaster = blockItems.get(key);
-    const originalSrc = originalPlaceholders.get(key);
+    const existingItem = blockItems.get(key);
+    const originalAssetIndex = originalPlaceholderIndices.get(key);
 
-    if (existingRaster && originalSrc) {
-      existingRaster.remove();
+    if (existingItem && originalAssetIndex !== undefined) {
+      existingItem.remove();
 
-      createTileImage(originalSrc, pos.x, pos.y, (item) => {
+      createTileImage(originalAssetIndex, pos.x, pos.y, (item) => {
         tilesGroup!.addChild(item);
 
         blockItems.set(key, item);
-        blockData.set(key, { x: pos.x, y: pos.y, assetIndex: getPlaceholderIndexForPosition(pos.x, pos.y) });
+        blockData.set(key, { x: pos.x, y: pos.y, assetIndex: originalAssetIndex });
       });
     }
   });

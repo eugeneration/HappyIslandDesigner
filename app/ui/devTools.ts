@@ -19,6 +19,7 @@ import { setMapVersion } from '../mapState';
 import Layouts, { Layout } from '../components/islandLayouts';
 import { loadMapFromJSONString } from '../load';
 import { safeCompoundIntersection } from '../helpers/safeCompoundIntersection';
+import { getCachedSvgContent } from '../generatedTilesCache';
 
 // Only initialize in dev builds
 declare const __DEV__: boolean;
@@ -1630,6 +1631,20 @@ async function buildSvgReferenceLibrary(): Promise<Map<number, SvgAssetData>> {
     // imageSrc is already an SVG path (e.g., 'static/tiles_data/1 - ISdNX8N.svg')
     const svgPath = data.imageSrc;
 
+    // Try cached SVG content first
+    const cachedSvg = getCachedSvgContent(svgPath);
+    if (cachedSvg) {
+      const visiblePortions = computeVisiblePortions(cachedSvg);
+      library.set(index, {
+        assetIndex: index,
+        direction: data.direction,
+        svgContent: cachedSvg,
+        visiblePortions,
+      });
+      continue;
+    }
+
+    // Fall back to fetching if not cached
     try {
       const response = await fetch(svgPath);
       if (!response.ok) {

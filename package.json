@@ -53,6 +53,9 @@
     "yarn": "^1.19.1"
   },
   "scripts": {
+    "generate-tiles-cache": "node scripts/generateTilesCache.js",
+    "predev": "npm run generate-tiles-cache",
+    "prebuild": "npm run generate-tiles-cache",
     "dev": "webpack serve --mode development",
     "lint": "eslint --ext .ts,.js ./app/",
     "build": "webpack --mode production"
