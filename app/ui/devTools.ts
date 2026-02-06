@@ -20,6 +20,7 @@ import Layouts, { Layout } from '../components/islandLayouts';
 import { loadMapFromJSONString } from '../load';
 import { safeCompoundIntersection } from '../helpers/safeCompoundIntersection';
 import { getCachedSvgContent } from '../generatedTilesCache';
+import { encodeMap } from '../save';
 
 // Only initialize in dev builds
 declare const __DEV__: boolean;
@@ -1413,7 +1414,7 @@ function saveTileTracerSvg(): void {
 function getAllLayouts(): { category: string; layout: Layout; index: number }[] {
   const all: { category: string; layout: Layout; index: number }[] = [];
 
-  Layouts.blank.forEach((l, i) => all.push({ category: 'blank', layout: l, index: i }));
+  // Layouts.blank.forEach((l, i) => all.push({ category: 'blank', layout: l, index: i }));
   Layouts.west.forEach((l, i) => all.push({ category: 'west', layout: l, index: i }));
   Layouts.south.forEach((l, i) => all.push({ category: 'south', layout: l, index: i }));
   Layouts.east.forEach((l, i) => all.push({ category: 'east', layout: l, index: i }));
@@ -1922,8 +1923,21 @@ function blockToCcwIndex(blockX: number, blockY: number): number | null {
   return null;
 }
 
-async function convertV1ToV2(): Promise<void> {
+// Diagnostic data returned from conversion
+type EdgeTileDiagnostic = { ccwIndex: number; assetIndex: number; score: number };
+type ConversionDiagnostic = {
+  riverDirection: string;
+  riverScore: number;
+  edgeTiles: EdgeTileDiagnostic[];
+  isValid: boolean;
+  hasLowConfidence: boolean;
+};
+
+async function convertV1ToV2(): Promise<ConversionDiagnostic> {
   console.log('Starting V1 to V2 conversion...');
+
+  // Diagnostic data to collect
+  const diagnosticTiles: EdgeTileDiagnostic[] = [];
 
   // Build SVG reference library
   const svgLibrary = await buildSvgReferenceLibrary();
@@ -2024,6 +2038,8 @@ async function convertV1ToV2(): Promise<void> {
   }
 
   let isValid = true;
+  const diagnosticRiverDirection = detectedDirection ?? 'west';
+  const diagnosticRiverScore = bestDirectionScore;
 
   if (!detectedDirection || bestDirectionScore < 0.7) {
     console.warn('Could not detect river direction - island may be invalid');
@@ -2287,10 +2303,17 @@ async function convertV1ToV2(): Promise<void> {
 
   // Step 4: Fill remaining positions with best 'filled' tile or placeholder
   const edgeTiles: number[] = [];
+  // Track scores for assigned tiles (need to look them up from positionScores)
+  const assignedScores: Map<number, number> = new Map();
 
   for (let i = 0; i < ccwPositions.length; i++) {
     if (assignedTiles.has(i)) {
-      edgeTiles.push(assignedTiles.get(i)!);
+      const assignedAsset = assignedTiles.get(i)!;
+      edgeTiles.push(assignedAsset);
+      // Get the score for the assigned asset
+      const score = positionScores[i].scores.get(assignedAsset) ?? 0;
+      assignedScores.set(i, score);
+      diagnosticTiles.push({ ccwIndex: i, assetIndex: assignedAsset, score });
     } else {
       // Find best 'filled' type tile
       const pos = positionScores[i];
@@ -2307,10 +2330,12 @@ async function convertV1ToV2(): Promise<void> {
 
       if (bestIndex !== null && bestScore >= 0.7) {
         edgeTiles.push(bestIndex);
+        diagnosticTiles.push({ ccwIndex: i, assetIndex: bestIndex, score: bestScore });
         console.log(`Filled at CCW ${i}: asset ${bestIndex} (score: ${(bestScore * 100).toFixed(1)}%)`);
       } else {
         const placeholder = getPlaceholderIndexForPosition(pos.x, pos.y);
         edgeTiles.push(placeholder);
+        diagnosticTiles.push({ ccwIndex: i, assetIndex: placeholder, score: bestScore });
         console.warn(`Placeholder at CCW ${i}: ${placeholder} - asset ${bestIndex} (score: ${(bestScore * 100).toFixed(1)}%) below threshold.`);
       }
     }
@@ -2336,6 +2361,206 @@ async function convertV1ToV2(): Promise<void> {
   }
 
   console.log('Edge tiles:', edgeTiles);
+
+  // Check for low confidence tiles
+  const hasLowConfidence = diagnosticTiles.some(t => t.score < 0.7);
+
+  return {
+    riverDirection: diagnosticRiverDirection,
+    riverScore: diagnosticRiverScore,
+    edgeTiles: diagnosticTiles,
+    isValid,
+    hasLowConfidence,
+  };
+}
+
+// ============ Batch V1 to V2 Conversion ============
+
+type ConversionResult = {
+  category: string;
+  layout: Layout;
+  v2Data: string;
+  diagnostic: ConversionDiagnostic;
+};
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function downloadTextFile(content: string, filename: string): void {
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function generateIslandLayoutsV2File(results: ConversionResult[]): void {
+  const grouped: Record<string, string[]> = {
+    blank: [],
+    west: [],
+    south: [],
+    east: [],
+  };
+
+  for (const { category, layout, v2Data } of results) {
+    // Escape single quotes and backslashes in data
+    const escapedData = v2Data.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const linkLine = layout.link ? `      link: '${layout.link}',\n` : '';
+    const entry = `    {
+      name: '${layout.name}',
+      contributor: '${layout.contributor}',
+${linkLine}      data: '${escapedData}',
+      quality: ${layout.quality},
+    }`;
+    grouped[category].push(entry);
+  }
+
+  const fileContent = `// Auto-generated V2 layouts - do not edit manually
+// Generated: ${new Date().toISOString()}
+// Source: islandLayouts.ts converted via batchConvertV1ToV2()
+
+export interface Layout {
+  name: string;
+  contributor: string;
+  link?: string;
+  data: string;
+  quality: number;
+}
+
+export enum LayoutType {
+  none = '',
+  blank = 'blank',
+  west = 'west',
+  south = 'south',
+  east = 'east',
+}
+
+export default {
+  [LayoutType.blank]: [
+${grouped.blank.join(',\n')}
+  ],
+  [LayoutType.west]: [
+${grouped.west.join(',\n')}
+  ],
+  [LayoutType.south]: [
+${grouped.south.join(',\n')}
+  ],
+  [LayoutType.east]: [
+${grouped.east.join(',\n')}
+  ],
+};
+`;
+
+  downloadTextFile(fileContent, 'islandLayoutsV2.ts');
+  console.log('Downloaded islandLayoutsV2.ts');
+}
+
+function generateDiagnosticsFile(results: ConversionResult[]): void {
+  const lines: string[] = [];
+
+  lines.push('================================================================================');
+  lines.push('BATCH V1 TO V2 CONVERSION DIAGNOSTICS');
+  lines.push(`Generated: ${new Date().toISOString()}`);
+  lines.push('================================================================================');
+  lines.push('');
+
+  let validCount = 0;
+  let invalidCount = 0;
+  const lowConfidenceLayouts: { name: string; count: number }[] = [];
+
+  for (let i = 0; i < results.length; i++) {
+    const { category, layout, diagnostic } = results[i];
+    const fullName = `${category}/${layout.name}`;
+
+    lines.push(`[${i + 1}/${results.length}] ${fullName}`);
+    lines.push(`  River direction: ${diagnostic.riverDirection} (score: ${(diagnostic.riverScore * 100).toFixed(1)}%)`);
+    lines.push('  Edge tiles (CCW order):');
+
+    let lowConfidenceCount = 0;
+    for (const tile of diagnostic.edgeTiles) {
+      const scoreStr = (tile.score * 100).toFixed(1);
+      const warning = tile.score < 0.7 ? ' ⚠️ BELOW 70% THRESHOLD' : '';
+      if (tile.score < 0.7) lowConfidenceCount++;
+      lines.push(`    CCW ${tile.ccwIndex.toString().padStart(2)}: asset ${tile.assetIndex.toString().padStart(3)} (score: ${scoreStr.padStart(5)}%)${warning}`);
+    }
+
+    lines.push(`  Status: ${diagnostic.isValid ? 'VALID' : 'INVALID (missing required features)'}`);
+
+    if (diagnostic.hasLowConfidence) {
+      lines.push('  ⚠️ WARNING: This map has tiles below 70% confidence');
+      lowConfidenceLayouts.push({ name: fullName, count: lowConfidenceCount });
+    }
+
+    if (diagnostic.isValid) {
+      validCount++;
+    } else {
+      invalidCount++;
+    }
+
+    lines.push('');
+    lines.push('--------------------------------------------------------------------------------');
+    lines.push('');
+  }
+
+  lines.push('================================================================================');
+  lines.push('SUMMARY');
+  lines.push('================================================================================');
+  lines.push(`Total layouts: ${results.length}`);
+  lines.push(`Valid conversions: ${validCount}`);
+  lines.push(`Invalid conversions: ${invalidCount}`);
+  lines.push(`Layouts with low confidence tiles (<70%): ${lowConfidenceLayouts.length}`);
+  lines.push('');
+
+  if (lowConfidenceLayouts.length > 0) {
+    lines.push('LOW CONFIDENCE LAYOUTS:');
+    for (const { name, count } of lowConfidenceLayouts) {
+      lines.push(`  - ${name}: ${count} tile(s) below threshold`);
+    }
+  }
+
+  downloadTextFile(lines.join('\n'), 'islandLayoutsV2_diagnostics.txt');
+  console.log('Downloaded islandLayoutsV2_diagnostics.txt');
+}
+
+async function batchConvertV1ToV2(): Promise<void> {
+  const allLayouts = getAllLayouts();
+  const results: ConversionResult[] = [];
+
+  console.log(`Starting batch conversion of ${allLayouts.length} layouts...`);
+
+  for (let i = 0; i < allLayouts.length; i++) {
+    const { category, layout } = allLayouts[i];
+    console.log(`[${i + 1}/${allLayouts.length}] Converting: ${category}/${layout.name}`);
+
+    // Load the layout
+    loadMapFromJSONString(layout.data);
+
+    // Small delay for rendering
+    await delay(100);
+
+    // Run conversion and capture diagnostics
+    const diagnostic = await convertV1ToV2();
+
+    // Capture V2 output
+    const v2Data = encodeMap();
+    results.push({ category, layout, v2Data, diagnostic });
+
+    // Small delay for UI responsiveness
+    await delay(50);
+  }
+
+  console.log(`Batch conversion complete. Generating output files...`);
+
+  // Generate and download both files
+  generateIslandLayoutsV2File(results);
+  generateDiagnosticsFile(results);
+
+  console.log('Batch conversion finished!');
 }
 
 function showDevMenu(): void {
@@ -2404,6 +2629,11 @@ function showDevMenu(): void {
       hideDevMenu();
       isMenuOpen = false;
       convertV1ToV2();
+    }},
+    { label: 'Batch Convert to V2', action: () => {
+      hideDevMenu();
+      isMenuOpen = false;
+      batchConvertV1ToV2();
     }},
     { label: 'Toggle Edge Tiles', action: () => {
       hideDevMenu();
