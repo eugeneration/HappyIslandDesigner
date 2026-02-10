@@ -21,6 +21,7 @@ import { loadMapFromJSONString } from '../load';
 import { safeCompoundIntersection } from '../helpers/safeCompoundIntersection';
 import { getCachedSvgContent } from '../generatedTilesCache';
 import { encodeMap } from '../save';
+import { getBaseMapData } from '../generatedBaseMapCache';
 
 // Only initialize in dev builds
 declare const __DEV__: boolean;
@@ -2563,6 +2564,1627 @@ async function batchConvertV1ToV2(): Promise<void> {
   console.log('Batch conversion finished!');
 }
 
+// ============ Base Map Terrain Extraction ============
+
+// Types
+type RGB = { r: number; g: number; b: number };
+type BridgeLine = { start: { x: number; y: number }; end: { x: number; y: number }; isHorizontal: boolean };
+
+// All 96 base map files
+const BASE_MAP_FILES = [
+  '1 - SDfVaDl.jpg', '2 - yXDYVFD.jpg', '3 - PyzBUP1.jpg', '4 - OnqC1nC.jpg',
+  '5 - WurSJKk.jpg', '6 - aVJGwvu.jpg', '7 - f6D7OlU.jpg', '8 - vgbGYKj.jpg',
+  '9 - XQqxFI5.jpg', '10 - 8wJ2zkT.jpg', '11 - nxBjoME.jpg', '12 - vMq0I1Y.jpg',
+  '13 - exafStG.jpg', '14 - 44Uvxyi.jpg', '15 - Gd13Uqa.jpg', '16 - jZ1HMbz.jpg',
+  '17 - iulJBPa.jpg', '18 - KREU8f0.jpg', '19 - dLF3X3o.jpg', '20 - 9bipHlY.jpg',
+  '21 - ZfTqMvU.jpg', '22 - KZQBwNT.jpg', '23 - rpjToFI.jpg', '24 - lD2Fa4n.jpg',
+  '25 - rOAgb5r.jpg', '26 - xO4Y1P9.jpg', '27 - wnircua.jpg', '28 - FQo5X0l.jpg',
+  '29 - Iwm65vI.jpg', '30 - o4EWiYM.jpg', '31 - H19jpgc.jpg', '32 - oNbwrz9.jpg',
+  '33 - yW0MVKg.jpg', '34 - Em3vf6s.jpg', '35 - kblSc5O.jpg', '36 - yHzfMaY.jpg',
+  '37 - ZbHBRAR.jpg', '38 - YQzYDaq.jpg', '39 - VqZqOls.jpg', '40 - XH7hFKo.jpg',
+  '41 - 4CTq1Yz.jpg', '42 - PLjd4OF.jpg', '43 - f2mIPoL.jpg', '44 - dwanr7W.jpg',
+  '45 - doFvLYG.jpg', '46 - y8lJMPb.jpg', '47 - PGpHfWf.jpg', '48 - 9Ay4nWC.jpg',
+  '49 - r5hU5MC.jpg', '50 - TLh5By9.jpg', '51 - otoVlEA.jpg', '52 - QIng9V9.jpg',
+  '53 - t5M7SiG.jpg', '54 - 2q0bQRY.jpg', '55 - hngZx2E.jpg', '56 - tPzg45P.jpg',
+  '57 - yMCIWKN.jpg', '58 - 6umQpI4.jpg', '59 - mvupnpF.jpg', '60 - bVxC7iZ.jpg',
+  '61 - DDScpXA.jpg', '62 - uqZvyEa.jpg', '63 - 1XAi2gj.jpg', '64 - kBrwfKa.jpg',
+  '65 - QQmZpWF.jpg', '66 - YmzCqPd.jpg', '67 - sUoNw6e.jpg', '68 - eJM8rcO.jpg',
+  '69 - WzNx0OM.jpg', '70 - FR99zC2.jpg', '71 - wD6qccC.jpg', '72 - Q8bRecT.jpg',
+  '73 - dV7S7GM.jpg', '74 - ahfeEFT.jpg', '75 - usK7zRN.jpg', '76 - 9S6e5Ph.jpg',
+  '77 - ZwPMkk6.jpg', '78 - SbHz9i5.jpg', '79 - zNg90t4.jpg', '80 - jly4r3F.jpg',
+  '81 - LY0ARnv.jpg', '82 - lSWhCA9.jpg', '83 - AT8suxM.jpg', '84 - gXcNrPj.jpg',
+  '85 - CB8fm1b.jpg', '86 - JjnvVvr.jpg', '87 - 2qVL5Y0.jpg', '88 - 8kk4LXN.jpg',
+  '89 - ZlFObf5.jpg', '90 - NXJf8HC.jpg', '91 - VECjA4S.jpg', '92 - oTXYCIs.jpg',
+  '93 - 5A40la1.jpg', '94 - nL0gcY9.jpg', '95 - bTUDhRf.jpg', '96 - q2q0K1u.jpg',
+];
+
+// Flag to disable debug image downloads during batch processing
+let batchMode = false;
+
+// Constants - Colors based on actual color-picked samples from source images
+// Level detection is primarily based on green channel value:
+//   Level1: G ≈ 120-130 (#097C00, #008001, #038102, #077A07)
+//   Border: G ≈ 95-106  (#036603, #026A02, #046203, #065F0C, #03630A)
+//   Level2: G ≈ 73-83   (#025100, #074907, #005301, #035102, #064B03)
+//   Level3: G ≈ 22-28   (#0B1600, #011C00, #051709) - very dark green
+const BASE_MAP_COLORS = {
+  WATER_BLUE: { r: 0x00, g: 0x00, b: 0x8E },
+  WATER_GREY: { r: 0x84, g: 0x84, b: 0x84 },
+  WATER_BLACK: { r: 0x00, g: 0x02, b: 0x05 }, // #000203, #010307 - slight blue tint
+  LEVEL1: { r: 0x05, g: 0x7D, b: 0x02 },      // G ≈ 125 (0x7A-0x81)
+  LEVEL2: { r: 0x04, g: 0x50, b: 0x02 },      // G ≈ 80 (0x49-0x53)
+  LEVEL3: { r: 0x06, g: 0x18, b: 0x03 },      // G ≈ 24 (0x16-0x1C) - dark green!
+  BORDER: { r: 0x04, g: 0x64, b: 0x05 },      // G ≈ 100 (0x5F-0x6A)
+  EDGE_BLUE: { r: 0x00, g: 0x00, b: 0xFE },
+  RED_BRIGHT: { r: 0xF0, g: 0x06, b: 0x01 },  // On level1: #F20501, #EB0801
+  RED_DULL: { r: 0xAE, g: 0x26, b: 0x30 },    // On level2/3: #AF2827, #AE2439
+  ORANGE: { r: 0xFF, g: 0xC1, b: 0xA9 },
+  YELLOW: { r: 0xFF, g: 0xFF, b: 0x00 },
+};
+
+// Green channel thresholds for level classification
+const GREEN_THRESHOLDS = {
+  LEVEL1_MIN: 110,  // Level1: G >= 110
+  BORDER_MIN: 88,   // Border: 88 <= G < 110
+  LEVEL2_MIN: 55,   // Level2: 55 <= G < 88
+  LEVEL3_MIN: 0,    // Level3: G < 55 (very dark green)
+};
+
+const COORD_WIDTH = 112;  // 7 blocks × 16 units
+const COORD_HEIGHT = 96;  // 6 blocks × 16 units
+const PIXELS_PER_UNIT = 6;
+const EDGE_BORDER_SIZE = 8; // coordinates
+const COLOR_TOLERANCE = 40; // Euclidean RGB distance for JPEG artifacts
+
+// Level enum for classification
+const LEVEL = {
+  UNKNOWN: 0,
+  WATER: 1,
+  LEVEL1: 2,
+  LEVEL2: 3,
+  LEVEL3: 4,
+  BORDER: 5,
+  SPECIAL: 6, // red, orange, yellow
+};
+
+// Color utility functions
+function colorDistance(c1: RGB, c2: RGB): number {
+  return Math.sqrt(
+    (c1.r - c2.r) ** 2 +
+    (c1.g - c2.g) ** 2 +
+    (c1.b - c2.b) ** 2
+  );
+}
+
+function matchesColor(pixel: RGB, target: RGB, tolerance = COLOR_TOLERANCE): boolean {
+  return colorDistance(pixel, target) <= tolerance;
+}
+
+function getPixelAt(colors: Uint8Array, x: number, y: number): RGB {
+  const idx = (y * COORD_WIDTH + x) * 3;
+  return { r: colors[idx], g: colors[idx + 1], b: colors[idx + 2] };
+}
+
+// Load image asynchronously
+function loadImageAsync(path: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Failed to load image: ${path}`));
+    img.src = path;
+  });
+}
+
+// Step 1: Pixelate image to coordinate grid
+function pixelateImage(image: HTMLImageElement): Uint8Array {
+  const canvas = document.createElement('canvas');
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(image, 0, 0);
+
+  const imageData = ctx.getImageData(0, 0, image.width, image.height);
+  const data = imageData.data;
+
+  // Output: RGB for each coordinate (112×96×3)
+  const coordColors = new Uint8Array(COORD_WIDTH * COORD_HEIGHT * 3);
+
+  for (let cy = 0; cy < COORD_HEIGHT; cy++) {
+    for (let cx = 0; cx < COORD_WIDTH; cx++) {
+      // Calculate pixel bounds for this coordinate
+      const px = cx * PIXELS_PER_UNIT;
+      const py = cy * PIXELS_PER_UNIT;
+
+      // Sample center 4×4 pixels (offset 1 from edges)
+      let rSum = 0, gSum = 0, bSum = 0;
+      let count = 0;
+
+      for (let dy = 1; dy < 5; dy++) {
+        for (let dx = 1; dx < 5; dx++) {
+          const pixelX = px + dx;
+          const pixelY = py + dy;
+          if (pixelX < image.width && pixelY < image.height) {
+            const idx = (pixelY * image.width + pixelX) * 4;
+            rSum += data[idx];
+            gSum += data[idx + 1];
+            bSum += data[idx + 2];
+            count++;
+          }
+        }
+      }
+
+      const outIdx = (cy * COORD_WIDTH + cx) * 3;
+      coordColors[outIdx] = Math.round(rSum / count);
+      coordColors[outIdx + 1] = Math.round(gSum / count);
+      coordColors[outIdx + 2] = Math.round(bSum / count);
+    }
+  }
+
+  return coordColors;
+}
+
+// Step 2: Classify water
+function classifyWater(colors: Uint8Array): { waterMask: boolean[]; bridgeLines: BridgeLine[] } {
+  const waterMask = new Array(COORD_WIDTH * COORD_HEIGHT).fill(false);
+  const blackPixels: { x: number; y: number }[] = [];
+
+  // First pass: identify water and potential bridge pixels
+  for (let y = 0; y < COORD_HEIGHT; y++) {
+    for (let x = 0; x < COORD_WIDTH; x++) {
+      const pixel = getPixelAt(colors, x, y);
+
+      // Skip edge border (8 units from edge)
+      if (x < EDGE_BORDER_SIZE || x >= COORD_WIDTH - EDGE_BORDER_SIZE ||
+          y < EDGE_BORDER_SIZE || y >= COORD_HEIGHT - EDGE_BORDER_SIZE) {
+        continue;
+      }
+
+      // Check for water blue
+      if (matchesColor(pixel, BASE_MAP_COLORS.WATER_BLUE)) {
+        waterMask[y * COORD_WIDTH + x] = true;
+      }
+      // Check for water grey
+      else if (matchesColor(pixel, BASE_MAP_COLORS.WATER_GREY)) {
+        waterMask[y * COORD_WIDTH + x] = true;
+      }
+      // Track black pixels for bridge detection
+      else if (matchesColor(pixel, BASE_MAP_COLORS.WATER_BLACK, 35)) {
+        blackPixels.push({ x, y });
+      }
+    }
+  }
+
+  // Bridge detection: find horizontal/vertical black lines 3-5 units long
+  const bridgeLines: BridgeLine[] = [];
+  const usedInBridge = new Set<string>();
+
+  for (const { x, y } of blackPixels) {
+    if (usedInBridge.has(`${x},${y}`)) continue;
+
+    // Try horizontal line
+    let hLen = 1;
+    while (x + hLen < COORD_WIDTH && blackPixels.some(p => p.x === x + hLen && p.y === y)) {
+      hLen++;
+    }
+
+    if (hLen >= 3 && hLen <= 6) {
+      // Horizontal bridge: check above/below each point
+      // - Start/end points: grey above AND below
+      // - Interior points: blue above OR below
+      // - Left/right of bridge: NOT water
+      const leftX = x - 1;
+      const rightX = x + hLen;
+
+      if (leftX >= 0 && rightX < COORD_WIDTH && y > 0 && y < COORD_HEIGHT - 1) {
+        // Check left/right are NOT water (should be land)
+        const leftPixel = getPixelAt(colors, leftX, y);
+        const rightPixel = getPixelAt(colors, rightX, y);
+        const leftIsNotWater = !matchesColor(leftPixel, BASE_MAP_COLORS.WATER_GREY) &&
+                               !matchesColor(leftPixel, BASE_MAP_COLORS.WATER_BLUE);
+        const rightIsNotWater = !matchesColor(rightPixel, BASE_MAP_COLORS.WATER_GREY) &&
+                                !matchesColor(rightPixel, BASE_MAP_COLORS.WATER_BLUE);
+
+        if (leftIsNotWater && rightIsNotWater) {
+          let isValidBridge = true;
+          for (let i = 0; i < hLen && isValidBridge; i++) {
+            const bx = x + i;
+            const abovePixel = getPixelAt(colors, bx, y - 1);
+            const belowPixel = getPixelAt(colors, bx, y + 1);
+            const isEndpoint = (i === 0 || i === hLen - 1);
+            const isNearEndpoint = (i === 1 || i === hLen - 2);
+
+            if (isEndpoint) {
+              // First/last: grey on both sides
+              isValidBridge = matchesColor(abovePixel, BASE_MAP_COLORS.WATER_GREY) &&
+                              matchesColor(belowPixel, BASE_MAP_COLORS.WATER_GREY);
+            } else if (isNearEndpoint) {
+              // Second and second-from-last: water (blue or grey) on both sides
+              const aboveIsWater = matchesColor(abovePixel, BASE_MAP_COLORS.WATER_BLUE) ||
+                                   matchesColor(abovePixel, BASE_MAP_COLORS.WATER_GREY);
+              const belowIsWater = matchesColor(belowPixel, BASE_MAP_COLORS.WATER_BLUE) ||
+                                   matchesColor(belowPixel, BASE_MAP_COLORS.WATER_GREY);
+              isValidBridge = aboveIsWater && belowIsWater;
+            } else {
+              // Middle: blue on both sides
+              isValidBridge = matchesColor(abovePixel, BASE_MAP_COLORS.WATER_BLUE) &&
+                              matchesColor(belowPixel, BASE_MAP_COLORS.WATER_BLUE);
+            }
+          }
+          if (isValidBridge) {
+            for (let i = 0; i < hLen; i++) {
+              usedInBridge.add(`${x + i},${y}`);
+              waterMask[y * COORD_WIDTH + x + i] = true;
+            }
+            bridgeLines.push({ start: { x, y }, end: { x: x + hLen - 1, y }, isHorizontal: true });
+            continue;
+          }
+        }
+      }
+    }
+
+    // Try vertical line
+    let vLen = 1;
+    while (y + vLen < COORD_HEIGHT && blackPixels.some(p => p.x === x && p.y === y + vLen)) {
+      vLen++;
+    }
+
+    if (vLen >= 3 && vLen <= 6) {
+      // Vertical bridge: check left/right of each point
+      // - Start/end points: grey left AND right
+      // - Interior points: blue left OR right
+      // - Top/bottom of bridge: NOT water
+      const topY = y - 1;
+      const bottomY = y + vLen;
+
+      if (topY >= 0 && bottomY < COORD_HEIGHT && x > 0 && x < COORD_WIDTH - 1) {
+        // Check top/bottom are NOT water (should be land)
+        const topPixel = getPixelAt(colors, x, topY);
+        const bottomPixel = getPixelAt(colors, x, bottomY);
+        const topIsNotWater = !matchesColor(topPixel, BASE_MAP_COLORS.WATER_GREY) &&
+                              !matchesColor(topPixel, BASE_MAP_COLORS.WATER_BLUE);
+        const bottomIsNotWater = !matchesColor(bottomPixel, BASE_MAP_COLORS.WATER_GREY) &&
+                                 !matchesColor(bottomPixel, BASE_MAP_COLORS.WATER_BLUE);
+
+        if (topIsNotWater && bottomIsNotWater) {
+          let isValidBridge = true;
+          for (let i = 0; i < vLen && isValidBridge; i++) {
+            const by = y + i;
+            const leftPixel = getPixelAt(colors, x - 1, by);
+            const rightPixel = getPixelAt(colors, x + 1, by);
+            const isEndpoint = (i === 0 || i === vLen - 1);
+            const isNearEndpoint = (i === 1 || i === vLen - 2);
+
+            if (isEndpoint) {
+              // First/last: grey on both sides
+              isValidBridge = matchesColor(leftPixel, BASE_MAP_COLORS.WATER_GREY) &&
+                              matchesColor(rightPixel, BASE_MAP_COLORS.WATER_GREY);
+            } else if (isNearEndpoint) {
+              // Second and second-from-last: water (blue or grey) on both sides
+              const leftIsWater = matchesColor(leftPixel, BASE_MAP_COLORS.WATER_BLUE) ||
+                                  matchesColor(leftPixel, BASE_MAP_COLORS.WATER_GREY);
+              const rightIsWater = matchesColor(rightPixel, BASE_MAP_COLORS.WATER_BLUE) ||
+                                   matchesColor(rightPixel, BASE_MAP_COLORS.WATER_GREY);
+              isValidBridge = leftIsWater && rightIsWater;
+            } else {
+              // Middle: blue on both sides
+              isValidBridge = matchesColor(leftPixel, BASE_MAP_COLORS.WATER_BLUE) &&
+                              matchesColor(rightPixel, BASE_MAP_COLORS.WATER_BLUE);
+            }
+          }
+          if (isValidBridge) {
+            for (let i = 0; i < vLen; i++) {
+              usedInBridge.add(`${x},${y + i}`);
+              waterMask[(y + i) * COORD_WIDTH + x] = true;
+            }
+            bridgeLines.push({ start: { x, y }, end: { x, y: y + vLen - 1 }, isHorizontal: false });
+          }
+        }
+      }
+    }
+  }
+
+  console.log(`Water classification: found ${bridgeLines.length} bridge lines`);
+  return { waterMask, bridgeLines };
+}
+
+// Step 3: Cleanup water (remove isolated pixels)
+function cleanupWater(waterMask: boolean[]): boolean[] {
+  const cleaned = [...waterMask];
+  const dx = [-1, 0, 1, -1, 1, -1, 0, 1];
+  const dy = [-1, -1, -1, 0, 0, 1, 1, 1];
+
+  for (let y = 0; y < COORD_HEIGHT; y++) {
+    for (let x = 0; x < COORD_WIDTH; x++) {
+      const idx = y * COORD_WIDTH + x;
+      if (!cleaned[idx]) continue;
+
+      // Check for at least one water neighbor
+      let hasNeighbor = false;
+      for (let d = 0; d < 8; d++) {
+        const nx = x + dx[d];
+        const ny = y + dy[d];
+        if (nx >= 0 && nx < COORD_WIDTH && ny >= 0 && ny < COORD_HEIGHT) {
+          if (waterMask[ny * COORD_WIDTH + nx]) {
+            hasNeighbor = true;
+            break;
+          }
+        }
+      }
+
+      if (!hasNeighbor) {
+        cleaned[idx] = false;
+      }
+    }
+  }
+
+  return cleaned;
+}
+
+// Step 3b: Infer water levels using bridge topology
+// Water regions separated by bridges are assigned levels based on distance from ocean
+function inferWaterLevels(waterMask: boolean[], bridgeLines: BridgeLine[], colors: Uint8Array): Uint8Array {
+  const waterLevels = new Uint8Array(COORD_WIDTH * COORD_HEIGHT);
+  const visited = new Array(COORD_WIDTH * COORD_HEIGHT).fill(false);
+  const cardinalDx = [0, 1, 0, -1];
+  const cardinalDy = [-1, 0, 1, 0];
+
+  // Helper to get land level using green channel thresholds
+  // Returns 0 if not land, or LEVEL1/LEVEL2/LEVEL3
+  function getLandLevel(x: number, y: number): number {
+    if (x < 0 || x >= COORD_WIDTH || y < 0 || y >= COORD_HEIGHT) return 0;
+    const idx = y * COORD_WIDTH + x;
+    if (waterMask[idx]) return 0; // Not land
+    const g = colors[idx * 3 + 1]; // Green channel
+    if (g >= GREEN_THRESHOLDS.LEVEL1_MIN) return LEVEL.LEVEL1;
+    if (g >= GREEN_THRESHOLDS.LEVEL2_MIN) return LEVEL.LEVEL2;
+    return LEVEL.LEVEL3;
+  }
+
+  // Build set of bridge coordinates
+  const bridgeCoords = new Set<string>();
+  for (const bridge of bridgeLines) {
+    if (bridge.isHorizontal) {
+      for (let x = bridge.start.x; x <= bridge.end.x; x++) {
+        bridgeCoords.add(`${x},${bridge.start.y}`);
+      }
+    } else {
+      for (let y = bridge.start.y; y <= bridge.end.y; y++) {
+        bridgeCoords.add(`${bridge.start.x},${y}`);
+      }
+    }
+  }
+
+  // Flood fill to find a water region, stopping at bridges
+  // Returns: region coords, set of bridge coords, and counts of land neighbors by level
+  function floodFillWaterRegion(startX: number, startY: number): {
+    coords: { x: number; y: number }[];
+    touchesEdge: boolean;
+    adjacentBridges: Set<string>;
+    neighborCounts: { level1: number; level2: number; level3: number };
+  } {
+    const coords: { x: number; y: number }[] = [];
+    const adjacentBridges = new Set<string>();
+    let touchesEdge = false;
+    const neighborCounts = { level1: 0, level2: 0, level3: 0 };
+    const countedNeighbors = new Set<string>(); // Avoid double-counting
+    const stack = [{ x: startX, y: startY }];
+
+    while (stack.length > 0) {
+      const { x, y } = stack.pop()!;
+      const idx = y * COORD_WIDTH + x;
+
+      if (x < 0 || x >= COORD_WIDTH || y < 0 || y >= COORD_HEIGHT) continue;
+      if (visited[idx]) continue;
+      if (!waterMask[idx]) continue;
+
+      // Check if this is a bridge pixel - record it but don't expand through it
+      const coordKey = `${x},${y}`;
+      if (bridgeCoords.has(coordKey)) {
+        adjacentBridges.add(coordKey);
+        continue; // Don't mark as visited, don't expand
+      }
+
+      visited[idx] = true;
+      coords.push({ x, y });
+
+      // Check if touches edge
+      if (x === 0 || x === COORD_WIDTH - 1 || y === 0 || y === COORD_HEIGHT - 1) {
+        touchesEdge = true;
+      }
+
+      // Count land neighbors by level (cardinal directions only)
+      for (let d = 0; d < 4; d++) {
+        const nx = x + cardinalDx[d];
+        const ny = y + cardinalDy[d];
+        const nKey = `${nx},${ny}`;
+        if (!countedNeighbors.has(nKey)) {
+          const landLevel = getLandLevel(nx, ny);
+          if (landLevel === LEVEL.LEVEL1) neighborCounts.level1++;
+          else if (landLevel === LEVEL.LEVEL2) neighborCounts.level2++;
+          else if (landLevel === LEVEL.LEVEL3) neighborCounts.level3++;
+          if (landLevel !== 0) countedNeighbors.add(nKey);
+        }
+      }
+
+      for (let d = 0; d < 4; d++) {
+        stack.push({ x: x + cardinalDx[d], y: y + cardinalDy[d] });
+      }
+    }
+
+    return { coords, touchesEdge, adjacentBridges, neighborCounts };
+  }
+
+  // Find all water regions
+  type WaterRegion = {
+    id: number;
+    coords: { x: number; y: number }[];
+    touchesEdge: boolean;
+    adjacentBridges: Set<string>;
+    neighborCounts: { level1: number; level2: number; level3: number };
+    level: number;
+  };
+  const regions: WaterRegion[] = [];
+
+  for (let y = 0; y < COORD_HEIGHT; y++) {
+    for (let x = 0; x < COORD_WIDTH; x++) {
+      const idx = y * COORD_WIDTH + x;
+      if (!waterMask[idx] || visited[idx]) continue;
+      if (bridgeCoords.has(`${x},${y}`)) continue; // Skip bridge pixels for region starts
+
+      const { coords, touchesEdge, adjacentBridges, neighborCounts } = floodFillWaterRegion(x, y);
+      if (coords.length > 0) {
+        regions.push({
+          id: regions.length,
+          coords,
+          touchesEdge,
+          adjacentBridges,
+          neighborCounts,
+          level: 0, // Will be assigned later
+        });
+      }
+    }
+  }
+
+  if (regions.length === 0) {
+    return waterLevels;
+  }
+
+  // Build bridge-to-regions mapping
+  // Each bridge connects to regions on both sides
+  const bridgeToRegions = new Map<string, Set<number>>();
+  for (const region of regions) {
+    for (const bridgeKey of region.adjacentBridges) {
+      if (!bridgeToRegions.has(bridgeKey)) {
+        bridgeToRegions.set(bridgeKey, new Set());
+      }
+      bridgeToRegions.get(bridgeKey)!.add(region.id);
+    }
+  }
+
+  // Build adjacency list for regions connected via bridges
+  const regionAdjacency = new Map<number, Set<number>>();
+  for (const region of regions) {
+    regionAdjacency.set(region.id, new Set());
+  }
+  for (const [, regionIds] of bridgeToRegions) {
+    const ids = Array.from(regionIds);
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        regionAdjacency.get(ids[i])!.add(ids[j]);
+        regionAdjacency.get(ids[j])!.add(ids[i]);
+      }
+    }
+  }
+
+  // Find connected components of regions (connected via bridges)
+  const processedRegions = new Set<number>();
+  const components: WaterRegion[][] = [];
+
+  for (const region of regions) {
+    if (processedRegions.has(region.id)) continue;
+    if (region.adjacentBridges.size === 0) continue; // Skip regions without bridges
+
+    // BFS to find all regions in this connected component
+    const component: WaterRegion[] = [];
+    const componentQueue = [region];
+    processedRegions.add(region.id);
+
+    while (componentQueue.length > 0) {
+      const current = componentQueue.shift()!;
+      component.push(current);
+
+      for (const neighborId of regionAdjacency.get(current.id) || []) {
+        if (processedRegions.has(neighborId)) continue;
+        processedRegions.add(neighborId);
+        componentQueue.push(regions[neighborId]);
+      }
+    }
+
+    if (component.length > 0) {
+      components.push(component);
+    }
+  }
+
+  console.log(`Found ${components.length} connected water system(s) with bridges`);
+
+  // Helper to get the dominant neighbor level for a region
+  function getDominantLevel(region: WaterRegion): number | null {
+    const { level1, level2, level3 } = region.neighborCounts;
+    if (level1 > level2 && level1 > level3) return LEVEL.LEVEL1;
+    if (level2 > level1 && level2 > level3) return LEVEL.LEVEL2;
+    if (level3 > level1 && level3 > level2) return LEVEL.LEVEL3;
+    return null; // No clear majority
+  }
+
+  // For each connected component, find root regions and BFS from them
+  for (const component of components) {
+    // Find root regions: try level1 first, then level2, then level3
+    let rootRegions: WaterRegion[] = [];
+    let startLevel = LEVEL.LEVEL1;
+
+    // Try to find regions with majority level1 neighbors
+    rootRegions = component.filter(r => getDominantLevel(r) === LEVEL.LEVEL1);
+
+    // If none, try level2
+    if (rootRegions.length === 0) {
+      rootRegions = component.filter(r => getDominantLevel(r) === LEVEL.LEVEL2);
+      startLevel = LEVEL.LEVEL2;
+    }
+
+    // If still none, try level3
+    if (rootRegions.length === 0) {
+      rootRegions = component.filter(r => getDominantLevel(r) === LEVEL.LEVEL3);
+      startLevel = LEVEL.LEVEL3;
+    }
+
+    // Fallback: if no clear majority anywhere, use the one with most level1
+    if (rootRegions.length === 0) {
+      let bestRegion = component[0];
+      for (const region of component) {
+        if (region.neighborCounts.level1 > bestRegion.neighborCounts.level1) {
+          bestRegion = region;
+        }
+      }
+      rootRegions.push(bestRegion);
+      startLevel = LEVEL.LEVEL1;
+    }
+
+    const levelName = startLevel === LEVEL.LEVEL1 ? 'level1' : startLevel === LEVEL.LEVEL2 ? 'level2' : 'level3';
+    console.log(`Component has ${rootRegions.length} ${levelName} root region(s): ${rootRegions.map(r => r.id).join(', ')}`);
+
+    // Start BFS from all root regions simultaneously
+    const levelQueue: WaterRegion[] = [];
+    const levelProcessed = new Set<number>();
+
+    for (const region of rootRegions) {
+      region.level = startLevel;
+      levelQueue.push(region);
+      levelProcessed.add(region.id);
+    }
+
+    while (levelQueue.length > 0) {
+      const current = levelQueue.shift()!;
+      const nextLevel = current.level === LEVEL.LEVEL1 ? LEVEL.LEVEL2 :
+                        current.level === LEVEL.LEVEL2 ? LEVEL.LEVEL3 : LEVEL.LEVEL3;
+
+      // Find connected regions through bridges
+      for (const bridgeKey of current.adjacentBridges) {
+        const connectedRegionIds = bridgeToRegions.get(bridgeKey);
+        if (!connectedRegionIds) continue;
+
+        for (const regionId of connectedRegionIds) {
+          if (levelProcessed.has(regionId)) continue;
+
+          const connectedRegion = regions[regionId];
+          connectedRegion.level = nextLevel;
+          levelProcessed.add(regionId);
+          levelQueue.push(connectedRegion);
+        }
+      }
+    }
+  }
+
+  // For unprocessed regions (disconnected from river system):
+  // - Large regions (>= 64 pixels) or edge-touching: default to LEVEL1
+  // - Small isolated lakes (< 64 pixels, no bridges): leave as 0 to fill later via neighbor sampling
+  const SMALL_LAKE_THRESHOLD = 64;
+  for (const region of regions) {
+    if (region.level === 0) {
+      const isSmallLake = region.coords.length < SMALL_LAKE_THRESHOLD &&
+                          region.adjacentBridges.size === 0 &&
+                          !region.touchesEdge;
+      if (!isSmallLake) {
+        region.level = LEVEL.LEVEL1;
+      }
+      // Small lakes stay at level 0 - will be filled after border inference
+    }
+  }
+
+  // Fill water levels array
+  for (const region of regions) {
+    for (const { x, y } of region.coords) {
+      waterLevels[y * COORD_WIDTH + x] = region.level;
+    }
+  }
+
+  // Also assign levels to bridge pixels based on adjacent regions
+  for (const [bridgeKey, regionIds] of bridgeToRegions) {
+    const [bx, by] = bridgeKey.split(',').map(Number);
+    // Use the highest level from adjacent regions
+    let maxLevel = LEVEL.LEVEL1;
+    for (const regionId of regionIds) {
+      maxLevel = Math.max(maxLevel, regions[regionId].level);
+    }
+    waterLevels[by * COORD_WIDTH + bx] = maxLevel;
+  }
+
+  return waterLevels;
+}
+
+// Step 4: Classify levels using green channel thresholds
+// Data model: levels contains LEVEL1/LEVEL2/LEVEL3 for EVERY coordinate (including water)
+// Water mask is separate - each coordinate has both a level AND a water flag
+// waterLevels: pre-computed levels for water pixels from inferWaterLevels()
+function classifyLevels(colors: Uint8Array, waterMask: boolean[], waterLevels: Uint8Array): Uint8Array {
+  const levels = new Uint8Array(COORD_WIDTH * COORD_HEIGHT);
+
+  // Helper to check if pixel is "green-ish" (low red, low blue, varying green)
+  function isGreenish(pixel: RGB): boolean {
+    // Green terrain pixels have low R and B, with G being the dominant channel
+    return pixel.r < 40 && pixel.b < 40 && pixel.g > pixel.r && pixel.g > pixel.b;
+  }
+
+  // Helper to check if pixel is red/orange/yellow (special markers)
+  function isSpecialColor(pixel: RGB): boolean {
+    // Bright red on level1: high R, low G, low B
+    if (pixel.r > 150 && pixel.g < 50 && pixel.b < 50) return true;
+    // Dull red on level2/3: medium-high R with slight G/B
+    if (pixel.r > 100 && pixel.r > pixel.g * 2 && pixel.r > pixel.b * 2) return true;
+    // Orange: high R, medium G, low B
+    if (pixel.r > 200 && pixel.g > 100 && pixel.g < 220 && pixel.b < 180) return true;
+    // Yellow: high R, high G, low B
+    if (pixel.r > 200 && pixel.g > 200 && pixel.b < 100) return true;
+    return false;
+  }
+
+  // First pass: classify land pixels, mark water as UNKNOWN temporarily
+  for (let y = 0; y < COORD_HEIGHT; y++) {
+    for (let x = 0; x < COORD_WIDTH; x++) {
+      const idx = y * COORD_WIDTH + x;
+      const pixel = getPixelAt(colors, x, y);
+
+      // Water pixels - use pre-computed water levels from topological inference
+      // Level 0 means small lake - will be filled after border inference
+      if (waterMask[idx]) {
+        levels[idx] = waterLevels[idx]; // Keep 0 for small lakes
+        continue;
+      }
+
+      // Edge border region → Level1 (8 units from edge)
+      if (x < EDGE_BORDER_SIZE || x >= COORD_WIDTH - EDGE_BORDER_SIZE ||
+          y < EDGE_BORDER_SIZE || y >= COORD_HEIGHT - EDGE_BORDER_SIZE) {
+        levels[idx] = LEVEL.LEVEL1;
+        continue;
+      }
+
+      // Special colors (red, orange, yellow markers)
+      if (isSpecialColor(pixel)) {
+        levels[idx] = LEVEL.SPECIAL;
+        continue;
+      }
+
+      // For green-ish pixels, use green channel thresholds
+      if (isGreenish(pixel)) {
+        const g = pixel.g;
+        if (g >= GREEN_THRESHOLDS.LEVEL1_MIN) {
+          levels[idx] = LEVEL.LEVEL1;
+        } else if (g >= GREEN_THRESHOLDS.BORDER_MIN) {
+          levels[idx] = LEVEL.BORDER;
+        } else if (g >= GREEN_THRESHOLDS.LEVEL2_MIN) {
+          levels[idx] = LEVEL.LEVEL2;
+        } else {
+          levels[idx] = LEVEL.LEVEL3;
+        }
+        continue;
+      }
+
+      // For non-green pixels that aren't water or special, try to classify anyway
+      // This handles JPEG artifacts that might blur colors
+      const g = pixel.g;
+      if (g >= GREEN_THRESHOLDS.LEVEL1_MIN) {
+        levels[idx] = LEVEL.LEVEL1;
+      } else if (g >= GREEN_THRESHOLDS.BORDER_MIN) {
+        levels[idx] = LEVEL.BORDER;
+      } else if (g >= GREEN_THRESHOLDS.LEVEL2_MIN) {
+        levels[idx] = LEVEL.LEVEL2;
+      } else if (g < 40 && pixel.r < 40 && pixel.b < 40) {
+        // Very dark pixels (could be level3 or artifact)
+        levels[idx] = LEVEL.LEVEL3;
+      } else {
+        // Default to level1 for unclear cases
+        levels[idx] = LEVEL.LEVEL1;
+      }
+    }
+  }
+
+  // Debug: after initial color classification
+  outputDebugImage('step3_initial_colors.png', levels, 'levels');
+
+  // 8-connected neighbor offsets
+  const dx = [-1, 0, 1, -1, 1, -1, 0, 1];
+  const dy = [-1, -1, -1, 0, 0, 1, 1, 1];
+
+  // Resolve special colors (red, orange, yellow markers) FIRST
+  // This allows noise cleanup and border inference to treat them as proper levels
+  // Special case: yellow pixels covering green borders should become BORDER tiles
+  for (let y = 0; y < COORD_HEIGHT; y++) {
+    for (let x = 0; x < COORD_WIDTH; x++) {
+      const idx = y * COORD_WIDTH + x;
+      if (levels[idx] !== LEVEL.SPECIAL) continue;
+
+      // Collect neighbor info
+      const neighborCounts = { [LEVEL.LEVEL1]: 0, [LEVEL.LEVEL2]: 0, [LEVEL.LEVEL3]: 0 };
+      const neighborLevels = new Set<number>();
+      // Track border neighbors by position for contiguity check
+      // Positions: 0=TL, 1=T, 2=TR, 3=L, 4=R, 5=BL, 6=B, 7=BR
+      const borderPositions: boolean[] = [false, false, false, false, false, false, false, false];
+
+      for (let d = 0; d < 8; d++) {
+        const nx = x + dx[d], ny = y + dy[d];
+        if (nx >= 0 && nx < COORD_WIDTH && ny >= 0 && ny < COORD_HEIGHT) {
+          const nLevel = levels[ny * COORD_WIDTH + nx];
+          if (nLevel === LEVEL.BORDER) {
+            borderPositions[d] = true;
+          } else if (nLevel === LEVEL.LEVEL1 || nLevel === LEVEL.LEVEL2 || nLevel === LEVEL.LEVEL3) {
+            neighborCounts[nLevel]++;
+            neighborLevels.add(nLevel);
+          }
+        }
+      }
+
+      // Check if this yellow pixel is actually covering a green border:
+      // Case 1: Has at least 2 non-contiguous border neighbors AND 2+ different levels
+      // Case 2: Has 5+ continuous border neighbors (surrounded by border)
+      const borderCount = borderPositions.filter(b => b).length;
+      const hasTopBorder = borderPositions[0] || borderPositions[1] || borderPositions[2];
+      const hasBottomBorder = borderPositions[5] || borderPositions[6] || borderPositions[7];
+      const hasLeftBorder = borderPositions[0] || borderPositions[3] || borderPositions[5];
+      const hasRightBorder = borderPositions[2] || borderPositions[4] || borderPositions[7];
+      const hasNonContiguousBorders = (hasTopBorder && hasBottomBorder) || (hasLeftBorder && hasRightBorder);
+
+      // Check for 5+ continuous border neighbors in the ring
+      // Ring order (clockwise): TL(0), T(1), TR(2), R(4), BR(7), B(6), BL(5), L(3)
+      const ringOrder = [0, 1, 2, 4, 7, 6, 5, 3];
+      let maxContinuous = 0;
+      let currentRun = 0;
+      // Check twice around to handle wrap-around
+      for (let i = 0; i < 16; i++) {
+        if (borderPositions[ringOrder[i % 8]]) {
+          currentRun++;
+          maxContinuous = Math.max(maxContinuous, currentRun);
+        } else {
+          currentRun = 0;
+        }
+      }
+      const hasManyContiguousBorders = maxContinuous >= 5;
+
+      if ((borderCount >= 2 && hasNonContiguousBorders && neighborLevels.size >= 2) || hasManyContiguousBorders) {
+        // This yellow pixel is covering a border between levels
+        levels[idx] = LEVEL.BORDER;
+      } else if (neighborCounts[LEVEL.LEVEL3] >= neighborCounts[LEVEL.LEVEL2] &&
+          neighborCounts[LEVEL.LEVEL3] >= neighborCounts[LEVEL.LEVEL1]) {
+        levels[idx] = LEVEL.LEVEL3;
+      } else if (neighborCounts[LEVEL.LEVEL2] >= neighborCounts[LEVEL.LEVEL1]) {
+        levels[idx] = LEVEL.LEVEL2;
+      } else {
+        levels[idx] = LEVEL.LEVEL1;
+      }
+    }
+  }
+
+  // Debug: after special color resolution
+  outputDebugImage('step4_special_colors.png', levels, 'levels');
+
+  // Noise cleanup: remove isolated pixels (1 or fewer same-type neighbors)
+  // Only clean if there's a different level1/2/3 neighbor - preserve pixels surrounded by borders
+  for (let y = 0; y < COORD_HEIGHT; y++) {
+    for (let x = 0; x < COORD_WIDTH; x++) {
+      const idx = y * COORD_WIDTH + x;
+      const currentLevel = levels[idx];
+
+      // Only clean level1/level2/level3 pixels (not borders)
+      if (currentLevel !== LEVEL.LEVEL1 && currentLevel !== LEVEL.LEVEL2 &&
+          currentLevel !== LEVEL.LEVEL3) continue;
+
+      // Count same-type neighbors and check for different level neighbors
+      let sameTypeCount = 0;
+      let hasDifferentLevelNeighbor = false;
+      const neighborCounts = new Map<number, number>();
+
+      for (let d = 0; d < 8; d++) {
+        const nx = x + dx[d], ny = y + dy[d];
+        if (nx >= 0 && nx < COORD_WIDTH && ny >= 0 && ny < COORD_HEIGHT) {
+          const nLevel = levels[ny * COORD_WIDTH + nx];
+          neighborCounts.set(nLevel, (neighborCounts.get(nLevel) || 0) + 1);
+          if (nLevel === currentLevel) {
+            sameTypeCount++;
+          } else if (nLevel === LEVEL.LEVEL1 || nLevel === LEVEL.LEVEL2 || nLevel === LEVEL.LEVEL3) {
+            hasDifferentLevelNeighbor = true;
+          }
+        }
+      }
+
+      // Only replace if isolated AND has a different level neighbor
+      // This preserves pixels surrounded only by borders (they'll be handled in border inference)
+      if (sameTypeCount <= 1 && hasDifferentLevelNeighbor) {
+        let maxCount = 0, majorityLevel = currentLevel;
+        for (const [level, count] of neighborCounts) {
+          if (count > maxCount) { maxCount = count; majorityLevel = level; }
+        }
+        levels[idx] = majorityLevel;
+      }
+    }
+  }
+
+  // Debug: after noise cleanup
+  outputDebugImage('step5_noise_cleanup.png', levels, 'levels');
+
+  // Border inference: continue until no borders remain
+  // Uses double-buffering to avoid left-to-right bias within each iteration
+  let bordersRemaining = true;
+  let borderIteration = 0;
+  while (bordersRemaining) {
+    bordersRemaining = false;
+
+    // Snapshot of levels from previous round - read from this
+    const prevLevels = new Uint8Array(levels);
+
+    for (let y = 0; y < COORD_HEIGHT; y++) {
+      for (let x = 0; x < COORD_WIDTH; x++) {
+        const idx = y * COORD_WIDTH + x;
+        if (prevLevels[idx] !== LEVEL.BORDER) continue;  // Read from prevLevels
+
+        // Count neighbor levels from PREVIOUS round (not border, not unknown)
+        const neighborLevels = new Set<number>();
+        let hasBorderNeighbor = false;
+
+        for (let d = 0; d < 8; d++) {
+          const nx = x + dx[d], ny = y + dy[d];
+          if (nx >= 0 && nx < COORD_WIDTH && ny >= 0 && ny < COORD_HEIGHT) {
+            const nLevel = prevLevels[ny * COORD_WIDTH + nx];  // Read from prevLevels
+            if (nLevel === LEVEL.BORDER) {
+              hasBorderNeighbor = true;
+            } else if (nLevel === LEVEL.LEVEL1 || nLevel === LEVEL.LEVEL2 || nLevel === LEVEL.LEVEL3) {
+              neighborLevels.add(nLevel);
+            }
+          }
+        }
+
+        // Write to levels (current array)
+        if (neighborLevels.size >= 2) {
+          // Multiple levels: choose highest (level3 > level2 > level1)
+          if (neighborLevels.has(LEVEL.LEVEL3)) levels[idx] = LEVEL.LEVEL3;
+          else if (neighborLevels.has(LEVEL.LEVEL2)) levels[idx] = LEVEL.LEVEL2;
+          else levels[idx] = LEVEL.LEVEL1;
+        } else if (neighborLevels.size === 1) {
+          // Single level: go one level higher
+          const theLevel = neighborLevels.values().next().value;
+          if (theLevel === LEVEL.LEVEL1) levels[idx] = LEVEL.LEVEL2;
+          else if (theLevel === LEVEL.LEVEL2) levels[idx] = LEVEL.LEVEL3;
+          else levels[idx] = LEVEL.LEVEL3; // level3 stays level3
+        } else if (hasBorderNeighbor) {
+          // Only border neighbors: wait for next pass
+          bordersRemaining = true;
+        } else {
+          // No valid neighbors: default to level1
+          levels[idx] = LEVEL.LEVEL1;
+        }
+      }
+    }
+
+    // Debug: after each border inference iteration
+    const iterLetter = String.fromCharCode(97 + borderIteration); // a, b, c, ...
+    outputDebugImage(`step6${iterLetter}_border_inference.png`, levels, 'levels');
+    borderIteration++;
+  }
+
+  // Fill small lakes using neighbor sampling
+  // Small lakes were left with level 0 by inferWaterLevels() - now fill them based on surrounding land
+  const lakeVisited = new Array(COORD_WIDTH * COORD_HEIGHT).fill(false);
+  const cardinalDx = [0, 1, 0, -1];
+  const cardinalDy = [-1, 0, 1, 0];
+
+  function floodFillLake(startX: number, startY: number): {
+    coords: { x: number; y: number }[];
+    landNeighborLevels: Map<number, number>;
+  } {
+    const coords: { x: number; y: number }[] = [];
+    const landNeighborLevels = new Map<number, number>();
+    const stack = [{ x: startX, y: startY }];
+
+    while (stack.length > 0) {
+      const { x, y } = stack.pop()!;
+      const idx = y * COORD_WIDTH + x;
+
+      if (x < 0 || x >= COORD_WIDTH || y < 0 || y >= COORD_HEIGHT) continue;
+      if (lakeVisited[idx]) continue;
+
+      // Check if this is water with unassigned level (small lake)
+      if (!waterMask?.[idx] || levels[idx] !== 0) {
+        // This is land or already-assigned water - count its level
+        const landLevel = levels[idx];
+        if (landLevel === LEVEL.LEVEL1 || landLevel === LEVEL.LEVEL2 || landLevel === LEVEL.LEVEL3) {
+          landNeighborLevels.set(landLevel, (landNeighborLevels.get(landLevel) || 0) + 1);
+        }
+        continue;
+      }
+
+      lakeVisited[idx] = true;
+      coords.push({ x, y });
+
+      // Expand in 4 cardinal directions
+      for (let d = 0; d < 4; d++) {
+        stack.push({ x: x + cardinalDx[d], y: y + cardinalDy[d] });
+      }
+    }
+
+    return { coords, landNeighborLevels };
+  }
+
+  // Find and fill all small lakes
+  for (let y = 0; y < COORD_HEIGHT; y++) {
+    for (let x = 0; x < COORD_WIDTH; x++) {
+      const idx = y * COORD_WIDTH + x;
+      // Look for unassigned water pixels (level 0 in water mask)
+      if (!waterMask?.[idx] || lakeVisited[idx] || levels[idx] !== 0) continue;
+
+      const { coords, landNeighborLevels } = floodFillLake(x, y);
+
+      // Determine predominant surrounding level
+      let maxCount = 0;
+      let assignedLevel = LEVEL.LEVEL1; // Default
+      for (const [level, count] of landNeighborLevels) {
+        if (count > maxCount) {
+          maxCount = count;
+          assignedLevel = level;
+        }
+      }
+
+      // Assign level to all coordinates in this lake
+      for (const { x: lx, y: ly } of coords) {
+        levels[ly * COORD_WIDTH + lx] = assignedLevel;
+      }
+    }
+  }
+
+  outputDebugImage('step7_lake_fill.png', levels, 'levels');
+
+  // Final pass: convert any remaining non-level1/2/3 pixels to majority neighbor level
+  for (let y = 0; y < COORD_HEIGHT; y++) {
+    for (let x = 0; x < COORD_WIDTH; x++) {
+      const idx = y * COORD_WIDTH + x;
+      const currentLevel = levels[idx];
+
+      // Skip if already a valid level
+      if (currentLevel === LEVEL.LEVEL1 || currentLevel === LEVEL.LEVEL2 || currentLevel === LEVEL.LEVEL3) {
+        continue;
+      }
+
+      // Find majority level among neighbors
+      const neighborCounts = { [LEVEL.LEVEL1]: 0, [LEVEL.LEVEL2]: 0, [LEVEL.LEVEL3]: 0 };
+      for (let d = 0; d < 8; d++) {
+        const nx = x + dx[d], ny = y + dy[d];
+        if (nx >= 0 && nx < COORD_WIDTH && ny >= 0 && ny < COORD_HEIGHT) {
+          const nLevel = levels[ny * COORD_WIDTH + nx];
+          if (nLevel in neighborCounts) {
+            neighborCounts[nLevel]++;
+          }
+        }
+      }
+
+      // Assign majority level (default to level1 if no valid neighbors)
+      if (neighborCounts[LEVEL.LEVEL3] >= neighborCounts[LEVEL.LEVEL2] &&
+          neighborCounts[LEVEL.LEVEL3] >= neighborCounts[LEVEL.LEVEL1] &&
+          neighborCounts[LEVEL.LEVEL3] > 0) {
+        levels[idx] = LEVEL.LEVEL3;
+      } else if (neighborCounts[LEVEL.LEVEL2] >= neighborCounts[LEVEL.LEVEL1] &&
+                 neighborCounts[LEVEL.LEVEL2] > 0) {
+        levels[idx] = LEVEL.LEVEL2;
+      } else {
+        levels[idx] = LEVEL.LEVEL1;
+      }
+    }
+  }
+
+  outputDebugImage('step7a_fill_unknown.png', levels, 'levels');
+
+  return levels;
+}
+
+// Step 5: Cleanup terrain (remove small regions)
+function cleanupTerrain(levels: Uint8Array, waterMask: boolean[]): Uint8Array {
+  const cleaned = new Uint8Array(levels);
+  const visited = new Array(COORD_WIDTH * COORD_HEIGHT).fill(false);
+  const dx = [0, 1, 0, -1];
+  const dy = [-1, 0, 1, 0];
+
+  // Flood fill to find regions - only collects coords, doesn't count neighbors
+  function floodFill(startX: number, startY: number, targetLevel: number): { x: number; y: number }[] {
+    const coords: { x: number; y: number }[] = [];
+    const stack = [{ x: startX, y: startY }];
+
+    while (stack.length > 0) {
+      const { x, y } = stack.pop()!;
+      const idx = y * COORD_WIDTH + x;
+
+      if (x < 0 || x >= COORD_WIDTH || y < 0 || y >= COORD_HEIGHT) continue;
+      if (visited[idx]) continue;
+      if (cleaned[idx] !== targetLevel) continue;  // Not part of this region
+
+      visited[idx] = true;
+      coords.push({ x, y });
+
+      for (let d = 0; d < 4; d++) {
+        stack.push({ x: x + dx[d], y: y + dy[d] });
+      }
+    }
+
+    return coords;
+  }
+
+  // Find and clean small regions
+  for (let y = 0; y < COORD_HEIGHT; y++) {
+    for (let x = 0; x < COORD_WIDTH; x++) {
+      const idx = y * COORD_WIDTH + x;
+      if (visited[idx]) continue;
+
+      const level = cleaned[idx];
+      const coords = floodFill(x, y, level);
+
+      if (coords.length < 10 && coords.length > 0) {
+        // Count neighbors AFTER flood fill by checking all coords' neighbors
+        const neighbors = new Map<number, number>();
+        for (const { x: cx, y: cy } of coords) {
+          for (let d = 0; d < 4; d++) {
+            const nx = cx + dx[d], ny = cy + dy[d];
+            if (nx >= 0 && nx < COORD_WIDTH && ny >= 0 && ny < COORD_HEIGHT) {
+              const nLevel = cleaned[ny * COORD_WIDTH + nx];
+              if (nLevel !== level) {  // Different level = neighbor
+                neighbors.set(nLevel, (neighbors.get(nLevel) || 0) + 1);
+              }
+            }
+          }
+        }
+
+        // Find predominant neighbor level
+        let maxCount = 0;
+        let replaceLevel = LEVEL.LEVEL1;
+        for (const [nLevel, count] of neighbors) {
+          if (count > maxCount) {
+            maxCount = count;
+            replaceLevel = nLevel;
+          }
+        }
+
+        // Replace small region
+        for (const { x: cx, y: cy } of coords) {
+          cleaned[cy * COORD_WIDTH + cx] = replaceLevel;
+        }
+      }
+    }
+  }
+
+  return cleaned;
+}
+
+// Step 6: Generate debug image
+function outputDebugImage(filename: string, data: Uint8Array | boolean[], type: 'colors' | 'water' | 'levels', waterMask?: boolean[]): void {
+  // Skip debug image downloads during batch processing
+  if (batchMode) return;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = COORD_WIDTH;
+  canvas.height = COORD_HEIGHT;
+  const ctx = canvas.getContext('2d')!;
+  const imageData = ctx.createImageData(COORD_WIDTH, COORD_HEIGHT);
+
+  for (let y = 0; y < COORD_HEIGHT; y++) {
+    for (let x = 0; x < COORD_WIDTH; x++) {
+      const idx = y * COORD_WIDTH + x;
+      const outIdx = idx * 4;
+
+      if (type === 'colors') {
+        const colors = data as Uint8Array;
+        imageData.data[outIdx] = colors[idx * 3];
+        imageData.data[outIdx + 1] = colors[idx * 3 + 1];
+        imageData.data[outIdx + 2] = colors[idx * 3 + 2];
+      } else if (type === 'water') {
+        // Use water color from colors.ts: #83e1c3
+        const water = data as boolean[];
+        if (water[idx]) {
+          imageData.data[outIdx] = 0x83;     // #83e1c3
+          imageData.data[outIdx + 1] = 0xe1;
+          imageData.data[outIdx + 2] = 0xc3;
+        } else {
+          imageData.data[outIdx] = 0x34;     // #347941 (level1 as background)
+          imageData.data[outIdx + 1] = 0x79;
+          imageData.data[outIdx + 2] = 0x41;
+        }
+      } else if (type === 'levels') {
+        // Use colors from colors.ts for consistency:
+        // level1: #347941, level2: #35a043, level3: #4ac34e
+        // Water pixels are transparent if waterMask is provided
+        const levels = data as Uint8Array;
+
+        if (waterMask?.[idx]) {
+          // Transparent - don't show water pixels in level output
+          imageData.data[outIdx] = 0;
+          imageData.data[outIdx + 1] = 0;
+          imageData.data[outIdx + 2] = 0;
+          imageData.data[outIdx + 3] = 0;
+          continue; // Skip setting alpha to 255 below
+        }
+
+        switch (levels[idx]) {
+          case LEVEL.LEVEL1:
+            imageData.data[outIdx] = 0x34;     // #347941
+            imageData.data[outIdx + 1] = 0x79;
+            imageData.data[outIdx + 2] = 0x41;
+            break;
+          case LEVEL.LEVEL2:
+            imageData.data[outIdx] = 0x35;     // #35a043
+            imageData.data[outIdx + 1] = 0xa0;
+            imageData.data[outIdx + 2] = 0x43;
+            break;
+          case LEVEL.LEVEL3:
+            imageData.data[outIdx] = 0x4a;     // #4ac34e
+            imageData.data[outIdx + 1] = 0xc3;
+            imageData.data[outIdx + 2] = 0x4e;
+            break;
+          default:
+            imageData.data[outIdx] = 128;
+            imageData.data[outIdx + 1] = 128;
+            imageData.data[outIdx + 2] = 128;
+        }
+      }
+      imageData.data[outIdx + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+
+  // Download as PNG
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+// Debug output: water mask with bridge lines highlighted
+function outputWaterBridgesDebug(filename: string, waterMask: boolean[], bridgeLines: BridgeLine[]): void {
+  if (batchMode) return;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = COORD_WIDTH;
+  canvas.height = COORD_HEIGHT;
+  const ctx = canvas.getContext('2d')!;
+
+  // Background (level1 green)
+  ctx.fillStyle = '#347941';
+  ctx.fillRect(0, 0, COORD_WIDTH, COORD_HEIGHT);
+
+  // Draw water in cyan
+  ctx.fillStyle = '#83e1c3';
+  for (let y = 0; y < COORD_HEIGHT; y++) {
+    for (let x = 0; x < COORD_WIDTH; x++) {
+      if (waterMask[y * COORD_WIDTH + x]) {
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+  }
+
+  // Draw bridge lines in magenta
+  ctx.fillStyle = '#ff00ff';
+  for (const bridge of bridgeLines) {
+    if (bridge.isHorizontal) {
+      for (let x = bridge.start.x; x <= bridge.end.x; x++) {
+        ctx.fillRect(x, bridge.start.y, 1, 1);
+      }
+    } else {
+      for (let y = bridge.start.y; y <= bridge.end.y; y++) {
+        ctx.fillRect(bridge.start.x, y, 1, 1);
+      }
+    }
+  }
+
+  // Download as PNG
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+// Step 7: Vectorize terrain to SVG using marching squares for smooth diagonals
+function vectorizeTerrain(levels: Uint8Array, waterMask: boolean[]): string {
+  // Colors from colors.ts: water: #83e1c3, level1: #347941, level2: #35a043, level3: #4ac34e
+  const COLORS = {
+    WATER: '#83e1c3',
+    LEVEL1: '#347941',
+    LEVEL2: '#35a043',
+    LEVEL3: '#4ac34e',
+  };
+
+  let svg = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  svg += `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${COORD_WIDTH} ${COORD_HEIGHT}" width="${COORD_WIDTH * 4}" height="${COORD_HEIGHT * 4}">\n`;
+
+  // Level 1 background (full rectangle)
+  svg += `  <rect x="0" y="0" width="${COORD_WIDTH}" height="${COORD_HEIGHT}" fill="${COLORS.LEVEL1}" />\n`;
+
+  // Pixel boundary tracing with corner cutting
+  // Traces boundaries at integer pixel coordinates creates 45° diagonal cuts where direction changes
+  function buildPixelContourPath(checkFn: (x: number, y: number) => boolean, fill: string, opacity?: number): string {
+    type Edge = { x1: number; y1: number; x2: number; y2: number };
+    const edges: Edge[] = [];
+
+    // Helper to check if a pixel is inside (with bounds checking)
+    const isInside = (x: number, y: number): boolean => {
+      if (x < 0 || x >= COORD_WIDTH || y < 0 || y >= COORD_HEIGHT) return false;
+      return checkFn(x, y);
+    };
+
+    // Find all boundary edges at integer pixel coordinates
+    // For each inside pixel, check each of its 4 sides for outside neighbors
+    // Edges are ordered counterclockwise around the inside region
+    for (let y = 0; y < COORD_HEIGHT; y++) {
+      for (let x = 0; x < COORD_WIDTH; x++) {
+        if (!isInside(x, y)) continue;
+
+        // Top edge: if pixel above is outside, add edge from (x,y) to (x+1,y)
+        if (!isInside(x, y - 1)) {
+          edges.push({ x1: x, y1: y, x2: x + 1, y2: y });
+        }
+        // Right edge: if pixel to right is outside, add edge from (x+1,y) to (x+1,y+1)
+        if (!isInside(x + 1, y)) {
+          edges.push({ x1: x + 1, y1: y, x2: x + 1, y2: y + 1 });
+        }
+        // Bottom edge: if pixel below is outside, add edge from (x+1,y+1) to (x,y+1)
+        if (!isInside(x, y + 1)) {
+          edges.push({ x1: x + 1, y1: y + 1, x2: x, y2: y + 1 });
+        }
+        // Left edge: if pixel to left is outside, add edge from (x,y+1) to (x,y)
+        if (!isInside(x - 1, y)) {
+          edges.push({ x1: x, y1: y + 1, x2: x, y2: y });
+        }
+      }
+    }
+
+    if (edges.length === 0) return '';
+
+    // Build adjacency map: for each endpoint, find edges starting there
+    const edgesByStart = new Map<string, Edge[]>();
+    for (const edge of edges) {
+      const key = `${edge.x1},${edge.y1}`;
+      if (!edgesByStart.has(key)) edgesByStart.set(key, []);
+      edgesByStart.get(key)!.push(edge);
+    }
+
+    // Connect edges into closed paths
+    const paths: string[] = [];
+    const used = new Set<Edge>();
+
+    for (const startEdge of edges) {
+      if (used.has(startEdge)) continue;
+
+      // Collect path vertices at integer coordinates
+      const pathVertices: { x: number; y: number }[] = [];
+      let currentEdge: Edge | undefined = startEdge;
+
+      while (currentEdge && !used.has(currentEdge)) {
+        used.add(currentEdge);
+        pathVertices.push({ x: currentEdge.x1, y: currentEdge.y1 });
+
+        // Find next edge starting at current edge's endpoint
+        const nextKey = `${currentEdge.x2},${currentEdge.y2}`;
+        const candidates = edgesByStart.get(nextKey);
+        currentEdge = candidates?.find(e => !used.has(e));
+      }
+
+      if (pathVertices.length < 3) continue;
+
+      // corner cut: skip vertices on outwards facing corners to effectively cut corners
+      // this also has the effect of cutting outwards single pixels which is desireable.
+      // makes the assumption that every edge is a horizontal/vertical 1 unit long edge
+      const trimmedVertices: { x: number; y: number }[] = [];
+      for (let i = 0; i < pathVertices.length; i++) {
+        const prev = pathVertices[(i - 1 + pathVertices.length) % pathVertices.length];
+        const curr = pathVertices[i];
+        const next = pathVertices[(i + 1) % pathVertices.length];
+
+        // don't cut corners specifically for the river exit vertices
+        const isRiverExit = (curr.x === 12 || curr.x === 100) && (curr.y === 38 || curr.y === 42)
+          || (curr.x === 22 || curr.x === 26 || curr.x === 82 || curr.x === 86 // south
+            || curr.x === 38 || curr.x === 42// east
+            || curr.x === 66 || curr.x === 70// west
+          ) && curr.y === 84;
+        if (isRiverExit) {
+          trimmedVertices.push(curr);
+          continue;
+        }
+
+        // Check if outwards corner (convex) using cross product
+        // For CCW loop: cross > 0 means turning right = outward corner
+        const inDx = curr.x - prev.x;
+        const inDy = curr.y - prev.y;
+        const outDx = next.x - curr.x;
+        const outDy = next.y - curr.y;
+        const cross = inDx * outDy - inDy * outDx;
+        const isOutwardsCorner = cross > 0;
+
+        if (!isOutwardsCorner) {
+          trimmedVertices.push(curr);
+        }
+      }
+
+      // Simplify: merge collinear segments (remove intermediate points on straight lines)
+      const simplified: { x: number; y: number }[] = [];
+      for (let i = 0; i < trimmedVertices.length; i++) {
+        const prev = simplified.length > 0 ? simplified[simplified.length - 1] : trimmedVertices[(i - 1 + trimmedVertices.length) % trimmedVertices.length];
+        const curr = trimmedVertices[i];
+        const next = trimmedVertices[(i + 1) % trimmedVertices.length];
+
+        // Check if prev->curr->next are collinear
+        const dx1 = curr.x - prev.x;
+        const dy1 = curr.y - prev.y;
+        const dx2 = next.x - curr.x;
+        const dy2 = next.y - curr.y;
+
+        const len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+        const len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+
+        if (len1 < 0.001 || len2 < 0.001) {
+          continue; // Skip zero-length segment
+        }
+
+        const ndx1 = dx1 / len1, ndy1 = dy1 / len1;
+        const ndx2 = dx2 / len2, ndy2 = dy2 / len2;
+
+        // If direction changes, keep this point
+        if (Math.abs(ndx1 - ndx2) > 0.001 || Math.abs(ndy1 - ndy2) > 0.001) {
+          simplified.push(curr);
+        }
+      }
+
+      if (simplified.length >= 3) {
+        let pathStr = `M${simplified[0].x},${simplified[0].y}`;
+        for (let j = 1; j < simplified.length; j++) {
+          pathStr += `L${simplified[j].x},${simplified[j].y}`;
+        }
+        pathStr += 'Z';
+        paths.push(pathStr);
+      }
+    }
+
+    const opacityAttr = opacity !== undefined ? ` fill-opacity="${opacity}"` : '';
+    return paths.length > 0 ? `  <path d="${paths.join(' ')}" fill="${fill}"${opacityAttr} fill-rule="evenodd" />\n` : '';
+  }
+
+  // Level2 layer: includes Level2 + Level3 regions
+  svg += buildPixelContourPath(
+    (x, y) => {
+      const level = levels[y * COORD_WIDTH + x];
+      return level === LEVEL.LEVEL2 || level === LEVEL.LEVEL3;
+    },
+    COLORS.LEVEL2
+  );
+
+  // Level3 layer: only Level3 regions
+  svg += buildPixelContourPath(
+    (x, y) => levels[y * COORD_WIDTH + x] === LEVEL.LEVEL3,
+    COLORS.LEVEL3
+  );
+
+  // Water layer: from water mask (90% opacity)
+  svg += buildPixelContourPath(
+    (x, y) => waterMask[y * COORD_WIDTH + x],
+    COLORS.WATER,
+    0.5
+  );
+
+  svg += `</svg>`;
+  return svg;
+}
+
+// Core extraction logic - returns SVG string
+async function extractSingleMap(imagePath: string): Promise<string> {
+  const image = await loadImageAsync(imagePath);
+  const coordColors = pixelateImage(image);
+  const { waterMask, bridgeLines } = classifyWater(coordColors);
+  const cleanWaterMask = cleanupWater(waterMask);
+  const waterLevels = inferWaterLevels(cleanWaterMask, bridgeLines, coordColors);
+  const levelMap = classifyLevels(coordColors, cleanWaterMask, waterLevels);
+  const cleanLevelMap = cleanupTerrain(levelMap, cleanWaterMask);
+  const svg = vectorizeTerrain(cleanLevelMap, cleanWaterMask);
+  return svg;
+}
+
+// Load base map terrain from cache
+function loadBaseMapFromCache(mapNumber: number = 1): void {
+  const mapData = getBaseMapData(mapNumber);
+  if (!mapData) {
+    console.error(`Base map ${mapNumber} not found in cache`);
+    return;
+  }
+
+  console.log(`Loading base map ${mapNumber}: ${mapData.imagesrc}`);
+
+  // Parse the data JSON
+  const data = JSON.parse(mapData.data) as {
+    level1: number[][];
+    level2: number[][];
+    level3: number[][];
+    river: number[][];
+  };
+
+  layers.mapLayer.activate();
+
+  // Color key mapping from cache data to terrain colors
+  const layerMapping: { key: keyof typeof data; colorKey: string }[] = [
+    { key: 'level2', colorKey: 'level2' },
+    { key: 'level3', colorKey: 'level3' },
+    { key: 'river', colorKey: 'water' },
+  ];
+
+  // Clear existing terrain first
+  Object.keys(state.drawing).forEach((colorKey) => {
+    const existing = state.drawing[colorKey];
+    if (existing) {
+      existing.remove();
+      delete state.drawing[colorKey];
+    }
+  });
+
+  // Create paths for each layer
+  for (const { key, colorKey } of layerMapping) {
+    const polygons = data[key];
+    if (!polygons || polygons.length === 0) continue;
+
+    // Create Paper.js paths from flat coordinate arrays
+    const paths: paper.Path[] = [];
+    for (const coords of polygons) {
+      if (coords.length < 6) continue; // Need at least 3 points (6 values)
+
+      const points: paper.Point[] = [];
+      for (let i = 0; i < coords.length; i += 2) {
+        points.push(new paper.Point(coords[i], coords[i + 1]));
+      }
+
+      const path = new paper.Path({
+        segments: points,
+        closed: true,
+      });
+      paths.push(path);
+    }
+
+    if (paths.length === 0) continue;
+
+    // Create compound path if multiple polygons, otherwise use single path
+    let pathItem: paper.PathItem;
+    if (paths.length === 1) {
+      pathItem = paths[0];
+    } else {
+      pathItem = new paper.CompoundPath({
+        children: paths,
+      });
+    }
+
+    // Add to terrain
+    addPath(true, pathItem as paper.Path, colorKey);
+  }
+
+  // Add to history for undo
+  addToHistory({ type: 'draw', data: {} });
+
+  console.log(`Loaded base map ${mapNumber} as terrain`);
+}
+
+// Extract single map with debug output (for testing)
+async function extractBaseMapTerrain(): Promise<void> {
+  console.log('Starting base map terrain extraction...');
+
+  try {
+    const imagePath = 'static/base_maps/94 - nL0gcY9.jpg';
+    console.log(`Loading image: ${imagePath}`);
+    const image = await loadImageAsync(imagePath);
+    console.log(`Image loaded: ${image.width}x${image.height}`);
+
+    console.log('Step 1: Pixelating image...');
+    const coordColors = pixelateImage(image);
+    outputDebugImage('step1_pixelated.png', coordColors, 'colors');
+    console.log('Step 1 complete');
+
+    console.log('Step 2: Classifying water...');
+    const { waterMask, bridgeLines } = classifyWater(coordColors);
+    outputDebugImage('step2_water.png', waterMask, 'water');
+    outputWaterBridgesDebug('step2a_water_bridges.png', waterMask, bridgeLines);
+    console.log(`Step 2 complete: ${bridgeLines.length} bridges found`);
+
+    const cleanWaterMask = cleanupWater(waterMask);
+
+    console.log('Step 2b: Inferring water levels from bridge topology...');
+    const waterLevels = inferWaterLevels(cleanWaterMask, bridgeLines, coordColors);
+    outputDebugImage('step2b_water_levels.png', waterLevels, 'levels');
+    console.log('Step 2b complete: water levels inferred');
+
+    console.log('Step 3-7: Classifying levels...');
+    const levelMap = classifyLevels(coordColors, cleanWaterMask, waterLevels);
+    console.log('Level classification complete');
+
+    console.log('Step 8: Cleaning up terrain...');
+    const cleanLevelMap = cleanupTerrain(levelMap, cleanWaterMask);
+    outputDebugImage('step8_terrain_clean.png', cleanLevelMap, 'levels');
+    console.log('Step 8 complete');
+
+    console.log('Step 9: Vectorizing terrain...');
+    const svg = vectorizeTerrain(cleanLevelMap, cleanWaterMask);
+    downloadTextFile(svg, 'step9_terrain.svg');
+    console.log('Step 9 complete');
+
+    console.log('Base map terrain extraction complete!');
+  } catch (error) {
+    console.error('Terrain extraction failed:', error);
+  }
+}
+
+// Extract all base maps and package as ZIP
+async function extractAllBaseMapTerrains(): Promise<void> {
+  console.log('Starting batch base map extraction...');
+
+  try {
+    // Dynamic import - only loaded when this function runs (dev only)
+    const JSZip = (await import('jszip')).default;
+    const zip = new JSZip();
+
+    batchMode = true;
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < BASE_MAP_FILES.length; i++) {
+      const filename = BASE_MAP_FILES[i];
+      console.log(`Processing ${i + 1}/${BASE_MAP_FILES.length}: ${filename}`);
+
+      try {
+        const imagePath = `static/base_maps/${filename}`;
+        const svg = await extractSingleMap(imagePath);
+
+        // Add to ZIP with map number as filename
+        const mapName = filename.replace('.jpg', '');
+        zip.file(`${mapName}.svg`, svg);
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to process ${filename}:`, error);
+        failCount++;
+      }
+    }
+
+    batchMode = false;
+
+    console.log(`Batch complete: ${successCount} succeeded, ${failCount} failed`);
+
+    // Generate and download ZIP
+    console.log('Generating ZIP file...');
+    const content = await zip.generateAsync({ type: 'blob' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(content);
+    link.download = 'base_map_terrains.zip';
+    link.click();
+
+    console.log('ZIP download started!');
+  } catch (error) {
+    batchMode = false;
+    console.error('Batch extraction failed:', error);
+  }
+}
+
 function showDevMenu(): void {
   hideDevMenu();
 
@@ -2635,10 +4257,25 @@ function showDevMenu(): void {
       isMenuOpen = false;
       batchConvertV1ToV2();
     }},
+    { label: 'Extract Base Map', action: () => {
+      hideDevMenu();
+      isMenuOpen = false;
+      extractBaseMapTerrain();
+    }},
+    { label: 'Extract All Maps', action: () => {
+      hideDevMenu();
+      isMenuOpen = false;
+      extractAllBaseMapTerrains();
+    }},
     { label: 'Toggle Edge Tiles', action: () => {
       hideDevMenu();
       isMenuOpen = false;
       toggleEdgeTileLayerVisibility();
+    }},
+    { label: 'Load Base Map 1', action: () => {
+      hideDevMenu();
+      isMenuOpen = false;
+      loadBaseMapFromCache(1);
     }},
   ];
 
