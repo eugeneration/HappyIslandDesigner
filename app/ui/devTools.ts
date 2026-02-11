@@ -3901,13 +3901,29 @@ function vectorizeTerrain(levels: Uint8Array, waterMask: boolean[]): string {
         const next = pathVertices[(i + 1) % pathVertices.length];
 
         // don't cut corners specifically for the river exit vertices
-        const isRiverExit = (curr.x === 12 || curr.x === 100) && (curr.y === 38 || curr.y === 42)
-          || (curr.x === 22 || curr.x === 26 || curr.x === 82 || curr.x === 86 // south
-            || curr.x === 38 || curr.x === 42// east
-            || curr.x === 66 || curr.x === 70// west
-          ) && curr.y === 84;
-        if (isRiverExit) {
+        // extend river exits by one to avoid a seam
+        if (curr.x === 12) { // east river exit
+          if (curr.y >= 38 && curr.y <= 42) 
+            curr.x -= 1;
           trimmedVertices.push(curr);
+          continue;
+        }
+        if (curr.x === 100) {
+          if (curr.y >= 38 && curr.y <= 42) {
+            curr.x += 1;
+            trimmedVertices.push(curr);
+          }
+          continue;
+        }
+        if (curr.y === 84) {
+          if (curr.x >= 22 && curr.x <= 26 // south left
+            || curr.x >= 86 && curr.x <= 90 // south right
+            || curr.x >= 38 && curr.x <= 42 // east layout
+            || curr.x >= 70 && curr.x <= 74 // west layout)
+          ) {
+            curr.y += 1;
+            trimmedVertices.push(curr);
+          }
           continue;
         }
 
