@@ -17,11 +17,10 @@ import {
 import { setEdgeTilesFromAssetIndices } from './edgeTiles';
 import { setMapVersion } from '../mapState';
 import Layouts, { Layout } from '../components/islandLayouts';
-import { loadMapFromJSONString } from '../load';
+import { loadMapFromJSONString, loadBaseMapFromSvg } from '../load';
 import { safeCompoundIntersection } from '../helpers/safeCompoundIntersection';
 import { getCachedSvgContent } from '../generatedTilesCache';
 import { encodeMap } from '../save';
-import { getBaseMapData } from '../generatedBaseMapCache';
 
 // Only initialize in dev builds
 declare const __DEV__: boolean;
@@ -1630,11 +1629,8 @@ async function buildSvgReferenceLibrary(): Promise<Map<number, SvgAssetData>> {
 
   // Iterate over all non-placeholder tiles (indices 1-83)
   for (const [index, data] of assetIndexToData) {
-    // imageSrc is already an SVG path (e.g., 'static/tiles_data/1 - ISdNX8N.svg')
-    const svgPath = data.imageSrc;
-
     // Try cached SVG content first
-    const cachedSvg = getCachedSvgContent(svgPath);
+    const cachedSvg = getCachedSvgContent(index);
     if (cachedSvg) {
       const visiblePortions = computeVisiblePortions(cachedSvg);
       library.set(index, {
@@ -1648,6 +1644,9 @@ async function buildSvgReferenceLibrary(): Promise<Map<number, SvgAssetData>> {
 
     // Fall back to fetching if not cached
     try {
+      // imageSrc is already an SVG path (e.g., 'static/tiles_data/1 - ISdNX8N.svg')
+      const svgPath = data.imageSrc;
+
       const response = await fetch(svgPath);
       if (!response.ok) {
         console.warn(`Failed to load SVG for asset ${index}: ${svgPath}`);
@@ -3905,7 +3904,7 @@ function vectorizeTerrain(levels: Uint8Array, waterMask: boolean[]): string {
         if (curr.x === 12) { // east river exit
           if (curr.y >= 38 && curr.y <= 42) 
             curr.x -= 1;
-          trimmedVertices.push(curr);
+            trimmedVertices.push(curr);
           continue;
         }
         if (curr.x === 100) {
@@ -4021,86 +4020,6 @@ async function extractSingleMap(imagePath: string): Promise<string> {
   const cleanLevelMap = cleanupTerrain(levelMap, cleanWaterMask);
   const svg = vectorizeTerrain(cleanLevelMap, cleanWaterMask);
   return svg;
-}
-
-// Load base map terrain from cache
-function loadBaseMapFromCache(mapNumber: number = 1): void {
-  const mapData = getBaseMapData(mapNumber);
-  if (!mapData) {
-    console.error(`Base map ${mapNumber} not found in cache`);
-    return;
-  }
-
-  console.log(`Loading base map ${mapNumber}: ${mapData.imagesrc}`);
-
-  // Parse the data JSON
-  const data = JSON.parse(mapData.data) as {
-    level1: number[][];
-    level2: number[][];
-    level3: number[][];
-    river: number[][];
-  };
-
-  layers.mapLayer.activate();
-
-  // Color key mapping from cache data to terrain colors
-  const layerMapping: { key: keyof typeof data; colorKey: string }[] = [
-    { key: 'level2', colorKey: 'level2' },
-    { key: 'level3', colorKey: 'level3' },
-    { key: 'river', colorKey: 'water' },
-  ];
-
-  // Clear existing terrain first
-  Object.keys(state.drawing).forEach((colorKey) => {
-    const existing = state.drawing[colorKey];
-    if (existing) {
-      existing.remove();
-      delete state.drawing[colorKey];
-    }
-  });
-
-  // Create paths for each layer
-  for (const { key, colorKey } of layerMapping) {
-    const polygons = data[key];
-    if (!polygons || polygons.length === 0) continue;
-
-    // Create Paper.js paths from flat coordinate arrays
-    const paths: paper.Path[] = [];
-    for (const coords of polygons) {
-      if (coords.length < 6) continue; // Need at least 3 points (6 values)
-
-      const points: paper.Point[] = [];
-      for (let i = 0; i < coords.length; i += 2) {
-        points.push(new paper.Point(coords[i], coords[i + 1]));
-      }
-
-      const path = new paper.Path({
-        segments: points,
-        closed: true,
-      });
-      paths.push(path);
-    }
-
-    if (paths.length === 0) continue;
-
-    // Create compound path if multiple polygons, otherwise use single path
-    let pathItem: paper.PathItem;
-    if (paths.length === 1) {
-      pathItem = paths[0];
-    } else {
-      pathItem = new paper.CompoundPath({
-        children: paths,
-      });
-    }
-
-    // Add to terrain
-    addPath(true, pathItem as paper.Path, colorKey);
-  }
-
-  // Add to history for undo
-  addToHistory({ type: 'draw', data: {} });
-
-  console.log(`Loaded base map ${mapNumber} as terrain`);
 }
 
 // Extract single map with debug output (for testing)
@@ -4288,10 +4207,10 @@ function showDevMenu(): void {
       isMenuOpen = false;
       toggleEdgeTileLayerVisibility();
     }},
-    { label: 'Load Base Map 1', action: () => {
+    { label: 'Load Base Map 1', action: async () => {
       hideDevMenu();
       isMenuOpen = false;
-      loadBaseMapFromCache(1);
+      await loadBaseMapFromSvg(1);
     }},
   ];
 

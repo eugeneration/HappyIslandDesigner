@@ -1,6 +1,6 @@
 import { emitter } from '../emitter';
 
-export type WizardStep = 'start' | 'river' | 'riverMouth1' | 'riverMouth2' | 'airport' | 'peninsulaSide' | 'peninsulaPos' | 'peninsulaShape' | 'dockSide' | 'dockShape' | 'secretBeachPos' | 'secretBeachShape' | 'leftRockPos' | 'leftRockShape' | 'rightRockPos' | 'rightRockShape' | 'fillPlaceholder' | 'grid' | 'legacyriver' | 'legacygrid';
+export type WizardStep = 'start' | 'river' | 'baseMapGrid' | 'riverMouth1' | 'riverMouth2' | 'airport' | 'peninsulaSide' | 'peninsulaPos' | 'peninsulaShape' | 'dockSide' | 'dockShape' | 'secretBeachPos' | 'secretBeachShape' | 'leftRockPos' | 'leftRockShape' | 'rightRockPos' | 'rightRockShape' | 'fillPlaceholder' | 'grid' | 'legacyriver' | 'legacygrid';
 
 export type WizardState = {
   step: WizardStep;
@@ -44,12 +44,12 @@ const initialState: WizardState = {
 
 let wizardState: WizardState = { ...initialState };
 
-// Step order for navigation
-const stepOrder: WizardStep[] = ['river', 'riverMouth1', 'riverMouth2', 'airport', 'dockSide', 'dockShape', 'peninsulaSide', 'peninsulaPos', 'peninsulaShape', 'secretBeachPos', 'secretBeachShape', 'leftRockPos', 'leftRockShape', 'rightRockPos', 'rightRockShape', 'fillPlaceholder', 'grid'];
+// Step order for navigation (new flow ends with baseMapGrid, legacy flow uses legacygrid)
+const stepOrder: WizardStep[] = ['river', 'riverMouth1', 'riverMouth2', 'airport', 'dockSide', 'dockShape', 'peninsulaSide', 'peninsulaPos', 'peninsulaShape', 'secretBeachPos', 'secretBeachShape', 'leftRockPos', 'leftRockShape', 'rightRockPos', 'rightRockShape', 'fillPlaceholder', 'baseMapGrid'];
 const legacyStepOrder: WizardStep[] = ['river', 'legacyriver', 'legacygrid'];
 
 // Steps that show modal vs map selection
-export const modalSteps: WizardStep[] = ['river', 'peninsulaSide', 'dockSide', 'grid', 'legacyriver', 'legacygrid'];
+export const modalSteps: WizardStep[] = ['river', 'baseMapGrid', 'peninsulaSide', 'dockSide', 'grid', 'legacyriver', 'legacygrid'];
 export const mapSteps: WizardStep[] = ['riverMouth1', 'riverMouth2', 'airport', 'dockShape', 'peninsulaPos', 'peninsulaShape', 'secretBeachPos', 'secretBeachShape', 'leftRockPos', 'leftRockShape', 'rightRockPos', 'rightRockShape', 'fillPlaceholder'];
 
 export function getWizardState(): WizardState {
@@ -101,11 +101,13 @@ export function startWizard(): void {
 
 export function setRiverDirection(direction: 'west' | 'south' | 'east'): void {
   wizardState.riverDirection = direction;
-  
+
   if (direction == 'west')
     wizardState.dockSide = 'right';
   else if (direction == 'east')
     wizardState.dockSide = 'left';
+
+  // Continue to edge tile flow
   setNextStep();
 
   emitter.emit('wizardStateChanged', wizardState);

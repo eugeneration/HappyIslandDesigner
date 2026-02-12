@@ -4,12 +4,14 @@ import paper from 'paper';
 import {Box, Button, Image, Flex, Grid, Heading, Text, Link} from '@theme-ui/components'
 import { colors } from '../colors';
 import './modal.scss';
-import Layouts, { LayoutType, Layout } from './islandLayouts';
+import Layouts, { LayoutType, Layout, baseMapLayouts } from './islandLayouts';
+import { baseMapCache } from '../generatedBaseMapCache';
 import useBlockZoom from './useBlockZoom';
 
-import { loadMapFromJSONString } from '../load';
+import { loadMapFromJSONString, loadBaseMapFromSvg } from '../load';
 import {confirmDestructiveAction, isMapEmpty} from '../state';
 import { emitter } from '../emitter';
+import { type OptionConfig } from '../ui/mapOptionSelector';
 import { showPositionSelector, hidePositionSelector, SelectionType, getPeninsulaPosition, getAirportBlocks, getSecretBeachBlock, getSecretBeachPosition, getRockPosition, getRockBlock, RiverDirection } from '../ui/mapPositionSelector';
 import { showOptionSelector, OptionDirection } from '../ui/mapOptionSelector';
 import { initializeEdgeTiles, fillEdgeTilesWithPlaceholders, replaceBlocks, restoreBlocks, setRiverTiles, getRemainingPlaceholders } from '../ui/edgeTiles';
@@ -46,11 +48,12 @@ import {
 const shadowColor = "rgba(75, 59, 50, 0.3)" // offblack
 
 // Helper to create options array from asset indices
-function createOptionsFromAssets(assetIndices: number[]): { label: string; value: number; imageSrc: string }[] {
-  return assetIndices.map((index, i) => ({
+function createOptionsFromAssets(assetIndices: number[]): OptionConfig[] {
+  return assetIndices.map((assetIndex, i) => ({
     label: String(i + 1),
     value: i,
-    imageSrc: getAssetByIndex(index)?.imageSrc || '',
+    assetIndex: assetIndex,
+    imageSrc: getAssetByIndex(assetIndex)?.imageSrc || '',
   }));
 }
 
@@ -164,7 +167,7 @@ export default function ModalMapSelect(){
             // Get position for second river mouth (depends on direction)
             const riverDir = state.riverDirection as RiverDirection;
             let anchorPoint: paper.Point;
-            let options: { label: string; value: number; imageSrc: string }[];
+            let options: OptionConfig[];
             let direction: OptionDirection;
 
             switch (riverDir) {
@@ -313,9 +316,10 @@ export default function ModalMapSelect(){
               );
 
               // Create options from asset indices
-              const options = indices.map((assetIndex, idx) => ({
+              const options: OptionConfig[] = indices.map((assetIndex, idx) => ({
                 label: `${idx + 1}`,
                 value: idx,
+                assetIndex: assetIndex,
                 imageSrc: getAssetByIndex(assetIndex)?.imageSrc || '',
               }));
 
@@ -748,6 +752,15 @@ function IslandLayoutSelector({ wizardState }: { wizardState: WizardState }) {
     switch (wizardState.step) {
       case 'river':
         return <RiverDirectionStep />;
+      case 'baseMapGrid':
+        return <BaseMapGridStep
+          layoutType={wizardState.riverDirection as LayoutType}
+          onSelect={async (baseMapIndex) => {
+            await loadBaseMapFromSvg(baseMapIndex);
+            resetWizard();
+          }}
+          onBack={goBack}
+        />;
       case 'peninsulaSide':
         return <PeninsulaSideStep onBack={goBack} />;
       case 'dockSide':
@@ -785,10 +798,9 @@ function RiverDirectionStep() {
   const handleClick = (direction: 'west' | 'south' | 'east') => {
     confirmDestructiveAction(
       'Clear your map? You will lose all unsaved changes.',
-      () => {
-        // Load blank map
-        const blankLayout = Layouts.blank[0];
-        loadMapFromJSONString(blankLayout.data);
+      async () => {
+        // load blank terrain
+        await loadBaseMapFromSvg(0);
 
         // Set direction and move to next step - wizard state handler will show airport selector
         setRiverDirection(direction);
@@ -813,6 +825,50 @@ function RiverDirectionStep() {
           <Text variant='secondary'>or use a Creative Mode template</Text>
         </Button>
       </Flex>
+    </>
+  );
+}
+
+// Base Map Grid Step - shows pre-made base maps for the selected river direction
+interface BaseMapGridStepProps {
+  layoutType: LayoutType;
+  onSelect: (baseMapIndex: number) => void;
+  onBack: () => void;
+}
+
+function BaseMapGridStep({ layoutType, onSelect, onBack }: BaseMapGridStepProps) {
+  const baseMapIndices = baseMapLayouts[layoutType] || [];
+
+  return (
+    <>
+      <Box sx={{position: 'absolute', left: 0, top: [1, 3]}}>
+        <Button variant='icon' onClick={onBack}>
+          <Image src='static/img/back.png' />
+        </Button>
+      </Box>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Choose a Base Map!'}</Heading>
+      <Text m={2} sx={{textAlign: 'center'}}>{'Select a base map for your island terrain.'}</Text>
+      <Grid
+        gap={0}
+        columns={[2, 3, 4]}
+        sx={{justifyItems: 'center' }}>
+        {/* Blank option first (index 0) */}
+        <Card key={0} onClick={() => onSelect(0)}>
+          <Image variant='card' src={'static/img/island-type-blank.png'}/>
+        </Card>
+        {/* River direction base maps */}
+        {baseMapIndices.map((baseMapIndex) => {
+          const baseMap = baseMapCache[baseMapIndex];
+          if (!baseMap) return null;
+          return (
+            <Card
+              key={baseMapIndex}
+              onClick={() => onSelect(baseMapIndex)}>
+              <Image variant='card' src={`static/base_map/${baseMap}`}/>
+            </Card>
+          );
+        })}
+      </Grid>
     </>
   );
 }

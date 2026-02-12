@@ -34,7 +34,7 @@ function parsePathData(d) {
 
 // Extract layer data from SVG content
 function extractLayers(svgContent) {
-  const layers = { level1: [], level2: [], level3: [], river: [] };
+  const layers = { level2: [], level3: [], river: [] };
 
   // Match path elements - extract full path tag then parse attributes
   const pathRegex = /<path([^>]*)\/>/g;
@@ -63,6 +63,7 @@ function extractLayers(svgContent) {
 // Process all SVG files
 const files = fs.readdirSync(baseMapDir).filter(f => f.endsWith('.svg'));
 const cache = {};
+const dataCache = {};
 
 for (const file of files) {
   // Extract map number from filename (e.g., "1 - SDfVaDl.svg" -> 1)
@@ -70,28 +71,41 @@ for (const file of files) {
   if (!match) continue;
 
   const mapNumber = parseInt(match[1], 10);
+  cache[mapNumber] = file;
+
+  // Extract layer data from SVG
   const content = fs.readFileSync(path.join(baseMapDir, file), 'utf-8');
   const layers = extractLayers(content);
-
-  cache[mapNumber] = {
-    imagesrc: file,
-    data: JSON.stringify(layers),  // Compact: {level1:[],level2:[...],level3:[...],river:[...]}
-  };
+  dataCache[mapNumber] = layers;
 }
 
 // Generate TypeScript output
 const output = `// Auto-generated file - do not edit manually
 // Run: node scripts/generateBaseMapCache.js
 
+export const baseMapCache: Record<number, string> = ${JSON.stringify(cache, null, 2)};
+
+export function getBaseMapSrc(mapNumber: number): string | null {
+  const path = baseMapCache[mapNumber];
+  return path ? 'static/base_map/' + path : null;
+}
+
 export type BaseMapData = {
-  imagesrc: string;
-  data: string;
+  level2: number[][];
+  level3: number[][];
+  river: number[][];
 };
 
-export const baseMapCache: Record<number, BaseMapData> = ${JSON.stringify(cache, null, 2)};
+export const baseMapDataCache: Record<number, BaseMapData> = ${JSON.stringify(dataCache, null, 2)};
 
-export function getBaseMapData(mapNumber: number): BaseMapData | undefined {
-  return baseMapCache[mapNumber];
+export function getBaseMapData(mapNumber: number): { imagesrc: string; data: BaseMapData } | null {
+  const filename = baseMapCache[mapNumber];
+  const data = baseMapDataCache[mapNumber];
+  if (!filename || !data) return null;
+  return {
+    imagesrc: 'static/base_map/' + filename,
+    data: data,
+  };
 }
 `;
 

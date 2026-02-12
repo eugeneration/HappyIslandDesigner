@@ -1,4 +1,5 @@
 import { horizontalBlocks, verticalBlocks } from '../constants';
+import { OptionConfig } from './mapOptionSelector';
 
 export type BlockState = 'placeholder' | 'airport' | 'river' | 'peninsula' | 'dock' | 'secretBeach' | 'rock' | 'rock_small' | 'filled';
 export type TileDirection = 'top_left' | 'top_right' | 'bottom_left' | 'bottom_right' | 'left' | 'right' | 'top' | 'bottom';
@@ -181,6 +182,12 @@ export function getAssetByIndex(num: number): AssetData | undefined {
   return assetIndexToData.get(num);
 }
 
+// Get imageSrc for an asset index from either regular or placeholder assets
+export function getImageSrcForAsset(assetIndex: number): string | undefined {
+  return assetIndexToData.get(assetIndex)?.imageSrc
+    ?? placeholderAssetIndexToData.get(assetIndex)?.imageSrc;
+}
+
 // Asset indices grouped by direction (filled tiles only, for tile selection UI)
 export const tileAssetIndices: Record<TileDirection, number[]> = (() => {
   const result: Record<string, number[]> = {};
@@ -262,7 +269,7 @@ export function getCategoryIcon(category: TileCategory): string {
 }
 
 // Get tile options for a specific category
-export function getTileOptionsForCategory(category: TileCategory): { label: string; value: number; imageSrc?: string }[] {
+export function getTileOptionsForCategory(category: TileCategory): OptionConfig[] {
   const indices = categoryAssetIndices[category] ?? [];
   return indices.map((index, i) => ({
     label: String(i + 1),

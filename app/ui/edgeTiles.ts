@@ -6,6 +6,7 @@ import {
   type TileDirection,
   assetIndexToData,
   placeholderAssetIndexToData,
+  getImageSrcForAsset,
   getPlaceholderIndexForPosition,
   getTileDirection,
   isPlaceholderIndex,
@@ -37,12 +38,6 @@ export function getInnerDrawableBounds(): paper.Rectangle {
   );
 }
 
-// Get imageSrc for an asset index from either regular or placeholder assets
-function getImageSrcForAsset(assetIndex: number): string | undefined {
-  return assetIndexToData.get(assetIndex)?.imageSrc
-    ?? placeholderAssetIndexToData.get(assetIndex)?.imageSrc;
-}
-
 // Create tile image from asset index - uses cached SVG first, then fetches
 function createTileImage(
   assetIndex: number,
@@ -50,38 +45,42 @@ function createTileImage(
   blockY: number,
   callback: (item: paper.Item) => void
 ): void {
+  // Helper to position and scale SVG item
+  const positionItem = (item: paper.Item) => {
+    // const scaleX = blockWidth / item.bounds.width;
+    // const scaleY = blockHeight / item.bounds.height;
+    // item.scale(scaleX, scaleY, item.bounds.topLeft);
+    if (!baseScale) {
+      baseScale = blockWidth / item.bounds.width;
+    }
+    item.scale(baseScale, item.bounds.topLeft);
+    item.bounds.topLeft = new paper.Point(
+      blockX * blockWidth,
+      blockY * blockHeight
+    );
+  };
+
+  // Try cached SVG content first
+  const cachedSvg = getCachedSvgContent(assetIndex);
+  if (cachedSvg) {
+    const item = paper.project.importSVG(cachedSvg, { insert: false });
+    if (item) {
+      positionItem(item);
+      callback(item);
+      return;
+    }
+  }
+  console.warn("Tile cache does not contain ", assetIndex);
+  // Fall back to fetching SVG
   const imageSrc = getImageSrcForAsset(assetIndex);
   if (!imageSrc) {
     console.error(`No imageSrc for asset index: ${assetIndex}`);
     return;
   }
-
-  // Helper to position and scale SVG item
-  const positionItem = (item: paper.Item) => {
-    const scaleX = blockWidth / item.bounds.width;
-    const scaleY = blockHeight / item.bounds.height;
-    item.scale(scaleX, scaleY, item.bounds.topLeft);
-    item.bounds.topLeft = new paper.Point(
-      blockX * blockWidth,
-      blockY * blockHeight
-    );
-    callback(item);
-  };
-
-  // Try cached SVG content first
-  const cachedSvg = getCachedSvgContent(imageSrc);
-  if (cachedSvg) {
-    const item = paper.project.importSVG(cachedSvg, { insert: false });
-    if (item) {
-      positionItem(item);
-      return;
-    }
-  }
-
-  // Fall back to fetching SVG
   paper.project.importSVG(imageSrc, {
     onLoad: (item: paper.Item) => {
       positionItem(item);
+      callback(item);
     },
     onError: () => {
       console.error(`Failed to load SVG for asset ${assetIndex}: ${imageSrc}`);

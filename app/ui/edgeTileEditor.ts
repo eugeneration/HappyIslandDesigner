@@ -136,8 +136,13 @@ function getOptionDirection(blockX: number, blockY: number): 'left' | 'right' | 
 // ============================================================================
 
 let currentEdgeTileBlock: { x: number; y: number } | null = null;
+let currentCategories: TileCategory[] | null = null;
+let lastOptionClickTime = 0;
 
 function handleEdgeTileClick(blockX: number, blockY: number): void {
+  // Ignore clicks immediately after option selection to prevent click-through
+  if (Date.now() - lastOptionClickTime < 100) return;
+
   const direction = getTileDirection(blockX, blockY);
   const categories = getCategoriesForDirection(direction);
 
@@ -159,9 +164,10 @@ function handleEdgeTileClick(blockX: number, blockY: number): void {
 }
 
 function showCategorySelector(blockX: number, blockY: number, categories: TileCategory[]): void {
+  currentCategories = categories;  // Store for event listener
   const options = categories.map((cat, i) => ({
     label: String(i + 1),
-    value: cat,
+    value: i, // category index, event listener uses currentCategories to get actual category
     imageSrc: getCategoryIcon(cat),
   }));
 
@@ -199,8 +205,10 @@ function showTileOptionsForCategory(blockX: number, blockY: number, category: Ti
 
 // Handle category selection - transition to step 2
 // Use setTimeout to defer showing tile options until after the click handler's hideOptionSelector() completes
-emitter.on('edgeCategorySelected', ({ value: category }: { value: TileCategory }) => {
-  if (currentEdgeTileBlock) {
+emitter.on('edgeCategorySelected', ({ value: categoryIndex }: { value: number }) => {
+  lastOptionClickTime = Date.now();
+  if (currentEdgeTileBlock && currentCategories) {
+    const category = currentCategories[categoryIndex];
     const { x, y } = currentEdgeTileBlock;
     setTimeout(() => {
       showTileOptionsForCategory(x, y, category);
@@ -210,8 +218,10 @@ emitter.on('edgeCategorySelected', ({ value: category }: { value: TileCategory }
 
 // Handle tile selection - update edge tile
 emitter.on('edgeTileSelected', ({ value }: { value: number }) => {
+  lastOptionClickTime = Date.now();
   if (currentEdgeTileBlock) {
     replaceBlocks({ x: currentEdgeTileBlock.x, y: currentEdgeTileBlock.y, assetIndex: value });
     currentEdgeTileBlock = null;
+    currentCategories = null;
   }
 });
