@@ -4277,6 +4277,11 @@ function showDevMenu(): void {
       isMenuOpen = false;
       loadBaseMapFromCache(1);
     }},
+    { label: 'From Screenshot', action: () => {
+      hideDevMenu();
+      isMenuOpen = false;
+      import('./generateFromScreenshot').then(m => m.generateFromScreenshot());
+    }},
   ];
 
   // Menu background
