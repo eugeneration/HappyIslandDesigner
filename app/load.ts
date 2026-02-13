@@ -156,6 +156,28 @@ const LAYER_COLORS: Record<string, keyof BaseMapLayers> = {
   '#83e1c3': 'river',
 };
 
+// Parse SVG path d attribute to arrays of paper.Point
+// Handles multiple subpaths (M...Z M...Z) by splitting on M command
+function parsePathData(d: string): paper.Point[][] {
+  const polygons: paper.Point[][] = [];
+  // Split by M to get individual polygons (skip empty first element)
+  const parts = d.split(/M/).filter(p => p.trim());
+
+  for (const part of parts) {
+    const points: paper.Point[] = [];
+    // Match all coordinate pairs (handles both M and L commands)
+    const coordRegex = /(-?\d+\.?\d*),(-?\d+\.?\d*)/g;
+    let match: RegExpExecArray | null;
+    while ((match = coordRegex.exec(part)) !== null) {
+      points.push(new paper.Point(parseFloat(match[1]), parseFloat(match[2])));
+    }
+    if (points.length > 0) {
+      polygons.push(points);
+    }
+  }
+  return polygons;
+}
+
 // Extract layer data from SVG content, creating Paper.js paths directly
 function extractLayers(svgContent: string): BaseMapLayers {
   const result: BaseMapLayers = { level2: [], level3: [], river: [] };
@@ -175,10 +197,15 @@ function extractLayers(svgContent: string): BaseMapLayers {
       const d = dMatch[1];
       const layerKey = LAYER_COLORS[fill];
       if (layerKey) {
-        // Create Paper.js path directly from SVG path data
-        const path = new paper.Path(d);
-        path.closed = true;
-        result[layerKey].push(path);
+        // Parse path data into arrays of points (handles multiple subpaths)
+        const polygons = parsePathData(d);
+        for (const points of polygons) {
+          const path = new paper.Path({
+            segments: points,
+            closed: true,
+          });
+          result[layerKey].push(path);
+        }
       }
     }
   }

@@ -16,7 +16,7 @@ import {
 } from './edgeTileAssets';
 import { setEdgeTilesFromAssetIndices } from './edgeTiles';
 import { setMapVersion } from '../mapState';
-import Layouts, { Layout } from '../components/islandLayouts';
+import Layouts, { Layout, baseMapLayouts, LayoutType } from '../components/islandLayouts';
 import { loadMapFromJSONString, loadBaseMapFromSvg } from '../load';
 import { safeCompoundIntersection } from '../helpers/safeCompoundIntersection';
 import { getCachedSvgContent } from '../generatedTilesCache';
@@ -48,6 +48,9 @@ let postfixDropdown: HTMLDivElement | null = null;
 let isLayoutNavigatorActive = false;
 let layoutNavigatorButtons: HTMLDivElement | null = null;
 let layoutNavigatorIndex = 0;
+let isBaseMapNavigatorActive = false;
+let baseMapNavigatorButtons: HTMLDivElement | null = null;
+let baseMapNavigatorIndex = 0;
 
 // Sorted list of asset indices for tile tracer navigation
 const assetIndices: number[] = Array.from(assetIndexToData.keys()).sort((a, b) => a - b);
@@ -1516,6 +1519,115 @@ function loadLayoutAtIndex(index: number): void {
 
   const { layout } = allLayouts[index];
   loadMapFromJSONString(layout.data);
+}
+
+// ============ Base Map Navigator Functions ============
+
+// Flatten all base maps into a single array for navigation
+function getAllBaseMaps(): { category: string; mapNumber: number; index: number }[] {
+  const all: { category: string; mapNumber: number; index: number }[] = [];
+
+  baseMapLayouts[LayoutType.west].forEach((num, i) => all.push({ category: 'west', mapNumber: num, index: i }));
+  baseMapLayouts[LayoutType.south].forEach((num, i) => all.push({ category: 'south', mapNumber: num, index: i }));
+  baseMapLayouts[LayoutType.east].forEach((num, i) => all.push({ category: 'east', mapNumber: num, index: i }));
+
+  return all;
+}
+
+function toggleBaseMapNavigator(): void {
+  isBaseMapNavigatorActive = !isBaseMapNavigatorActive;
+
+  if (isBaseMapNavigatorActive) {
+    showBaseMapNavigatorButtons();
+    loadBaseMapAtIndex(baseMapNavigatorIndex);
+  } else {
+    hideBaseMapNavigatorButtons();
+  }
+}
+
+function showBaseMapNavigatorButtons(): void {
+  if (baseMapNavigatorButtons) return;
+
+  baseMapNavigatorButtons = document.createElement('div');
+  baseMapNavigatorButtons.style.cssText = `
+    position: fixed;
+    left: 20px;
+    bottom: 20px;
+    background: #f5f3e5;
+    border: 2px solid #726a5a;
+    border-radius: 8px;
+    padding: 8px;
+    z-index: 10000;
+    font-family: TTNorms, sans-serif;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  `;
+
+  // Title showing current base map
+  const title = document.createElement('div');
+  title.id = 'base-map-navigator-title';
+  title.style.cssText = 'text-align: center; margin-bottom: 8px; font-size: 12px; color: #726a5a;';
+  baseMapNavigatorButtons.appendChild(title);
+
+  // Button row
+  const buttonRow = document.createElement('div');
+  buttonRow.style.cssText = 'display: flex; gap: 4px;';
+
+  const allBaseMaps = getAllBaseMaps();
+
+  // Left arrow
+  const leftBtn = createDropdownButton('←', () => {
+    baseMapNavigatorIndex = (baseMapNavigatorIndex - 1 + allBaseMaps.length) % allBaseMaps.length;
+    loadBaseMapAtIndex(baseMapNavigatorIndex);
+    updateBaseMapNavigatorTitle();
+  });
+  leftBtn.style.width = '40px';
+  buttonRow.appendChild(leftBtn);
+
+  // Right arrow
+  const rightBtn = createDropdownButton('→', () => {
+    baseMapNavigatorIndex = (baseMapNavigatorIndex + 1) % allBaseMaps.length;
+    loadBaseMapAtIndex(baseMapNavigatorIndex);
+    updateBaseMapNavigatorTitle();
+  });
+  rightBtn.style.width = '40px';
+  buttonRow.appendChild(rightBtn);
+
+  baseMapNavigatorButtons.appendChild(buttonRow);
+
+  // Close button
+  const closeBtn = createDropdownButton('Close', () => {
+    toggleBaseMapNavigator();
+  }, true);
+  closeBtn.style.marginTop = '4px';
+  closeBtn.style.width = '100%';
+  baseMapNavigatorButtons.appendChild(closeBtn);
+
+  document.body.appendChild(baseMapNavigatorButtons);
+  updateBaseMapNavigatorTitle();
+}
+
+function hideBaseMapNavigatorButtons(): void {
+  if (baseMapNavigatorButtons) {
+    baseMapNavigatorButtons.remove();
+    baseMapNavigatorButtons = null;
+  }
+}
+
+function updateBaseMapNavigatorTitle(): void {
+  const title = document.getElementById('base-map-navigator-title');
+  if (!title) return;
+
+  const allBaseMaps = getAllBaseMaps();
+  const current = allBaseMaps[baseMapNavigatorIndex];
+  title.textContent = `${baseMapNavigatorIndex + 1}/${allBaseMaps.length}: ${current.category}/#${current.mapNumber}`;
+}
+
+async function loadBaseMapAtIndex(index: number): Promise<void> {
+  const allBaseMaps = getAllBaseMaps();
+  if (index < 0 || index >= allBaseMaps.length) return;
+
+  const { mapNumber } = allBaseMaps[index];
+  await loadBaseMapFromSvg(mapNumber);
 }
 
 function toggleEdgeTileLayerVisibility(): void {
@@ -4176,6 +4288,11 @@ function showDevMenu(): void {
       hideDevMenu();
       isMenuOpen = false;
       toggleLayoutNavigator();
+    }},
+    { label: 'Base Map Navigator', action: () => {
+      hideDevMenu();
+      isMenuOpen = false;
+      toggleBaseMapNavigator();
     }},
     { label: 'Auto Island Flow', action: () => {
       hideDevMenu();
