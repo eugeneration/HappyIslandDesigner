@@ -4,7 +4,16 @@ import { colors } from '../colors';
 import { emitter } from '../emitter';
 import { horizontalBlocks, verticalBlocks, horizontalDivisions, verticalDivisions } from '../constants';
 import { showOptionSelector, hideOptionSelector } from './mapOptionSelector';
-import { getAllEdgeBlockPositions, replaceBlocks } from './edgeTiles';
+import {
+  getAllEdgeBlockPositions,
+  replaceBlocks,
+  hideEdgeGeometry,
+  showEdgeGeometry,
+  showSvgTiles,
+  hideSvgTiles,
+  fillSvgTilesFromBlockData,
+  loadEdgeTilesAsGeometry,
+} from './edgeTiles';
 import {
   getTileDirection,
   getCategoriesForDirection,
@@ -30,6 +39,11 @@ export function enterEdgeEditMode(): void {
   showEdgeEditOverlay();
   showEdgeTileOutlines();
   toolState.focusOnCanvas(false);
+
+  // Hide geometry and show SVG tiles for editing
+  hideEdgeGeometry();
+  fillSvgTilesFromBlockData();
+  showSvgTiles();
 
   // Set up click handler
   currentClickHandler = (event: paper.MouseEvent) => {
@@ -60,6 +74,11 @@ export function exitEdgeEditMode(): void {
     paper.view.onClick = null;
     currentClickHandler = null;
   }
+
+  // Hide SVG tiles and rebuild geometry
+  hideSvgTiles();
+  loadEdgeTilesAsGeometry();
+  showEdgeGeometry();
 }
 
 export function isEdgeEditModeActive(): boolean {

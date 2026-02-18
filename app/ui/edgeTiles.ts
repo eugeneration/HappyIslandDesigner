@@ -1,4 +1,5 @@
 import paper from 'paper';
+import { colors } from '../colors';
 import { layers } from '../layers';
 import { horizontalBlocks, verticalBlocks, horizontalDivisions, verticalDivisions } from '../constants';
 import {
@@ -12,8 +13,12 @@ import {
   isPlaceholderIndex,
 } from './edgeTileAssets';
 import { getCachedSvgContent } from '../generatedTilesCache';
+import { tilesPathsCache } from '../generatedTilesPathsCache';
 
 let tilesGroup: paper.Group | null = null;
+let edgeBg: paper.PathItem | null = null;
+let baseScale: number | null = null; // assumes that all tiles are the same size
+let edgeGeometryGroup: paper.Group | null = null;
 
 const blockWidth = horizontalDivisions; // 16
 const blockHeight = verticalDivisions; // 16
@@ -111,10 +116,33 @@ function getBlockKey(x: number, y: number): string {
   return `${x},${y}`;
 }
 
+export function createEdgeBg(): paper.PathItem {
+  // cover up the grass bleeding through the edge of the svg
+  const bleedSize = 0.2;
+  const outerRect = new paper.Path.Rectangle(new paper.Rectangle(
+    innerBoundsRect.x - bleedSize,
+    innerBoundsRect.y - bleedSize,
+    innerBoundsRect.width + bleedSize * 2,
+    innerBoundsRect.height + bleedSize * 2
+  ));
+  const innerRect = new paper.Path.Rectangle(new paper.Rectangle(
+    innerBoundsRect.x + bleedSize,
+    innerBoundsRect.y + bleedSize,
+    innerBoundsRect.width - bleedSize * 2,
+    innerBoundsRect.height - bleedSize * 2
+  ));
+  const edgeBg = outerRect.subtract(innerRect);
+  edgeBg.fillColor = colors.water.color;
+
+  return edgeBg;
+}
+
 export function initializeEdgeTiles(): void {
   deleteEdgeTiles();
 
   layers.mapEdgeLayer.activate();
+
+  edgeBg = createEdgeBg();
 
   if (tilesGroup) {
     console.error("Edge Tiles initialized twice!");
@@ -149,6 +177,15 @@ export function deleteEdgeTiles(): void {
     tilesGroup.remove();
     tilesGroup = null;
   }
+  if (edgeBg) {
+    edgeBg.remove();
+    edgeBg = null;
+  }
+  if (edgeGeometryGroup) {
+    edgeGeometryGroup.remove();
+    edgeGeometryGroup = null;
+  }
+
   // Clear tracking maps
   blockData.clear();
   blockItems.clear();
@@ -309,9 +346,9 @@ export function getAllEdgeBlockPositions(): BlockPosition[] {
 
 
 // Get edge tile asset indices in CCW order (900s for placeholders)
-// Returns null if edge tiles are not visible
+// Returns null if edge tiles are not initialized
 export function getEdgeAssetIndices(): number[] | null {
-  if (!tilesGroup) return null;
+  if (blockData.size === 0) return null;
 
   const numbers: number[] = [];
 
@@ -319,7 +356,7 @@ export function getEdgeAssetIndices(): number[] | null {
     const key = getBlockKey(x, y);
     const data = blockData.get(key);
     if (!data) throw new Error(`blockData is null at ${key}`);
-    numbers.push(data?.assetIndex);
+    numbers.push(data.assetIndex);
   }
 
   return numbers;
@@ -327,12 +364,139 @@ export function getEdgeAssetIndices(): number[] | null {
 
 // Load edge tiles from number array
 export function setEdgeTilesFromAssetIndices(numbers: number[]): void {
-  // Show edge tiles first (sets up placeholders)
+  // Initialize edge tiles (sets up data structures)
   initializeEdgeTiles();
 
+  // Store asset indices in blockData (without creating SVG tiles)
   for (let i = 0; i < Math.min(numbers.length, ccwPositions.length); i++) {
     const num = numbers[i];
     const [x, y] = ccwPositions[i];
-    replaceBlocks({ x, y, assetIndex: num });
+    const key = getBlockKey(x, y);
+    blockData.set(key, { x, y, assetIndex: num });
   }
+
+  // Load as geometry paths
+  loadEdgeTilesAsGeometry();
+}
+
+// ============================================================================
+// Edge Geometry Functions - Render edge tiles as Paper.js paths
+// ============================================================================
+
+// Convert flat coordinate array to paper.Point array
+function parsePathPoints(coords: number[]): paper.Point[] {
+  const points: paper.Point[] = [];
+  for (let i = 0; i < coords.length; i += 2) {
+    points.push(new paper.Point(coords[i], coords[i + 1]));
+  }
+  return points;
+}
+
+// Load edge tiles as geometry paths from cached path data
+export function loadEdgeTilesAsGeometry(): void {
+  // Remove existing geometry
+  if (edgeGeometryGroup) {
+    edgeGeometryGroup.remove();
+    edgeGeometryGroup = null;
+  }
+
+  layers.mapEdgeLayer.activate();
+  edgeGeometryGroup = new paper.Group();
+  edgeGeometryGroup.applyMatrix = false;
+
+  // Collect all paths by terrain type
+  const allPaths: Record<string, paper.Path[]> = { rock: [], sand: [], water: [] };
+
+  for (const [x, y] of ccwPositions) {
+    const key = getBlockKey(x, y);
+    const data = blockData.get(key);
+    if (!data) continue;
+
+    const tileData = tilesPathsCache[data.assetIndex];
+    if (!tileData?.pathData) continue;
+
+    const offsetX = x * blockWidth;
+    const offsetY = y * blockHeight;
+
+    for (const [terrainType, polygons] of Object.entries(tileData.pathData)) {
+      for (const coords of polygons as number[][]) {
+        const points = parsePathPoints(coords);
+        if (points.length < 3) continue;
+
+        const path = new paper.Path({
+          segments: points.map(p => new paper.Point(p.x + offsetX, p.y + offsetY)),
+          closed: true,
+          insert: false,
+        });
+        allPaths[terrainType as keyof typeof allPaths].push(path);
+      }
+    }
+  }
+
+  // Union paths of same terrain type and add to group
+  // Order matters: water (bottom), sand, rock (top)
+  const colorMap: Record<string, paper.Color> = {
+    rock: colors.rock.color,
+    sand: colors.sand.color,
+    water: colors.water.color,
+  };
+
+  const renderOrder = ['water', 'sand', 'rock']; // bottom to top
+  for (const terrainType of renderOrder) {
+    const paths = allPaths[terrainType];
+    if (!paths || paths.length === 0) continue;
+
+    let combined: paper.PathItem = paths[0];
+    for (let i = 1; i < paths.length; i++) {
+      const newCombined = combined.unite(paths[i]);
+      combined.remove();
+      paths[i].remove();
+      combined = newCombined;
+    }
+
+    combined.fillColor = colorMap[terrainType];
+    edgeGeometryGroup.addChild(combined);
+  }
+}
+
+// Show the geometry group
+export function showEdgeGeometry(): void {
+  if (edgeGeometryGroup) edgeGeometryGroup.visible = true;
+}
+
+// Hide the geometry group
+export function hideEdgeGeometry(): void {
+  if (edgeGeometryGroup) edgeGeometryGroup.visible = false;
+}
+
+// Show the SVG tiles group
+export function showSvgTiles(): void {
+  if (tilesGroup) tilesGroup.visible = true;
+}
+
+// Hide the SVG tiles group
+export function hideSvgTiles(): void {
+  if (tilesGroup) tilesGroup.visible = false;
+}
+
+// Fill SVG tiles from current blockData (used when entering edit mode)
+export function fillSvgTilesFromBlockData(): void {
+  if (!tilesGroup) return;
+
+  // Clear existing SVG tiles
+  tilesGroup.removeChildren();
+  blockItems.clear();
+
+  for (const [x, y] of ccwPositions) {
+    const key = getBlockKey(x, y);
+    const data = blockData.get(key);
+    if (!data) continue;
+
+    createTileImage(data.assetIndex, x, y, (item) => {
+      tilesGroup!.addChild(item);
+      blockItems.set(key, item);
+    });
+  }
+
+  tilesGroup.sendToBack();
 }

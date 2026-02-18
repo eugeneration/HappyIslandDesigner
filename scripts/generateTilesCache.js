@@ -17,6 +17,7 @@ const LAYER_COLORS = {
 };
 
 // Parse SVG path d attribute to flat coordinate arrays
+// Handles both comma-separated (M16,0) and space-separated (M 16 0) formats
 function parsePathData(d) {
   const polygons = [];
   // Split by M to get individual polygons (skip empty first element)
@@ -24,11 +25,18 @@ function parsePathData(d) {
 
   for (const part of parts) {
     const coords = [];
-    // Match all coordinate pairs (handles both M and L commands)
-    const matches = part.matchAll(/(-?\d+\.?\d*),(-?\d+\.?\d*)/g);
+    // Match all numbers (handles both "16,0" and "16 0" formats)
+    const matches = part.matchAll(/(-?\d+\.?\d*)/g);
+    const numbers = [];
     for (const match of matches) {
-      // Push x and y as separate elements (flat array)
-      coords.push(parseFloat(match[1]), parseFloat(match[2]));
+      const num = parseFloat(match[1]);
+      if (!isNaN(num)) {
+        numbers.push(num);
+      }
+    }
+    // Pair up numbers as x,y coordinates
+    for (let i = 0; i < numbers.length - 1; i += 2) {
+      coords.push(numbers[i], numbers[i + 1]);
     }
     if (coords.length > 0) {
       polygons.push(coords);
@@ -133,17 +141,19 @@ fs.writeFileSync(svgOutputFile, output);
 
 // Generate TypeScript output
 const pathsOutput = `// Auto-generated file - do not edit manually
-// Run: node scripts/generateBaseMapCache.js
+// Run: node scripts/generateTilesCache.js
 
 export type TilePathData = {
-  rock?: number[];
-  sand?: number[];
-  water?: number[];
+  pathData: {
+    rock: number[][];
+    sand: number[][];
+    water: number[][];
+  };
 };
 
 export const tilesPathsCache: Record<number, TilePathData> = ${JSON.stringify(pathsCache, null, 2)};
 
-export function getTilePathData(assetId: number): PathData | undefined {
+export function getTilePathData(assetId: number): TilePathData | undefined {
   return tilesPathsCache[assetId];
 }
 `;

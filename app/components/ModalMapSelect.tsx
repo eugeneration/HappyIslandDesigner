@@ -9,7 +9,8 @@ import { baseMapCache } from '../generatedBaseMapCache';
 import useBlockZoom from './useBlockZoom';
 
 import { loadMapFromJSONString, loadBaseMapFromSvg } from '../load';
-import {confirmDestructiveAction, isMapEmpty} from '../state';
+import {confirmDestructiveAction, isMapEmpty, autosaveTrigger} from '../state';
+import { loadEdgeTilesAsGeometry } from '../ui/edgeTiles';
 import { emitter } from '../emitter';
 import { type OptionConfig } from '../ui/mapOptionSelector';
 import { showPositionSelector, hidePositionSelector, SelectionType, getPeninsulaPosition, getAirportBlocks, getSecretBeachBlock, getSecretBeachPosition, getRockPosition, getRockBlock, RiverDirection } from '../ui/mapPositionSelector';
@@ -757,6 +758,10 @@ function IslandLayoutSelector({ wizardState }: { wizardState: WizardState }) {
           layoutType={wizardState.riverDirection as LayoutType}
           onSelect={async (baseMapIndex) => {
             await loadBaseMapFromSvg(baseMapIndex);
+            // Convert edge tiles to geometry now that wizard is complete
+            loadEdgeTilesAsGeometry();
+            // Save to local storage for persistence
+            autosaveTrigger();
             resetWizard();
           }}
           onBack={goBack}
