@@ -44,6 +44,9 @@ import {
   goBack,
   isModalStep,
   isMapStep,
+  goToTileEditorFlow,
+  goToScreenshotFlow,
+  goToEntrypoint,
 } from '../ui/mapSelectionWizard';
 
 const shadowColor = "rgba(75, 59, 50, 0.3)" // offblack
@@ -680,8 +683,6 @@ export default function ModalMapSelect(){
             borderRadius: 8,
             flexDirection: 'column',
             overflow: 'auto',
-            //borderRadius: 60,
-            //minWidth: 260,
           }}>
           <Box p={2} sx={{
             backgroundColor: colors.level3.cssColor,
@@ -751,6 +752,10 @@ function IslandLayoutSelector({ wizardState }: { wizardState: WizardState }) {
   // Render content based on wizard step
   const renderContent = () => {
     switch (wizardState.step) {
+      case 'entrypoint':
+        return <EntryPointStep />;
+      case 'screenshot':
+        return <ScreenshotStep onBack={goToEntrypoint} />;
       case 'river':
         return <RiverDirectionStep />;
       case 'baseMapGrid':
@@ -771,7 +776,7 @@ function IslandLayoutSelector({ wizardState }: { wizardState: WizardState }) {
       case 'dockSide':
         return <DockSideStep onBack={goBack} />;
       case 'legacyriver':
-        return <LegacyRiverDirectionStep onBack={goBack} />;
+        return <LegacyRiverDirectionStep onBack={goToEntrypoint} />;
       case 'legacygrid':
       case 'grid':
         return <IslandGridStep
@@ -798,6 +803,62 @@ function IslandLayoutSelector({ wizardState }: { wizardState: WizardState }) {
   );
 }
 
+// Entry Point Step - Choose between Screenshot, Tile Editor, or Manual Drawing
+function EntryPointStep() {
+  return (
+    <>
+      <Heading m={2} sx={{textAlign: 'center'}}>{'Create New Map'}</Heading>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 3, px: 0 }}>
+        <Flex sx={{flexDirection: ['column', 'row'], flexWrap: 'wrap', justifyContent: 'center', alignItems: ['center', 'flex-start'], maxWidth: 650}}>
+          <EntryButton
+            imageSrc='static/img/newisland-generate.png'
+            bgColor='#D2E542'
+            onClick={() => goToScreenshotFlow()}
+          >
+            Generate from Screenshot
+          </EntryButton>
+          <EntryButton
+            imageSrc='static/img/newisland-editor.png'
+            bgColor='#9CDDBC'
+            onClick={() => goToTileEditorFlow()}
+          >
+            Use Tile Editor
+          </EntryButton>
+          <EntryButton
+            imageSrc='static/img/newisland-manual.png'
+            bgColor='#E59FA9'
+            onClick={() => goToLegacyRiverSelection()}
+          >
+            Draw Manually
+          </EntryButton>
+          {/* Dummy item to keep second row left-aligned in 2-column layout */}
+          <Box sx={{ width: '50%', maxWidth: 300, m: [1, 2], visibility: 'hidden', display: ['none', 'block'] }} />
+        </Flex>
+      </Box>
+    </>
+  );
+}
+
+// Screenshot Step - Placeholder for future screenshot-to-map feature
+function ScreenshotStep({ onBack }: { onBack: () => void }) {
+  return (
+    <>
+      <Box sx={{position: 'absolute', left: 0, top: [1, 3]}}>
+        <Button variant='icon' onClick={onBack}>
+          <Image src='static/img/back.png' />
+        </Button>
+      </Box>
+      <Heading m={2} sx={{textAlign: 'center'}}>{'Generate from Screenshot'}</Heading>
+      <Text m={3} sx={{textAlign: 'center'}}>
+        {'Upload a screenshot of your island map to automatically generate terrain.'}
+      </Text>
+      <Text m={3} sx={{textAlign: 'center', color: 'gray'}}>
+        {'Coming soon...'}
+      </Text>
+    </>
+  );
+}
+
 // Step 1: River Direction
 function RiverDirectionStep() {
   const handleClick = (direction: 'west' | 'south' | 'east') => {
@@ -813,22 +874,18 @@ function RiverDirectionStep() {
     );
   };
 
-  const handleLegacyClick = () => {
-    goToLegacyRiverSelection();
-  }
-
   return (
     <>
+      <Box sx={{position: 'absolute', left: 0, top: [1, 3]}}>
+        <Button variant='icon' onClick={goToEntrypoint}>
+          <Image src='static/img/back.png' />
+        </Button>
+      </Box>
       <Heading m={2} sx={{textAlign: 'center'}}>{'Choose your Layout!'}</Heading>
       <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center'}}>
         <Card onClick={() => handleClick('west')}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
         <Card onClick={() => handleClick('south')}><Image variant='card' src={'static/img/island-type-south.png'}/></Card>
         <Card onClick={() => handleClick('east')}><Image variant='card' src={'static/img/island-type-east.png'}/></Card>
-      </Flex>
-      <Flex sx={{flexDirection: ['column', 'row'], justifyContent: 'center', alignItems: 'center'}}>
-        <Button variant='borderless' onClick={handleLegacyClick}>
-          <Text variant='secondary'>or use a Creative Mode template</Text>
-        </Button>
       </Flex>
     </>
   );
@@ -904,7 +961,7 @@ function LegacyRiverDirectionStep({ onBack }: { onBack: () => void }) {
         </Button>
       </Box>
       <Heading m={2} sx={{textAlign: 'center'}}>{'Choose a Template!'}</ Heading>
-      <Text m={2} sx={{textAlign: 'center'}}>{'Creative Mode lets you redraw the entire island, but not everything will work in game.'}</ Text>
+      <Text m={2} sx={{textAlign: 'center'}}>{'Manual Drawing lets you redraw the entire island, but not everything will work in game.'}</ Text>
       <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center'}}>
         <Card onClick={() => handleClick('west')}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
         <Card onClick={() => handleClick('south')}><Image variant='card' src={'static/img/island-type-south.png'}/></Card>
@@ -1028,6 +1085,62 @@ function Card({children, onClick, maxWidth}: CardProps) {
       sx={maxWidth ? {maxWidth: maxWidth} : {maxWidth: 185}}
     >
       {children}
+    </Button>
+  );
+}
+
+interface EntryButtonProps {
+  children: React.ReactNode;
+  onClick?: React.MouseEventHandler;
+  imageSrc: string;
+  bgColor: string;
+}
+
+function EntryButton({ children, onClick, imageSrc, bgColor }: EntryButtonProps) {
+  return (
+    <Button
+      onClick={onClick}
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        bg: 'transparent',
+        maxWidth: 300,
+        p: 0,
+        m: [1, 2],
+        '&:hover': {
+          bg: 'transparent',
+        },
+        '&:hover img': {
+          transform: 'scale(1.05)',
+        },
+        '&:hover > div:first-of-type': {
+          boxShadow: '2px 2px 5px 1px rgba(75, 59, 50, 0.3)',
+        },
+        '&:active': {
+          bg: 'transparent',
+        },
+        '&:active > div:first-of-type': {
+          boxShadow: '1px 1px 3px 1px rgba(75, 59, 50, 0.3)',
+        },
+      }}
+    >
+      <Box sx={{
+        bg: bgColor,
+        borderRadius: 40,
+        overflow: 'hidden',
+        width: '100%',
+        transition: 'box-shadow 0.1s',
+      }}>
+        <Image src={imageSrc} sx={{
+          width: '100%',
+          display: 'block',
+          transition: 'transform 0.5s',
+        }} />
+      </Box>
+      <Text sx={{ fontSize: [2, 3], fontWeight: 'bold', textAlign: 'center', fontFamily: 'heading', mt: [1, 2], color: 'text' }}>
+        {children}
+      </Text>
     </Button>
   );
 }
