@@ -19,7 +19,6 @@ import {
   getCategoriesForDirection,
   getCategoryIcon,
   getTileOptionsForCategory,
-  MAX_CATEGORY_ITEMS,
   type TileCategory,
 } from './edgeTileAssets';
 import { toolState } from '../tools/state';
@@ -198,7 +197,6 @@ function showCategorySelector(blockX: number, blockY: number, categories: TileCa
     title: 'Select category',
     spacing: 14,
     buttonSize: 12,
-    fixedItemCount: MAX_CATEGORY_ITEMS,
   });
 }
 
@@ -218,7 +216,6 @@ function showTileOptionsForCategory(blockX: number, blockY: number, category: Ti
     title: 'Select tile',
     spacing: 14,
     buttonSize: 12,
-    fixedItemCount: MAX_CATEGORY_ITEMS,
   });
 }
 

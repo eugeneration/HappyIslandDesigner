@@ -479,6 +479,19 @@ export function hideSvgTiles(): void {
   if (tilesGroup) tilesGroup.visible = false;
 }
 
+// Hide/show individual edge tile by block coordinates
+export function hideEdgeTileAtBlock(x: number, y: number): void {
+  const key = getBlockKey(x, y);
+  const item = blockItems.get(key);
+  if (item) item.visible = false;
+}
+
+export function showEdgeTileAtBlock(x: number, y: number): void {
+  const key = getBlockKey(x, y);
+  const item = blockItems.get(key);
+  if (item) item.visible = true;
+}
+
 // Fill SVG tiles from current blockData (used when entering edit mode)
 export function fillSvgTilesFromBlockData(): void {
   if (!tilesGroup) return;

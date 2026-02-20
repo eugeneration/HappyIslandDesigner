@@ -6,6 +6,7 @@ import { createButton } from './createButton';
 import { goBack } from './mapSelectionWizard';
 import { getCachedSvgContent } from '../generatedTilesCache';
 import { getImageSrcForAsset } from './edgeTileAssets';
+import { hideEdgeTileAtBlock, showEdgeTileAtBlock } from './edgeTiles';
 
 let selectorUI: paper.Group | null = null;
 let frameHandler: ((event: { delta: number }) => void) | null = null;
@@ -28,7 +29,7 @@ export type MapOptionSelectorConfig = {
   title?: string;
   spacing?: number;
   buttonSize?: number;
-  fixedItemCount?: number;
+  hideEdgeTile?: boolean;
 };
 
 // Deck stacking constants
@@ -43,6 +44,7 @@ const ANIMATION_SPEED = 0.2;        // Lerp factor for smooth transitions
 let cardSpacing = 12;
 let optionCards: paper.Group[] = [];
 let previewGroup: paper.Group | null = null;
+let hiddenEdgeTileBlock: { x: number; y: number } | null = null;
 let currentConfig: MapOptionSelectorConfig | null = null;
 let uiScale = 1;
 
@@ -482,8 +484,7 @@ export function showOptionSelector(config: MapOptionSelectorConfig): void {
   }
 
   // Zoom to fit
-  const itemCountForZoom = config.fixedItemCount ?? config.options.length;
-  zoomToFit(config.anchorPoint, itemCountForZoom, config.direction, cardSpacing);
+  zoomToFit(config.anchorPoint, config.direction, cardSpacing);
 
   // Calculate UI scale after zoom
   uiScale = 1 / paper.view.zoom;
@@ -525,6 +526,14 @@ export function showOptionSelector(config: MapOptionSelectorConfig): void {
   // Scale label
   if (labelGroup) {
     labelGroup.scale(uiScale);
+  }
+
+  // Hide the existing edge tile at this block so preview shows cleanly
+  if (config.hideEdgeTile) {
+    const blockX = Math.floor(config.anchorPoint.x / 16);
+    const blockY = Math.floor(config.anchorPoint.y / 16);
+    hiddenEdgeTileBlock = { x: blockX, y: blockY };
+    hideEdgeTileAtBlock(blockX, blockY);
   }
 
   // Set up event handlers
@@ -708,6 +717,12 @@ export function hideOptionSelector(): void {
     selectorUI = null;
   }
 
+  // Restore hidden edge tile
+  if (hiddenEdgeTileBlock) {
+    showEdgeTileAtBlock(hiddenEdgeTileBlock.x, hiddenEdgeTileBlock.y);
+    hiddenEdgeTileBlock = null;
+  }
+
   if (frameHandler) {
     paper.view.off('frame', frameHandler);
     frameHandler = null;
@@ -728,7 +743,6 @@ export function hideOptionSelector(): void {
 
 function zoomToFit(
   anchor: paper.Point,
-  itemCount: number,
   direction: OptionDirection,
   spacing: number
 ): void {

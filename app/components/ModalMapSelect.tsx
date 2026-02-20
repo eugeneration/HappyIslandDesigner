@@ -166,6 +166,7 @@ export default function ModalMapSelect(){
               title: 'Shape?',
               spacing: 14,
               buttonSize: 12,
+              hideEdgeTile: true,
             });
           } else if (state.step === 'riverMouth2') {
             // Get position for second river mouth (depends on direction)
@@ -203,6 +204,7 @@ export default function ModalMapSelect(){
               title: 'Shape?',
               spacing: 14,
               buttonSize: 12,
+              hideEdgeTile: true,
             });
           } else if (state.step === 'airport') {
             showPositionSelector('airport', state.riverDirection as RiverDirection);
@@ -229,6 +231,7 @@ export default function ModalMapSelect(){
               title: 'Shape?',
               spacing: 14,
               buttonSize: 12,
+              hideEdgeTile: true,
             });
           } else if (state.step === 'dockShape') {
             // Show option selector for dock shape
@@ -250,6 +253,7 @@ export default function ModalMapSelect(){
               title: 'Shape?',
               spacing: 14,
               buttonSize: 12,
+              hideEdgeTile: true,
             });
           } else if (state.step === 'secretBeachPos') {
             // Show secret beach position selector
@@ -268,6 +272,7 @@ export default function ModalMapSelect(){
               title: 'Shape?',
               spacing: 14,
               buttonSize: 12,
+              hideEdgeTile: true,
             });
           } else if (state.step === 'leftRockPos') {
             // Show left rock position selector
@@ -285,6 +290,7 @@ export default function ModalMapSelect(){
               title: 'Shape?',
               spacing: 14,
               buttonSize: 12,
+              hideEdgeTile: true,
             });
           } else if (state.step === 'rightRockPos') {
             // Show right rock position selector
@@ -302,6 +308,7 @@ export default function ModalMapSelect(){
               title: 'Shape?',
               spacing: 14,
               buttonSize: 12,
+              hideEdgeTile: true,
             });
           } else if (state.step === 'fillPlaceholder') {
             // Get remaining placeholders and show option selector for the first one
@@ -335,6 +342,7 @@ export default function ModalMapSelect(){
                 title: 'Shape?',
                 spacing: 14,
                 buttonSize: 12,
+                hideEdgeTile: true,
               });
             } else {
               // No more placeholders, move to grid

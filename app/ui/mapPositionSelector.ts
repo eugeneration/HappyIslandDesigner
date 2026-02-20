@@ -126,10 +126,10 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
     case 'peninsulaLeft': {
       // Filter out positions where the left edge block is occupied by river
       const leftCandidates = [
-        { point: new paper.Point(8, mapHeight * 0.2), blockY: 1, originalIndex: 0 },
-        { point: new paper.Point(8, mapHeight * 0.4), blockY: 2, originalIndex: 1 },
-        { point: new paper.Point(8, mapHeight * 0.6), blockY: 3, originalIndex: 2 },
-        { point: new paper.Point(8, mapHeight * 0.8), blockY: 4, originalIndex: 3 },
+        { point: new paper.Point(blockSize / 2, 1 * blockSize + blockSize / 2), blockY: 1, originalIndex: 0 },
+        { point: new paper.Point(blockSize / 2, 2 * blockSize + blockSize / 2), blockY: 2, originalIndex: 1 },
+        { point: new paper.Point(blockSize / 2, 3 * blockSize + blockSize / 2), blockY: 3, originalIndex: 2 },
+        { point: new paper.Point(blockSize / 2, 4 * blockSize + blockSize / 2), blockY: 4, originalIndex: 3 },
       ].filter(p => getBlockState(0, p.blockY) === 'placeholder' || getBlockState(0, p.blockY) === undefined);
 
       return {
@@ -143,10 +143,10 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
     case 'peninsulaRight': {
       // Filter out positions where the right edge block is occupied by river
       const rightCandidates = [
-        { point: new paper.Point(mapWidth - 8, mapHeight * 0.2), blockY: 1, originalIndex: 0 },
-        { point: new paper.Point(mapWidth - 8, mapHeight * 0.4), blockY: 2, originalIndex: 1 },
-        { point: new paper.Point(mapWidth - 8, mapHeight * 0.6), blockY: 3, originalIndex: 2 },
-        { point: new paper.Point(mapWidth - 8, mapHeight * 0.8), blockY: 4, originalIndex: 3 },
+        { point: new paper.Point(mapWidth - blockSize / 2, 1 * blockSize + blockSize / 2), blockY: 1, originalIndex: 0 },
+        { point: new paper.Point(mapWidth - blockSize / 2, 2 * blockSize + blockSize / 2), blockY: 2, originalIndex: 1 },
+        { point: new paper.Point(mapWidth - blockSize / 2, 3 * blockSize + blockSize / 2), blockY: 3, originalIndex: 2 },
+        { point: new paper.Point(mapWidth - blockSize / 2, 4 * blockSize + blockSize / 2), blockY: 4, originalIndex: 3 },
       ].filter(p => getBlockState(horizontalBlocks - 1, p.blockY) === 'placeholder' || getBlockState(horizontalBlocks - 1, p.blockY) === undefined);
 
       return {
@@ -197,10 +197,10 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
     case 'leftRock': {
       // Left rock on column 0, rows 1-4 (excluding corners and occupied tiles)
       const leftRockCandidates = [
-        { point: new paper.Point(8, mapHeight * 0.2), blockY: 1, originalIndex: 0 },
-        { point: new paper.Point(8, mapHeight * 0.4), blockY: 2, originalIndex: 1 },
-        { point: new paper.Point(8, mapHeight * 0.6), blockY: 3, originalIndex: 2 },
-        { point: new paper.Point(8, mapHeight * 0.8), blockY: 4, originalIndex: 3 },
+        { point: new paper.Point(blockSize / 2, 1 * blockSize + blockSize / 2), blockY: 1, originalIndex: 0 },
+        { point: new paper.Point(blockSize / 2, 2 * blockSize + blockSize / 2), blockY: 2, originalIndex: 1 },
+        { point: new paper.Point(blockSize / 2, 3 * blockSize + blockSize / 2), blockY: 3, originalIndex: 2 },
+        { point: new paper.Point(blockSize / 2, 4 * blockSize + blockSize / 2), blockY: 4, originalIndex: 3 },
       ].filter(p => getBlockState(0, p.blockY) === 'placeholder' || getBlockState(0, p.blockY) === undefined);
 
       return {
@@ -214,10 +214,10 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
     case 'rightRock': {
       // Right rock on column 6, rows 1-4 (excluding corners and occupied tiles)
       const rightRockCandidates = [
-        { point: new paper.Point(mapWidth - 8, mapHeight * 0.2), blockY: 1, originalIndex: 0 },
-        { point: new paper.Point(mapWidth - 8, mapHeight * 0.4), blockY: 2, originalIndex: 1 },
-        { point: new paper.Point(mapWidth - 8, mapHeight * 0.6), blockY: 3, originalIndex: 2 },
-        { point: new paper.Point(mapWidth - 8, mapHeight * 0.8), blockY: 4, originalIndex: 3 },
+        { point: new paper.Point(mapWidth - blockSize / 2, 1 * blockSize + blockSize / 2), blockY: 1, originalIndex: 0 },
+        { point: new paper.Point(mapWidth - blockSize / 2, 2 * blockSize + blockSize / 2), blockY: 2, originalIndex: 1 },
+        { point: new paper.Point(mapWidth - blockSize / 2, 3 * blockSize + blockSize / 2), blockY: 3, originalIndex: 2 },
+        { point: new paper.Point(mapWidth - blockSize / 2, 4 * blockSize + blockSize / 2), blockY: 4, originalIndex: 3 },
       ].filter(p => getBlockState(horizontalBlocks - 1, p.blockY) === 'placeholder' || getBlockState(horizontalBlocks - 1, p.blockY) === undefined);
 
       return {
@@ -397,38 +397,26 @@ export function isPositionSelectorVisible(): boolean {
 
 // Get peninsula position coordinates by index and side
 export function getPeninsulaPosition(side: 'left' | 'right', index: number): paper.Point {
-  const positions = side === 'left'
-    ? [
-        new paper.Point(8, mapHeight * 0.2),
-        new paper.Point(8, mapHeight * 0.4),
-        new paper.Point(8, mapHeight * 0.6),
-        new paper.Point(8, mapHeight * 0.8),
-      ]
-    : [
-        new paper.Point(mapWidth - 8, mapHeight * 0.2),
-        new paper.Point(mapWidth - 8, mapHeight * 0.4),
-        new paper.Point(mapWidth - 8, mapHeight * 0.6),
-        new paper.Point(mapWidth - 8, mapHeight * 0.8),
-      ];
+  const x = side === 'left' ? blockSize / 2 : mapWidth - blockSize / 2;
+  const positions = [
+    new paper.Point(x, 1 * blockSize + blockSize / 2),
+    new paper.Point(x, 2 * blockSize + blockSize / 2),
+    new paper.Point(x, 3 * blockSize + blockSize / 2),
+    new paper.Point(x, 4 * blockSize + blockSize / 2),
+  ];
 
   return positions[index] || positions[0];
 }
 
 // Get rock position coordinates by index and side
 export function getRockPosition(side: 'left' | 'right', index: number): paper.Point {
-  const positions = side === 'left'
-    ? [
-        new paper.Point(8, mapHeight * 0.2),
-        new paper.Point(8, mapHeight * 0.4),
-        new paper.Point(8, mapHeight * 0.6),
-        new paper.Point(8, mapHeight * 0.8),
-      ]
-    : [
-        new paper.Point(mapWidth - 8, mapHeight * 0.2),
-        new paper.Point(mapWidth - 8, mapHeight * 0.4),
-        new paper.Point(mapWidth - 8, mapHeight * 0.6),
-        new paper.Point(mapWidth - 8, mapHeight * 0.8),
-      ];
+  const x = side === 'left' ? blockSize / 2 : mapWidth - blockSize / 2;
+  const positions = [
+    new paper.Point(x, 1 * blockSize + blockSize / 2),
+    new paper.Point(x, 2 * blockSize + blockSize / 2),
+    new paper.Point(x, 3 * blockSize + blockSize / 2),
+    new paper.Point(x, 4 * blockSize + blockSize / 2),
+  ];
 
   return positions[index] || positions[0];
 }
