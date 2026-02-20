@@ -73,7 +73,7 @@ function renderScreenshotModal() {
   switchMenu.data.contents.addChild(uploadGroup);
   {
     const instructionImage = new Raster(
-        isMobile ? 'static/img/screenshot-instructions-mobile.png': 'static/img/screenshot-instructions.png');
+        isMobile ? 'static/img/overlay-instructions-mobile.png': 'static/img/overlay-instructions.png');
     instructionImage.scale(0.5);
     instructionImage.onLoad = function() {
       if (instructionImage.bounds.width > switchMenu.data.width) {

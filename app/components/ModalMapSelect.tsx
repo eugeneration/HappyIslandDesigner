@@ -852,6 +852,16 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
       <Text m={3} sx={{textAlign: 'center'}}>
         {'Upload a screenshot of your island map to automatically generate terrain.'}
       </Text>
+      <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
+        <Image
+          src='static/img/screenshot-instructions.png'
+          sx={{ maxWidth: '100%', maxHeight: 150, display: ['none', 'block'] }}
+        />
+        <Image
+          src='static/img/screenshot-instructions-mobile.png'
+          sx={{ maxWidth: '100%', maxHeight: 250, display: ['block', 'none'] }}
+        />
+      </Box>
       <Text m={3} sx={{textAlign: 'center', color: 'gray'}}>
         {'Coming soon...'}
       </Text>
