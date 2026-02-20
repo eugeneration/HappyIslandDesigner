@@ -16,7 +16,7 @@ import { showMainMenu, mainMenu } from './ui/mainMenu';
 import { showHelpMenu, helpMenu } from './ui/help';
 import { toggleGrid } from './grid';
 import { redo, undo, state } from './state';
-import { toggleScreenshotVisible } from './ui/screenshotOverlay';
+import { toggleTracingOverlayVisible } from './ui/tracingOverlay';
 import { modals } from './ui/modal';
 
 export const keys = {
@@ -31,7 +31,7 @@ export function onKeyUp(event) {
       keys.isSpaceDown = false;
       break;
     case '`':
-      toggleScreenshotVisible();
+      toggleTracingOverlayVisible();
       delete keyDownMap['`'];
       break;
   }
@@ -179,7 +179,7 @@ export function onKeyDown(event) {
       break;
     case '`':
       if (!keyDownMap['`'])
-        toggleScreenshotVisible();
+        toggleTracingOverlayVisible();
       keyDownMap['`'] = true;
       break;
   }

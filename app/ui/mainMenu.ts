@@ -7,7 +7,7 @@ import { renderModal } from './modal';
 import { colors } from '../colors';
 import { saveMapToFile } from '../save';
 import { loadMapFromFile } from '../load';
-import { showSwitchModal } from './screenshotModal';
+import { showSwitchModal } from './tracingOverlayModal';
 import { OpenMapSelectModal } from '../components/ModalMapSelect';
 
 
@@ -129,8 +129,8 @@ export function showMainMenu(isShown: boolean) {
       },
     );
     const switchButton = createMenuButton(
-      i18next.t('load_screenshot'),
-      'static/img/menu-switch.png', 0, 1,
+      i18next.t('tracing_overlay'),
+      'static/img/menu-overlay.png', 0, 1,
       () => showSwitchModal(true));
 
     const twitterButton = createMenuButton(

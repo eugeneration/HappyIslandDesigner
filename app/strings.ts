@@ -51,9 +51,9 @@ export const strings = {
             load_map: 'Load Map',
             new_map: 'New Map',
             clear_warn: 'Clear your map? You will lose all unsaved changes.',
-            load_screenshot: 'Upload Screenshot',
-            load_game_map: 'Load Game Map',
-            load_game_map_instructions: '1. Upload a photo/screenshot of your map\n\n2. Mark the four corners of the grid',
+            tracing_overlay: 'Tracing Overlay',
+            import_tracing_overlay: 'Import Image for Tracing Overlay',
+            import_tracing_overlay_instructions: '1. Upload a photo/screenshot of your map\n\n2. Mark the four corners of the grid',
             twitter: 'Twitter'
         }
     },
@@ -107,9 +107,9 @@ export const strings = {
             load_map: '载入地图',
             new_map: '创建新的地图',
             clear_warn: '确定要清除地图吗？您未保存的内容将全部丢失',
-            load_screenshot: '载入截图',
-            load_game_map: '载入游戏地图',
-            load_game_map_instructions: '1. 上传地图的照片或屏幕截图\n\n2. 标记网格的四个角',
+            tracing_overlay: '描图覆盖层',
+            import_tracing_overlay: '导入描图图片',
+            import_tracing_overlay_instructions: '1. 上传地图的照片或屏幕截图\n\n2. 标记网格的四个角',
             twitter: '推特'
         }
     },
@@ -163,9 +163,9 @@ export const strings = {
             load_map: '載入地圖',
             new_map: '建立新的地圖',
             clear_warn: '確定要清除地圖嗎？您未儲存的內容將會消失',
-            load_screenshot: '載入地圖',
-            load_game_map: '載入遊戲地圖',
-            load_game_map_instructions: '1. 上傳地圖的照片或螢幕截圖\n\n2. 標註格線的四個角落',
+            tracing_overlay: '描圖覆蓋層',
+            import_tracing_overlay: '匯入描圖圖片',
+            import_tracing_overlay_instructions: '1. 上傳地圖的照片或螢幕截圖\n\n2. 標註格線的四個角落',
             twitter: 'Twitter'
         }
     },
@@ -219,9 +219,9 @@ export const strings = {
             load_map: 'Cargar Mapa',
             new_map: 'Nuevo Mapa',
             clear_warn: '¿Vaciar el mapa? Perderás todos los cambios no guardados.',
-            load_screenshot: 'Subir Captura de Pantalla',
-            load_game_map: 'Subir Mapa desde el Juego',
-            load_game_map_instructions: '1. Sube una foto o captura de pantalla de tu mapa\n\n2. Marca las cuatro esquinas de la rejilla',
+            tracing_overlay: 'Capa de Trazado',
+            import_tracing_overlay: 'Importar Imagen para Trazado',
+            import_tracing_overlay_instructions: '1. Sube una foto o captura de pantalla de tu mapa\n\n2. Marca las cuatro esquinas de la rejilla',
             twitter: 'Twitter'
         }
     },
@@ -275,9 +275,9 @@ export const strings = {
             load_map: 'マップをロード',
             new_map: 'マップを新規作成',
             clear_warn: 'マップをクリアしますか？保存されていない変更は破棄されます。',
-            load_screenshot: 'ゲームマップからロード',
-            load_game_map: 'マップをロード',
-            load_game_map_instructions: '1. ゲームマップの写真かスクリーンショットをアップロードします\n\n2. グリッドの四隅をマークします',
+            tracing_overlay: 'トレースオーバーレイ',
+            import_tracing_overlay: 'トレース用画像をインポート',
+            import_tracing_overlay_instructions: '1. ゲームマップの写真かスクリーンショットをアップロードします\n\n2. グリッドの四隅をマークします',
             twitter: 'Twitter'
         }
     }

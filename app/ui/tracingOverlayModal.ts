@@ -7,7 +7,7 @@ import { createButton } from './createButton';
 import { colors } from '../colors';
 import { emitter } from '../emitter';
 import { layers } from '../layers';
-import { updateMapOverlay } from './screenshotOverlay';
+import { updateMapOverlay } from './tracingOverlay';
 import { loadImage } from '../load';
 
 let switchMenu: paper.Group;
@@ -15,7 +15,7 @@ let switchMenu: paper.Group;
 export function showSwitchModal(isShown) {
   if (switchMenu == null) {
     if (!isShown) return;
-    renderScreenshotModal();
+    renderTracingOverlayModal();
   }
   switchMenu.data.show(isShown);
 }
@@ -63,10 +63,10 @@ class ZoomCanvas {
   }
 }
 
-function renderScreenshotModal() {
+function renderTracingOverlayModal() {
   const isMobile = Math.min(view.bounds.width * view.scaling.x, view.bounds.height * view.scaling.y) < 400;
   const margin = isMobile ? 5 : 20;
-  switchMenu = renderModal(i18next.t('load_game_map'), margin, margin, function() {showSwitchModal(false)}, {fullscreen: true});
+  switchMenu = renderModal(i18next.t('import_tracing_overlay'), margin, margin, function() {showSwitchModal(false)}, {fullscreen: true});
 
   const uploadGroup = new Group();
   uploadGroup.applyMatrix = false;
@@ -90,7 +90,7 @@ function renderScreenshotModal() {
       instructions.fontFamily = 'TTNorms, sans-serif';
       instructions.fontSize = isMobile ? 14 : 18;
       instructions.fillColor = colors.text.color;
-      instructions.content = i18next.t('load_game_map_instructions');
+      instructions.content = i18next.t('import_tracing_overlay_instructions');
 
       const uploadIcon = new Raster('static/img/ui-upload-white.png');
       uploadIcon.scale(0.4);
@@ -173,7 +173,7 @@ function renderScreenshotModal() {
       confirmButton.data.disable(true);
       confirmButton.bounds.topCenter = mapImage.bounds.bottomCenter.add(new Point(0, 58 * inverseScale));
       confirmButton.scale(inverseScale);
-      emitter.on('screenshot_update_point', function(pointCount) {
+      emitter.on('tracingOverlay_update_point', function(pointCount) {
         if (pointCount == 4) {
           confirmButton.data.disable(false);
         } else {
@@ -302,7 +302,7 @@ function renderScreenshotModal() {
 
             mapImage.data.pointIndex = mapImage.data.points.length;
             mapImage.data.points[mapImage.data.pointIndex] = point;
-            emitter.emit('screenshot_update_point', mapImage.data.points.length);
+            emitter.emit('tracingOverlay_update_point', mapImage.data.points.length);
           }
 
           if (this.data.grabbedPoint) {
@@ -516,7 +516,7 @@ function renderScreenshotModal() {
           });
         };
         mapImage.data.remove = function() {
-          emitter.emit('screenshot_update_point', 0);
+          emitter.emit('tracingOverlay_update_point', 0);
           mapImageGroup.removeChildren();
           uploadGroup.visible = true;
         }

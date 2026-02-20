@@ -6,15 +6,15 @@ import { layers } from '../layers';
 import { createButton } from './createButton';
 import { clamp } from '../helpers/clamp';
 
-let screenshotOverlayUI;
-function showScreenshotOverlayUI(isShown) {
-  if (!screenshotOverlayUI) {
+let tracingOverlayUI;
+function showTracingOverlayUI(isShown) {
+  if (!tracingOverlayUI) {
     layers.fixedLayer.activate();
 
     const closeIcon = new Raster('static/img/ui-x.png');
     closeIcon.scale(0.3);
 
-    const closeButton = createButton(closeIcon, 12, stopScreenshotOverlay, {
+    const closeButton = createButton(closeIcon, 12, stopTracingOverlay, {
       alpha: 0.7,
       highlightedColor: colors.paperOverlay.color,
       selectedColor: colors.paperOverlay2.color,
@@ -36,11 +36,11 @@ function showScreenshotOverlayUI(isShown) {
       toggleIcon.children[1].visible = !visible;
     };
     toggleIcon.data.set(true);
-    const visibilityButton = createButton(toggleIcon, 20, toggleScreenshotVisible,
+    const visibilityButton = createButton(toggleIcon, 20, toggleTracingOverlayVisible,
       {
         // options
       });
-    emitter.on('updateScreenshotVisible', function (visible) {
+    emitter.on('updateTracingOverlayVisible', function (visible) {
       toggleIcon.data.set(visible);
     });
 
@@ -48,8 +48,8 @@ function showScreenshotOverlayUI(isShown) {
     //icon.scaling = 0.5;
 
     const incrementComponents = createIncrementComponents(
-      function () { incrementScreenshotAlpha(true) },
-      function () { incrementScreenshotAlpha(false) });
+      function () { incrementTracingOverlayAlpha(true) },
+      function () { incrementTracingOverlayAlpha(false) });
     const text = incrementComponents.text;
     const incrementControl = createVerticalIncrementControl(
       incrementComponents.increment,
@@ -58,74 +58,74 @@ function showScreenshotOverlayUI(isShown) {
       text,
       35);
 
-    emitter.on('updateScreenshotAlpha', update);
+    emitter.on('updateTracingOverlayAlpha', update);
     function update(alpha) {
       text.content = alpha * 100 + '%'
     }
     update(0.5);
 
-    screenshotOverlayUI = container([visibilityButton, incrementControl]);
-    screenshotOverlayUI.addChild(closeButton);
-    closeButton.position = screenshotOverlayUI.bounds.topRight.add(new Point(-5, 5));
+    tracingOverlayUI = container([visibilityButton, incrementControl]);
+    tracingOverlayUI.addChild(closeButton);
+    closeButton.position = tracingOverlayUI.bounds.topRight.add(new Point(-5, 5));
 
     emitter.on('resize', resize);
     function resize() {
-      screenshotOverlayUI.bounds.bottomRight =
+      tracingOverlayUI.bounds.bottomRight =
         screenCoordinates(1, 1, -4, -10);
     }
     resize();
   }
-  screenshotOverlayUI.bringToFront();
-  screenshotOverlayUI.visible = isShown;
+  tracingOverlayUI.bringToFront();
+  tracingOverlayUI.visible = isShown;
 }
 
-let screenshot: paper.Group;
-function startScreenshotOverlay() {
-  if (screenshot == null) return;
-  screenshot.opacity = 0.5;
-  showScreenshotOverlayUI(true);
+let tracingOverlayImage: paper.Group;
+function startTracingOverlay() {
+  if (tracingOverlayImage == null) return;
+  tracingOverlayImage.opacity = 0.5;
+  showTracingOverlayUI(true);
 }
-function stopScreenshotOverlay() {
-  if (screenshot == null) return;
-  showScreenshotOverlayUI(false);
-  screenshot.remove();
+function stopTracingOverlay() {
+  if (tracingOverlayImage == null) return;
+  showTracingOverlayUI(false);
+  tracingOverlayImage.remove();
 }
 
-function incrementScreenshotAlpha(increase, amount?: number) {
-  if (screenshot == null) return;
+function incrementTracingOverlayAlpha(increase, amount?: number) {
+  if (tracingOverlayImage == null) return;
   amount = amount ?? 0.1;
   const newOpacity = round(
-    clamp(screenshot.opacity + (increase ? 1 : -1) * amount, 0, 1),
+    clamp(tracingOverlayImage.opacity + (increase ? 1 : -1) * amount, 0, 1),
     2);
   if (newOpacity == 0) return; // don't allow 0 opacity
 
-  screenshot.opacity = newOpacity;
-  emitter.emit('updateScreenshotAlpha', newOpacity);
+  tracingOverlayImage.opacity = newOpacity;
+  emitter.emit('updateTracingOverlayAlpha', newOpacity);
 }
 
-export function toggleScreenshotVisible() {
-  if (!screenshot) return;
-  screenshot.visible = !screenshot.visible;
-  emitter.emit('updateScreenshotVisible', screenshot.visible);
+export function toggleTracingOverlayVisible() {
+  if (!tracingOverlayImage) return;
+  tracingOverlayImage.visible = !tracingOverlayImage.visible;
+  emitter.emit('updateTracingOverlayVisible', tracingOverlayImage.visible);
 }
 
-// TODO - allow moving screenshot behind the map layer
-//function swapScreenshotLayer() {
-//  if (!screenshot) return;
+// TODO - allow moving tracing overlay behind the map layer
+//function swapTracingOverlayLayer() {
+//  if (!tracingOverlayImage) return;
 //}
 
 
 export function updateMapOverlay(raster) {
-  if (screenshot) {
-    screenshot.remove();
+  if (tracingOverlayImage) {
+    tracingOverlayImage.remove();
   }
-  screenshot = raster;
-  screenshot.locked = true;
-  screenshot.opacity = 0;
-  layers.mapOverlayLayer.addChild(screenshot);
-  screenshot.bounds.topLeft = new Point(0, 0);
+  tracingOverlayImage = raster;
+  tracingOverlayImage.locked = true;
+  tracingOverlayImage.opacity = 0;
+  layers.mapOverlayLayer.addChild(tracingOverlayImage);
+  tracingOverlayImage.bounds.topLeft = new Point(0, 0);
 
-  startScreenshotOverlay();
+  startTracingOverlay();
 }
 
 function screenCoordinates(percentX, percentY, offsetX, offsetY) {
