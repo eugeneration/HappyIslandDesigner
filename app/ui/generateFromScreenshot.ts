@@ -120,17 +120,34 @@ type IconTemplate = {
   minFillRatio: number;                // Min filled pixels / bounding box area
   opaqueArea: number;                  // Pre-extracted opaque pixel count (alpha>128) from template PNG
   fillBehavior?: 'grass' | 'water' | 'terrain-foot';  // How to fill region (default: 'grass')
+  fillExtraColors?: RGB[];             // Additional colors to include in fill dilation (not treated as background)
   maxCount?: number;                   // Max instances allowed in uniqueness constraint (default: 1)
   emitsObject?: boolean;               // Whether to include in v2 object output (default: true)
   orientations?: OrientationVariant[]; // For multi-orientation icons (bridges, stairs)
   requiresWaterAdjacency?: boolean;    // Bridges must have water on perpendicular sides
-  maskDilationRadius?: number;         // Dilate color mask N px before BFS (bridges gaps in fragmented icons)
+  maskDilationRadius?: number;         // Dilate color mask N px before BFS (fixed pixel count)
+  maskDilationRadiusCoords?: number;   // Dilate color mask N coords before BFS (scales with pixelsPerCoord)
+  allowedOverlap?: number;             // Island-coord units of overlap permitted in non-overlap check (default: 0)
+  blockBoundaryTolerance?: number;     // Elevated color tolerance near block-boundary gridlines (whitened by dotted overlay)
+  maxSaturation?: number;              // If set, pixels with HSL saturation above this are excluded from blob detection
 };
 
 type ColorBlob = {
   pixels: Set<number>;     // Set of linear indices (y * imageWidth + x)
   minX: number; minY: number; maxX: number; maxY: number;
   area: number;
+};
+
+// Debug info for a blob found during stairs/bridge detection
+type BlobDebugEntry = {
+  colorGroup: 'stairs' | 'bridges';
+  blob: ColorBlob;
+  accepted: boolean;  // Whether blob passed validation and was added to allCandidates
+};
+
+type DetectMapIconsResult = {
+  icons: DetectedIcon[];
+  blobDebug: BlobDebugEntry[];
 };
 
 type DetectedIcon = {
@@ -264,6 +281,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     aspectRatioRange: [0.7, 1.4],
     minFillRatio: 0.3,
     opaqueArea: 1150,                 // 76% of 1521 total px
+    allowedOverlap: 2,
   },
   {
     name: 'Museum',
@@ -277,6 +295,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     aspectRatioRange: [0.7, 1.4],
     minFillRatio: 0.3,
     opaqueArea: 1150,                 // 76% of 1521 total px
+    allowedOverlap: 2,
   },
   {
     name: "Nook's Cranny",
@@ -290,6 +309,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     aspectRatioRange: [0.7, 1.4],
     minFillRatio: 0.3,
     opaqueArea: 1150,                 // 76% of 1521 total px
+    allowedOverlap: 2,
   },
   {
     name: 'Tent',
@@ -374,6 +394,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     opaqueArea: 768,
     maxCount: 1,
     emitsObject: false,
+    fillExtraColors: [{ r: 0xF4, g: 0xF6, b: 0xB7 }],  // #F4F6B7 outer white border (isBackgroundPixel treats it as sand)
   },
 
   // === Olive bridge group (#7F8267) — 3 sizes, orientation-aware ===
@@ -383,7 +404,9 @@ const ICON_TEMPLATES: IconTemplate[] = [
     type: 'bridgeStoneVertical',
     imagePath: 'static/dev/icon-bridge-3.png',
     colors: [{ r: 0x7F, g: 0x82, b: 0x67 }],  // #7F8267 olive
-    colorTolerance: 35,
+    colorTolerance: 40,
+    blockBoundaryTolerance: 60,       // Gridlines lighten the color at block boundaries
+    maxSaturation: 0.25,              // Bridge is desaturated (~12%); rejects path-like pixels (~34%)
     sizeInCoords: [2.1, 3.4],         // 11/5.33, 18/5.33
     objectSizeInCoords: [4, 6],
     aspectRatioRange: [0.2, 5.0],
@@ -405,7 +428,9 @@ const ICON_TEMPLATES: IconTemplate[] = [
     type: 'bridgeStoneVertical',
     imagePath: 'static/dev/icon-bridge-4.png',
     colors: [{ r: 0x7F, g: 0x82, b: 0x67 }],
-    colorTolerance: 35,
+    colorTolerance: 40,
+    blockBoundaryTolerance: 60,
+    maxSaturation: 0.25,
     sizeInCoords: [2.1, 4.5],         // 11/5.33, 24/5.33
     objectSizeInCoords: [4, 6],
     aspectRatioRange: [0.2, 5.0],
@@ -427,7 +452,9 @@ const ICON_TEMPLATES: IconTemplate[] = [
     type: 'bridgeStoneVertical',
     imagePath: 'static/dev/icon-bridge-5.png',
     colors: [{ r: 0x7F, g: 0x82, b: 0x67 }],
-    colorTolerance: 35,
+    colorTolerance: 40,
+    blockBoundaryTolerance: 60,
+    maxSaturation: 0.25,
     sizeInCoords: [2.1, 5.6],         // 11/5.33, 30/5.33
     objectSizeInCoords: [4, 6],
     aspectRatioRange: [0.2, 5.0],
@@ -452,6 +479,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     imagePath: 'static/dev/icon-stairs.png',
     colors: [{ r: 0xF5, g: 0xDE, b: 0x99 }],  // #F5DE99 tan-yellow
     colorTolerance: 35,
+    blockBoundaryTolerance: 60,       // Gridlines lighten the color at block boundaries
     sizeInCoords: [2.3, 4.3],         // 12/5.33, 23/5.33
     objectSizeInCoords: [2, 4],
     aspectRatioRange: [0.2, 5.0],
@@ -459,7 +487,6 @@ const ICON_TEMPLATES: IconTemplate[] = [
     opaqueArea: 264,
     fillBehavior: 'terrain-foot' as const,
     maxCount: 8,
-    maskDilationRadius: 2,
     orientations: [
       { rotation: 0 as const,   objectType: 'stairsStoneUp',    objectCategory: 'construction', objectSize: [2, 4] as [number, number] },
       { rotation: 90 as const,  objectType: 'stairsStoneRight',  objectCategory: 'construction', objectSize: [4, 2] as [number, number] },
@@ -470,6 +497,11 @@ const ICON_TEMPLATES: IconTemplate[] = [
 ];
 
 const COLOR_TOLERANCE = 40; // Euclidean RGB distance
+
+// Bridge structural detection: railing is slightly lighter than center walkway.
+// Railing luma ≈ 139–147, center luma ≈ 124–133; minimum difference ≈ 6.
+const BRIDGE_RAILING_LUMA_MIN_DIFF = 8;
+const BRIDGE_STRUCTURE_PASS_THRESHOLD = 0.4; // min fraction of cross-sections showing railing pattern
 
 // Island grid dimensions (matches app/constants.ts)
 const ISLAND_COORD_WIDTH = 112;   // 7 blocks * 16 divisions
@@ -511,6 +543,15 @@ function colorDistance(c1: RGB, c2: RGB): number {
     (c1.g - c2.g) ** 2 +
     (c1.b - c2.b) ** 2
   );
+}
+
+function hslSaturation(pixel: RGB): number {
+  const r = pixel.r / 255, g = pixel.g / 255, b = pixel.b / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  if (max === min) return 0;
+  const l = (max + min) / 2;
+  const d = max - min;
+  return l > 0.5 ? d / (2 - max - min) : d / (max + min);
 }
 
 function matchesAnyColor(pixel: RGB, colorSamples: RGB[], tolerance = COLOR_TOLERANCE): boolean {
@@ -1259,21 +1300,25 @@ function parseSvgPaths(svgInnerContent: string): Array<{ d: string; fill: string
   return paths;
 }
 
-// Render SVG paths to 16×16 canvas and classify each pixel as terrain
+// Render SVG paths to 16×16 canvas and classify each pixel as terrain.
+// Also returns opaqueMask: 1 where alpha >= 64 (any painted region, including antialiased edges).
 function rasterizeSvgToTerrainGrid(
   svgInnerContent: string, ctx: CanvasRenderingContext2D,
-): Uint8Array {
+): { terrainGrid: Uint8Array; opaqueMask: Uint8Array } {
   ctx.clearRect(0, 0, 16, 16);
   for (const { d, fill } of parseSvgPaths(svgInnerContent)) {
     ctx.fillStyle = fill;
     ctx.fill(new Path2D(d));
   }
   const imageData = ctx.getImageData(0, 0, 16, 16);
-  const grid = new Uint8Array(256);
+  const terrainGrid = new Uint8Array(256);
+  const opaqueMask = new Uint8Array(256);
   for (let i = 0; i < 256; i++) {
     const r = imageData.data[i * 4];
     const g = imageData.data[i * 4 + 1];
     const b = imageData.data[i * 4 + 2];
+    const a = imageData.data[i * 4 + 3];
+    opaqueMask[i] = a >= 64 ? 1 : 0;
     // Nearest SVG color by Euclidean distance (tolerance for antialiasing)
     let bestTerrain: TerrainType = TERRAIN.UNKNOWN;
     let bestDist = 30; // max tolerance
@@ -1281,19 +1326,20 @@ function rasterizeSvgToTerrainGrid(
       const dist = Math.sqrt((r - c.r) ** 2 + (g - c.g) ** 2 + (b - c.b) ** 2);
       if (dist < bestDist) { bestDist = dist; bestTerrain = c.terrain; }
     }
-    grid[i] = bestTerrain;
+    terrainGrid[i] = bestTerrain;
   }
-  return grid;
+  return { terrainGrid, opaqueMask };
 }
 
-type EdgeTileRef = { direction: TileDirection; terrainGrid: Uint8Array };
+type EdgeTileRef = { direction: TileDirection; terrainGrid: Uint8Array; opaqueMask: Uint8Array };
 
 type EdgeTileMatch = {
   blockX: number;
   blockY: number;
   assetIndex: number;
   score: number;
-  refTerrain: Uint8Array | null;  // 16×16 terrain grid, null if no match
+  refTerrain: Uint8Array | null;     // 16×16 terrain grid, null if no match
+  refOpaqueMask: Uint8Array | null;  // 16×16 opaque mask (alpha>=64), null if no match
 };
 
 type EdgeTileMatchResult = {
@@ -1312,8 +1358,8 @@ function buildEdgeTileReferenceLibrary(): Map<number, EdgeTileRef> {
   for (const [index, data] of assetIndexToData) {
     const cached = tilesDataCache[data.imageSrc];
     if (!cached) continue;
-    const terrainGrid = rasterizeSvgToTerrainGrid(cached.svg, ctx);
-    library.set(index, { direction: data.direction, terrainGrid });
+    const { terrainGrid, opaqueMask } = rasterizeSvgToTerrainGrid(cached.svg, ctx);
+    library.set(index, { direction: data.direction, terrainGrid, opaqueMask });
   }
 
   console.log(`Edge tile reference library: ${library.size} tiles`);
@@ -1402,15 +1448,15 @@ function matchEdgeTiles(grid: PixelGrid): EdgeTileMatchResult {
     }
 
     if (bestScore >= EDGE_TILE_MIN_SCORE && bestIndex >= 0) {
-      writeReferenceTerrainToGrid(
-        grid, blockX, blockY, library.get(bestIndex)!.terrainGrid, bestScore,
-      );
+      const bestRef = library.get(bestIndex)!;
+      writeReferenceTerrainToGrid(grid, blockX, blockY, bestRef.terrainGrid, bestScore);
       assetIndices.push(bestIndex);
       matches.push({
         blockX, blockY,
         assetIndex: bestIndex,
         score: bestScore,
-        refTerrain: library.get(bestIndex)!.terrainGrid,
+        refTerrain: bestRef.terrainGrid,
+        refOpaqueMask: bestRef.opaqueMask,
       });
       matchCount++;
       console.log(`Edge tile (${blockX},${blockY}) [${direction}]: ` +
@@ -1423,6 +1469,7 @@ function matchEdgeTiles(grid: PixelGrid): EdgeTileMatchResult {
         assetIndex: placeholder,
         score: bestScore,
         refTerrain: null,
+        refOpaqueMask: null,
       });
       console.warn(`Edge tile (${blockX},${blockY}) [${direction}]: ` +
         `no match (best: ${bestIndex} at ${(bestScore * 100).toFixed(0)}%)`);
@@ -1450,6 +1497,120 @@ function fillEdgeRegionsWithLevel1(grid: PixelGrid): void {
     }
   }
   console.log('Generate from Screenshot: edge regions filled with level1');
+}
+
+// Paint sand and rock pixels in edge block regions with level1 grass color in the raw screenshot data.
+// This must run BEFORE stairs/bridge blob detection to eliminate false positives caused by sand pixels
+// (sand #ECE5A1 is very close to stair color #F5DE99, distance ~14) and edge rock pixels.
+// Uses the matched refTerrain grid where available; falls back to pixel classification otherwise.
+function fillEdgeRegionsInScreenshot(
+  data: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  extents: IslandExtents,
+  edgeResult: EdgeTileMatchResult,
+): void {
+  const ppc = extents.pixelsPerCoord;
+  const fullLeft = extents.full.left;
+  const fullTop = extents.full.top;
+  const paintColor = SCREENSHOT_COLORS.LEVEL1_GRASS[0];
+  let pixelsPainted = 0;
+
+  // Helper: paint a rectangular pixel region unconditionally
+  function paintPixelRect(pxLeft: number, pxTop: number, pxRight: number, pxBottom: number): void {
+    for (let py = pxTop; py < pxBottom; py++) {
+      if (py < 0 || py >= imageHeight) continue;
+      for (let px = pxLeft; px < pxRight; px++) {
+        if (px < 0 || px >= imageWidth) continue;
+        const pi = (py * imageWidth + px) * 4;
+        data[pi]     = paintColor.r;
+        data[pi + 1] = paintColor.g;
+        data[pi + 2] = paintColor.b;
+        pixelsPainted++;
+      }
+    }
+  }
+
+  // Helper: paint a full 16-coord block region (for outward expansion)
+  function paintFullBlock(bx: number, by: number): void {
+    const left   = Math.round(fullLeft + bx * 16 * ppc);
+    const top    = Math.round(fullTop  + by * 16 * ppc);
+    const right  = Math.round(fullLeft + (bx + 1) * 16 * ppc);
+    const bottom = Math.round(fullTop  + (by + 1) * 16 * ppc);
+    paintPixelRect(left, top, right, bottom);
+  }
+
+  // Island block dimensions: 112 coords / 16 = 7 cols, 96 coords / 16 = 6 rows
+  const BLOCK_COLS = ISLAND_COORD_WIDTH  / 16;  // 7 — blockX range [0, 6]
+  const BLOCK_ROWS = ISLAND_COORD_HEIGHT / 16;  // 6 — blockY range [0, 5]
+
+  // Collect outward neighbor block positions to paint after the main loop.
+  // "Outward" means one block further from the island interior than the edge block.
+  const outwardBlocks = new Set<string>();
+
+  for (const match of edgeResult.matches) {
+    const { blockX, blockY, refOpaqueMask } = match;
+
+    if (refOpaqueMask !== null) {
+      // Use matched SVG opaque mask: paint all cells where the asset has any coverage
+      for (let ly = 0; ly < 16; ly++) {
+        for (let lx = 0; lx < 16; lx++) {
+          if (refOpaqueMask[ly * 16 + lx] === 0) continue;
+
+          // Compute screen pixel region for this coord cell
+          const cellLeft   = Math.round(fullLeft + (blockX * 16 + lx) * ppc);
+          const cellTop    = Math.round(fullTop  + (blockY * 16 + ly) * ppc);
+          const cellRight  = Math.round(fullLeft + (blockX * 16 + lx + 1) * ppc);
+          const cellBottom = Math.round(fullTop  + (blockY * 16 + ly + 1) * ppc);
+          paintPixelRect(cellLeft, cellTop, cellRight, cellBottom);
+        }
+      }
+    } else {
+      // No matched tile — fall back to classifying every pixel in the block region
+      const blockLeft   = Math.round(fullLeft + blockX * 16 * ppc);
+      const blockTop    = Math.round(fullTop  + blockY * 16 * ppc);
+      const blockRight  = Math.round(fullLeft + (blockX + 1) * 16 * ppc);
+      const blockBottom = Math.round(fullTop  + (blockY + 1) * 16 * ppc);
+
+      for (let py = blockTop; py < blockBottom; py++) {
+        if (py < 0 || py >= imageHeight) continue;
+        for (let px = blockLeft; px < blockRight; px++) {
+          if (px < 0 || px >= imageWidth) continue;
+          const pixel = getPixelAt(data, imageWidth, px, py);
+          const t = classifyPixelTerrain(pixel);
+          if (t !== TERRAIN.SAND && t !== TERRAIN.ROCK && t !== TERRAIN.WATER) continue;
+          const pi = (py * imageWidth + px) * 4;
+          data[pi]     = paintColor.r;
+          data[pi + 1] = paintColor.g;
+          data[pi + 2] = paintColor.b;
+          pixelsPainted++;
+        }
+      }
+    }
+
+    // Determine outward directions for this edge block and collect neighbor positions
+    const isLeft   = blockX === 0;
+    const isRight  = blockX === BLOCK_COLS - 1;
+    const isTop    = blockY === 0;
+    const isBottom = blockY === BLOCK_ROWS - 1;
+
+    const dxList: number[] = isLeft ? [-1] : isRight ? [1] : [];
+    const dyList: number[] = isTop  ? [-1] : isBottom ? [1] : [];
+
+    for (const dx of dxList) outwardBlocks.add(`${blockX + dx},${blockY}`);
+    for (const dy of dyList) outwardBlocks.add(`${blockX},${blockY + dy}`);
+    for (const dx of dxList) for (const dy of dyList) outwardBlocks.add(`${blockX + dx},${blockY + dy}`);
+  }
+
+  // Paint all outward neighbor blocks unconditionally (they are outside the island)
+  for (const key of outwardBlocks) {
+    const comma = key.indexOf(',');
+    const bx = parseInt(key.slice(0, comma), 10);
+    const by = parseInt(key.slice(comma + 1), 10);
+    paintFullBlock(bx, by);
+  }
+
+  console.log(`Generate from Screenshot: edge regions painted in screenshot data (${pixelsPainted} px)`);
 }
 
 // Fill detected icon regions at pixel level in the raw screenshot data.
@@ -1632,7 +1793,10 @@ async function fillIconRegionsWithTerrain(
       const pixel = getPixelAt(data, imageWidth, px, py);
 
       // Stop if pixel is already a background color (grass, water, sand, etc.)
-      if (isBackgroundPixel(pixel)) continue;
+      // Exception: fillExtraColors (e.g. youarehere white border #F4F6B7) should not stop expansion.
+      const extraColors = icon.template.fillExtraColors ?? [];
+      const isExtraFillColor = extraColors.length > 0 && matchesAnyColor(pixel, extraColors, 25);
+      if (isBackgroundPixel(pixel) && !isExtraFillColor) continue;
 
       dilatedPixels.add(idx);
 
@@ -1780,12 +1944,27 @@ function findColorBlobs(
   targetColors: RGB[],
   tolerance: number,
   maskDilationRadius = 0,
+  blockBoundaryTolerance?: number,
+  maxSaturation?: number,
 ): ColorBlob[] {
   const { left, top, right, bottom } = extents.full;
   const scanWidth = right - left;
   const scanHeight = bottom - top;
   const dx8 = [-1, 0, 1, -1, 1, -1, 0, 1];
   const dy8 = [-1, -1, -1, 0, 0, 1, 1, 1];
+
+  // Precompute block boundary pixel positions for gridline tolerance relaxation.
+  // ACNH screenshots have semi-transparent white dotted lines at block boundaries,
+  // which lighten the pixel color. Near these lines, use a higher tolerance.
+  const hBoundaries: number[] = [];
+  const vBoundaries: number[] = [];
+  let bbZone = 0;
+  if (blockBoundaryTolerance !== undefined) {
+    const ppc = extents.pixelsPerCoord;
+    bbZone = ppc * 0.6;  // ±0.6 coords around each boundary line
+    for (let br = 1; br < 6; br++) hBoundaries.push(extents.full.top + br * 16 * ppc);
+    for (let bc = 1; bc < 7; bc++) vBoundaries.push(extents.full.left + bc * 16 * ppc);
+  }
 
   // Build boolean mask: true where pixel matches ANY target color
   const mask = new Uint8Array(scanWidth * scanHeight);
@@ -1797,8 +1976,16 @@ function findColorBlobs(
       if (imgX < 0 || imgX >= imageWidth) continue;
       const pi = (imgY * imageWidth + imgX) * 4;
       const pixel: RGB = { r: data[pi], g: data[pi + 1], b: data[pi + 2] };
+      // Use elevated tolerance near block boundary gridlines
+      let effectiveTolerance = tolerance;
+      if (bbZone > 0) {
+        const nearH = hBoundaries.some(by => Math.abs(imgY - by) <= bbZone);
+        const nearV = vBoundaries.some(bx => Math.abs(imgX - bx) <= bbZone);
+        if (nearH || nearV) effectiveTolerance = blockBoundaryTolerance!;
+      }
       for (const tc of targetColors) {
-        if (colorDistance(pixel, tc) <= tolerance) {
+        if (colorDistance(pixel, tc) <= effectiveTolerance) {
+          if (maxSaturation !== undefined && hslSaturation(pixel) > maxSaturation) break;
           mask[sy * scanWidth + sx] = 1;
           break;
         }
@@ -2018,6 +2205,93 @@ async function rotateTemplateImage(
 }
 
 // Template match a screenshot blob region against candidate templates.
+// Structural bridge orientation detection.
+// Instead of pixel-matching against template images, checks for the characteristic
+// bridge pattern: a lighter railing (~20% width) on each side of a darker center walkway (~60%).
+// For vertical bridges (rotation 0): scans horizontal cross-sections.
+// For horizontal bridges (rotation 90): scans vertical cross-sections.
+// For diagonal bridges (45/135): uses blob shape (square bbox, ~50% fill) as discriminator.
+function structurallyScanBridgeOrientation(
+  data: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  blob: ColorBlob,
+  orientations: readonly OrientationVariant[],
+): { orientation: OrientationVariant; score: number } | null {
+  const { minX, minY, maxX, maxY } = blob;
+  const W = maxX - minX + 1;
+  const H = maxY - minY + 1;
+  const blobAspect = W / H;
+  const fillRatio = blob.area / (W * H);
+
+  const luma = (r: number, g: number, b: number) => 0.299 * r + 0.587 * g + 0.114 * b;
+
+  // Score one perpendicular cross-section strip.
+  // Outer ~20% of pixels should be brighter (railing) than the inner ~60% (center walkway).
+  function scoreStrip(getPixelLuma: (pos: number) => number, sampleMin: number, sampleMax: number): number {
+    const N = sampleMax - sampleMin + 1;
+    if (N < 4) return 0;
+    const railN = Math.max(1, Math.round(N * 0.2));
+    let leftSum = 0, centerSum = 0, rightSum = 0;
+    let leftN = 0, centerN = 0, rightN = 0;
+    for (let p = sampleMin; p <= sampleMax; p++) {
+      const l = getPixelLuma(p);
+      if (p < sampleMin + railN) { leftSum += l; leftN++; }
+      else if (p > sampleMax - railN) { rightSum += l; rightN++; }
+      else { centerSum += l; centerN++; }
+    }
+    if (centerN === 0 || leftN === 0 || rightN === 0) return 0;
+    const centerAvg = centerSum / centerN;
+    return (leftSum / leftN - centerAvg >= BRIDGE_RAILING_LUMA_MIN_DIFF &&
+            rightSum / rightN - centerAvg >= BRIDGE_RAILING_LUMA_MIN_DIFF) ? 1 : 0;
+  }
+
+  function scoreVertical(): number {
+    if (blobAspect > 0.9) return 0;
+    let total = 0, count = 0;
+    for (let y = minY; y <= maxY; y++) {
+      if (y < 0 || y >= imageHeight) continue;
+      const sMinX = Math.max(0, minX - 1);
+      const sMaxX = Math.min(imageWidth - 1, maxX + 1);
+      total += scoreStrip(p => { const i = (y * imageWidth + p) * 4; return luma(data[i], data[i + 1], data[i + 2]); }, sMinX, sMaxX);
+      count++;
+    }
+    return count > 0 ? total / count : 0;
+  }
+
+  function scoreHorizontal(): number {
+    if (blobAspect < 1.1) return 0;
+    let total = 0, count = 0;
+    for (let x = minX; x <= maxX; x++) {
+      if (x < 0 || x >= imageWidth) continue;
+      const sMinY = Math.max(0, minY - 1);
+      const sMaxY = Math.min(imageHeight - 1, maxY + 1);
+      total += scoreStrip(p => { const i = (p * imageWidth + x) * 4; return luma(data[i], data[i + 1], data[i + 2]); }, sMinY, sMaxY);
+      count++;
+    }
+    return count > 0 ? total / count : 0;
+  }
+
+  const vertScore  = scoreVertical();
+  const horizScore = scoreHorizontal();
+  const isDiagonal = blobAspect >= 0.7 && blobAspect <= 1.4 && fillRatio < 0.65;
+  const diagScore  = isDiagonal ? 0.5 : 0;
+
+  const scored: Array<{ orient: OrientationVariant; score: number }> = [];
+  for (const orient of orientations) {
+    const score =
+      orient.rotation === 0 ? vertScore :
+      orient.rotation === 90 ? horizScore :
+      (orient.rotation === 45 || orient.rotation === 135) ? diagScore :
+      0;
+    if (score > 0) scored.push({ orient, score });
+  }
+
+  if (scored.length === 0) return null;
+  const best = scored.reduce((a, b) => a.score > b.score ? a : b);
+  return best.score >= BRIDGE_STRUCTURE_PASS_THRESHOLD ? { orientation: best.orient, score: best.score } : null;
+}
+
 // Scales each template to the blob's bounding box size and compares pixel-by-pixel.
 // Returns the best-matching template, its score, and optionally the resolved orientation.
 async function matchBlobToTemplate(
@@ -2080,10 +2354,20 @@ async function matchBlobToTemplate(
     return opaqueCount > 0 ? totalSimilarity / opaqueCount : 0;
   }
 
+  const blobAspect = blobW / blobH;
+  const blobFillRatio = blob.area / (blobW * blobH);
+
   for (const candidate of candidates) {
     if (candidate.orientations && candidate.orientations.length > 0) {
       // Orientation-aware: try each rotation and pick the best
       for (const orient of candidate.orientations) {
+        // Pre-filter: diagonal orientations (45°/135°) require an approximately square
+        // bounding box and low fill ratio (the rotated bridge is diamond-shaped in its bbox,
+        // filling ~50% of the area). Straight blobs have high fill ratios and non-square bboxes.
+        if (orient.rotation === 45 || orient.rotation === 135) {
+          if (blobAspect < 0.7 || blobAspect > 1.4) continue;  // Must be roughly square
+          if (blobFillRatio > 0.65) continue;                    // Must have unfilled corners
+        }
         const rotated = await rotateTemplateImage(candidate.imagePath, orient.rotation);
         const score = scoreTemplateAgainstBlob(rotated.data, rotated.width, rotated.height);
         if (score > bestScore) {
@@ -2114,6 +2398,279 @@ function colorKey(c: RGB): string {
 }
 
 // Main icon detection orchestrator.
+// ============ Stair Detection (custom stripe-pattern approach) ============
+
+// Group ColorBlob[] by bounding-box proximity (union-find).
+// Blobs whose bboxes are within gapPx on BOTH axes are placed in the same group.
+function groupNearbyBlobs(blobs: ColorBlob[], gapPx: number): ColorBlob[][] {
+  const parent = blobs.map((_, i) => i);
+  function find(i: number): number {
+    return parent[i] === i ? i : (parent[i] = find(parent[i]));
+  }
+  for (let i = 0; i < blobs.length; i++) {
+    for (let j = i + 1; j < blobs.length; j++) {
+      const a = blobs[i], b = blobs[j];
+      const dx = Math.max(0, Math.max(a.minX, b.minX) - Math.min(a.maxX, b.maxX));
+      const dy = Math.max(0, Math.max(a.minY, b.minY) - Math.min(a.maxY, b.maxY));
+      if (dx <= gapPx && dy <= gapPx) parent[find(i)] = find(j);
+    }
+  }
+  const map = new Map<number, ColorBlob[]>();
+  for (let i = 0; i < blobs.length; i++) {
+    const r = find(i);
+    if (!map.has(r)) map.set(r, []);
+    map.get(r)!.push(blobs[i]);
+  }
+  return Array.from(map.values());
+}
+
+// Scan a 1D luminance profile through a perpendicular slice of the image.
+// isHorizontal=true  → scan along X (one sample per column).
+// isHorizontal=false → scan along Y (one sample per row).
+// At each position the average luma of a ±sliceHalfPx-wide cross-slice is recorded.
+function buildStairBrightnessProfile(
+  data: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  isHorizontal: boolean,
+  scanStart: number,    // first pixel in the scan direction
+  scanEnd: number,      // last pixel in the scan direction (inclusive)
+  sliceCenter: number,  // centre pixel in the perpendicular direction
+  sliceHalfPx: number,
+): number[] {
+  const profile: number[] = [];
+  if (!isHorizontal) {
+    // Scan along Y
+    const left  = Math.max(0, Math.round(sliceCenter - sliceHalfPx));
+    const right = Math.min(imageWidth - 1, Math.round(sliceCenter + sliceHalfPx));
+    const w = right - left + 1;
+    for (let y = Math.round(scanStart); y <= Math.round(scanEnd) && y < imageHeight; y++) {
+      let sum = 0;
+      for (let x = left; x <= right; x++) {
+        const pi = (y * imageWidth + x) * 4;
+        sum += data[pi] * 0.299 + data[pi + 1] * 0.587 + data[pi + 2] * 0.114;
+      }
+      profile.push(sum / w);
+    }
+  } else {
+    // Scan along X
+    const top = Math.max(0, Math.round(sliceCenter - sliceHalfPx));
+    const bot = Math.min(imageHeight - 1, Math.round(sliceCenter + sliceHalfPx));
+    const h = bot - top + 1;
+    for (let x = Math.round(scanStart); x <= Math.round(scanEnd) && x < imageWidth; x++) {
+      let sum = 0;
+      for (let y = top; y <= bot; y++) {
+        const pi = (y * imageWidth + x) * 4;
+        sum += data[pi] * 0.299 + data[pi + 1] * 0.587 + data[pi + 2] * 0.114;
+      }
+      profile.push(sum / h);
+    }
+  }
+  return profile;
+}
+
+// Count positions where adjacent luma values differ by more than brightnessThreshold.
+function countBrightnessTransitions(profile: number[], brightnessThreshold: number): number {
+  let t = 0;
+  for (let i = 1; i < profile.length; i++)
+    if (Math.abs(profile[i] - profile[i - 1]) > brightnessThreshold) t++;
+  return t;
+}
+
+// Detect stair icons using a stripe-pattern approach instead of blob dilation.
+// Each stair step forms its own small connected blob without dilation; we gate on
+// step shape (1.8–2.2 × 0.6–1.1 coords), group nearby same-direction step blobs,
+// then confirm the repeating stair/dark stripe pattern (≥10 transitions in 3 units).
+async function detectStairs(
+  data: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  extents: IslandExtents,
+): Promise<DetectMapIconsResult> {
+  const ppc = extents.pixelsPerCoord;
+  const stairTemplate = ICON_TEMPLATES.find(t => t.type === 'stairsStoneUp')!;
+  const stairColor = stairTemplate.colors[0];
+  const tolerance = stairTemplate.colorTolerance;
+  const bbTolerance = stairTemplate.blockBoundaryTolerance;
+
+  const STEP_LONG_MIN   = Math.round(1.8 * ppc);
+  const STEP_LONG_MAX   = Math.round(2.2 * ppc);
+  const STEP_SHORT_MIN  = Math.round(0.6 * ppc);
+  const STEP_SHORT_MAX  = Math.round(1.6 * ppc);
+  const GROUP_GAP_PX    = Math.round(1 * ppc);
+  const SLICE_HALF_PX        = Math.round(1 * ppc);   // 2-unit wide cross-section slice
+  const STAIR_SCAN_PX        = Math.round(4 * ppc);   // scan 4 units from each anchor edge
+  const BRIGHTNESS_THRESHOLD = 25;                     // min luma delta; bright/dark gap ≥ 32
+  const MIN_TRANSITIONS      = 6;                      // 3+ complete bright↔dark cycles
+  const STAIR_BRIGHT_MIN     = 186;                    // midpoint: dark max ≈170, bright min ≈202
+
+  // Step 1: raw blobs, no dilation
+  const rawBlobs = findColorBlobs(
+    data, imageWidth, imageHeight, extents,
+    [stairColor], tolerance, 0, bbTolerance,
+  );
+
+  // Step 2: per-blob step gate — accept only blobs shaped like a single stair step.
+  // Scan direction = direction of the SHORT (narrow) dimension (where steps repeat).
+  //   Wide in X, narrow in Y → steps stack vertically → scan along Y (scanVertical=true)
+  //   Wide in Y, narrow in X → steps stack horizontally → scan along X (scanVertical=false)
+  type StepBlob = { blob: ColorBlob; scanVertical: boolean };
+  type StairGroupDebug = {
+    group: ColorBlob[];
+    bbox: { minX: number; minY: number; maxX: number; maxY: number };
+    scanVertical: boolean;
+    transitions: number;
+    accepted: boolean;
+  };
+  const stepBlobs: StepBlob[] = [];
+  for (const blob of rawBlobs) {
+    const w = blob.maxX - blob.minX + 1;
+    const h = blob.maxY - blob.minY + 1;
+    if (w >= STEP_LONG_MIN && w <= STEP_LONG_MAX && h >= STEP_SHORT_MIN && h <= STEP_SHORT_MAX) {
+      stepBlobs.push({ blob, scanVertical: true });
+    } else if (h >= STEP_LONG_MIN && h <= STEP_LONG_MAX && w >= STEP_SHORT_MIN && w <= STEP_SHORT_MAX) {
+      stepBlobs.push({ blob, scanVertical: false });
+    }
+  }
+
+  // Step 3: group nearby step blobs with the same scan direction
+  const vBlobs = stepBlobs.filter(s =>  s.scanVertical).map(s => s.blob);
+  const hBlobs = stepBlobs.filter(s => !s.scanVertical).map(s => s.blob);
+  const allGroups = [
+    ...groupNearbyBlobs(vBlobs, GROUP_GAP_PX).map(g => ({ blobs: g, scanVertical: true  })),
+    ...groupNearbyBlobs(hBlobs, GROUP_GAP_PX).map(g => ({ blobs: g, scanVertical: false })),
+  ];
+
+  const icons: DetectedIcon[] = [];
+  const blobDebug: BlobDebugEntry[] = [];
+  const groupDebugResults: StairGroupDebug[] = [];
+
+  for (const { blobs: group, scanVertical } of allGroups) {
+    // Compute merged bounding box
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let area = 0;
+    for (const b of group) {
+      if (b.minX < minX) minX = b.minX;
+      if (b.minY < minY) minY = b.minY;
+      if (b.maxX > maxX) maxX = b.maxX;
+      if (b.maxY > maxY) maxY = b.maxY;
+      area += b.area;
+    }
+    const bbox = { minX, minY, maxX, maxY };
+    const mergedBlob: ColorBlob = {
+      pixels: new Set(group.flatMap(b => Array.from(b.pixels))),
+      minX, minY, maxX, maxY, area,
+    };
+
+    // Step 4: brightness-based stripe test.
+    // The anchor blob may sit at either end of the stair, so scan outward from BOTH
+    // edges for STAIR_SCAN_PX pixels and take the direction with more transitions.
+    //   Vertical (scanVertical=true):  upward from top edge, downward from bottom edge.
+    //   Horizontal (scanVertical=false): leftward from left edge, rightward from right edge.
+    const sliceCenter = scanVertical
+      ? (bbox.minX + bbox.maxX) / 2   // vertical stairs: sample along a horizontal slice
+      : (bbox.minY + bbox.maxY) / 2;  // horizontal stairs: sample along a vertical slice
+    const isHoriz = !scanVertical;
+
+    // Step 4: brightness-based stripe test + bounding-box extension.
+    // Scan outward from BOTH edges of the anchor blob for up to 4 units.
+    // The winning direction (more transitions) tells us where the steps are.
+    // We also find the last pixel slice that reads as stair-bright to set the final bbox.
+    type ScanResult = { transitions: number; profile: number[] };
+    const scanEdge = (start: number, end: number): ScanResult => {
+      const profile = buildStairBrightnessProfile(
+        data, imageWidth, imageHeight, isHoriz, start, end, sliceCenter, SLICE_HALF_PX,
+      );
+      return { transitions: countBrightnessTransitions(profile, BRIGHTNESS_THRESHOLD), profile };
+    };
+
+    let transitions: number;
+    let finalMinX = minX, finalMinY = minY, finalMaxX = maxX, finalMaxY = maxY;
+
+    if (scanVertical) {
+      const upStart  = Math.max(0, bbox.minY - STAIR_SCAN_PX);
+      const downEnd  = Math.min(imageHeight - 1, bbox.maxY + STAIR_SCAN_PX);
+      const upResult   = scanEdge(upStart, bbox.minY);
+      const downResult = scanEdge(bbox.maxY, downEnd);
+
+      if (downResult.transitions >= upResult.transitions) {
+        transitions = downResult.transitions;
+        // profile[0]=bbox.maxY, grows away from anchor → last bright index
+        let lastBright = 0;
+        for (let i = downResult.profile.length - 1; i >= 0; i--)
+          if (downResult.profile[i] >= STAIR_BRIGHT_MIN) { lastBright = i; break; }
+        finalMaxY = bbox.maxY + lastBright;
+      } else {
+        transitions = upResult.transitions;
+        // profile[0]=upStart (far end), grows toward anchor → first bright index
+        let firstBright = upResult.profile.length - 1;
+        for (let i = 0; i < upResult.profile.length; i++)
+          if (upResult.profile[i] >= STAIR_BRIGHT_MIN) { firstBright = i; break; }
+        finalMinY = upStart + firstBright;
+      }
+    } else {
+      const leftStart = Math.max(0, bbox.minX - STAIR_SCAN_PX);
+      const rightEnd  = Math.min(imageWidth - 1, bbox.maxX + STAIR_SCAN_PX);
+      const leftResult  = scanEdge(leftStart, bbox.minX);
+      const rightResult = scanEdge(bbox.maxX, rightEnd);
+
+      if (rightResult.transitions >= leftResult.transitions) {
+        transitions = rightResult.transitions;
+        let lastBright = 0;
+        for (let i = rightResult.profile.length - 1; i >= 0; i--)
+          if (rightResult.profile[i] >= STAIR_BRIGHT_MIN) { lastBright = i; break; }
+        finalMaxX = bbox.maxX + lastBright;
+      } else {
+        transitions = leftResult.transitions;
+        let firstBright = leftResult.profile.length - 1;
+        for (let i = 0; i < leftResult.profile.length; i++)
+          if (leftResult.profile[i] >= STAIR_BRIGHT_MIN) { firstBright = i; break; }
+        finalMinX = leftStart + firstBright;
+      }
+    }
+
+    const accepted = transitions >= MIN_TRANSITIONS;
+    groupDebugResults.push({
+      group,
+      bbox: { minX: finalMinX, minY: finalMinY, maxX: finalMaxX, maxY: finalMaxY },
+      scanVertical, transitions, accepted,
+    });
+
+    if (!accepted) {
+      blobDebug.push({ colorGroup: 'stairs', blob: mergedBlob, accepted: false });
+      continue;
+    }
+
+    // Step 5: orientation match using the extended bbox that covers the full stair.
+    const finalBlob: ColorBlob = {
+      ...mergedBlob,
+      minX: finalMinX, minY: finalMinY, maxX: finalMaxX, maxY: finalMaxY,
+    };
+    const { template: matchedTemplate, score: matchScore, orientation: matchedOrientation } =
+      await matchBlobToTemplate(data, imageWidth, finalBlob, [stairTemplate]);
+
+    blobDebug.push({ colorGroup: 'stairs', blob: finalBlob, accepted: true });
+
+    const blobCX = (finalMinX + finalMaxX) / 2;
+    const blobCY = (finalMinY + finalMaxY) / 2;
+    icons.push({
+      template: matchedTemplate,
+      centerCoordX: (blobCX - extents.full.left) / ppc,
+      centerCoordY: (blobCY - extents.full.top)  / ppc,
+      blobCenterPx: [blobCX, blobCY],
+      blobBBoxPx:   [finalMinX, finalMinY, finalMaxX, finalMaxY],
+      confidence: matchScore,
+      orientation: matchedOrientation,
+      resolvedType:     matchedOrientation?.objectType     ?? matchedTemplate.type,
+      resolvedCategory: matchedOrientation?.objectCategory ?? matchedTemplate.category,
+      resolvedObjectSize: (matchedOrientation?.objectSize  ?? matchedTemplate.objectSizeInCoords) as [number, number],
+    });
+  }
+
+  await saveStairStagesDebug(data, imageWidth, imageHeight, rawBlobs, stepBlobs, groupDebugResults);
+  return { icons, blobDebug };
+}
+
 // Groups templates by primary color, runs blob detection once per group,
 // uses template matching to differentiate same-color icons,
 // then applies placement constraints (row, uniqueness, non-overlap).
@@ -2123,9 +2680,16 @@ async function detectMapIcons(
   imageHeight: number,
   extents: IslandExtents,
   grid: PixelGrid,
-): Promise<DetectedIcon[]> {
+  includeOnlyColorKeys?: Set<string>,  // If set, only detect these color groups
+  excludeColorKeys?: Set<string>,       // If set, skip these color groups
+): Promise<DetectMapIconsResult> {
   let allCandidates: DetectedIcon[] = [];
+  const blobDebug: BlobDebugEntry[] = [];
   const ppc = extents.pixelsPerCoord;
+
+  // Color keys for stairs and bridge groups (used to tag blob debug entries)
+  const STAIRS_COLOR_KEY = colorKey({ r: 0xF5, g: 0xDE, b: 0x99 });
+  const BRIDGE_COLOR_KEY = colorKey({ r: 0x7F, g: 0x82, b: 0x67 });
 
   // Group templates by primary color
   const colorGroups = new Map<string, IconTemplate[]>();
@@ -2138,25 +2702,50 @@ async function detectMapIcons(
 
   // Phase 1: Collect all candidate detections (no grid clearing yet)
   for (const [key, group] of colorGroups) {
+    // Apply color group filters
+    if (includeOnlyColorKeys && !includeOnlyColorKeys.has(key)) continue;
+    if (excludeColorKeys?.has(key)) continue;
+
     const groupName = group.length === 1
       ? group[0].name
       : group.map(t => t.name).join('/');
     console.log(`Generate from Screenshot: detecting ${groupName} (color ${key})...`);
 
     const refTemplate = group[0];
-    const groupDilationRadius = Math.max(...group.map(t => t.maskDilationRadius ?? 0));
+    const groupDilationRadius = Math.max(
+      ...group.map(t => t.maskDilationRadius ?? 0),
+      ...group.map(t => Math.ceil((t.maskDilationRadiusCoords ?? 0) * ppc)),
+    );
+    // Elevated tolerance near block boundary gridlines (bridges/stairs only)
+    const groupBlockBoundaryTolerance = group.reduce<number | undefined>(
+      (acc, t) => t.blockBoundaryTolerance !== undefined
+        ? Math.max(acc ?? 0, t.blockBoundaryTolerance)
+        : acc,
+      undefined,
+    );
     const blobs = findColorBlobs(
       data, imageWidth, imageHeight, extents,
       refTemplate.colors, refTemplate.colorTolerance,
       groupDilationRadius,
+      groupBlockBoundaryTolerance,
+      refTemplate.maxSaturation,
     );
-    console.log(`  Found ${blobs.length} blobs for color group`);
+    console.log(`  Found ${blobs.length} blobs for color group (dilation=${groupDilationRadius}px)`);
+
+    // Identify if this group is stairs or bridges for blob debug tracking
+    const blobDebugGroup: 'stairs' | 'bridges' | null =
+      key === STAIRS_COLOR_KEY ? 'stairs' :
+      key === BRIDGE_COLOR_KEY ? 'bridges' :
+      null;
 
     for (const blob of blobs) {
       if (group.length === 1 && !refTemplate.orientations) {
         // Single template, no orientation variants — simple path
         const confidence = validateBlob(blob, refTemplate, ppc);
-        if (confidence < 0.4) continue;
+        if (confidence < 0.4) {
+          if (blobDebugGroup) blobDebug.push({ colorGroup: blobDebugGroup, blob, accepted: false });
+          continue;
+        }
 
         const blobCenterPxX = (blob.minX + blob.maxX) / 2;
         const blobCenterPxY = (blob.minY + blob.maxY) / 2;
@@ -2170,6 +2759,7 @@ async function detectMapIcons(
           blobBBoxPx: [blob.minX, blob.minY, blob.maxX, blob.maxY],
           confidence,
         });
+        if (blobDebugGroup) blobDebug.push({ colorGroup: blobDebugGroup, blob, accepted: true });
 
         console.log(
           `  ${refTemplate.name} at (${cx.toFixed(1)}, ${cy.toFixed(1)}) ` +
@@ -2180,17 +2770,44 @@ async function detectMapIcons(
 
       // Multi-template group OR single template with orientations: use template matching
       let bestShapeConfidence = 0;
+      let bestTemplate = group[0];
       for (const tmpl of group) {
         const c = validateBlob(blob, tmpl, ppc);
-        if (c > bestShapeConfidence) bestShapeConfidence = c;
+        if (c > bestShapeConfidence) { bestShapeConfidence = c; bestTemplate = tmpl; }
       }
-      if (bestShapeConfidence < 0.3) continue;
+      if (bestShapeConfidence < 0.3) {
+        if (blobDebugGroup) blobDebug.push({ colorGroup: blobDebugGroup, blob, accepted: false });
+        continue;
+      }
 
-      const { template: matchedTemplate, score: matchScore, orientation: matchedOrientation } =
-        await matchBlobToTemplate(data, imageWidth, blob, group);
+      let matchedTemplate: IconTemplate;
+      let matchScore: number;
+      let matchedOrientation: OrientationVariant | undefined;
+
+      if (key === BRIDGE_COLOR_KEY && bestTemplate.orientations && bestTemplate.orientations.length > 0) {
+        // Bridge blobs: use structural railing check instead of template-image pixel matching
+        const structResult = structurallyScanBridgeOrientation(
+          data, imageWidth, imageHeight, blob, bestTemplate.orientations,
+        );
+        if (!structResult) {
+          if (blobDebugGroup) blobDebug.push({ colorGroup: blobDebugGroup, blob, accepted: false });
+          continue;
+        }
+        matchedTemplate = bestTemplate;
+        matchScore = structResult.score;
+        matchedOrientation = structResult.orientation;
+      } else {
+        const result = await matchBlobToTemplate(data, imageWidth, blob, group);
+        matchedTemplate = result.template;
+        matchScore = result.score;
+        matchedOrientation = result.orientation;
+      }
 
       const confidence = bestShapeConfidence * 0.4 + matchScore * 0.6;
-      if (confidence < 0.4) continue;
+      if (confidence < 0.4) {
+        if (blobDebugGroup) blobDebug.push({ colorGroup: blobDebugGroup, blob, accepted: false });
+        continue;
+      }
 
       const blobCenterPxX = (blob.minX + blob.maxX) / 2;
       const blobCenterPxY = (blob.minY + blob.maxY) / 2;
@@ -2214,6 +2831,7 @@ async function detectMapIcons(
       }
 
       allCandidates.push(detected);
+      if (blobDebugGroup) blobDebug.push({ colorGroup: blobDebugGroup, blob, accepted: true });
 
       const orientLabel = matchedOrientation ? ` orient=${matchedOrientation.rotation}°` : '';
       console.log(
@@ -2251,80 +2869,131 @@ async function detectMapIcons(
   });
 
   // 2a2. Bridge water-adjacency constraint
+  type BridgeSliceResult = { pos: number; water: boolean };
+  type BridgeWaterSide = { slices: BridgeSliceResult[]; passed: boolean };
+  type BridgeWaterEntry = {
+    icon: DetectedIcon;
+    sideA: BridgeWaterSide;
+    sideB: BridgeWaterSide;
+    accepted: boolean;
+  };
+  const bridgeWaterDebug: BridgeWaterEntry[] = [];
+
   allCandidates = allCandidates.filter(icon => {
     if (!icon.template.requiresWaterAdjacency || !icon.orientation) return true;
 
     const [bMinX, bMinY, bMaxX, bMaxY] = icon.blobBBoxPx;
-    const sampleDepth = 3; // pixels beyond blob edge to sample
     const rotation = icon.orientation.rotation;
 
-    // Determine which sides to check for water based on orientation
-    // Bridges span along their orientation — water should be on perpendicular sides
-    const sideA: Array<[number, number]> = [];
-    const sideB: Array<[number, number]> = [];
+    const BRIDGE_SLICE_INSIDE_PX = 2;
+    const BRIDGE_SLICE_OUTSIDE_PX = 4;
+    const BRIDGE_SLICE_WATER_THRESHOLD = 0.5;
+
+    let sideAResult: BridgeWaterSide | null = null;
+    let sideBResult: BridgeWaterSide | null = null;
 
     if (rotation === 0 || rotation === 180) {
-      // Vertical bridge: check left and right sides
-      for (let y = bMinY; y <= bMaxY; y++) {
-        for (let d = 1; d <= sampleDepth; d++) {
-          sideA.push([bMinX - d, y]); // left
-          sideB.push([bMaxX + d, y]); // right
+      // Vertical bridge (N-S): slices are full-height columns, water left/right
+      const checkColumn = (x: number): boolean => {
+        if (x < 0 || x >= imageWidth) return false;
+        let n = 0, total = 0;
+        for (let y = bMinY; y <= bMaxY; y++) {
+          if (y < 0 || y >= imageHeight) continue;
+          const idx = (y * imageWidth + x) * 4;
+          if (matchesAnyColor({ r: data[idx], g: data[idx + 1], b: data[idx + 2] }, SCREENSHOT_COLORS.WATER, 40)) n++;
+          total++;
         }
+        return total > 0 && n / total >= BRIDGE_SLICE_WATER_THRESHOLD;
+      };
+      const slicesA: BridgeSliceResult[] = [];
+      for (let x = bMinX + BRIDGE_SLICE_INSIDE_PX; x >= bMinX - BRIDGE_SLICE_OUTSIDE_PX; x--) {
+        slicesA.push({ pos: x, water: checkColumn(x) });
       }
+      const slicesB: BridgeSliceResult[] = [];
+      for (let x = bMaxX - BRIDGE_SLICE_INSIDE_PX; x <= bMaxX + BRIDGE_SLICE_OUTSIDE_PX; x++) {
+        slicesB.push({ pos: x, water: checkColumn(x) });
+      }
+      sideAResult = { slices: slicesA, passed: slicesA.some(s => s.water) };
+      sideBResult = { slices: slicesB, passed: slicesB.some(s => s.water) };
+
     } else if (rotation === 90 || rotation === 270) {
-      // Horizontal bridge: check top and bottom sides
-      for (let x = bMinX; x <= bMaxX; x++) {
-        for (let d = 1; d <= sampleDepth; d++) {
-          sideA.push([x, bMinY - d]); // top
-          sideB.push([x, bMaxY + d]); // bottom
+      // Horizontal bridge (E-W): slices are full-width rows, water top/bottom
+      const checkRow = (y: number): boolean => {
+        if (y < 0 || y >= imageHeight) return false;
+        let n = 0, total = 0;
+        for (let x = bMinX; x <= bMaxX; x++) {
+          if (x < 0 || x >= imageWidth) continue;
+          const idx = (y * imageWidth + x) * 4;
+          if (matchesAnyColor({ r: data[idx], g: data[idx + 1], b: data[idx + 2] }, SCREENSHOT_COLORS.WATER, 40)) n++;
+          total++;
         }
+        return total > 0 && n / total >= BRIDGE_SLICE_WATER_THRESHOLD;
+      };
+      const slicesA: BridgeSliceResult[] = [];
+      for (let y = bMinY + BRIDGE_SLICE_INSIDE_PX; y >= bMinY - BRIDGE_SLICE_OUTSIDE_PX; y--) {
+        slicesA.push({ pos: y, water: checkRow(y) });
       }
-    } else if (rotation === 45) {
-      // TLBR diagonal: check top-right and bottom-left corners
-      for (let i = 0; i < Math.min(bMaxX - bMinX, bMaxY - bMinY); i++) {
-        for (let d = 1; d <= sampleDepth; d++) {
-          sideA.push([bMaxX - i + d, bMinY + i - d]); // top-right
-          sideB.push([bMinX + i - d, bMaxY - i + d]); // bottom-left
+      const slicesB: BridgeSliceResult[] = [];
+      for (let y = bMaxY - BRIDGE_SLICE_INSIDE_PX; y <= bMaxY + BRIDGE_SLICE_OUTSIDE_PX; y++) {
+        slicesB.push({ pos: y, water: checkRow(y) });
+      }
+      sideAResult = { slices: slicesA, passed: slicesA.some(s => s.water) };
+      sideBResult = { slices: slicesB, passed: slicesB.some(s => s.water) };
+
+    } else {
+      // Diagonal bridges (45°/135°): slice-based approach along the diagonal edge
+      const diagLen = Math.min(bMaxX - bMinX, bMaxY - bMinY);
+      let edgeAX = (_i: number) => 0, edgeAY = (_i: number) => 0;
+      let edgeBX = (_i: number) => 0, edgeBY = (_i: number) => 0;
+      let outADX = 0, outADY = 0, outBDX = 0, outBDY = 0;
+
+      if (rotation === 45) {
+        // TLBR: water NE (top-right) and SW (bottom-left)
+        edgeAX = i => bMaxX - i; edgeAY = i => bMinY + i;  // top-right edge
+        outADX = 1; outADY = -1;
+        edgeBX = i => bMinX + i; edgeBY = i => bMaxY - i;  // bottom-left edge
+        outBDX = -1; outBDY = 1;
+      } else if (rotation === 135) {
+        // TRBL: water NW (top-left) and SE (bottom-right)
+        edgeAX = i => bMinX + i; edgeAY = i => bMinY + i;  // top-left edge
+        outADX = -1; outADY = -1;
+        edgeBX = i => bMaxX - i; edgeBY = i => bMaxY - i;  // bottom-right edge
+        outBDX = 1; outBDY = 1;
+      }
+
+      const checkDiagSlice = (ex: number, ey: number, odx: number, ody: number): boolean => {
+        let n = 0;
+        for (let d = 1; d <= BRIDGE_SLICE_OUTSIDE_PX; d++) {
+          const px = ex + odx * d, py = ey + ody * d;
+          if (px < 0 || py < 0 || px >= imageWidth || py >= imageHeight) continue;
+          const idx = (py * imageWidth + px) * 4;
+          if (matchesAnyColor({ r: data[idx], g: data[idx + 1], b: data[idx + 2] }, SCREENSHOT_COLORS.WATER, 40)) n++;
         }
+        return n / BRIDGE_SLICE_OUTSIDE_PX >= BRIDGE_SLICE_WATER_THRESHOLD;
+      };
+
+      const slicesA: BridgeSliceResult[] = [];
+      const slicesB: BridgeSliceResult[] = [];
+      for (let i = 0; i < diagLen; i++) {
+        slicesA.push({ pos: i, water: checkDiagSlice(edgeAX(i), edgeAY(i), outADX, outADY) });
+        slicesB.push({ pos: i, water: checkDiagSlice(edgeBX(i), edgeBY(i), outBDX, outBDY) });
       }
-    } else if (rotation === 135) {
-      // TRBL diagonal: check top-left and bottom-right corners
-      for (let i = 0; i < Math.min(bMaxX - bMinX, bMaxY - bMinY); i++) {
-        for (let d = 1; d <= sampleDepth; d++) {
-          sideA.push([bMinX + i - d, bMinY + i - d]); // top-left
-          sideB.push([bMaxX - i + d, bMaxY - i + d]); // bottom-right
-        }
-      }
+      sideAResult = { slices: slicesA, passed: slicesA.some(s => s.water) };
+      sideBResult = { slices: slicesB, passed: slicesB.some(s => s.water) };
     }
 
-    // Count water pixels on each side
-    function countWaterPixels(samples: Array<[number, number]>): number {
-      let count = 0;
-      for (const [px, py] of samples) {
-        if (px < 0 || py < 0 || px >= imageWidth || py >= imageHeight) continue;
-        const idx = (py * imageWidth + px) * 4;
-        const pixel = { r: data[idx], g: data[idx + 1], b: data[idx + 2] };
-        if (matchesAnyColor(pixel, SCREENSHOT_COLORS.WATER, 40)) count++;
-      }
-      return count;
-    }
-
-    const waterA = countWaterPixels(sideA);
-    const waterB = countWaterPixels(sideB);
-    const ratioA = sideA.length > 0 ? waterA / sideA.length : 0;
-    const ratioB = sideB.length > 0 ? waterB / sideB.length : 0;
-
-    // Require at least 30% water on both perpendicular sides
-    if (ratioA < 0.3 || ratioB < 0.3) {
+    const accepted = sideAResult.passed && sideBResult.passed;
+    if (!accepted) {
       console.log(
         `  Constraint: rejected ${icon.template.name} at ` +
         `(${icon.centerCoordX.toFixed(1)}, ${icon.centerCoordY.toFixed(1)}) ` +
-        `(water adjacency: ${(ratioA * 100).toFixed(0)}%/${(ratioB * 100).toFixed(0)}%)`,
+        `(water adjacency: A:${sideAResult.passed ? 'OK' : 'FAIL'} B:${sideBResult.passed ? 'OK' : 'FAIL'})`,
       );
-      return false;
     }
-    return true;
+    bridgeWaterDebug.push({ icon, sideA: sideAResult, sideB: sideBResult, accepted });
+    return accepted;
   });
+  await saveBridgeWaterDebug(data, imageWidth, imageHeight, bridgeWaterDebug);
 
   // 2b. Uniqueness: keep highest-confidence per type, respecting maxCount from templates
   const typeMaxCounts = new Map<string, number>();
@@ -2364,7 +3033,12 @@ async function detectMapIcons(
     const fp = getFootprint(icon);
     const overlaps = accepted.some(a => {
       const afp = getFootprint(a);
-      return fp.x0 < afp.x1 && fp.x1 > afp.x0 && fp.y0 < afp.y1 && fp.y1 > afp.y0;
+      const xOverlap = Math.min(fp.x1, afp.x1) - Math.max(fp.x0, afp.x0);
+      const yOverlap = Math.min(fp.y1, afp.y1) - Math.max(fp.y0, afp.y0);
+      if (xOverlap <= 0 || yOverlap <= 0) return false;  // No intersection
+      // Allow up to allowedOverlap units in each axis (for large circle amenity icons)
+      const allowed = Math.max(icon.template.allowedOverlap ?? 0, a.template.allowedOverlap ?? 0);
+      return xOverlap > allowed || yOverlap > allowed;
     });
     if (overlaps) {
       console.log(`  Constraint: rejected ${icon.template.name} at (${icon.centerCoordX.toFixed(1)}, ${icon.centerCoordY.toFixed(1)}) (overlap)`);
@@ -2382,7 +3056,7 @@ async function detectMapIcons(
   }
 
   console.log(`Generate from Screenshot: ${accepted.length} icons after constraints`);
-  return accepted;
+  return { icons: accepted, blobDebug };
 }
 
 // Convert detected icons to the v2 object groups format:
@@ -2408,13 +3082,29 @@ function detectedIconsToObjectGroups(
   return groups;
 }
 
-// Debug output: draw detected icons on the screenshot
-function saveIconDetectionDebug(
+// Debug output: draw detected icons on the screenshot.
+// If preprocessedData is provided it is used as the canvas base instead of the original image,
+// which is useful for Pass 2 where icons and gridlines have already been removed from the pixel data.
+async function saveIconDetectionDebug(
   image: HTMLImageElement,
   extents: IslandExtents,
   detectedIcons: DetectedIcon[],
-): void {
-  const { canvas, ctx } = createDebugCanvas(image);
+  filename: string,
+  preprocessedData?: Uint8ClampedArray,
+): Promise<void> {
+  let canvas: HTMLCanvasElement;
+  let ctx: CanvasRenderingContext2D;
+  if (preprocessedData) {
+    canvas = document.createElement('canvas');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    ctx = canvas.getContext('2d')!;
+    const imageData = ctx.createImageData(image.width, image.height);
+    imageData.data.set(preprocessedData);
+    ctx.putImageData(imageData, 0, 0);
+  } else {
+    ({ canvas, ctx } = createDebugCanvas(image));
+  }
   const ppc = extents.pixelsPerCoord;
 
   for (const icon of detectedIcons) {
@@ -2458,14 +3148,222 @@ function saveIconDetectionDebug(
     );
   }
 
-  downloadCanvas(canvas, 'debug_07_icon_detection.png');
+  await downloadCanvas(canvas, filename);
 }
 
-function saveEdgeTileDebug(
+// Remove the white dotted gridline overlay from raw pixel data by detecting
+// brightness increases at expected block-boundary positions and applying the
+// inverse of the 25%-opacity white composite formula.
+// Returns a bitmask (1 = pixel was corrected) for debug visualization.
+function removeGridlineOverlay(
+  data: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  extents: IslandExtents,
+): Uint8Array {
+  const ppc = extents.pixelsPerCoord;
+  // Pattern geometry: 8 dashes per 16-coord block, 2:1 dash:gap ratio
+  const PERIOD_COORDS = 2, DASH_FRACTION = 2 / 3;
+  const PERIOD_PX = PERIOD_COORDS * ppc;
+  const DASH_PX   = DASH_FRACTION * PERIOD_PX;
+  // Detection constants
+  const PERP_OFFSET      = 4;  // px perpendicular to line for baseline sample
+  const SEARCH_HALF_WIDTH = 2; // ±px to search for distortion-shifted line centre
+  const LINE_HALF_WIDTH  = 1;  // px on each side of detected centre to correct
+  const EDGE_ZONE        = 1;  // extend dash gate by this many px for antialiased edges
+  const MIN_SURPLUS      = 8;  // brightness surplus threshold (full dash)
+  const GAP_PENALTY      = 0.3; // phase-score penalty for brightness at gap positions
+  const corrected = new Uint8Array(imageWidth * imageHeight);
+
+  // Stage A: build surplus profile along one boundary line.
+  // surplus[i] = max brightness within ±SEARCH_HALF_WIDTH of boundaryPx − perp baseline.
+  function buildSurplusProfile(
+    boundaryPx: number,
+    isHorizontal: boolean,
+    scanStart: number,
+    scanEnd: number,
+  ): Float32Array {
+    const surplus = new Float32Array(scanEnd - scanStart);
+    const perpAxis = isHorizontal ? imageHeight : imageWidth;
+    for (let i = 0; i < surplus.length; i++) {
+      const s = scanStart + i;
+      const aOff = Math.max(0, boundaryPx - PERP_OFFSET);
+      const bOff = Math.min(perpAxis - 1, boundaryPx + PERP_OFFSET);
+      const aP = isHorizontal ? getPixelAt(data, imageWidth, s, aOff) : getPixelAt(data, imageWidth, aOff, s);
+      const bP = isHorizontal ? getPixelAt(data, imageWidth, s, bOff) : getPixelAt(data, imageWidth, bOff, s);
+      const perp = (aP.r + aP.g + aP.b + bP.r + bP.g + bP.b) / 6;
+      let maxBr = 0;
+      for (let d = -SEARCH_HALF_WIDTH; d <= SEARCH_HALF_WIDTH; d++) {
+        const lc = boundaryPx + d;
+        if (lc < 0 || lc >= perpAxis) continue;
+        const { r, g, b } = isHorizontal
+          ? getPixelAt(data, imageWidth, s, lc)
+          : getPixelAt(data, imageWidth, lc, s);
+        maxBr = Math.max(maxBr, (r + g + b) / 3);
+      }
+      surplus[i] = maxBr - perp;
+    }
+    return surplus;
+  }
+
+  // Stage B-1: element-wise max across profiles, clamped to 0.
+  // Ensures icon-occluded positions on some lines don't suppress the combined signal.
+  function combineProfiles(profiles: Float32Array[]): Float32Array {
+    const combined = new Float32Array(profiles[0].length);
+    for (let i = 0; i < combined.length; i++) {
+      let v = 0;
+      for (const p of profiles) v = Math.max(v, p[i]);
+      combined[i] = v;
+    }
+    return combined;
+  }
+
+  // Stage B-2: sweep phase candidates and return the best-fitting offset.
+  function findPhase(combined: Float32Array): number {
+    let bestPhase = 0, bestScore = -Infinity;
+    for (let ph = 0; ph < Math.ceil(PERIOD_PX); ph++) {
+      let score = 0;
+      for (let i = 0; i < combined.length; i++)
+        score += (i + ph) % PERIOD_PX < DASH_PX ? combined[i] : -combined[i] * GAP_PENALTY;
+      if (score > bestScore) { bestScore = score; bestPhase = ph; }
+    }
+    return bestPhase;
+  }
+
+  // Stage C: apply corrections to one boundary line using the shared phase.
+  // Handles sub-pixel distortion (brightest-pixel search) and partial-brightness
+  // antialiased edges (proportional alpha correction, extended EDGE_ZONE gate).
+  function applyCorrections(
+    boundaryPx: number,
+    isHorizontal: boolean,
+    surplus: Float32Array,
+    phase: number,
+    scanStart: number,
+  ): void {
+    const perpAxis = isHorizontal ? imageHeight : imageWidth;
+    for (let i = 0; i < surplus.length; i++) {
+      const phasePos = (i + phase) % PERIOD_PX;
+      const isEdgeZone = phasePos >= DASH_PX && phasePos < DASH_PX + EDGE_ZONE;
+      if (phasePos >= DASH_PX + EDGE_ZONE) continue;  // true gap — skip
+      const minSurp = isEdgeZone ? MIN_SURPLUS / 2 : MIN_SURPLUS;
+      if (surplus[i] < minSurp) continue;             // no brightening (icon / gap)
+      const s = scanStart + i;
+
+      // Perpendicular baseline
+      const aOff = Math.max(0, boundaryPx - PERP_OFFSET);
+      const bOff = Math.min(perpAxis - 1, boundaryPx + PERP_OFFSET);
+      const aP = isHorizontal ? getPixelAt(data, imageWidth, s, aOff) : getPixelAt(data, imageWidth, aOff, s);
+      const bP = isHorizontal ? getPixelAt(data, imageWidth, s, bOff) : getPixelAt(data, imageWidth, bOff, s);
+      const perp = (aP.r + aP.g + aP.b + bP.r + bP.g + bP.b) / 6;
+
+      // Find actual line centre (brightest pixel in search band — handles distortion)
+      let bestBr = -1, bestLineCoord = boundaryPx;
+      for (let d = -SEARCH_HALF_WIDTH; d <= SEARCH_HALF_WIDTH; d++) {
+        const lc = boundaryPx + d;
+        if (lc < 0 || lc >= perpAxis) continue;
+        const { r, g, b } = isHorizontal
+          ? getPixelAt(data, imageWidth, s, lc)
+          : getPixelAt(data, imageWidth, lc, s);
+        const br = (r + g + b) / 3;
+        if (br > bestBr) { bestBr = br; bestLineCoord = lc; }
+      }
+      if (bestBr - perp < MIN_SURPLUS / 2) continue;  // confirm brightness surplus
+
+      // Correct ±LINE_HALF_WIDTH around detected centre.
+      // Use estimated overlay alpha (from per-pixel surplus) for proportional correction:
+      //   alpha_est = clamp(pixSurplus / (255 - perp), 0, 0.25)
+      //   corrected = clamp((channel - 255*alpha) / (1 - alpha), 0, 255)
+      // For full-dash pixels alpha_est ≈ 0.25 (same as correctGridlineChannel).
+      // For antialiased edge pixels alpha_est < 0.25, correction is proportionally smaller.
+      for (let d = -LINE_HALF_WIDTH; d <= LINE_HALF_WIDTH; d++) {
+        const lc = bestLineCoord + d;
+        if (lc < 0 || lc >= perpAxis) continue;
+        let px: number, py: number;
+        if (isHorizontal) { px = s; py = lc; } else { px = lc; py = s; }
+        const pi = (py * imageWidth + px) * 4;
+        const pixBr = (data[pi] + data[pi + 1] + data[pi + 2]) / 3;
+        const pixSurplus = pixBr - perp;
+        const alpha = perp < 255
+          ? Math.min(0.25, Math.max(0, pixSurplus / (255 - perp)))
+          : 0;
+        if (alpha > 0) {
+          const inv = 1 - alpha;
+          data[pi]     = Math.max(0, Math.min(255, Math.round((data[pi]     - 255 * alpha) / inv)));
+          data[pi + 1] = Math.max(0, Math.min(255, Math.round((data[pi + 1] - 255 * alpha) / inv)));
+          data[pi + 2] = Math.max(0, Math.min(255, Math.round((data[pi + 2] - 255 * alpha) / inv)));
+        }
+        corrected[py * imageWidth + px] = 1;
+      }
+    }
+  }
+
+  const xStart = Math.round(extents.full.left);
+  const xEnd   = Math.round(extents.full.left + ISLAND_COORD_WIDTH  * ppc);
+  const yStart = Math.round(extents.full.top);
+  const yEnd   = Math.round(extents.full.top  + ISLAND_COORD_HEIGHT * ppc);
+
+  // Horizontal gridlines — all share one phase (period divides evenly into block size)
+  {
+    const boundaries = Array.from(
+      { length: Math.floor(ISLAND_COORD_HEIGHT / BLOCK_SIZE) - 1 },
+      (_, r) => Math.round(extents.full.top + (r + 1) * BLOCK_SIZE * ppc),
+    );
+    const profiles = boundaries.map(by => buildSurplusProfile(by, true, xStart, xEnd));
+    const phase = findPhase(combineProfiles(profiles));
+    boundaries.forEach((by, li) => applyCorrections(by, true, profiles[li], phase, xStart));
+  }
+
+  // Vertical gridlines — all share one phase
+  {
+    const boundaries = Array.from(
+      { length: Math.floor(ISLAND_COORD_WIDTH / BLOCK_SIZE) - 1 },
+      (_, c) => Math.round(extents.full.left + (c + 1) * BLOCK_SIZE * ppc),
+    );
+    const profiles = boundaries.map(bx => buildSurplusProfile(bx, false, yStart, yEnd));
+    const phase = findPhase(combineProfiles(profiles));
+    boundaries.forEach((bx, li) => applyCorrections(bx, false, profiles[li], phase, yStart));
+  }
+
+  const count = corrected.reduce((sum, v) => sum + v, 0);
+  console.log(`Generate from Screenshot: gridline overlay removed (${count} pixels corrected)`);
+  return corrected;
+}
+
+// Debug output: show corrected screenshot with green overlay on corrected pixels
+async function saveGridlineRemovalDebug(
+  image: HTMLImageElement,
+  data: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  corrected: Uint8Array,
+): Promise<void> {
+  // Draw corrected pixel data as the base
+  const canvas = document.createElement('canvas');
+  canvas.width = imageWidth;
+  canvas.height = imageHeight;
+  const ctx = canvas.getContext('2d')!;
+  const imageData = ctx.createImageData(imageWidth, imageHeight);
+  imageData.data.set(data);
+  ctx.putImageData(imageData, 0, 0);
+
+  // Overlay semi-transparent green on every corrected pixel
+  ctx.fillStyle = 'rgba(0, 255, 0, 0.6)';
+  for (let py = 0; py < imageHeight; py++) {
+    for (let px = 0; px < imageWidth; px++) {
+      if (corrected[py * imageWidth + px]) {
+        ctx.fillRect(px, py, 1, 1);
+      }
+    }
+  }
+
+  await downloadCanvas(canvas, 'debug_06_gridline_removal.png');
+}
+
+async function saveEdgeTileDebug(
   image: HTMLImageElement,
   extents: IslandExtents,
   edgeResult: EdgeTileMatchResult,
-): void {
+): Promise<void> {
   const { canvas, ctx } = createDebugCanvas(image);
   const ppc = extents.pixelsPerCoord;
 
@@ -2508,14 +3406,14 @@ function saveEdgeTileDebug(
     );
   }
 
-  downloadCanvas(canvas, 'debug_08_edge_tiles.png');
+  await downloadCanvas(canvas, 'debug_07_edge_tiles.png');
 }
 
-function savePostIconFillDebug(
+async function savePostIconFillDebug(
   data: Uint8ClampedArray,
   imageWidth: number,
   imageHeight: number,
-): void {
+): Promise<void> {
   const canvas = document.createElement('canvas');
   canvas.width = imageWidth;
   canvas.height = imageHeight;
@@ -2523,7 +3421,322 @@ function savePostIconFillDebug(
   const imageData = ctx.createImageData(imageWidth, imageHeight);
   imageData.data.set(data);
   ctx.putImageData(imageData, 0, 0);
-  downloadCanvas(canvas, 'debug_09_icon_fill.png');
+  await downloadCanvas(canvas, 'debug_09_post_icon_fill.png');
+}
+
+async function savePostStairBridgeFillDebug(
+  data: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+): Promise<void> {
+  const canvas = document.createElement('canvas');
+  canvas.width = imageWidth;
+  canvas.height = imageHeight;
+  const ctx = canvas.getContext('2d')!;
+  const imageData = ctx.createImageData(imageWidth, imageHeight);
+  imageData.data.set(data);
+  ctx.putImageData(imageData, 0, 0);
+  await downloadCanvas(canvas, 'debug_13_post_stair_bridge_fill.png');
+}
+
+// Debug output: draw bridge water-adjacency slice check results.
+// For each bridge candidate, shows colored column (vertical bridge) or row (horizontal bridge) slices
+// from inside the blob outward, green = water detected, red = not water.
+async function saveBridgeWaterDebug(
+  data: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  entries: Array<{
+    icon: DetectedIcon;
+    sideA: { slices: Array<{ pos: number; water: boolean }>; passed: boolean };
+    sideB: { slices: Array<{ pos: number; water: boolean }>; passed: boolean };
+    accepted: boolean;
+  }>,
+): Promise<void> {
+  const canvas = document.createElement('canvas');
+  canvas.width = imageWidth;
+  canvas.height = imageHeight;
+  const ctx = canvas.getContext('2d')!;
+  const imageData = ctx.createImageData(imageWidth, imageHeight);
+  imageData.data.set(data);
+  ctx.putImageData(imageData, 0, 0);
+
+  for (const { icon, sideA, sideB, accepted } of entries) {
+    const [bMinX, bMinY, bMaxX, bMaxY] = icon.blobBBoxPx;
+    const rotation = icon.orientation?.rotation ?? 0;
+
+    // Draw blob bbox border
+    ctx.strokeStyle = accepted ? '#00FF00' : '#FF0000';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(bMinX, bMinY, bMaxX - bMinX, bMaxY - bMinY);
+
+    if (rotation === 0 || rotation === 180) {
+      // Vertical bridge: slices are full-height columns
+      const h = bMaxY - bMinY + 1;
+      for (const { pos: x, water } of sideA.slices) {
+        ctx.fillStyle = water ? 'rgba(0,255,0,0.6)' : 'rgba(255,0,0,0.4)';
+        ctx.fillRect(x, bMinY, 1, h);
+      }
+      for (const { pos: x, water } of sideB.slices) {
+        ctx.fillStyle = water ? 'rgba(0,255,0,0.6)' : 'rgba(255,0,0,0.4)';
+        ctx.fillRect(x, bMinY, 1, h);
+      }
+    } else if (rotation === 90 || rotation === 270) {
+      // Horizontal bridge: slices are full-width rows
+      const w = bMaxX - bMinX + 1;
+      for (const { pos: y, water } of sideA.slices) {
+        ctx.fillStyle = water ? 'rgba(0,255,0,0.6)' : 'rgba(255,0,0,0.4)';
+        ctx.fillRect(bMinX, y, w, 1);
+      }
+      for (const { pos: y, water } of sideB.slices) {
+        ctx.fillStyle = water ? 'rgba(0,255,0,0.6)' : 'rgba(255,0,0,0.4)';
+        ctx.fillRect(bMinX, y, w, 1);
+      }
+    } else if (rotation === 45) {
+      // TLBR diagonal: dots at edge pixels along top-right and bottom-left edges
+      for (const { pos: i, water } of sideA.slices) {
+        ctx.fillStyle = water ? 'rgba(0,255,0,0.8)' : 'rgba(255,0,0,0.6)';
+        ctx.fillRect(bMaxX - i - 1, bMinY + i - 1, 3, 3);
+      }
+      for (const { pos: i, water } of sideB.slices) {
+        ctx.fillStyle = water ? 'rgba(0,255,0,0.8)' : 'rgba(255,0,0,0.6)';
+        ctx.fillRect(bMinX + i - 1, bMaxY - i - 1, 3, 3);
+      }
+    } else if (rotation === 135) {
+      // TRBL diagonal: dots at edge pixels along top-left and bottom-right edges
+      for (const { pos: i, water } of sideA.slices) {
+        ctx.fillStyle = water ? 'rgba(0,255,0,0.8)' : 'rgba(255,0,0,0.6)';
+        ctx.fillRect(bMinX + i - 1, bMinY + i - 1, 3, 3);
+      }
+      for (const { pos: i, water } of sideB.slices) {
+        ctx.fillStyle = water ? 'rgba(0,255,0,0.8)' : 'rgba(255,0,0,0.6)';
+        ctx.fillRect(bMaxX - i - 1, bMaxY - i - 1, 3, 3);
+      }
+    }
+
+    // Side pass/fail labels + orientation
+    ctx.font = '10px monospace';
+    ctx.fillStyle = sideA.passed ? '#00FF00' : '#FF4444';
+    ctx.fillText(`A:${sideA.passed ? 'OK' : 'FAIL'}`, bMinX + 2, bMinY + 12);
+    ctx.fillStyle = sideB.passed ? '#00FF00' : '#FF4444';
+    ctx.fillText(`B:${sideB.passed ? 'OK' : 'FAIL'}`, bMinX + 2, bMinY + 24);
+    ctx.fillStyle = '#FFFF00';
+    ctx.fillText(`${rotation}° ${icon.resolvedType ?? icon.template.type}`, bMinX + 2, bMinY + 36);
+  }
+
+  await downloadCanvas(canvas, 'debug_11e_bridge_water_check.png');
+}
+
+// Debug output: draw blob detection results for stairs and bridge color groups.
+// Shows all found blobs with green (accepted) or red (rejected) bounding boxes.
+async function saveBlobDetectionDebug(
+  data: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  blobDebug: BlobDebugEntry[],
+): Promise<void> {
+  const canvas = document.createElement('canvas');
+  canvas.width = imageWidth;
+  canvas.height = imageHeight;
+  const ctx = canvas.getContext('2d')!;
+  const imageData = ctx.createImageData(imageWidth, imageHeight);
+  imageData.data.set(data);
+  ctx.putImageData(imageData, 0, 0);
+
+  for (const entry of blobDebug) {
+    const { blob, accepted, colorGroup } = entry;
+    const bboxW = blob.maxX - blob.minX + 1;
+    const bboxH = blob.maxY - blob.minY + 1;
+
+    // Semi-transparent fill overlay: yellow for stairs, olive for bridges
+    const [or, og, ob] = colorGroup === 'stairs' ? [0xF5, 0xDE, 0x99] : [0x7F, 0x82, 0x67];
+    ctx.fillStyle = `rgba(${or}, ${og}, ${ob}, 0.35)`;
+    ctx.fillRect(blob.minX, blob.minY, bboxW, bboxH);
+
+    // Bounding box: green = accepted, red = rejected
+    ctx.strokeStyle = accepted ? '#00FF00' : '#FF0000';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(blob.minX, blob.minY, bboxW, bboxH);
+
+    // Label
+    ctx.fillStyle = accepted ? '#00FF00' : '#FF4444';
+    ctx.font = '11px monospace';
+    ctx.fillText(
+      `${colorGroup} ${blob.area}px ${accepted ? 'OK' : 'FAIL'}`,
+      blob.minX + 2,
+      blob.minY + 13,
+    );
+  }
+
+  await downloadCanvas(canvas, 'debug_11_blob_detection.png');
+}
+
+// Debug output: four images showing each stage of stair detection.
+async function saveStairStagesDebug(
+  data: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  rawBlobs: ColorBlob[],
+  stepBlobs: Array<{ blob: ColorBlob; scanVertical: boolean }>,
+  groups: Array<{
+    group: ColorBlob[];
+    bbox: { minX: number; minY: number; maxX: number; maxY: number };
+    scanVertical: boolean;
+    transitions: number;
+    accepted: boolean;
+  }>,
+): Promise<void> {
+  function makeCanvas(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
+    const canvas = document.createElement('canvas');
+    canvas.width = imageWidth;
+    canvas.height = imageHeight;
+    const ctx = canvas.getContext('2d')!;
+    const imageData = ctx.createImageData(imageWidth, imageHeight);
+    imageData.data.set(data);
+    ctx.putImageData(imageData, 0, 0);
+    return { canvas, ctx };
+  }
+
+  // debug_11a: all stair-color connected components (no dilation), yellow boxes + W×H label
+  {
+    const { canvas, ctx } = makeCanvas();
+    ctx.font = '10px monospace';
+    for (const blob of rawBlobs) {
+      const w = blob.maxX - blob.minX + 1, h = blob.maxY - blob.minY + 1;
+      ctx.fillStyle = 'rgba(200,200,200,0.3)';
+      ctx.fillRect(blob.minX, blob.minY, w, h);
+      ctx.strokeStyle = '#FFFF00';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(blob.minX, blob.minY, w, h);
+      ctx.fillStyle = '#FFFF00';
+      ctx.fillText(`${w}x${h}`, blob.minX + 1, blob.minY + 10);
+    }
+    await downloadCanvas(canvas, 'debug_11a_stair_raw_blobs.png');
+  }
+
+  // debug_11b: step-shape gate — green=accepted (with V/H scan dir), red=rejected
+  {
+    const { canvas, ctx } = makeCanvas();
+    ctx.font = '10px monospace';
+    const acceptedSet = new Set(stepBlobs.map(s => s.blob));
+    const dirMap = new Map(stepBlobs.map(s => [s.blob, s.scanVertical ? 'V' : 'H']));
+    for (const blob of rawBlobs) {
+      const w = blob.maxX - blob.minX + 1, h = blob.maxY - blob.minY + 1;
+      if (acceptedSet.has(blob)) {
+        ctx.fillStyle = 'rgba(0,255,100,0.25)';
+        ctx.fillRect(blob.minX, blob.minY, w, h);
+        ctx.strokeStyle = '#00FF64';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(blob.minX, blob.minY, w, h);
+        ctx.fillStyle = '#00FF64';
+        ctx.fillText(`${w}x${h} ${dirMap.get(blob)}`, blob.minX + 1, blob.minY + 10);
+      } else {
+        ctx.fillStyle = 'rgba(255,50,50,0.2)';
+        ctx.fillRect(blob.minX, blob.minY, w, h);
+        ctx.strokeStyle = '#FF4444';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(blob.minX, blob.minY, w, h);
+        ctx.fillStyle = '#FF4444';
+        ctx.fillText(`${w}x${h}`, blob.minX + 1, blob.minY + 10);
+      }
+    }
+    await downloadCanvas(canvas, 'debug_11b_stair_step_gate.png');
+  }
+
+  // debug_11c: groups — dim green per member step blob, bright yellow merged group bbox
+  {
+    const { canvas, ctx } = makeCanvas();
+    ctx.font = '10px monospace';
+    for (const { group, bbox } of groups) {
+      for (const b of group) {
+        ctx.fillStyle = 'rgba(0,200,100,0.2)';
+        ctx.fillRect(b.minX, b.minY, b.maxX - b.minX + 1, b.maxY - b.minY + 1);
+        ctx.strokeStyle = '#00C864';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(b.minX, b.minY, b.maxX - b.minX + 1, b.maxY - b.minY + 1);
+      }
+      const bw = bbox.maxX - bbox.minX + 1, bh = bbox.maxY - bbox.minY + 1;
+      ctx.strokeStyle = '#FFFF00';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bbox.minX, bbox.minY, bw, bh);
+      ctx.fillStyle = '#FFFF00';
+      ctx.fillText(`${group.length} steps`, bbox.minX + 2, bbox.minY + 12);
+    }
+    await downloadCanvas(canvas, 'debug_11c_stair_groups.png');
+  }
+
+  // debug_11d: stripe pattern test — green=accepted, red=rejected; label shows transition count
+  {
+    const { canvas, ctx } = makeCanvas();
+    ctx.font = '11px monospace';
+    for (const { bbox, transitions, accepted } of groups) {
+      const bw = bbox.maxX - bbox.minX + 1, bh = bbox.maxY - bbox.minY + 1;
+      ctx.fillStyle = accepted ? 'rgba(0,255,0,0.2)' : 'rgba(255,0,0,0.2)';
+      ctx.fillRect(bbox.minX, bbox.minY, bw, bh);
+      ctx.strokeStyle = accepted ? '#00FF00' : '#FF0000';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bbox.minX, bbox.minY, bw, bh);
+      ctx.fillStyle = accepted ? '#00FF00' : '#FF4444';
+      ctx.fillText(
+        `${transitions}t ${accepted ? 'OK' : 'FAIL'}`,
+        bbox.minX + 2,
+        bbox.minY + 13,
+      );
+    }
+    await downloadCanvas(canvas, 'debug_11d_stair_pattern_test.png');
+  }
+}
+
+// Debug output: overlay edge block terrain after fillEdgeRegionsWithLevel1.
+// Shows which cells in edge blocks were converted to LEVEL1.
+async function saveEdgeFillDebug(
+  data: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  extents: IslandExtents,
+  grid: PixelGrid,
+): Promise<void> {
+  const canvas = document.createElement('canvas');
+  canvas.width = imageWidth;
+  canvas.height = imageHeight;
+  const ctx = canvas.getContext('2d')!;
+  const imageData = ctx.createImageData(imageWidth, imageHeight);
+  imageData.data.set(data);
+  ctx.putImageData(imageData, 0, 0);
+
+  const ppc = extents.pixelsPerCoord;
+  const fullLeft = extents.full.left;
+  const fullTop = extents.full.top;
+
+  for (const [blockX, blockY] of EDGE_CCW_POSITIONS) {
+    const startCoordX = blockX * 16;
+    const startCoordY = blockY * 16;
+
+    // Semi-transparent terrain overlay for each cell in the block
+    ctx.globalAlpha = 0.5;
+    for (let ly = 0; ly < 16; ly++) {
+      for (let lx = 0; lx < 16; lx++) {
+        const idx = (startCoordY + ly) * ISLAND_COORD_WIDTH + (startCoordX + lx);
+        const terrain = grid.primary[idx];
+        const [r, g, b] = TERRAIN_DEBUG_COLORS[terrain] || [128, 128, 128];
+        const screenX = fullLeft + (startCoordX + lx) * ppc;
+        const screenY = fullTop + (startCoordY + ly) * ppc;
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillRect(screenX, screenY, ppc, ppc);
+      }
+    }
+    ctx.globalAlpha = 1.0;
+
+    // Yellow border around each edge block
+    const blockScreenX = fullLeft + startCoordX * ppc;
+    const blockScreenY = fullTop + startCoordY * ppc;
+    const blockSizePx = 16 * ppc;
+    ctx.strokeStyle = '#FFFF00';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(blockScreenX, blockScreenY, blockSizePx, blockSizePx);
+  }
+
+  await downloadCanvas(canvas, 'debug_10_edge_fill.png');
 }
 
 // Main pixelization function: sample the screenshot at each of the 112×96 island coordinates.
@@ -2696,7 +3909,17 @@ function pixelateScreenshot(
 // ============ Debug Image Output ============
 // Pattern from devTools.ts:3756-3760 (canvas → toDataURL → <a> download)
 
-function downloadCanvas(canvas: HTMLCanvasElement, filename: string): void {
+// Set to a JSZip instance before running the debug pipeline; cleared after download.
+// When set, downloadCanvas adds to the zip instead of triggering individual downloads.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let debugZip: any = null;
+
+async function downloadCanvas(canvas: HTMLCanvasElement, filename: string): Promise<void> {
+  if (debugZip !== null) {
+    const blob = await new Promise<Blob>(resolve => canvas.toBlob(b => resolve(b!), 'image/png'));
+    debugZip.file(filename, blob);
+    return;
+  }
   const link = document.createElement('a');
   link.download = filename;
   link.href = canvas.toDataURL('image/png');
@@ -2712,11 +3935,11 @@ function createDebugCanvas(image: HTMLImageElement): { canvas: HTMLCanvasElement
   return { canvas, ctx };
 }
 
-function saveTopBoundaryDebug(
+async function saveTopBoundaryDebug(
   image: HTMLImageElement,
   result: BoundaryResult,
   width: number,
-): void {
+): Promise<void> {
   const { canvas, ctx } = createDebugCanvas(image);
   const xStart = Math.floor(width / 3);
   const xEnd = Math.floor(2 * width / 3);
@@ -2748,14 +3971,14 @@ function saveTopBoundaryDebug(
     ctx.fillText(`Top boundary: y=${result.boundaryY}`, 5, result.boundaryY - 5);
   }
 
-  downloadCanvas(canvas, 'debug_01_top_boundary.png');
+  await downloadCanvas(canvas, 'debug_01_top_boundary.png');
 }
 
-function saveBottomBoundaryDebug(
+async function saveBottomBoundaryDebug(
   image: HTMLImageElement,
   result: BoundaryResult,
   width: number,
-): void {
+): Promise<void> {
   const { canvas, ctx } = createDebugCanvas(image);
   const xStart = Math.floor(width / 3);
   const xEnd = Math.floor(2 * width / 3);
@@ -2793,15 +4016,15 @@ function saveBottomBoundaryDebug(
     ctx.fillText(`Bottom boundary: y=${result.boundaryY}`, 5, result.boundaryY + 16);
   }
 
-  downloadCanvas(canvas, 'debug_02_bottom_boundary.png');
+  await downloadCanvas(canvas, 'debug_02_bottom_boundary.png');
 }
 
-function saveLeftBoundaryDebug(
+async function saveLeftBoundaryDebug(
   image: HTMLImageElement,
   result: VerticalBoundaryResult,
   topY: number,
   bottomY: number,
-): void {
+): Promise<void> {
   const { canvas, ctx } = createDebugCanvas(image);
   const scanHeight = bottomY - topY;
 
@@ -2831,15 +4054,15 @@ function saveLeftBoundaryDebug(
     ctx.fillText(`Left boundary: x=${result.boundaryX}`, result.boundaryX + 5, topY + 20);
   }
 
-  downloadCanvas(canvas, 'debug_03_left_boundary.png');
+  await downloadCanvas(canvas, 'debug_03_left_boundary.png');
 }
 
-function saveRightBoundaryDebug(
+async function saveRightBoundaryDebug(
   image: HTMLImageElement,
   result: VerticalBoundaryResult,
   topY: number,
   bottomY: number,
-): void {
+): Promise<void> {
   const { canvas, ctx } = createDebugCanvas(image);
   const scanHeight = bottomY - topY;
 
@@ -2869,13 +4092,13 @@ function saveRightBoundaryDebug(
     ctx.fillText(`Right boundary: x=${result.boundaryX}`, result.boundaryX - 160, topY + 20);
   }
 
-  downloadCanvas(canvas, 'debug_04_right_boundary.png');
+  await downloadCanvas(canvas, 'debug_04_right_boundary.png');
 }
 
-function saveExtentsDebug(
+async function saveExtentsDebug(
   image: HTMLImageElement,
   extents: IslandExtents,
-): void {
+): Promise<void> {
   const { canvas, ctx } = createDebugCanvas(image);
 
   // Full island extent — green dashed rectangle
@@ -2905,7 +4128,7 @@ function saveExtentsDebug(
   ctx.font = '12px sans-serif';
   ctx.fillText(`Scale: ${extents.pixelsPerCoord.toFixed(2)} px/coord`, 5, image.height - 10);
 
-  downloadCanvas(canvas, 'debug_05_island_extents.png');
+  await downloadCanvas(canvas, 'debug_05_island_extents.png');
 }
 
 // Debug color mapping: terrain type → RGB for visualization
@@ -2921,7 +4144,7 @@ const TERRAIN_DEBUG_COLORS: Record<number, [number, number, number]> = {
   [TERRAIN.GRASS]:   [0x50, 0x90, 0x42],  // Generic mid-green (should not appear in final output)
 };
 
-function savePixelGridDebug(grid: PixelGrid): void {
+async function savePixelGridDebug(grid: PixelGrid): Promise<void> {
   // === A: 112×96 terrain grid (one pixel per coordinate) ===
   const gridCanvas = document.createElement('canvas');
   gridCanvas.width = ISLAND_COORD_WIDTH;
@@ -2952,7 +4175,7 @@ function savePixelGridDebug(grid: PixelGrid): void {
   }
 
   gridCtx.putImageData(gridImageData, 0, 0);
-  downloadCanvas(gridCanvas, 'debug_06a_pixel_grid.png');
+  await downloadCanvas(gridCanvas, 'debug_14a_pixel_grid.png');
 
   // === B: 4× scaled overlay with visible diagonal triangles ===
   const scale = 4;
@@ -3024,7 +4247,7 @@ function savePixelGridDebug(grid: PixelGrid): void {
     }
   }
 
-  downloadCanvas(overlayCanvas, 'debug_06b_pixel_overlay.png');
+  await downloadCanvas(overlayCanvas, 'debug_14b_pixel_overlay.png');
 }
 
 // ============ Image Loading ============
@@ -3090,6 +4313,10 @@ export async function generateFromScreenshot(): Promise<void> {
   const imageData = ctx.getImageData(0, 0, width, height);
   const data = imageData.data;
 
+  // Set up zip accumulator for all debug images (lazy-import JSZip, never loaded at startup)
+  const JSZip = (await import('jszip')).default;
+  debugZip = new JSZip();
+
   // 4. Detect top boundary (rock cliff edge)
   console.log('Generate from Screenshot: detecting top boundary...');
   const topResult = detectTopBoundary(data, width, height);
@@ -3098,7 +4325,7 @@ export async function generateFromScreenshot(): Promise<void> {
   } else {
     console.warn('Generate from Screenshot: could not detect top boundary');
   }
-  saveTopBoundaryDebug(image, topResult, width);
+  await saveTopBoundaryDebug(image, topResult, width);
 
   // 5. Detect bottom boundary (beach edge)
   console.log('Generate from Screenshot: detecting bottom boundary...');
@@ -3108,7 +4335,7 @@ export async function generateFromScreenshot(): Promise<void> {
   } else {
     console.warn('Generate from Screenshot: could not detect bottom boundary');
   }
-  saveBottomBoundaryDebug(image, bottomResult, width);
+  await saveBottomBoundaryDebug(image, bottomResult, width);
 
   // 6-7. Detect left/right boundaries (sand edges)
   // These require top/bottom for the vertical scan range
@@ -3123,7 +4350,7 @@ export async function generateFromScreenshot(): Promise<void> {
     } else {
       console.warn('Generate from Screenshot: could not detect left boundary');
     }
-    saveLeftBoundaryDebug(image, leftResult, topResult.boundaryY, bottomResult.boundaryY);
+    await saveLeftBoundaryDebug(image, leftResult, topResult.boundaryY, bottomResult.boundaryY);
 
     console.log('Generate from Screenshot: detecting right boundary...');
     rightResult = detectRightBoundary(data, width, height, topResult.boundaryY, bottomResult.boundaryY);
@@ -3132,7 +4359,7 @@ export async function generateFromScreenshot(): Promise<void> {
     } else {
       console.warn('Generate from Screenshot: could not detect right boundary');
     }
-    saveRightBoundaryDebug(image, rightResult, topResult.boundaryY, bottomResult.boundaryY);
+    await saveRightBoundaryDebug(image, rightResult, topResult.boundaryY, bottomResult.boundaryY);
   } else {
     console.warn('Generate from Screenshot: skipping left/right detection — top/bottom boundaries required');
   }
@@ -3140,6 +4367,12 @@ export async function generateFromScreenshot(): Promise<void> {
   // 8. Derive full island extents from all 4 boundaries
   if (topResult.boundaryY === null || bottomResult.boundaryY === null) {
     console.warn('Generate from Screenshot: cannot derive extents — top/bottom boundary detection failed');
+    const earlyZipBlob = await debugZip.generateAsync({ type: 'blob' });
+    debugZip = null;
+    const earlyZipLink = document.createElement('a');
+    earlyZipLink.href = URL.createObjectURL(earlyZipBlob);
+    earlyZipLink.download = 'debug_screenshot.zip';
+    earlyZipLink.click();
     console.log('Generate from Screenshot: done (early exit)');
     return;
   }
@@ -3156,7 +4389,12 @@ export async function generateFromScreenshot(): Promise<void> {
     full: extents.full,
     inner: extents.inner,
   });
-  saveExtentsDebug(image, extents);
+  await saveExtentsDebug(image, extents);
+
+  // debug_06: remove white gridline overlay from raw pixel data before any classification
+  console.log('Generate from Screenshot: removing gridline overlay...');
+  const gridlineCorrected = removeGridlineOverlay(data, width, height, extents);
+  await saveGridlineRemovalDebug(image, data, width, height, gridlineCorrected);
 
   // 9. detect objects and fill them with a placeholder color or specific color
   // objects include location marker, player house, house, residence services, museum, shop, tailor, stairs
@@ -3170,22 +4408,68 @@ export async function generateFromScreenshot(): Promise<void> {
   const edgeResult = matchEdgeTiles(pixelGrid);
   const edgeAssetIndices = edgeResult.assetIndices; // eslint-disable-line @typescript-eslint/no-unused-vars
   // edgeAssetIndices will be used when building the final v2 map output
-  saveEdgeTileDebug(image, extents, edgeResult);
+  await saveEdgeTileDebug(image, extents, edgeResult);  // debug_07
 
-  // 10.5b Detect map icons (houses, player houses, etc.)
-  console.log('Generate from Screenshot: detecting map icons...');
-  const detectedIcons = await detectMapIcons(data, width, height, extents, pixelGrid); // eslint-disable-line @typescript-eslint/no-unused-vars
-  saveIconDetectionDebug(image, extents, detectedIcons);
+  // Color keys identifying stair and bridge color groups
+  const STAIRS_KEY = colorKey({ r: 0xF5, g: 0xDE, b: 0x99 });
+  const BRIDGE_KEY = colorKey({ r: 0x7F, g: 0x82, b: 0x67 });
+  const STAIR_BRIDGE_KEYS = new Set([STAIRS_KEY, BRIDGE_KEY]);
+
+  // 10.5b Pass 1: Detect all non-stair/bridge icons
+  console.log('Generate from Screenshot: detecting regular map icons (pass 1)...');
+  const regularResult = await detectMapIcons(data, width, height, extents, pixelGrid, undefined, STAIR_BRIDGE_KEYS);
+  const regularIcons = regularResult.icons; // eslint-disable-line @typescript-eslint/no-unused-vars
+
+  // debug_08: regular icon detection overlays
+  await saveIconDetectionDebug(image, extents, regularIcons, 'debug_08_icon_detection.png');
+
+  // Fill regular icon regions at pixel level with surrounding terrain color
+  await fillIconRegionsWithTerrain(data, width, extents, pixelGrid, regularIcons);
+  // debug_09: pixel data after regular icon fill
+  await savePostIconFillDebug(data, width, height);
+
+  // 10.5c Edge fill: paint edge block sand/rock pixels to level1 in raw pixel data,
+  // then update terrain grid. Must happen before stair/bridge detection so sand ≈ stair
+  // color false positives are eliminated from the pixel canvas.
+  fillEdgeRegionsInScreenshot(data, width, height, extents, edgeResult);
+  fillEdgeRegionsWithLevel1(pixelGrid);
+  // debug_10: pixel data after edge fill
+  await saveEdgeFillDebug(data, width, height, extents, pixelGrid);
+
+  // 10.5d Pass 2: Detect stairs (custom stripe-pattern) and bridges (existing detection)
+  console.log('Generate from Screenshot: detecting stairs (pass 2)...');
+  const stairResult = await detectStairs(data, width, height, extents);
+
+  console.log('Generate from Screenshot: detecting bridges (pass 2)...');
+  const bridgeResult = await detectMapIcons(data, width, height, extents, pixelGrid, new Set([BRIDGE_KEY]), undefined);
+
+  const stairBridgeIcons = [...stairResult.icons, ...bridgeResult.icons]; // eslint-disable-line @typescript-eslint/no-unused-vars
+  const combinedBlobDebug = [...stairResult.blobDebug, ...bridgeResult.blobDebug];
+
+  // debug_11: blob detection results for stairs/bridges
+  await saveBlobDetectionDebug(data, width, height, combinedBlobDebug);
+  // debug_12: stair/bridge icon detection overlays
+  await saveIconDetectionDebug(image, extents, stairBridgeIcons, 'debug_12_stair_bridge_detection.png', data);
+
+  // Fill stair/bridge icon regions
+  await fillIconRegionsWithTerrain(data, width, extents, pixelGrid, stairBridgeIcons);
+  // debug_13: pixel data after stair/bridge fill
+  await savePostStairBridgeFillDebug(data, width, height);
+
+  // All detected icons combined (for final map output)
+  const detectedIcons = [...regularIcons, ...stairBridgeIcons]; // eslint-disable-line @typescript-eslint/no-unused-vars
   // detectedIcons (and detectedIconsToObjectGroups()) will be used when building the final v2 map output
 
-  // 10.5c Fill icon regions at pixel level with surrounding grass color
-  await fillIconRegionsWithTerrain(data, width, extents, pixelGrid, detectedIcons);
-  savePostIconFillDebug(data, width, height);
+  // debug_14a/b: pixel grid
+  await savePixelGridDebug(pixelGrid);
 
-  // 10.6 Fill edge regions: sand/rock/water → level1
-  fillEdgeRegionsWithLevel1(pixelGrid);
-
-  savePixelGridDebug(pixelGrid);
+  // Download all debug images as a single zip
+  const zipBlob = await debugZip.generateAsync({ type: 'blob' });
+  debugZip = null;
+  const zipLink = document.createElement('a');
+  zipLink.href = URL.createObjectURL(zipBlob);
+  zipLink.download = 'debug_screenshot.zip';
+  zipLink.click();
 
   // 11. detect water pixels and fill them with their surrounding level
   // determine level of terrain under water by looking at pixels adjacent to terrain, layer must cut a straight line under the water
