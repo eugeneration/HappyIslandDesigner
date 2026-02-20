@@ -8,6 +8,7 @@
 
 import {project, view, Point} from 'paper';
 import { undo, redo } from './state';
+import { isOptionSelectorVisible } from './ui/mapOptionSelector';
 
 export function zoom() {
   view.on('twofingermove', (event) => {
@@ -61,6 +62,8 @@ export function zoom() {
   });
 
   const MouseWheelHandler = (event) => {
+    if (isOptionSelectorVisible()) return;
+
     const mousePosition = new paper.Point(event.offsetX, event.offsetY);
 
     const deltaX = event.deltaX;

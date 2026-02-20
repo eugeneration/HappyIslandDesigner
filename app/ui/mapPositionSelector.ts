@@ -342,32 +342,28 @@ export function showPositionSelector(type: SelectionType, riverDirection?: River
     selectorUI!.addChild(button);
   });
 
-  // Add back button
+  // Add back button - positioned to the left of the label, horizontally aligned
   const backButton = createBackButton();
-  switch (type) {
-    case 'airport':
-      backButton.position = new paper.Point(mapWidth / 2 - 20, mapHeight - 20);
-      break;
-    case 'peninsulaLeft':
-      backButton.position = new paper.Point(20, mapHeight * 0.05);
-      break;
-    case 'peninsulaRight':
-      backButton.position = new paper.Point(mapWidth - 20, mapHeight * 0.05);
-      break;
-    case 'secretBeach':
-      backButton.position = new paper.Point(mapWidth / 2 - 30, 20);
-      break;
-    case 'leftRock':
-      backButton.position = new paper.Point(20, mapHeight * 0.05);
-      break;
-    case 'rightRock':
-      backButton.position = new paper.Point(mapWidth - 20, mapHeight * 0.05);
-      break;
-  }
+  const backButtonOffset = 8;
+  backButton.position = new paper.Point(
+    labelGroup.bounds.left - backButtonOffset,
+    labelGroup.position.y
+  );
   selectorUI.addChild(backButton);
 
   // Zoom to fit
   zoomToFit(config.zoomBounds);
+
+  // Scale UI elements inversely to zoom so they appear constant size
+  const uiScale = 1 / paper.view.zoom;
+  labelGroup.scale(uiScale);
+  backButton.scale(uiScale);
+  // Scale position buttons (all children except labelGroup and backButton)
+  selectorUI.children.forEach((child) => {
+    if (child !== labelGroup && child !== backButton) {
+      child.scale(uiScale);
+    }
+  });
 }
 
 export function hidePositionSelector(): void {
