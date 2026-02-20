@@ -130,6 +130,12 @@ type IconTemplate = {
   allowedOverlap?: number;             // Island-coord units of overlap permitted in non-overlap check (default: 0)
   blockBoundaryTolerance?: number;     // Elevated color tolerance near block-boundary gridlines (whitened by dotted overlay)
   maxSaturation?: number;              // If set, pixels with HSL saturation above this are excluded from blob detection
+  tanRoundedRectFill?: {             // If set, also fill a rounded-rect region during fillIconRegionsWithTerrain
+    widthCoords: number;             // Width of the rounded rect in island coords
+    heightCoords: number;            // Height in island coords
+    borderRadiusCoords: number;      // Corner radius in island coords
+    // Position: top edge aligned with blobBBoxPx minY; horizontally centered on blob center X
+  };
 };
 
 type ColorBlob = {
@@ -351,32 +357,46 @@ const ICON_TEMPLATES: IconTemplate[] = [
     opaqueArea: 1150,                 // 76% of 1521 total px
   },
 
-  // === Tan group (#AFA17C) — differentiated by template matching ===
+  // === Large building group (dark circle #534D41, nosquare variant) ===
+  // Detected via normal dark circle blob matching.
+  // tan rounded-rect base (12x10 coords, border-radius 2) is filled during fillIconRegionsWithTerrain.
   {
     name: 'Resident Services',
     category: 'amenities',
     type: 'center',
-    imagePath: 'static/dev/icon-amenity-center.png',
-    colors: [{ r: 0xAF, g: 0xA1, b: 0x7C }],  // #AFA17C tan (61%)
+    imagePath: 'static/dev/icon-amenity-center-nosquare.png',
+    colors: [{ r: 0x53, g: 0x4D, b: 0x41 }],  // #534D41 dark circle (same as other buildings)
     colorTolerance: 35,
-    sizeInCoords: [12.2, 10.1],        // 65/5.33, 54/5.33
+    sizeInCoords: [7.3, 7.3],          // 39x39 px ÷ 5.33
     objectSizeInCoords: [12, 10],
-    aspectRatioRange: [0.8, 1.6],
+    aspectRatioRange: [0.7, 1.4],
     minFillRatio: 0.3,
-    opaqueArea: 3413,                 // 97% of 3510 total px
+    opaqueArea: 1201,                  // opaque pixels in icon-amenity-center-nosquare.png
+    fillExtraColors: [
+      { r: 0xB1, g: 0xA3, b: 0x7E },  // #B1A37E tan base (dilation passes through)
+      { r: 0xB0, g: 0xA2, b: 0x7D },  // #B0A27D
+      { r: 0xAD, g: 0x9F, b: 0x7C },  // #AD9F7C
+    ],
+    tanRoundedRectFill: { widthCoords: 12, heightCoords: 10, borderRadiusCoords: 2 },
   },
   {
     name: 'Town Hall',
     category: 'amenities',
     type: 'townhallSprite',
-    imagePath: 'static/dev/icon-townhall.png',
-    colors: [{ r: 0xAF, g: 0xA1, b: 0x7C }],  // #AFA17C tan (63%)
+    imagePath: 'static/dev/icon-townhall-nosquare.png',
+    colors: [{ r: 0x53, g: 0x4D, b: 0x41 }],  // #534D41 dark circle
     colorTolerance: 35,
-    sizeInCoords: [12.2, 10.1],
+    sizeInCoords: [7.1, 7.1],          // 38x38 px ÷ 5.33 (bounds 0–37)
     objectSizeInCoords: [6, 4],
-    aspectRatioRange: [0.8, 1.6],
+    aspectRatioRange: [0.7, 1.4],
     minFillRatio: 0.3,
-    opaqueArea: 3413,                 // 97% of 3510 total px
+    opaqueArea: 1156,                  // opaque pixels in icon-townhall-nosquare.png
+    fillExtraColors: [
+      { r: 0xB1, g: 0xA3, b: 0x7E },  // #B1A37E tan base (dilation passes through)
+      { r: 0xB0, g: 0xA2, b: 0x7D },  // #B0A27D
+      { r: 0xAD, g: 0x9F, b: 0x7C },  // #AD9F7C
+    ],
+    tanRoundedRectFill: { widthCoords: 12, heightCoords: 10, borderRadiusCoords: 2 },
   },
 
   // === Orange marker (unique color, no v2 object) ===
@@ -387,11 +407,11 @@ const ICON_TEMPLATES: IconTemplate[] = [
     imagePath: 'static/dev/icon-youarehere.png',
     colors: [{ r: 0xF1, g: 0x63, b: 0x23 }],  // #F16323 orange (60%)
     colorTolerance: 35,
-    sizeInCoords: [5.4, 7.5],         // 29/5.33, 40/5.33
+    sizeInCoords: [5.82, 7.88],         // 31/5.33 = 5.82, 42/5.33 = 7.88
     objectSizeInCoords: [5, 7],
     aspectRatioRange: [0.5, 1.0],
     minFillRatio: 0.3,
-    opaqueArea: 768,
+    opaqueArea: 875,
     maxCount: 1,
     emitsObject: false,
     fillExtraColors: [{ r: 0xF4, g: 0xF6, b: 0xB7 }],  // #F4F6B7 outer white border (isBackgroundPixel treats it as sand)
@@ -1818,7 +1838,38 @@ async function fillIconRegionsWithTerrain(
       }
     }
 
-    // 3. Determine fill color based on fillBehavior
+    // 3. For buildings with a tan rounded-rect base, also fill that region.
+    // The dark-circle nosquare blob gives the anchor; the tan box sits behind it.
+    if (icon.template.tanRoundedRectFill) {
+      const { widthCoords, heightCoords, borderRadiusCoords } = icon.template.tanRoundedRectFill;
+      const ppc = extents.pixelsPerCoord;
+      const circCenterX = (bMinX + bMaxX) / 2;
+      const rectMinX = Math.round(circCenterX - widthCoords * ppc / 2);
+      const rectMaxX = Math.round(circCenterX + widthCoords * ppc / 2);
+      const rectMinY = Math.round(bMinY);
+      const rectMaxY = Math.round(bMinY + heightCoords * ppc);
+      const r = Math.round(borderRadiusCoords * ppc);
+
+      for (let ry = rectMinY; ry <= rectMaxY; ry++) {
+        for (let rx = rectMinX; rx <= rectMaxX; rx++) {
+          if (rx < 0 || rx >= imageWidth || ry < 0 || ry >= imageHeight) continue;
+          // Rounded corner check: reject pixels in corners outside the arc of radius r
+          const inLeftEdge  = rx < rectMinX + r;
+          const inRightEdge = rx > rectMaxX - r;
+          const inTopEdge   = ry < rectMinY + r;
+          const inBotEdge   = ry > rectMaxY - r;
+          if ((inLeftEdge || inRightEdge) && (inTopEdge || inBotEdge)) {
+            const cx = inLeftEdge ? rectMinX + r : rectMaxX - r;
+            const cy = inTopEdge  ? rectMinY + r : rectMaxY - r;
+            const dx = rx - cx, dy = ry - cy;
+            if (dx * dx + dy * dy > r * r) continue;
+          }
+          dilatedPixels.add(ry * imageWidth + rx);
+        }
+      }
+    }
+
+    // 4. Determine fill color based on fillBehavior
     const fillBehavior = icon.template.fillBehavior ?? 'grass';
     let paintColor: RGB;
     let gridFillTerrain: TerrainType;
