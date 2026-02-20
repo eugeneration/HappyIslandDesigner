@@ -8,6 +8,7 @@ import { goBack } from './mapSelectionWizard';
 import { getBlockState } from './edgeTiles';
 
 let selectorUI: paper.Group | null = null;
+let fixedUI: paper.Group | null = null;
 
 const mapWidth = horizontalBlocks * horizontalDivisions; // 112
 const mapHeight = verticalBlocks * verticalDivisions; // 96
@@ -288,52 +289,6 @@ export function showPositionSelector(type: SelectionType, riverDirection?: River
   selectorUI = new paper.Group();
   selectorUI.applyMatrix = false;
 
-  // Add label with background
-  const label = new paper.PointText(new paper.Point(0, 0));
-  label.content = config.label;
-  label.justification = 'center';
-  label.fontFamily = 'TTNorms, sans-serif';
-  label.fontSize = 3.5;
-  label.fillColor = colors.text.color;
-
-  const labelBg = new paper.Path.Rectangle(
-    new paper.Rectangle(
-      label.bounds.x - 3,
-      label.bounds.y - 2,
-      label.bounds.width + 6,
-      label.bounds.height + 4
-    ),
-    new paper.Size(3, 3)
-  );
-  labelBg.fillColor = colors.paper.color;
-  labelBg.opacity = 0.9;
-
-  const labelGroup = new paper.Group([labelBg, label]);
-  labelGroup.applyMatrix = false;
-
-  // Position label based on selection type
-  switch (type) {
-    case 'airport':
-      labelGroup.position = new paper.Point(mapWidth / 2, mapHeight - 20);
-      break;
-    case 'peninsulaLeft':
-      labelGroup.position = new paper.Point(20, mapHeight * 0.1);
-      break;
-    case 'peninsulaRight':
-      labelGroup.position = new paper.Point(mapWidth - 20, mapHeight * 0.1);
-      break;
-    case 'secretBeach':
-      labelGroup.position = new paper.Point(mapWidth / 2, 20);
-      break;
-    case 'leftRock':
-      labelGroup.position = new paper.Point(20, mapHeight * 0.1);
-      break;
-    case 'rightRock':
-      labelGroup.position = new paper.Point(mapWidth - 20, mapHeight * 0.1);
-      break;
-  }
-  selectorUI.addChild(labelGroup);
-
   // Add position buttons
   config.positions.forEach((pos, index) => {
     // Use original index if available (for filtered peninsula positions)
@@ -342,34 +297,67 @@ export function showPositionSelector(type: SelectionType, riverDirection?: River
     selectorUI!.addChild(button);
   });
 
-  // Add back button - positioned to the left of the label, horizontally aligned
-  const backButton = createBackButton();
-  const backButtonOffset = 8;
-  backButton.position = new paper.Point(
-    labelGroup.bounds.left - backButtonOffset,
-    labelGroup.position.y
-  );
-  selectorUI.addChild(backButton);
-
   // Zoom to fit
   zoomToFit(config.zoomBounds);
 
-  // Scale UI elements inversely to zoom so they appear constant size
+  // Scale position buttons inversely to zoom so they appear constant size
   const uiScale = 1 / paper.view.zoom;
-  labelGroup.scale(uiScale);
-  backButton.scale(uiScale);
-  // Scale position buttons (all children except labelGroup and backButton)
   selectorUI.children.forEach((child) => {
-    if (child !== labelGroup && child !== backButton) {
-      child.scale(uiScale);
-    }
+    child.scale(uiScale);
   });
+
+  // Create fixed UI (back button, label) on fixedLayer at bottom of screen
+  layers.fixedLayer.activate();
+  fixedUI = new paper.Group();
+  fixedUI.applyMatrix = false;
+
+  const viewWidth = paper.view.viewSize.width;
+  const viewHeight = paper.view.viewSize.height;
+  const fixedScale = 5;
+  const bottomY = viewHeight - 40;
+
+  // Back button at bottom-left
+  const backButton = createBackButton();
+  backButton.scaling = new paper.Point(fixedScale, fixedScale);
+  backButton.position = new paper.Point(50, bottomY);
+  fixedUI.addChild(backButton);
+
+  // Label at bottom-center
+  const label = new paper.PointText(new paper.Point(0, 0));
+  label.content = config.label;
+  label.justification = 'center';
+  label.fontFamily = 'TTNorms, sans-serif';
+  label.fontSize = 16;
+  label.fillColor = colors.text.color;
+
+  const labelBg = new paper.Path.Rectangle(
+    new paper.Rectangle(
+      label.bounds.x - 8,
+      label.bounds.y - 4,
+      label.bounds.width + 16,
+      label.bounds.height + 8
+    ),
+    new paper.Size(6, 6)
+  );
+  labelBg.fillColor = colors.paper.color;
+  labelBg.opacity = 0.9;
+
+  const labelGroup = new paper.Group([labelBg, label]);
+  labelGroup.applyMatrix = false;
+  labelGroup.position = new paper.Point(viewWidth / 2, bottomY);
+  fixedUI.addChild(labelGroup);
+
+  layers.mapOverlayLayer.activate();
 }
 
 export function hidePositionSelector(): void {
   if (selectorUI) {
     selectorUI.remove();
     selectorUI = null;
+  }
+  if (fixedUI) {
+    fixedUI.remove();
+    fixedUI = null;
   }
 }
 

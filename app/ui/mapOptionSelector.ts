@@ -9,6 +9,7 @@ import { getImageSrcForAsset } from './edgeTileAssets';
 import { hideEdgeTileAtBlock, showEdgeTileAtBlock } from './edgeTiles';
 
 let selectorUI: paper.Group | null = null;
+let fixedUI: paper.Group | null = null;
 let frameHandler: ((event: { delta: number }) => void) | null = null;
 let interactionOverlay: paper.Path | null = null;
 
@@ -433,100 +434,62 @@ export function showOptionSelector(config: MapOptionSelectorConfig): void {
     };
   });
 
-  // Create label
-  let labelGroup: paper.Group | null = null;
-  if (config.title) {
-    const label = new paper.PointText(new paper.Point(0, 0));
-    label.content = config.title;
-    label.justification = 'center';
-    label.fontFamily = 'TTNorms, sans-serif';
-    label.fontSize = 4;
-    label.fillColor = colors.text.color;
-
-    const labelBg = new paper.Path.Rectangle(
-      new paper.Rectangle(
-        label.bounds.x - 2,
-        label.bounds.y - 1,
-        label.bounds.width + 4,
-        label.bounds.height + 2
-      ),
-      new paper.Size(2, 2)
-    );
-    labelBg.fillColor = colors.paper.color;
-    labelBg.opacity = 0.9;
-
-    labelGroup = new paper.Group([labelBg, label]);
-    labelGroup.applyMatrix = false;
-
-    // Position label based on direction
-    const totalSpan = (config.options.length - 1) * cardSpacing;
-    switch (config.direction) {
-      case 'left':
-        labelGroup.position = new paper.Point(
-          config.anchorPoint.x - cardSpacing - 8,
-          config.anchorPoint.y - cardSpacing - totalSpan / 2 - 8
-        );
-        break;
-      case 'right':
-        labelGroup.position = new paper.Point(
-          config.anchorPoint.x + cardSpacing + 8,
-          config.anchorPoint.y - cardSpacing - totalSpan / 2 - 8
-        );
-        break;
-      case 'bottom':
-        labelGroup.position = new paper.Point(
-          config.anchorPoint.x,
-          config.anchorPoint.y + cardSpacing / 2
-        );
-        break;
-    }
-    selectorUI.addChild(labelGroup);
-  }
-
   // Zoom to fit
   zoomToFit(config.anchorPoint, config.direction, cardSpacing);
 
   // Calculate UI scale after zoom
   uiScale = 1 / paper.view.zoom;
 
-  // Create back button
-  let backButtonPos: paper.Point;
-  if (labelGroup) {
-    backButtonPos = new paper.Point(
-      labelGroup.bounds.left - 8 * uiScale,
-      labelGroup.position.y
-    );
-  } else {
-    backButtonPos = new paper.Point(
-      config.anchorPoint.x - cardSpacing - 16,
-      config.anchorPoint.y - cardSpacing
-    );
-  }
-  const backButton = createBackButton(backButtonPos);
-  backButton.scale(uiScale);
-  selectorUI.addChild(backButton);
+  // Create fixed UI (back button, label, confirm) on fixedLayer at bottom of screen
+  layers.fixedLayer.activate();
+  fixedUI = new paper.Group();
+  fixedUI.applyMatrix = false;
 
-  // Create confirm button
-  let confirmButtonPos: paper.Point;
-  if (labelGroup) {
-    confirmButtonPos = new paper.Point(
-      labelGroup.bounds.right + 8 * uiScale,
-      labelGroup.position.y
-    );
-  } else {
-    confirmButtonPos = new paper.Point(
-      config.anchorPoint.x + cardSpacing + 16,
-      config.anchorPoint.y - cardSpacing
-    );
-  }
-  const confirmButton = createConfirmButton(confirmButtonPos);
-  confirmButton.scale(uiScale);
-  selectorUI.addChild(confirmButton);
+  const viewWidth = paper.view.viewSize.width;
+  const viewHeight = paper.view.viewSize.height;
+  const fixedScale = 5;
+  const bottomY = viewHeight - 40;
 
-  // Scale label
-  if (labelGroup) {
-    labelGroup.scale(uiScale);
+  // Back button at bottom-left
+  const backButton = createBackButton(new paper.Point(0, 0));
+  backButton.scaling = new paper.Point(fixedScale, fixedScale);
+  backButton.position = new paper.Point(50, bottomY);
+  fixedUI.addChild(backButton);
+
+  // Label at bottom-center
+  if (config.title) {
+    const label = new paper.PointText(new paper.Point(0, 0));
+    label.content = config.title;
+    label.justification = 'center';
+    label.fontFamily = 'TTNorms, sans-serif';
+    label.fontSize = 16;
+    label.fillColor = colors.text.color;
+
+    const labelBg = new paper.Path.Rectangle(
+      new paper.Rectangle(
+        label.bounds.x - 8,
+        label.bounds.y - 4,
+        label.bounds.width + 16,
+        label.bounds.height + 8
+      ),
+      new paper.Size(6, 6)
+    );
+    labelBg.fillColor = colors.paper.color;
+    labelBg.opacity = 0.9;
+
+    const labelGroup = new paper.Group([labelBg, label]);
+    labelGroup.applyMatrix = false;
+    labelGroup.position = new paper.Point(viewWidth / 2, bottomY);
+    fixedUI.addChild(labelGroup);
   }
+
+  // Confirm button to the right of center
+  const confirmButton = createConfirmButton(new paper.Point(0, 0));
+  confirmButton.scaling = new paper.Point(fixedScale, fixedScale);
+  confirmButton.position = new paper.Point(viewWidth / 2 + 60, bottomY);
+  fixedUI.addChild(confirmButton);
+
+  layers.mapOverlayLayer.activate();
 
   // Hide the existing edge tile at this block so preview shows cleanly
   if (config.hideEdgeTile) {
@@ -715,6 +678,11 @@ export function hideOptionSelector(): void {
 
     selectorUI.remove();
     selectorUI = null;
+  }
+
+  if (fixedUI) {
+    fixedUI.remove();
+    fixedUI = null;
   }
 
   // Restore hidden edge tile

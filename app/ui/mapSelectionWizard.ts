@@ -1,4 +1,7 @@
 import { emitter } from '../emitter';
+import { hideLeftMenu, showLeftMenu } from './leftMenu';
+import { hideUndoMenu, showUndoMenu } from '../drawer';
+import { toolState } from '../tools/state';
 
 export type WizardStep = 'entrypoint' | 'screenshot' | 'start' | 'river' | 'baseMapGrid' | 'riverMouth1' | 'riverMouth2' | 'airport' | 'peninsulaSide' | 'peninsulaPos' | 'peninsulaShape' | 'dockSide' | 'dockShape' | 'secretBeachPos' | 'secretBeachShape' | 'leftRockPos' | 'leftRockShape' | 'rightRockPos' | 'rightRockShape' | 'fillPlaceholder' | 'grid' | 'legacyriver' | 'legacygrid';
 
@@ -91,6 +94,10 @@ function stepShouldBeSkipped(step: WizardStep): boolean {
 
 export function resetWizard(): void {
   wizardState = { ...initialState };
+  showLeftMenu();
+  showUndoMenu();
+  toolState.isDevModeActive = false;
+  toolState.onUp();
   emitter.emit('wizardStateChanged', wizardState);
 }
 
@@ -99,12 +106,21 @@ export function startWizard(): void {
   emitter.emit('wizardStateChanged', wizardState);
 }
 
+function enterWizardMode(): void {
+  hideLeftMenu();
+  hideUndoMenu();
+  toolState.isDevModeActive = true;
+  toolState.onUp();
+}
+
 export function goToTileEditorFlow(): void {
+  enterWizardMode();
   wizardState.step = 'river';
   emitter.emit('wizardStateChanged', wizardState);
 }
 
 export function goToScreenshotFlow(): void {
+  enterWizardMode();
   wizardState.step = 'screenshot';
   emitter.emit('wizardStateChanged', wizardState);
 }

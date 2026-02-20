@@ -22,6 +22,16 @@ import { backgroundInit, drawBackground } from './background';
 import { resizeCoordinates } from './resizeCoordinates';
 import { keys } from './keyboard';
 
+let undoMenuRef: paper.Group | null = null;
+
+export function hideUndoMenu(): void {
+  if (undoMenuRef) undoMenuRef.visible = false;
+}
+
+export function showUndoMenu(): void {
+  if (undoMenuRef) undoMenuRef.visible = true;
+}
+
 function initializeApp() {
   toolState.switchToolType(toolCategoryDefinition.terrain.type);
   updatePaintColor(colors.level1);
@@ -146,6 +156,8 @@ export function drawer() {
       noPointer: true,
     },
   );
+
+  undoMenuRef = undoMenu;
 
   function updateUndoButtonState() {
     undoButton.data.disable(!canUndo());

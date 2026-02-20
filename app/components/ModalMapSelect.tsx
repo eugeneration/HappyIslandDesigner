@@ -126,8 +126,10 @@ export default function ModalMapSelect(){
   }
 
   function closeModal(){
-    if (!isMapEmpty())
+    if (!isMapEmpty()) {
+      resetWizard();
       setIsOpen(false);
+    }
   }
 
   // Listen for wizard state changes - must be at this level since modal content unmounts when closed
