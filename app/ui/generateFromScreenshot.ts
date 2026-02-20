@@ -502,6 +502,11 @@ const COLOR_TOLERANCE = 40; // Euclidean RGB distance
 // Railing luma ≈ 139–147, center luma ≈ 124–133; minimum difference ≈ 6.
 const BRIDGE_RAILING_LUMA_MIN_DIFF = 8;
 const BRIDGE_STRUCTURE_PASS_THRESHOLD = 0.4; // min fraction of cross-sections showing railing pattern
+const BRIDGE_LUMA_MIN = 90;           // min luma for bridge tile pixels
+const BRIDGE_LUMA_MAX = 155;          // max luma for bridge tile pixels
+const BRIDGE_SAT_MAX_DETECT = 0.25;   // saturation cap for bridge extent detection
+const BRIDGE_EXTENT_THRESHOLD = 0.4;  // fraction of cross-section center pixels that must be bridge-like
+const BRIDGE_LENGTHS = [3, 4, 5] as const;
 
 // Island grid dimensions (matches app/constants.ts)
 const ISLAND_COORD_WIDTH = 112;   // 7 blocks * 16 divisions
@@ -1912,6 +1917,13 @@ function pixelToIslandCoord(
   return { cx, cy };
 }
 
+// Snap a pixel coordinate to the nearest tile-grid boundary.
+function snapToGrid(px: number, extents: IslandExtents): number {
+  const ppc = extents.pixelsPerCoord;
+  const gridCoord = Math.round((px - extents.full.left) / ppc);
+  return Math.round(extents.full.left + gridCoord * ppc);
+}
+
 // Clear a rectangular region in the grid to UNKNOWN terrain
 function clearGridRegion(
   grid: PixelGrid,
@@ -2210,19 +2222,27 @@ async function rotateTemplateImage(
 // bridge pattern: a lighter railing (~20% width) on each side of a darker center walkway (~60%).
 // For vertical bridges (rotation 0): scans horizontal cross-sections.
 // For horizontal bridges (rotation 90): scans vertical cross-sections.
-// For diagonal bridges (45/135): uses blob shape (square bbox, ~50% fill) as discriminator.
+// For diagonal bridges (45/135): sweeps anti-diagonal (TLBR) or diagonal (TRBL) cross-sections.
 function structurallyScanBridgeOrientation(
   data: Uint8ClampedArray,
   imageWidth: number,
   imageHeight: number,
   blob: ColorBlob,
   orientations: readonly OrientationVariant[],
-): { orientation: OrientationVariant; score: number } | null {
-  const { minX, minY, maxX, maxY } = blob;
-  const W = maxX - minX + 1;
-  const H = maxY - minY + 1;
-  const blobAspect = W / H;
-  const fillRatio = blob.area / (W * H);
+  extents: IslandExtents,
+): { orientation: OrientationVariant; score: number; trimmedBboxPx: [number, number, number, number] } | null {
+  const rawW = blob.maxX - blob.minX + 1;
+  const rawH = blob.maxY - blob.minY + 1;
+  const blobAspect = rawW / rawH;
+  const fillRatio = blob.area / (rawW * rawH);
+  const isDiagonal = blobAspect >= 0.7 && blobAspect <= 1.4 && fillRatio < 0.80;
+
+  // Snap bbox edges to tile-grid boundaries for straight bridges.
+  // Diagonal bridge bbox corners are not at grid boundaries, so skip snapping there.
+  const minX = isDiagonal ? blob.minX : snapToGrid(blob.minX, extents);
+  const minY = isDiagonal ? blob.minY : snapToGrid(blob.minY, extents);
+  const maxX = isDiagonal ? blob.maxX : snapToGrid(blob.maxX, extents);
+  const maxY = isDiagonal ? blob.maxY : snapToGrid(blob.maxY, extents);
 
   const luma = (r: number, g: number, b: number) => 0.299 * r + 0.587 * g + 0.114 * b;
 
@@ -2272,24 +2292,207 @@ function structurallyScanBridgeOrientation(
     return count > 0 ? total / count : 0;
   }
 
+  // TLBR (45°): cross-sections are anti-diagonal lines x+y=C, swept from minX+minY to maxX+maxY.
+  // At each C, use blob.pixels to find the actual x range (railing to railing), then scoreStrip.
+  function scoreTLBR(): number {
+    if (!isDiagonal) return 0;
+    let total = 0, count = 0;
+    for (let C = minX + minY; C <= maxX + maxY; C++) {
+      const xLo = Math.max(minX, C - maxY);
+      const xHi = Math.min(maxX, C - minY);
+      if (xHi - xLo < 4) continue;
+      total += scoreStrip(x => {
+        const y = C - x;
+        if (y < 0 || y >= imageHeight || x < 0 || x >= imageWidth) return 0;
+        const i = (y * imageWidth + x) * 4;
+        return luma(data[i], data[i + 1], data[i + 2]);
+      }, xLo, xHi);
+      count++;
+    }
+    return count > 0 ? total / count : 0;
+  }
+
+  // TRBL (135°): cross-sections are diagonal lines x-y=C, swept from minX-maxY to maxX-minY.
+  function scoreTRBL(): number {
+    if (!isDiagonal) return 0;
+    let total = 0, count = 0;
+    for (let C = minX - maxY; C <= maxX - minY; C++) {
+      const xLo = Math.max(minX, C + minY);
+      const xHi = Math.min(maxX, C + maxY);
+      if (xHi - xLo < 4) continue;
+      total += scoreStrip(x => {
+        const y = x - C;
+        if (y < 0 || y >= imageHeight || x < 0 || x >= imageWidth) return 0;
+        const i = (y * imageWidth + x) * 4;
+        return luma(data[i], data[i + 1], data[i + 2]);
+      }, xLo, xHi);
+      count++;
+    }
+    return count > 0 ? total / count : 0;
+  }
+
   const vertScore  = scoreVertical();
   const horizScore = scoreHorizontal();
-  const isDiagonal = blobAspect >= 0.7 && blobAspect <= 1.4 && fillRatio < 0.65;
-  const diagScore  = isDiagonal ? 0.5 : 0;
+  const tlbrScore  = scoreTLBR();
+  const trblScore  = scoreTRBL();
 
   const scored: Array<{ orient: OrientationVariant; score: number }> = [];
   for (const orient of orientations) {
     const score =
-      orient.rotation === 0 ? vertScore :
-      orient.rotation === 90 ? horizScore :
-      (orient.rotation === 45 || orient.rotation === 135) ? diagScore :
+      orient.rotation === 0   ? vertScore  :
+      orient.rotation === 90  ? horizScore :
+      orient.rotation === 45  ? tlbrScore  :
+      orient.rotation === 135 ? trblScore  :
       0;
     if (score > 0) scored.push({ orient, score });
   }
 
   if (scored.length === 0) return null;
   const best = scored.reduce((a, b) => a.score > b.score ? a : b);
-  return best.score >= BRIDGE_STRUCTURE_PASS_THRESHOLD ? { orientation: best.orient, score: best.score } : null;
+  if (best.score < BRIDGE_STRUCTURE_PASS_THRESHOLD) return null;
+
+  // Detect the actual bridge extent along its length direction, trimming path-pixel contamination.
+  // Sweeps along the bridge direction; a position is "valid" if it has bridge-like pixel colors
+  // (desaturated, in the expected luma range) OR has water immediately adjacent on a perpendicular side.
+  // The detected extent is snapped to the nearest valid bridge length {3, 4, 5} units.
+  const ppc = extents.pixelsPerCoord;
+
+  function isBridgeLikePixel(x: number, y: number): boolean {
+    if (x < 0 || x >= imageWidth || y < 0 || y >= imageHeight) return false;
+    const idx = (y * imageWidth + x) * 4;
+    const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+    const l = luma(r, g, b);
+    return l >= BRIDGE_LUMA_MIN && l <= BRIDGE_LUMA_MAX
+      && hslSaturation({ r, g, b }) <= BRIDGE_SAT_MAX_DETECT;
+  }
+
+  function isWaterPx(x: number, y: number): boolean {
+    if (x < 0 || x >= imageWidth || y < 0 || y >= imageHeight) return false;
+    const idx = (y * imageWidth + x) * 4;
+    return matchesAnyColor({ r: data[idx], g: data[idx + 1], b: data[idx + 2] }, SCREENSHOT_COLORS.WATER, 40);
+  }
+
+  function snapBridgeLength(measuredLen: number): 3 | 4 | 5 {
+    return BRIDGE_LENGTHS.reduce((best, l) =>
+      Math.abs(l - measuredLen) < Math.abs(best - measuredLen) ? l : best,
+    ) as 3 | 4 | 5;
+  }
+
+  function detectBridgeExtent(rotation: number): [number, number, number, number] {
+    const fallback: [number, number, number, number] = [minX, minY, maxX, maxY];
+
+    if (rotation === 0 || rotation === 180) {
+      // Vertical bridge: sweep y rows
+      const validRows: boolean[] = [];
+      for (let y = minY; y <= maxY; y++) {
+        let n = 0, total = 0;
+        for (let x = minX; x <= maxX; x++) {
+          if (isBridgeLikePixel(x, y)) n++;
+          total++;
+        }
+        const waterLeft  = isWaterPx(minX - 1, y) || isWaterPx(minX - 2, y);
+        const waterRight = isWaterPx(maxX + 1, y) || isWaterPx(maxX + 2, y);
+        validRows.push((total > 0 && n / total >= BRIDGE_EXTENT_THRESHOLD) || waterLeft || waterRight);
+      }
+      let minBY = maxY, maxBY = minY;
+      for (let i = 0; i < validRows.length; i++) {
+        if (validRows[i]) { minBY = Math.min(minBY, minY + i); maxBY = Math.max(maxBY, minY + i); }
+      }
+      if (minBY > maxBY) return fallback;
+      const snapped  = snapBridgeLength((maxBY - minBY) / ppc);
+      const centerY  = (minBY + maxBY) / 2;
+      return [minX, snapToGrid(centerY - snapped * ppc / 2, extents), maxX, snapToGrid(centerY + snapped * ppc / 2, extents)];
+
+    } else if (rotation === 90 || rotation === 270) {
+      // Horizontal bridge: sweep x columns
+      let minBX = maxX, maxBX = minX;
+      for (let x = minX; x <= maxX; x++) {
+        let n = 0, total = 0;
+        for (let y = minY; y <= maxY; y++) {
+          if (isBridgeLikePixel(x, y)) n++;
+          total++;
+        }
+        const waterTop    = isWaterPx(x, minY - 1) || isWaterPx(x, minY - 2);
+        const waterBottom = isWaterPx(x, maxY + 1) || isWaterPx(x, maxY + 2);
+        if ((total > 0 && n / total >= BRIDGE_EXTENT_THRESHOLD) || waterTop || waterBottom) {
+          minBX = Math.min(minBX, x); maxBX = Math.max(maxBX, x);
+        }
+      }
+      if (minBX > maxBX) return fallback;
+      const snapped  = snapBridgeLength((maxBX - minBX) / ppc);
+      const centerX  = (minBX + maxBX) / 2;
+      return [snapToGrid(centerX - snapped * ppc / 2, extents), minY, snapToGrid(centerX + snapped * ppc / 2, extents), maxY];
+
+    } else if (rotation === 45) {
+      // TLBR diagonal: sweep C = x+y
+      let minBC = Infinity, maxBC = -Infinity;
+      for (let C = minX + minY; C <= maxX + maxY; C++) {
+        const xLo = Math.max(minX, C - maxY);
+        const xHi = Math.min(maxX, C - minY);
+        if (xHi - xLo < 2) continue;
+        const cX0 = Math.round(xLo + (xHi - xLo) * 0.2);
+        const cX1 = Math.round(xHi - (xHi - xLo) * 0.2);
+        let n = 0, total = 0;
+        for (let x = cX0; x <= cX1; x++) {
+          if (isBridgeLikePixel(x, C - x)) n++;
+          total++;
+        }
+        const waterNE = isWaterPx(xHi + 1, C - xHi - 1) || isWaterPx(xHi + 2, C - xHi - 2);
+        const waterSW = isWaterPx(xLo - 1, C - xLo + 1) || isWaterPx(xLo - 2, C - xLo + 2);
+        if ((total > 0 && n / total >= BRIDGE_EXTENT_THRESHOLD) || waterNE || waterSW) {
+          if (C < minBC) minBC = C;
+          if (C > maxBC) maxBC = C;
+        }
+      }
+      if (!isFinite(minBC)) return fallback;
+      const snapped = snapBridgeLength((maxBC - minBC) / (ppc * Math.SQRT2));
+      const centerC = (minBC + maxBC) / 2;
+      const halfC   = snapped * ppc * Math.SQRT2 / 2;
+      return [
+        Math.max(minX, Math.round(centerC - halfC - maxY)),
+        Math.max(minY, Math.round(centerC - halfC - maxX)),
+        Math.min(maxX, Math.round(centerC + halfC - minY)),
+        Math.min(maxY, Math.round(centerC + halfC - minX)),
+      ];
+
+    } else if (rotation === 135) {
+      // TRBL diagonal: sweep C = x-y
+      let minBC = Infinity, maxBC = -Infinity;
+      for (let C = minX - maxY; C <= maxX - minY; C++) {
+        const xLo = Math.max(minX, C + minY);
+        const xHi = Math.min(maxX, C + maxY);
+        if (xHi - xLo < 2) continue;
+        const cX0 = Math.round(xLo + (xHi - xLo) * 0.2);
+        const cX1 = Math.round(xHi - (xHi - xLo) * 0.2);
+        let n = 0, total = 0;
+        for (let x = cX0; x <= cX1; x++) {
+          if (isBridgeLikePixel(x, x - C)) n++;
+          total++;
+        }
+        const waterNW = isWaterPx(xLo - 1, xLo - 1 - C) || isWaterPx(xLo - 2, xLo - 2 - C);
+        const waterSE = isWaterPx(xHi + 1, xHi + 1 - C) || isWaterPx(xHi + 2, xHi + 2 - C);
+        if ((total > 0 && n / total >= BRIDGE_EXTENT_THRESHOLD) || waterNW || waterSE) {
+          if (C < minBC) minBC = C;
+          if (C > maxBC) maxBC = C;
+        }
+      }
+      if (!isFinite(minBC)) return fallback;
+      const snapped = snapBridgeLength((maxBC - minBC) / (ppc * Math.SQRT2));
+      const centerC = (minBC + maxBC) / 2;
+      const halfC   = snapped * ppc * Math.SQRT2 / 2;
+      return [
+        Math.max(minX, Math.round(centerC - halfC + minY)),
+        Math.max(minY, Math.round(minX - (centerC + halfC))),
+        Math.min(maxX, Math.round(centerC + halfC + minY)),
+        Math.min(maxY, Math.round(maxX - (centerC - halfC))),
+      ];
+    }
+
+    return fallback;
+  }
+
+  const trimmedBboxPx = detectBridgeExtent(best.orient.rotation);
+  return { orientation: best.orient, score: best.score, trimmedBboxPx };
 }
 
 // Scales each template to the blob's bounding box size and compares pixel-by-pixel.
@@ -2783,11 +2986,12 @@ async function detectMapIcons(
       let matchedTemplate: IconTemplate;
       let matchScore: number;
       let matchedOrientation: OrientationVariant | undefined;
+      let trimmedBboxPx: [number, number, number, number] = [blob.minX, blob.minY, blob.maxX, blob.maxY];
 
       if (key === BRIDGE_COLOR_KEY && bestTemplate.orientations && bestTemplate.orientations.length > 0) {
         // Bridge blobs: use structural railing check instead of template-image pixel matching
         const structResult = structurallyScanBridgeOrientation(
-          data, imageWidth, imageHeight, blob, bestTemplate.orientations,
+          data, imageWidth, imageHeight, blob, bestTemplate.orientations, extents,
         );
         if (!structResult) {
           if (blobDebugGroup) blobDebug.push({ colorGroup: blobDebugGroup, blob, accepted: false });
@@ -2796,6 +3000,7 @@ async function detectMapIcons(
         matchedTemplate = bestTemplate;
         matchScore = structResult.score;
         matchedOrientation = structResult.orientation;
+        trimmedBboxPx = structResult.trimmedBboxPx;
       } else {
         const result = await matchBlobToTemplate(data, imageWidth, blob, group);
         matchedTemplate = result.template;
@@ -2809,8 +3014,8 @@ async function detectMapIcons(
         continue;
       }
 
-      const blobCenterPxX = (blob.minX + blob.maxX) / 2;
-      const blobCenterPxY = (blob.minY + blob.maxY) / 2;
+      const blobCenterPxX = (trimmedBboxPx[0] + trimmedBboxPx[2]) / 2;
+      const blobCenterPxY = (trimmedBboxPx[1] + trimmedBboxPx[3]) / 2;
       const { cx, cy } = pixelToIslandCoord(blobCenterPxX, blobCenterPxY, extents);
 
       const detected: DetectedIcon = {
@@ -2818,7 +3023,7 @@ async function detectMapIcons(
         centerCoordX: cx,
         centerCoordY: cy,
         blobCenterPx: [blobCenterPxX, blobCenterPxY],
-        blobBBoxPx: [blob.minX, blob.minY, blob.maxX, blob.maxY],
+        blobBBoxPx: trimmedBboxPx,
         confidence,
       };
 
@@ -2882,8 +3087,13 @@ async function detectMapIcons(
   allCandidates = allCandidates.filter(icon => {
     if (!icon.template.requiresWaterAdjacency || !icon.orientation) return true;
 
-    const [bMinX, bMinY, bMaxX, bMaxY] = icon.blobBBoxPx;
     const rotation = icon.orientation.rotation;
+    const isStraightBridge = rotation === 0 || rotation === 90 || rotation === 180 || rotation === 270;
+    const [rawBMinX, rawBMinY, rawBMaxX, rawBMaxY] = icon.blobBBoxPx;
+    const bMinX = isStraightBridge ? snapToGrid(rawBMinX, extents) : rawBMinX;
+    const bMinY = isStraightBridge ? snapToGrid(rawBMinY, extents) : rawBMinY;
+    const bMaxX = isStraightBridge ? snapToGrid(rawBMaxX, extents) : rawBMaxX;
+    const bMaxY = isStraightBridge ? snapToGrid(rawBMaxY, extents) : rawBMaxY;
 
     const BRIDGE_SLICE_INSIDE_PX = 2;
     const BRIDGE_SLICE_OUTSIDE_PX = 4;
