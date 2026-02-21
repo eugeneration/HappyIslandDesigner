@@ -859,7 +859,7 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
           <Image src='static/img/back.png' />
         </Button>
       </Box>
-      <Heading m={2} sx={{textAlign: 'center'}}>{'Generate from Screenshot'}</Heading>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Generate from Screenshot'}</Heading>
       <Text m={3} sx={{textAlign: 'center'}}>
         {'Upload a screenshot of your island map to automatically generate terrain.'}
       </Text>
@@ -902,7 +902,7 @@ function RiverDirectionStep() {
           <Image src='static/img/back.png' />
         </Button>
       </Box>
-      <Heading m={2} sx={{textAlign: 'center'}}>{'Select Island River Direction'}</Heading>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Select Island River Direction'}</Heading>
       <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center'}}>
         <Card onClick={() => handleClick('west')}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
         <Card onClick={() => handleClick('south')}><Image variant='card' src={'static/img/island-type-south.png'}/></Card>
@@ -988,7 +988,7 @@ function LegacyRiverDirectionStep({ onBack }: { onBack: () => void }) {
           <Image src='static/img/back.png' />
         </Button>
       </Box>
-      <Heading m={2} sx={{textAlign: 'center'}}>{'Choose a Drawing Template!'}</ Heading>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Choose a Drawing Template!'}</ Heading>
       <Text m={2} sx={{textAlign: 'center'}}>{'Manual Drawing lets you redraw the entire island, but not everything will work in game.'}</ Text>
       <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center'}}>
         <Card onClick={() => handleClick('west')}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
