@@ -121,6 +121,10 @@ type IconTemplate = {
   opaqueArea: number;                  // Pre-extracted opaque pixel count (alpha>128) from template PNG
   fillBehavior?: 'grass' | 'water' | 'terrain-foot';  // How to fill region (default: 'grass')
   fillExtraColors?: RGB[];             // Additional colors to include in fill dilation (not treated as background)
+  fillExtraColorTolerance?: number;    // Tolerance for fillExtraColors matching (default: 25)
+  extraFillBuffer?: number;            // Extra dilation rounds beyond the default 3 (default: 0)
+  auxiliaryBlobColors?: RGB[];         // Extra seed colors for blob detection (e.g. white icon interior)
+  auxiliaryBlobColorTolerance?: number; // Tolerance for auxiliaryBlobColors (default: 25)
   maxCount?: number;                   // Max instances allowed in uniqueness constraint (default: 1)
   emitsObject?: boolean;               // Whether to include in v2 object output (default: true)
   orientations?: OrientationVariant[]; // For multi-orientation icons (bridges, stairs)
@@ -167,6 +171,7 @@ type DetectedIcon = {
   resolvedType?: string;                 // Overrides template.type when set
   resolvedCategory?: string;             // Overrides template.category when set
   resolvedObjectSize?: [number, number]; // Overrides template.objectSizeInCoords when set
+  fillOnly?: boolean;                    // If true: run fill step only, skip object generation and constraints
 };
 
 // ============ Constants ============
@@ -288,6 +293,8 @@ const ICON_TEMPLATES: IconTemplate[] = [
     minFillRatio: 0.3,
     opaqueArea: 1150,                 // 76% of 1521 total px
     allowedOverlap: 2,
+    auxiliaryBlobColors: [{ r: 0xFD, g: 0xFC, b: 0xFA }],  // #FDFCFA white icon interior
+    auxiliaryBlobColorTolerance: 25,
   },
   {
     name: 'Museum',
@@ -302,6 +309,8 @@ const ICON_TEMPLATES: IconTemplate[] = [
     minFillRatio: 0.3,
     opaqueArea: 1150,                 // 76% of 1521 total px
     allowedOverlap: 2,
+    auxiliaryBlobColors: [{ r: 0xFD, g: 0xFC, b: 0xFA }],  // #FDFCFA white icon interior
+    auxiliaryBlobColorTolerance: 25,
   },
   {
     name: "Nook's Cranny",
@@ -316,6 +325,8 @@ const ICON_TEMPLATES: IconTemplate[] = [
     minFillRatio: 0.3,
     opaqueArea: 1150,                 // 76% of 1521 total px
     allowedOverlap: 2,
+    auxiliaryBlobColors: [{ r: 0xFD, g: 0xFC, b: 0xFA }],  // #FDFCFA white icon interior
+    auxiliaryBlobColorTolerance: 25,
   },
   {
     name: 'Tent',
@@ -329,6 +340,9 @@ const ICON_TEMPLATES: IconTemplate[] = [
     aspectRatioRange: [0.7, 1.4],
     minFillRatio: 0.3,
     opaqueArea: 1150,                 // 76% of 1521 total px
+    allowedOverlap: 2,
+    auxiliaryBlobColors: [{ r: 0xFD, g: 0xFC, b: 0xFA }],  // #FDFCFA white icon interior
+    auxiliaryBlobColorTolerance: 25,
   },
   {
     name: 'Airport',
@@ -342,6 +356,8 @@ const ICON_TEMPLATES: IconTemplate[] = [
     aspectRatioRange: [0.7, 1.4],
     minFillRatio: 0.3,
     opaqueArea: 1201,                 // 79% of 1521 total px
+    auxiliaryBlobColors: [{ r: 0xFD, g: 0xFC, b: 0xFA }],  // #FDFCFA white icon interior
+    auxiliaryBlobColorTolerance: 25,
   },
   {
     name: 'Antiques',
@@ -355,6 +371,8 @@ const ICON_TEMPLATES: IconTemplate[] = [
     aspectRatioRange: [0.7, 1.4],
     minFillRatio: 0.3,
     opaqueArea: 1150,                 // 76% of 1521 total px
+    auxiliaryBlobColors: [{ r: 0xFD, g: 0xFC, b: 0xFA }],  // #FDFCFA white icon interior
+    auxiliaryBlobColorTolerance: 25,
   },
 
   // === Large building group (dark circle #534D41, nosquare variant) ===
@@ -378,6 +396,8 @@ const ICON_TEMPLATES: IconTemplate[] = [
       { r: 0xAD, g: 0x9F, b: 0x7C },  // #AD9F7C
     ],
     tanRoundedRectFill: { widthCoords: 12, heightCoords: 10, borderRadiusCoords: 2 },
+    auxiliaryBlobColors: [{ r: 0xFD, g: 0xFC, b: 0xFA }],  // #FDFCFA white icon interior
+    auxiliaryBlobColorTolerance: 25,
   },
   {
     name: 'Town Hall',
@@ -397,6 +417,8 @@ const ICON_TEMPLATES: IconTemplate[] = [
       { r: 0xAD, g: 0x9F, b: 0x7C },  // #AD9F7C
     ],
     tanRoundedRectFill: { widthCoords: 12, heightCoords: 10, borderRadiusCoords: 2 },
+    auxiliaryBlobColors: [{ r: 0xFD, g: 0xFC, b: 0xFA }],  // #FDFCFA white icon interior
+    auxiliaryBlobColorTolerance: 25,
   },
 
   // === Orange marker (unique color, no v2 object) ===
@@ -415,6 +437,8 @@ const ICON_TEMPLATES: IconTemplate[] = [
     maxCount: 1,
     emitsObject: false,
     fillExtraColors: [{ r: 0xF4, g: 0xF6, b: 0xB7 }],  // #F4F6B7 outer white border (isBackgroundPixel treats it as sand)
+    fillExtraColorTolerance: 50,                          // More permissive match for the white outline
+    extraFillBuffer: 2,                                   // Extra 2px dilation to close 1–2px gaps around the border
   },
 
   // === Olive bridge group (#7F8267) — 3 sizes, orientation-aware ===
@@ -1778,7 +1802,8 @@ async function fillIconRegionsWithTerrain(
 
     // 2b. Dilate the fill region by 2-3px beyond the opaque boundary.
     // BFS outward from boundary pixels, stopping at background-colored pixels.
-    const DILATION_DEPTH = 3;
+    // extraFillBuffer adds additional dilation rounds per-template (e.g. youarehere needs 5px total).
+    const DILATION_DEPTH = 3 + (icon.template.extraFillBuffer ?? 0);
     const dilatedPixels = new Set<number>(opaquePixels);
     const dilationQueue: Array<{ idx: number; depth: number }> = [];
     const dx4 = [0, 0, -1, 1];
@@ -1820,7 +1845,8 @@ async function fillIconRegionsWithTerrain(
       // Stop if pixel is already a background color (grass, water, sand, etc.)
       // Exception: fillExtraColors (e.g. youarehere white border #F4F6B7) should not stop expansion.
       const extraColors = icon.template.fillExtraColors ?? [];
-      const isExtraFillColor = extraColors.length > 0 && matchesAnyColor(pixel, extraColors, 25);
+      const extraTol = icon.template.fillExtraColorTolerance ?? 25;
+      const isExtraFillColor = extraColors.length > 0 && matchesAnyColor(pixel, extraColors, extraTol);
       if (isBackgroundPixel(pixel) && !isExtraFillColor) continue;
 
       dilatedPixels.add(idx);
@@ -2925,6 +2951,289 @@ async function detectStairs(
   return { icons, blobDebug };
 }
 
+// When a blob fails single-icon validation but is large enough to contain 2 icons,
+// try corner-based sub-icon detection: test each of the 4 bbox corners as a candidate
+// icon-sized region, independently score them, and emit passing corners as candidates.
+// Also emits a fill-only candidate so the merged blob gets terrain-filled regardless.
+async function tryDetectSubIcons(
+  blob: ColorBlob,
+  group: IconTemplate[],
+  data: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  ppc: number,
+  extents: IslandExtents,
+  allCandidates: DetectedIcon[],
+): Promise<void> {
+  const scaleRatio = ppc / ICON_TEMPLATE_SCALE;
+  const maxExpArea = Math.max(...group.map(t => t.opaqueArea * scaleRatio * scaleRatio));
+
+  // Only attempt if the blob is large enough to potentially contain 2+ icons
+  if (blob.area < maxExpArea * 1.2) return;
+
+  const refTemplate = group[0];
+  // Expected icon bbox size in pixels
+  const iconW = Math.round(refTemplate.sizeInCoords[0] * ppc);
+  const iconH = Math.round(refTemplate.sizeInCoords[1] * ppc);
+
+  // 4 corner sub-regions, each icon-sized, anchored to the corners of the merged blob bbox
+  const corners: Array<[number, number, number, number]> = [
+    [blob.minX,          blob.minY,          blob.minX + iconW, blob.minY + iconH], // TL
+    [blob.maxX - iconW,  blob.minY,          blob.maxX,         blob.minY + iconH], // TR
+    [blob.minX,          blob.maxY - iconH,  blob.minX + iconW, blob.maxY],         // BL
+    [blob.maxX - iconW,  blob.maxY - iconH,  blob.maxX,         blob.maxY],         // BR
+  ];
+
+  const matched: Array<{
+    rMinX: number; rMinY: number; rMaxX: number; rMaxY: number;
+    template: IconTemplate; confidence: number;
+  }> = [];
+
+  for (const [rMinX, rMinY, rMaxX, rMaxY] of corners) {
+    // Rescan image data for dark pixels in this corner (avoids scan-space index bug)
+    let area = 0;
+    for (let y = Math.max(0, rMinY); y <= Math.min(imageHeight - 1, rMaxY); y++) {
+      for (let x = Math.max(0, rMinX); x <= Math.min(imageWidth - 1, rMaxX); x++) {
+        const i = (y * imageWidth + x) * 4;
+        if (matchesAnyColor(
+          { r: data[i], g: data[i + 1], b: data[i + 2] },
+          refTemplate.colors,
+          refTemplate.colorTolerance,
+        )) area++;
+      }
+    }
+
+    const subBlob: ColorBlob = {
+      pixels: new Set(),  // unused by validateBlob / matchBlobToTemplate
+      minX: rMinX, minY: rMinY, maxX: rMaxX, maxY: rMaxY, area,
+    };
+
+    let bestShapeConf = 0;
+    for (const tmpl of group) {
+      const c = validateBlob(subBlob, tmpl, ppc);
+      if (c > bestShapeConf) bestShapeConf = c;
+    }
+    if (bestShapeConf < 0.2) continue;  // too weak, skip corner
+
+    const { template: matchedTemplate, score: matchScore } =
+      await matchBlobToTemplate(data, imageWidth, subBlob, group);
+    const confidence = bestShapeConf * 0.4 + matchScore * 0.6;
+    if (confidence < 0.35) continue;
+
+    matched.push({ rMinX, rMinY, rMaxX, rMaxY, template: matchedTemplate, confidence });
+  }
+
+  // Deduplicate only if two corners have literally the same center pixel
+  const deduped: typeof matched = [];
+  for (const m of matched) {
+    const cx = Math.round((m.rMinX + m.rMaxX) / 2);
+    const cy = Math.round((m.rMinY + m.rMaxY) / 2);
+    const duplicate = deduped.some(d =>
+      Math.round((d.rMinX + d.rMaxX) / 2) === cx &&
+      Math.round((d.rMinY + d.rMaxY) / 2) === cy,
+    );
+    if (!duplicate) deduped.push(m);
+  }
+
+  // Emit matched corner icons as normal candidates
+  for (const { rMinX, rMinY, rMaxX, rMaxY, template: matchedTemplate, confidence } of deduped) {
+    const blobCenterPxX = (rMinX + rMaxX) / 2;
+    const blobCenterPxY = (rMinY + rMaxY) / 2;
+    const { cx, cy } = pixelToIslandCoord(blobCenterPxX, blobCenterPxY, extents);
+    allCandidates.push({
+      template: matchedTemplate,
+      centerCoordX: cx, centerCoordY: cy,
+      blobCenterPx: [blobCenterPxX, blobCenterPxY],
+      blobBBoxPx: [rMinX, rMinY, rMaxX, rMaxY],
+      confidence,
+    });
+  }
+
+  if (deduped.length > 0) {
+    console.log(`  Corner sub-icon: found ${deduped.map(d => d.template.name).join(', ')}`);
+  }
+
+  // Fill fallback: emit a fill-only candidate using the original merged blob bbox so the
+  // dark brown region gets terrain-filled even if icon identity couldn't be determined.
+  // Prefer a template without tanRoundedRectFill to avoid incorrect tan area fill.
+  const fillTemplate = group.find(t => !t.tanRoundedRectFill) ?? group[0];
+  const blobCenterPxX = (blob.minX + blob.maxX) / 2;
+  const blobCenterPxY = (blob.minY + blob.maxY) / 2;
+  const { cx, cy } = pixelToIslandCoord(blobCenterPxX, blobCenterPxY, extents);
+  allCandidates.push({
+    template: fillTemplate,
+    centerCoordX: cx, centerCoordY: cy,
+    blobCenterPx: [blobCenterPxX, blobCenterPxY],
+    blobBBoxPx: [blob.minX, blob.minY, blob.maxX, blob.maxY],
+    confidence: 0.1,
+    fillOnly: true,
+  });
+}
+
+// After all icon fills are complete, find the orange building-indicator icon
+// (a playerhouse/house/tent recolored to #F78721 orange + #FFE952 yellow interior)
+// anywhere on the map and fill it with terrain color.
+async function detectAndFillBuildingIndicator(
+  data: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  extents: IslandExtents,
+  grid: PixelGrid,
+): Promise<void> {
+  const ORANGE: RGB = { r: 0xF7, g: 0x87, b: 0x21 };  // #F78721
+  const YELLOW: RGB = { r: 0xFF, g: 0xE9, b: 0x52 };  // #FFE952
+  const INITIAL_TOL = 35;
+  const PERMISSIVE_TOL = 100;
+  const ppc = extents.pixelsPerCoord;
+  const dx4 = [0, 0, -1, 1];
+  const dy4 = [-1, 1, 0, 0];
+
+  // Find blobs of orange/yellow color anywhere on the map
+  const blobs = findColorBlobs(
+    data, imageWidth, imageHeight, extents,
+    [ORANGE, YELLOW], INITIAL_TOL,
+  );
+
+  type Candidate = { pixels: Set<number>; minX: number; maxX: number; minY: number; maxY: number };
+  const candidates: Candidate[] = [];
+
+  for (const blob of blobs) {
+    // blob.pixels uses scan-space indices — rescan bbox in image-space directly
+    const seedPixels = new Set<number>();
+    for (let sy = blob.minY; sy <= blob.maxY; sy++) {
+      for (let sx = blob.minX; sx <= blob.maxX; sx++) {
+        if (sx < 0 || sx >= imageWidth || sy < 0 || sy >= imageHeight) continue;
+        const pixel = getPixelAt(data, imageWidth, sx, sy);
+        if (matchesAnyColor(pixel, [ORANGE, YELLOW], INITIAL_TOL)) {
+          seedPixels.add(sy * imageWidth + sx);
+        }
+      }
+    }
+    if (seedPixels.size === 0) continue;
+
+    // BFS-expand with permissive tolerance to capture yellow interior + transitions
+    let minX = blob.minX, maxX = blob.maxX, minY = blob.minY, maxY = blob.maxY;
+    const expandedPixels = new Set<number>(seedPixels);
+    const bfsQueue: number[] = [...seedPixels];
+    for (let qi = 0; qi < bfsQueue.length; qi++) {
+      const idx = bfsQueue[qi];
+      const px = idx % imageWidth;
+      const py = Math.floor(idx / imageWidth);
+      for (let d = 0; d < 4; d++) {
+        const nx = px + dx4[d];
+        const ny = py + dy4[d];
+        if (nx < 0 || nx >= imageWidth || ny < 0 || ny >= imageHeight) continue;
+        const nIdx = ny * imageWidth + nx;
+        if (expandedPixels.has(nIdx)) continue;
+        const npx = getPixelAt(data, imageWidth, nx, ny);
+        if (matchesAnyColor(npx, [ORANGE, YELLOW], PERMISSIVE_TOL)) {
+          expandedPixels.add(nIdx);
+          bfsQueue.push(nIdx);
+          if (nx < minX) minX = nx;
+          if (nx > maxX) maxX = nx;
+          if (ny < minY) minY = ny;
+          if (ny > maxY) maxY = ny;
+        }
+      }
+    }
+
+    // Filter by bbox size in island coords (must be between 3×3 and 8×8)
+    const bboxWCoords = (maxX - minX + 1) / ppc;
+    const bboxHCoords = (maxY - minY + 1) / ppc;
+    if (bboxWCoords < 3 || bboxHCoords < 3 || bboxWCoords > 8 || bboxHCoords > 8) continue;
+
+    candidates.push({ pixels: expandedPixels, minX, maxX, minY, maxY });
+  }
+
+  // Helper: save a pixel-data canvas snapshot as a debug image
+  const savePixelSnapshot = async (label: string) => {
+    const snap = document.createElement('canvas');
+    snap.width = imageWidth;
+    snap.height = imageHeight;
+    const snapCtx = snap.getContext('2d')!;
+    const snapData = snapCtx.createImageData(imageWidth, imageHeight);
+    snapData.data.set(data);
+    snapCtx.putImageData(snapData, 0, 0);
+    return { canvas: snap, ctx: snapCtx };
+  };
+
+  // debug_13b: detection overlay (always saved, even if no candidates found)
+  const { canvas: dbgCanvas, ctx: dbgCtx } = await savePixelSnapshot('13b');
+
+  if (candidates.length === 0) {
+    console.log('Building indicator: not found');
+    await downloadCanvas(dbgCanvas, 'debug_13b_building_indicator_detection.png');
+    return;
+  }
+
+  // Pick the largest candidate by pixel count
+  const best = candidates.reduce((a, b) => a.pixels.size >= b.pixels.size ? a : b);
+  console.log(`Building indicator: found ${best.pixels.size}px, bbox ${((best.maxX - best.minX + 1) / ppc).toFixed(1)}×${((best.maxY - best.minY + 1) / ppc).toFixed(1)} coords`);
+
+  // Draw candidate bboxes on debug image
+  for (const c of candidates) {
+    const isBest = c === best;
+    dbgCtx.strokeStyle = isBest ? 'red' : 'blue';
+    dbgCtx.lineWidth = 2;
+    dbgCtx.strokeRect(c.minX, c.minY, c.maxX - c.minX, c.maxY - c.minY);
+    dbgCtx.fillStyle = isBest ? 'rgba(255,0,0,0.2)' : 'rgba(0,0,255,0.2)';
+    dbgCtx.fillRect(c.minX, c.minY, c.maxX - c.minX, c.maxY - c.minY);
+  }
+  await downloadCanvas(dbgCanvas, 'debug_13b_building_indicator_detection.png');
+
+  // Sample surrounding terrain level
+  const grassSamples: RGB[] = [];
+  for (const linearIdx of best.pixels) {
+    const px = linearIdx % imageWidth;
+    const py = Math.floor(linearIdx / imageWidth);
+    for (let d = 0; d < 4; d++) {
+      const nx = px + dx4[d];
+      const ny = py + dy4[d];
+      if (nx < 0 || nx >= imageWidth || ny < 0 || ny >= imageHeight) continue;
+      const nIdx = ny * imageWidth + nx;
+      if (best.pixels.has(nIdx)) continue;
+      const npx = getPixelAt(data, imageWidth, nx, ny);
+      if (isScreenshotGrass(npx)) grassSamples.push(npx);
+    }
+  }
+  const fillLevel = resolveGrassLevel(grassSamples);
+  const paintColor = terrainLevelToColor(fillLevel);
+
+  // Paint pixels in the image data
+  for (const linearIdx of best.pixels) {
+    const dataIdx = linearIdx * 4;
+    data[dataIdx]     = paintColor.r;
+    data[dataIdx + 1] = paintColor.g;
+    data[dataIdx + 2] = paintColor.b;
+  }
+
+  // debug_13c: post-fill snapshot
+  const postCanvas = document.createElement('canvas');
+  postCanvas.width = imageWidth;
+  postCanvas.height = imageHeight;
+  const postCtx = postCanvas.getContext('2d')!;
+  const postData = postCtx.createImageData(imageWidth, imageHeight);
+  postData.data.set(data);
+  postCtx.putImageData(postData, 0, 0);
+  await downloadCanvas(postCanvas, 'debug_13c_post_building_indicator_fill.png');
+
+  // Update grid for the bbox region
+  const { cx: gMinXf, cy: gMinYf } = pixelToIslandCoord(best.minX, best.minY, extents);
+  const { cx: gMaxXf, cy: gMaxYf } = pixelToIslandCoord(best.maxX, best.maxY, extents);
+  const gx0 = Math.max(0, Math.floor(gMinXf));
+  const gy0 = Math.max(0, Math.floor(gMinYf));
+  const gx1 = Math.min(ISLAND_COORD_WIDTH, Math.ceil(gMaxXf));
+  const gy1 = Math.min(ISLAND_COORD_HEIGHT, Math.ceil(gMaxYf));
+  for (let y = gy0; y <= gy1; y++) {
+    for (let x = gx0; x <= gx1; x++) {
+      const idx = y * ISLAND_COORD_WIDTH + x;
+      grid.primary[idx] = fillLevel;
+      grid.diagonal[idx] = DIAGONAL.NONE;
+      grid.secondary[idx] = TERRAIN.UNKNOWN;
+    }
+  }
+}
+
 // Groups templates by primary color, runs blob detection once per group,
 // uses template matching to differentiate same-color icons,
 // then applies placement constraints (row, uniqueness, non-overlap).
@@ -2997,6 +3306,7 @@ async function detectMapIcons(
         // Single template, no orientation variants — simple path
         const confidence = validateBlob(blob, refTemplate, ppc);
         if (confidence < 0.4) {
+          await tryDetectSubIcons(blob, [refTemplate], data, imageWidth, imageHeight, ppc, extents, allCandidates);
           if (blobDebugGroup) blobDebug.push({ colorGroup: blobDebugGroup, blob, accepted: false });
           continue;
         }
@@ -3030,6 +3340,7 @@ async function detectMapIcons(
         if (c > bestShapeConfidence) { bestShapeConfidence = c; bestTemplate = tmpl; }
       }
       if (bestShapeConfidence < 0.3) {
+        await tryDetectSubIcons(blob, group, data, imageWidth, imageHeight, ppc, extents, allCandidates);
         if (blobDebugGroup) blobDebug.push({ colorGroup: blobDebugGroup, blob, accepted: false });
         continue;
       }
@@ -3061,6 +3372,7 @@ async function detectMapIcons(
 
       const confidence = bestShapeConfidence * 0.4 + matchScore * 0.6;
       if (confidence < 0.4) {
+        await tryDetectSubIcons(blob, group, data, imageWidth, imageHeight, ppc, extents, allCandidates);
         if (blobDebugGroup) blobDebug.push({ colorGroup: blobDebugGroup, blob, accepted: false });
         continue;
       }
@@ -3095,6 +3407,108 @@ async function detectMapIcons(
         `conf=${(confidence * 100).toFixed(0)}% match=${(matchScore * 100).toFixed(0)}%${orientLabel} blob=${blob.area}px`,
       );
     }
+
+    // Supplemental pass: seed blobs from auxiliary colors (e.g. white icon interior),
+    // expand BFS to include adjacent primary-color pixels, then validate+match as usual.
+    // This helps detect dark-circle icons where dark-brown pixels are sparse/indistinct.
+    // Build deduplicated auxiliary color list without Map.values() spread (Babel ES5 can't spread MapIterator)
+    const auxColorsSeen = new Set<string>();
+    const auxColors: RGB[] = [];
+    for (const t of group) {
+      for (const c of (t.auxiliaryBlobColors ?? [])) {
+        const k = `${c.r},${c.g},${c.b}`;
+        if (!auxColorsSeen.has(k)) { auxColorsSeen.add(k); auxColors.push(c); }
+      }
+    }
+    const auxTol = group.reduce<number>((acc, t) => Math.max(acc, t.auxiliaryBlobColorTolerance ?? 25), 0);
+
+    if (auxColors.length > 0) {
+      const auxBlobs = findColorBlobs(data, imageWidth, imageHeight, extents, auxColors, auxTol, 0);
+      console.log(`  Supplemental aux blobs: ${auxBlobs.length} (seeded from white interior)`);
+      const dx4Aux = [0, 0, -1, 1], dy4Aux = [-1, 1, 0, 0];
+      const minExpected = Math.min(...group.map(t => Math.min(...t.sizeInCoords)));
+      const maxExpected = Math.max(...group.map(t => Math.max(...t.sizeInCoords)));
+
+      for (const auxBlob of auxBlobs) {
+        // Size filter: must be plausibly in range for a template in this group
+        const bboxW = (auxBlob.maxX - auxBlob.minX + 1) / ppc;
+        const bboxH = (auxBlob.maxY - auxBlob.minY + 1) / ppc;
+        if (bboxW < minExpected * 0.3 || bboxH < minExpected * 0.3) continue;
+        if (bboxW > maxExpected * 2.0 || bboxH > maxExpected * 2.0) continue;
+
+        // Seed merged blob from aux blob bbox in image-space (avoid scan-space index issue)
+        const mergedPixels = new Set<number>();
+        let mMinX = auxBlob.minX, mMaxX = auxBlob.maxX, mMinY = auxBlob.minY, mMaxY = auxBlob.maxY;
+        for (let sy = auxBlob.minY; sy <= auxBlob.maxY; sy++) {
+          for (let sx = auxBlob.minX; sx <= auxBlob.maxX; sx++) {
+            if (sx < 0 || sx >= imageWidth || sy < 0 || sy >= imageHeight) continue;
+            if (matchesAnyColor(getPixelAt(data, imageWidth, sx, sy), auxColors, auxTol))
+              mergedPixels.add(sy * imageWidth + sx);
+          }
+        }
+        if (mergedPixels.size === 0) continue;
+
+        // BFS expand to adjacent primary-color (dark brown) or aux-color pixels
+        const bfsQ = [...mergedPixels];
+        for (let qi = 0; qi < bfsQ.length; qi++) {
+          const idx = bfsQ[qi];
+          const bpx = idx % imageWidth, bpy = Math.floor(idx / imageWidth);
+          for (let d = 0; d < 4; d++) {
+            const nx = bpx + dx4Aux[d], ny = bpy + dy4Aux[d];
+            if (nx < 0 || nx >= imageWidth || ny < 0 || ny >= imageHeight) continue;
+            const nIdx = ny * imageWidth + nx;
+            if (mergedPixels.has(nIdx)) continue;
+            const npx = getPixelAt(data, imageWidth, nx, ny);
+            if (matchesAnyColor(npx, refTemplate.colors, refTemplate.colorTolerance) ||
+                matchesAnyColor(npx, auxColors, auxTol)) {
+              mergedPixels.add(nIdx);
+              bfsQ.push(nIdx);
+              if (nx < mMinX) mMinX = nx; if (nx > mMaxX) mMaxX = nx;
+              if (ny < mMinY) mMinY = ny; if (ny > mMaxY) mMaxY = ny;
+            }
+          }
+        }
+
+        const mergedBlob: ColorBlob = {
+          pixels: mergedPixels, minX: mMinX, maxX: mMaxX, minY: mMinY, maxY: mMaxY,
+          area: mergedPixels.size,
+        };
+        const mCX = (mMinX + mMaxX) / 2, mCY = (mMinY + mMaxY) / 2;
+        const { cx: mCx, cy: mCy } = pixelToIslandCoord(mCX, mCY, extents);
+
+        if (group.length === 1 && !refTemplate.orientations) {
+          const confidence = validateBlob(mergedBlob, refTemplate, ppc);
+          if (confidence < 0.4) {
+            await tryDetectSubIcons(mergedBlob, [refTemplate], data, imageWidth, imageHeight, ppc, extents, allCandidates);
+            continue;
+          }
+          console.log(`  [aux] ${refTemplate.name} at (${mCx.toFixed(1)}, ${mCy.toFixed(1)}) conf=${(confidence * 100).toFixed(0)}% blob=${mergedBlob.area}px`);
+          allCandidates.push({
+            template: refTemplate, centerCoordX: mCx, centerCoordY: mCy,
+            blobCenterPx: [mCX, mCY], blobBBoxPx: [mMinX, mMinY, mMaxX, mMaxY], confidence,
+          });
+        } else {
+          // Multi-template: pick best by shape+match confidence
+          const shapePassed = group.filter(t => validateBlob(mergedBlob, t, ppc) >= 0.3);
+          let bestConf = 0, bestTmpl: IconTemplate | null = null;
+          if (shapePassed.length > 0) {
+            const matchResult = await matchBlobToTemplate(data, imageWidth, mergedBlob, shapePassed);
+            const sc = validateBlob(mergedBlob, matchResult.template, ppc);
+            bestConf = sc * 0.3 + matchResult.score * 0.7;
+            bestTmpl = matchResult.template;
+          }
+          if (bestConf < 0.4 || !bestTmpl) {
+            await tryDetectSubIcons(mergedBlob, group, data, imageWidth, imageHeight, ppc, extents, allCandidates);
+            continue;
+          }
+          console.log(`  [aux] ${bestTmpl.name} at (${mCx.toFixed(1)}, ${mCy.toFixed(1)}) conf=${(bestConf * 100).toFixed(0)}% blob=${mergedBlob.area}px`);
+          allCandidates.push({
+            template: bestTmpl, centerCoordX: mCx, centerCoordY: mCy,
+            blobCenterPx: [mCX, mCY], blobBBoxPx: [mMinX, mMinY, mMaxX, mMaxY], confidence: bestConf,
+          });
+        }
+      }
+    }
   }
 
   console.log(`Generate from Screenshot: ${allCandidates.length} candidates before constraints`);
@@ -3106,6 +3520,7 @@ async function detectMapIcons(
     'townhallSprite', 'center', 'ableSprite', 'museumSprite', 'nookSprite', 'tentSprite',
   ]);
   allCandidates = allCandidates.filter(icon => {
+    if (icon.fillOnly) return true;  // fill-only: bypass all placement constraints
     const blockRow = Math.floor(icon.centerCoordY / BLOCK_SIZE);
     const type = icon.template.type;
 
@@ -3263,12 +3678,14 @@ async function detectMapIcons(
     typeMaxCounts.set(tmpl.type, Math.max(typeMaxCounts.get(tmpl.type) ?? 1, mc));
   }
   const typeGroups = new Map<string, DetectedIcon[]>();
+  const fillOnlyCandidates: DetectedIcon[] = [];
   for (const icon of allCandidates) {
+    if (icon.fillOnly) { fillOnlyCandidates.push(icon); continue; }  // bypass uniqueness
     const key = icon.template.type;
     if (!typeGroups.has(key)) typeGroups.set(key, []);
     typeGroups.get(key)!.push(icon);
   }
-  const filtered: DetectedIcon[] = [];
+  const filtered: DetectedIcon[] = [...fillOnlyCandidates];
   for (const [type, icons] of typeGroups) {
     icons.sort((a, b) => b.confidence - a.confidence);
     const maxCount = typeMaxCounts.get(type) ?? 1;
@@ -3291,8 +3708,10 @@ async function detectMapIcons(
 
   const accepted: DetectedIcon[] = [];
   for (const icon of filtered) {
+    if (icon.fillOnly) { accepted.push(icon); continue; }  // bypass overlap check
     const fp = getFootprint(icon);
     const overlaps = accepted.some(a => {
+      if (a.fillOnly) return false;  // fill-only don't block others
       const afp = getFootprint(a);
       const xOverlap = Math.min(fp.x1, afp.x1) - Math.max(fp.x0, afp.x0);
       const yOverlap = Math.min(fp.y1, afp.y1) - Math.max(fp.y0, afp.y0);
@@ -3310,6 +3729,7 @@ async function detectMapIcons(
 
   // Phase 3: Clear grid regions for accepted icons only
   for (const icon of accepted) {
+    if (icon.fillOnly) continue;  // fill-only: don't clear grid (no object placed)
     const [objW, objH] = icon.resolvedObjectSize ?? icon.template.objectSizeInCoords;
     const topLeftX = Math.round(icon.centerCoordX - objW / 2);
     const topLeftY = Math.round(icon.centerCoordY - objH / 2);
@@ -3328,6 +3748,7 @@ function detectedIconsToObjectGroups(
 ): Record<string, number[]> {
   const groups: Record<string, number[]> = {};
   for (const icon of icons) {
+    if (icon.fillOnly) continue;
     if (icon.template.emitsObject === false) continue;
     const category = icon.resolvedCategory ?? icon.template.category;
     const type = icon.resolvedType ?? icon.template.type;
@@ -4716,6 +5137,9 @@ export async function generateFromScreenshot(): Promise<void> {
   await fillIconRegionsWithTerrain(data, width, extents, pixelGrid, stairBridgeIcons);
   // debug_13: pixel data after stair/bridge fill
   await savePostStairBridgeFillDebug(data, width, height);
+
+  // Post-fill pass: find and erase the orange building-indicator icon (if present anywhere on map)
+  await detectAndFillBuildingIndicator(data, width, height, extents, pixelGrid);
 
   // All detected icons combined (for final map output)
   const detectedIcons = [...regularIcons, ...stairBridgeIcons]; // eslint-disable-line @typescript-eslint/no-unused-vars
