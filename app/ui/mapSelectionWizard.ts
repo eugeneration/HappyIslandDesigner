@@ -2,6 +2,12 @@ import { emitter } from '../emitter';
 import { hideLeftMenu, showLeftMenu } from './leftMenu';
 import { hideUndoMenu, showUndoMenu } from '../drawer';
 import { toolState } from '../tools/state';
+import { showWizardProgress, hideWizardProgress } from './wizardProgressBar';
+import { confirmDestructiveAction, autosaveTrigger } from '../state';
+import { loadBaseMapFromSvg } from '../load';
+import { initializeEdgeTiles, fillEdgeTilesWithPlaceholders, loadEdgeTilesAsGeometry } from './edgeTiles';
+import { getAirportBlocks, hidePositionSelector } from './mapPositionSelector';
+import { hideOptionSelector } from './mapOptionSelector';
 
 export type WizardStep = 'entrypoint' | 'screenshot' | 'start' | 'river' | 'baseMapGrid' | 'riverMouth1' | 'riverMouth2' | 'airport' | 'peninsulaSide' | 'peninsulaPos' | 'peninsulaShape' | 'dockSide' | 'dockShape' | 'secretBeachPos' | 'secretBeachShape' | 'leftRockPos' | 'leftRockShape' | 'rightRockPos' | 'rightRockShape' | 'fillPlaceholder' | 'grid' | 'legacyriver' | 'legacygrid';
 
@@ -48,7 +54,7 @@ const initialState: WizardState = {
 let wizardState: WizardState = { ...initialState };
 
 // Step order for navigation (new flow ends with baseMapGrid, legacy flow uses legacygrid)
-const stepOrder: WizardStep[] = ['river', 'riverMouth1', 'riverMouth2', 'airport', 'dockSide', 'dockShape', 'peninsulaSide', 'peninsulaPos', 'peninsulaShape', 'secretBeachPos', 'secretBeachShape', 'leftRockPos', 'leftRockShape', 'rightRockPos', 'rightRockShape', 'fillPlaceholder', 'baseMapGrid'];
+export const stepOrder: WizardStep[] = ['river', 'riverMouth1', 'riverMouth2', 'airport', 'dockSide', 'dockShape', 'peninsulaSide', 'peninsulaPos', 'peninsulaShape', 'secretBeachPos', 'secretBeachShape', 'leftRockPos', 'leftRockShape', 'rightRockPos', 'rightRockShape', 'fillPlaceholder', 'baseMapGrid'];
 const legacyStepOrder: WizardStep[] = ['river', 'legacyriver', 'legacygrid'];
 
 // Steps that show modal vs map selection
@@ -94,11 +100,29 @@ function stepShouldBeSkipped(step: WizardStep): boolean {
 
 export function resetWizard(): void {
   wizardState = { ...initialState };
+  hideWizardProgress();
   showLeftMenu();
   showUndoMenu();
   toolState.isDevModeActive = false;
   toolState.onUp();
+  toolState.switchToolType('terrain');
   emitter.emit('wizardStateChanged', wizardState);
+}
+
+export async function skipWizard(): Promise<void> {
+  confirmDestructiveAction(
+    'Clear your map? You will lose all unsaved changes.',
+    async () => {
+      hidePositionSelector();
+      hideOptionSelector();
+      await loadBaseMapFromSvg(0);
+      initializeEdgeTiles();
+      fillEdgeTilesWithPlaceholders();
+      loadEdgeTilesAsGeometry();
+      autosaveTrigger();
+      resetWizard();
+    }
+  );
 }
 
 export function startWizard(): void {
@@ -111,6 +135,7 @@ function enterWizardMode(): void {
   hideUndoMenu();
   toolState.isDevModeActive = true;
   toolState.onUp();
+  showWizardProgress();
 }
 
 export function goToTileEditorFlow(): void {
@@ -271,6 +296,16 @@ export function goBack(): void {
         wizardState.riverMouth2Shape = null;
         break;
       case 'airport':
+        // Restore both airport tiles before clearing position
+        if (wizardState.riverDirection !== null && wizardState.airportPosition !== null) {
+          const airportBlocks = getAirportBlocks(
+            wizardState.riverDirection as 'west' | 'south' | 'east',
+            wizardState.airportPosition
+          );
+          for (const block of airportBlocks) {
+            emitter.emit('restoreTile', { x: block.x, y: block.y });
+          }
+        }
         wizardState.airportPosition = null;
         break;
       case 'dockSide':

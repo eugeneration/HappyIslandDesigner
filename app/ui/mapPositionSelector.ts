@@ -20,6 +20,7 @@ const blockSize = 16; // Each block is 16x16
 
 type SelectionConfig = {
   label: string;
+  icon?: string;
   positions: paper.Point[];
   originalIndices?: number[]; // Maps filtered positions back to original indices
   zoomBounds: paper.Rectangle;
@@ -115,6 +116,7 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
     case 'airport':
       return {
         label: 'Select Airport Position',
+        icon: 'static/svg/amenity-airport.svg',
         positions: riverDirection
           ? getAirportPositions(riverDirection)
           : [
@@ -232,20 +234,23 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
   }
 }
 
-function createPositionButton(index: number, position: paper.Point, eventName: string): paper.Group {
-  const circle = new paper.Path.Circle(new paper.Point(0, 0), 4);
-  circle.fillColor = colors.water.color;
-  circle.strokeColor = colors.paper.color;
-  circle.strokeWidth = 1;
+function createPositionButton(index: number, position: paper.Point, eventName: string, icon?: string): paper.Group {
+  let item: paper.Item;
 
-  const label = new paper.PointText(new paper.Point(0, 2));
-  label.justification = 'center';
-  label.fontFamily = 'TTNorms, sans-serif';
-  label.fontSize = 5;
-  label.fillColor = colors.paper.color;
-  label.content = `${index + 1}`;
+  if (icon) {
+    // Invisible placeholder — replaced by SVG once it loads
+    const placeholder = new paper.Path.Circle(new paper.Point(0, 0), 0.1);
+    placeholder.fillColor = new paper.Color(0, 0, 0, 0);
+    item = placeholder;
+  } else {
+    const circle = new paper.Path.Circle(new paper.Point(0, 0), 4);
+    circle.fillColor = colors.water.color;
+    circle.strokeColor = colors.paper.color;
+    circle.strokeWidth = 1;
+    item = circle;
+  }
 
-  const button = createButton(circle, 8, () => {
+  const button = createButton(item, 8, () => {
     emitter.emit(eventName, { index });
     hidePositionSelector();
   }, {
@@ -253,7 +258,29 @@ function createPositionButton(index: number, position: paper.Point, eventName: s
     selectedColor: colors.npc.color,
   });
 
-  button.addChild(label);
+  if (icon) {
+    // Load SVG properly — bounds are valid inside onLoad
+    paper.project.importSVG(icon, {
+      onLoad: (svgItem: paper.Item) => {
+        svgItem.scale(8 / svgItem.bounds.height);
+        svgItem.position = new paper.Point(0, 0);
+        svgItem.opacity = 0.5;
+        // button.children: [0]=bg circle, [1]=placeholder
+        button.insertChild(1, svgItem);
+        item.remove();
+      },
+      insert: false,
+    });
+  } else {
+    const label = new paper.PointText(new paper.Point(0, 2));
+    label.justification = 'center';
+    label.fontFamily = 'TTNorms, sans-serif';
+    label.fontSize = 5;
+    label.fillColor = colors.paper.color;
+    label.content = `${index + 1}`;
+    button.addChild(label);
+  }
+
   button.position = position;
 
   return button;
@@ -293,7 +320,7 @@ export function showPositionSelector(type: SelectionType, riverDirection?: River
   config.positions.forEach((pos, index) => {
     // Use original index if available (for filtered peninsula positions)
     const originalIndex = config.originalIndices ? config.originalIndices[index] : index;
-    const button = createPositionButton(originalIndex, pos, config.eventName);
+    const button = createPositionButton(originalIndex, pos, config.eventName, config.icon);
     selectorUI!.addChild(button);
   });
 
@@ -312,17 +339,15 @@ export function showPositionSelector(type: SelectionType, riverDirection?: River
   fixedUI.applyMatrix = false;
 
   const viewWidth = paper.view.viewSize.width;
-  const viewHeight = paper.view.viewSize.height;
   const fixedScale = 5;
-  const bottomY = viewHeight - 40;
 
-  // Back button at bottom-left
+  // Back button at top-left
   const backButton = createBackButton();
   backButton.scaling = new paper.Point(fixedScale, fixedScale);
-  backButton.position = new paper.Point(50, bottomY);
+  backButton.position = new paper.Point(30, 30);
   fixedUI.addChild(backButton);
 
-  // Label at bottom-center
+  // Label below progress bar at top
   const label = new paper.PointText(new paper.Point(0, 0));
   label.content = config.label;
   label.justification = 'center';
@@ -344,7 +369,7 @@ export function showPositionSelector(type: SelectionType, riverDirection?: River
 
   const labelGroup = new paper.Group([labelBg, label]);
   labelGroup.applyMatrix = false;
-  labelGroup.position = new paper.Point(viewWidth / 2, bottomY);
+  labelGroup.position = new paper.Point(viewWidth / 2, 60);
   fixedUI.addChild(labelGroup);
 
   layers.mapOverlayLayer.activate();

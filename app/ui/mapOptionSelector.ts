@@ -376,14 +376,15 @@ export function showOptionSelector(config: MapOptionSelectorConfig): void {
 
   currentConfig = config;
   cardSpacing = config.spacing || 12;
-  const buttonSize = config.buttonSize || 10;
+  const buttonSize = (config.buttonSize || 10) * 1.5;
 
   // Reset state
   optionCards = [];
-  selectedIndex = 0;
+  const initialIndex = config.options.length > 2 ? 1 : 0;
+  selectedIndex = initialIndex;
   lastZOrderCenter = -1;
-  scrollOffset = 0;
-  targetScrollOffset = 0;
+  scrollOffset = initialIndex;
+  targetScrollOffset = initialIndex;
   if (wheelSettleTimer) { clearTimeout(wheelSettleTimer); wheelSettleTimer = null; }
   wheelGestureActive = false;
   wheelGestureAnchor = 0;
@@ -448,15 +449,15 @@ export function showOptionSelector(config: MapOptionSelectorConfig): void {
   const viewWidth = paper.view.viewSize.width;
   const viewHeight = paper.view.viewSize.height;
   const fixedScale = 5;
-  const bottomY = viewHeight - 40;
+  const bottomY = viewHeight - 60;
 
-  // Back button at bottom-left
+  // Back button at top-left
   const backButton = createBackButton(new paper.Point(0, 0));
   backButton.scaling = new paper.Point(fixedScale, fixedScale);
-  backButton.position = new paper.Point(50, bottomY);
+  backButton.position = new paper.Point(30, 30);
   fixedUI.addChild(backButton);
 
-  // Label at bottom-center
+  // Label below progress bar at top
   if (config.title) {
     const label = new paper.PointText(new paper.Point(0, 0));
     label.content = config.title;
@@ -479,14 +480,14 @@ export function showOptionSelector(config: MapOptionSelectorConfig): void {
 
     const labelGroup = new paper.Group([labelBg, label]);
     labelGroup.applyMatrix = false;
-    labelGroup.position = new paper.Point(viewWidth / 2, bottomY);
+    labelGroup.position = new paper.Point(viewWidth / 2, 60);
     fixedUI.addChild(labelGroup);
   }
 
-  // Confirm button to the right of center
+  // Confirm button at bottom center, double size
   const confirmButton = createConfirmButton(new paper.Point(0, 0));
-  confirmButton.scaling = new paper.Point(fixedScale, fixedScale);
-  confirmButton.position = new paper.Point(viewWidth / 2 + 60, bottomY);
+  confirmButton.scaling = new paper.Point(fixedScale * 1.5, fixedScale * 1.5);
+  confirmButton.position = new paper.Point(viewWidth / 2, bottomY);
   fixedUI.addChild(confirmButton);
 
   layers.mapOverlayLayer.activate();

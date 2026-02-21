@@ -19,6 +19,7 @@ let tilesGroup: paper.Group | null = null;
 let edgeBg: paper.PathItem | null = null;
 let baseScale: number | null = null; // assumes that all tiles are the same size
 let edgeGeometryGroup: paper.Group | null = null;
+let airportOverlayGroup: paper.Group | null = null;
 
 const blockWidth = horizontalDivisions; // 16
 const blockHeight = verticalDivisions; // 16
@@ -170,6 +171,7 @@ export function fillEdgeTilesWithPlaceholders(): void {
   }
   // Send to back of overlay layer so UI elements appear on top
   tilesGroup!.sendToBack();
+  updateAirportOverlay();
 }
 
 export function deleteEdgeTiles(): void {
@@ -184,6 +186,10 @@ export function deleteEdgeTiles(): void {
   if (edgeGeometryGroup) {
     edgeGeometryGroup.remove();
     edgeGeometryGroup = null;
+  }
+  if (airportOverlayGroup) {
+    airportOverlayGroup.remove();
+    airportOverlayGroup = null;
   }
 
   // Clear tracking maps
@@ -253,6 +259,7 @@ export function replaceBlocks(
 
   // Send group to back to keep UI elements on top
   tilesGroup.sendToBack();
+  updateAirportOverlay();
 }
 
 // Restore blocks to their original placeholder state
@@ -277,6 +284,7 @@ export function restoreBlocks(positions: BlockPosition[]): void {
   });
 
   tilesGroup.sendToBack();
+  updateAirportOverlay();
 }
 
 // Reset all blocks to placeholder state
@@ -457,6 +465,51 @@ export function loadEdgeTilesAsGeometry(): void {
     combined.fillColor = colorMap[terrainType];
     edgeGeometryGroup.addChild(combined);
   }
+
+  updateAirportOverlay();
+}
+
+// Update airport SVG overlay — shown when tiles 34+35 are adjacent on bottom row
+function updateAirportOverlay(): void {
+  // Remove existing overlay
+  if (airportOverlayGroup) {
+    airportOverlayGroup.remove();
+    airportOverlayGroup = null;
+  }
+
+  // Scan bottom row (y=5) for sequential airport tiles: 34 then 35
+  const bottomY = verticalBlocks - 1;
+  let airportX: number | null = null;
+
+  for (let x = 0; x < horizontalBlocks - 1; x++) {
+    const left = blockData.get(getBlockKey(x, bottomY));
+    const right = blockData.get(getBlockKey(x + 1, bottomY));
+    if (left?.assetIndex === 34 && right?.assetIndex === 35) {
+      airportX = x;
+      break;
+    }
+  }
+
+  if (airportX === null) return;
+
+  // Center between the two airport blocks
+  const centerX = (airportX + 1) * blockWidth;
+  const centerY = bottomY * blockHeight + blockHeight / 2;
+
+  layers.mapEdgeLayer.activate();
+  airportOverlayGroup = new paper.Group();
+  airportOverlayGroup.applyMatrix = false;
+
+  paper.project.importSVG('static/svg/amenity-airport.svg', {
+    onLoad: (svgItem: paper.Item) => {
+      if (!airportOverlayGroup) return;
+      const targetSize = 8;
+      svgItem.scale(targetSize / svgItem.bounds.height);
+      svgItem.position = new paper.Point(centerX, centerY);
+      airportOverlayGroup.addChild(svgItem);
+    },
+    insert: false,
+  });
 }
 
 // Show the geometry group
@@ -512,4 +565,5 @@ export function fillSvgTilesFromBlockData(): void {
   }
 
   tilesGroup.sendToBack();
+  updateAirportOverlay();
 }

@@ -47,6 +47,7 @@ import {
   goToTileEditorFlow,
   goToScreenshotFlow,
   goToEntrypoint,
+  skipWizard,
 } from '../ui/mapSelectionWizard';
 
 const shadowColor = "rgba(75, 59, 50, 0.3)" // offblack
@@ -165,7 +166,7 @@ export default function ModalMapSelect(){
               options: createOptionsFromAssets(categoryAssetIndices.bottom_river),
               direction: 'bottom',
               eventName: 'riverMouth1ShapeSelected',
-              title: 'Shape?',
+              title: 'Choose River Mouth Shape',
               spacing: 14,
               buttonSize: 12,
               hideEdgeTile: true,
@@ -203,7 +204,7 @@ export default function ModalMapSelect(){
               options,
               direction,
               eventName: 'riverMouth2ShapeSelected',
-              title: 'Shape?',
+              title: 'Choose River Mouth Shape',
               spacing: 14,
               buttonSize: 12,
               hideEdgeTile: true,
@@ -230,7 +231,7 @@ export default function ModalMapSelect(){
               options: peninsulaOptions,
               direction,
               eventName: 'peninsulaShapeSelected',
-              title: 'Shape?',
+              title: 'Choose Peninsula Shape',
               spacing: 14,
               buttonSize: 12,
               hideEdgeTile: true,
@@ -252,7 +253,7 @@ export default function ModalMapSelect(){
               options: dockOptions,
               direction,
               eventName: 'dockShapeSelected',
-              title: 'Shape?',
+              title: 'Choose Dock Beach Shape',
               spacing: 14,
               buttonSize: 12,
               hideEdgeTile: true,
@@ -271,7 +272,7 @@ export default function ModalMapSelect(){
               options: createOptionsFromAssets(categoryAssetIndices.top_secret_beach),
               direction: 'bottom',
               eventName: 'secretBeachShapeSelected',
-              title: 'Shape?',
+              title: 'Choose Secret Beach Shape',
               spacing: 14,
               buttonSize: 12,
               hideEdgeTile: true,
@@ -289,7 +290,7 @@ export default function ModalMapSelect(){
               options: createOptionsFromAssets(categoryAssetIndices.left_rock),
               direction: 'left',
               eventName: 'leftRockShapeSelected',
-              title: 'Shape?',
+              title: 'Choose Rock Beach Shape',
               spacing: 14,
               buttonSize: 12,
               hideEdgeTile: true,
@@ -307,7 +308,7 @@ export default function ModalMapSelect(){
               options: createOptionsFromAssets(categoryAssetIndices.right_rock),
               direction: 'right',
               eventName: 'rightRockShapeSelected',
-              title: 'Shape?',
+              title: 'Choose Rock Beach Shape',
               spacing: 14,
               buttonSize: 12,
               hideEdgeTile: true,
@@ -341,7 +342,7 @@ export default function ModalMapSelect(){
                 options,
                 direction,
                 eventName: 'placeholderShapeSelected',
-                title: 'Shape?',
+                title: 'Choose Shape',
                 spacing: 14,
                 buttonSize: 12,
                 hideEdgeTile: true,
@@ -901,12 +902,19 @@ function RiverDirectionStep() {
           <Image src='static/img/back.png' />
         </Button>
       </Box>
-      <Heading m={2} sx={{textAlign: 'center'}}>{'Choose your Layout!'}</Heading>
+      <Heading m={2} sx={{textAlign: 'center'}}>{'Select Island River Direction'}</Heading>
       <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center'}}>
         <Card onClick={() => handleClick('west')}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
         <Card onClick={() => handleClick('south')}><Image variant='card' src={'static/img/island-type-south.png'}/></Card>
         <Card onClick={() => handleClick('east')}><Image variant='card' src={'static/img/island-type-east.png'}/></Card>
       </Flex>
+      <Text
+        m={2}
+        sx={{textAlign: 'center', cursor: 'pointer', color: 'gray', textDecoration: 'underline'}}
+        onClick={() => skipWizard()}
+      >
+        {'Skip'}
+      </Text>
     </>
   );
 }
@@ -928,8 +936,8 @@ function BaseMapGridStep({ layoutType, onSelect, onBack }: BaseMapGridStepProps)
           <Image src='static/img/back.png' />
         </Button>
       </Box>
-      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Choose a Base Map!'}</Heading>
-      <Text m={2} sx={{textAlign: 'center'}}>{'Select a base map for your island terrain.'}</Text>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Choose Island Terrain'}</Heading>
+      <Text m={2} sx={{textAlign: 'center'}}>{'Flatten the island or choose one of the starter island layouts.'}</Text>
       <Grid
         gap={0}
         columns={[2, 3, 4]}
@@ -980,7 +988,7 @@ function LegacyRiverDirectionStep({ onBack }: { onBack: () => void }) {
           <Image src='static/img/back.png' />
         </Button>
       </Box>
-      <Heading m={2} sx={{textAlign: 'center'}}>{'Choose a Template!'}</ Heading>
+      <Heading m={2} sx={{textAlign: 'center'}}>{'Choose a Drawing Template!'}</ Heading>
       <Text m={2} sx={{textAlign: 'center'}}>{'Manual Drawing lets you redraw the entire island, but not everything will work in game.'}</ Text>
       <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center'}}>
         <Card onClick={() => handleClick('west')}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
