@@ -1,4 +1,5 @@
-import { Group, Path, Point, PointText, Raster, Size, view } from 'paper';
+import paper from 'paper';
+import { Group, Path, Point, PointText, Raster, Size } from 'paper';
 import i18next from 'i18next';
 import PerspT from 'perspective-transform';
 
@@ -41,9 +42,9 @@ class ZoomCanvas {
 
     const pointCanvasPosition = layers.fixedLayer.globalToLocal(pointGlobalPosition);
 
-    zoom.getContext("2d")?.drawImage(view.element,
-        pointCanvasPosition.x * view.pixelRatio - zoomLevel * zoomSize * 0.5,
-        pointCanvasPosition.y * view.pixelRatio - zoomLevel * zoomSize * 0.5,
+    zoom.getContext("2d")?.drawImage(paper.view.element,
+        pointCanvasPosition.x * paper.view.pixelRatio - zoomLevel * zoomSize * 0.5,
+        pointCanvasPosition.y * paper.view.pixelRatio - zoomLevel * zoomSize * 0.5,
         zoomLevel * zoomSize, zoomLevel * zoomSize,
         0, 0, zoomSize * 2, zoomSize * 2);
 
@@ -64,7 +65,7 @@ class ZoomCanvas {
 }
 
 function renderTracingOverlayModal() {
-  const isMobile = Math.min(view.bounds.width * view.scaling.x, view.bounds.height * view.scaling.y) < 400;
+  const isMobile = Math.min(paper.view.viewSize.width, paper.view.viewSize.height) < 576;
   const margin = isMobile ? 5 : 20;
   switchMenu = renderModal(i18next.t('import_tracing_overlay'), margin, margin, function() {showSwitchModal(false)}, {fullscreen: true});
 
@@ -306,7 +307,7 @@ function renderTracingOverlayModal() {
           }
 
           if (this.data.grabbedPoint) {
-            const zoomLevel = Math.min(0.8, 4 * mapImageGroup.scaling.x) * view.pixelRatio;
+            const zoomLevel = Math.min(0.8, 4 * mapImageGroup.scaling.x) * paper.view.pixelRatio;
             mapImage.data.zoom = new ZoomCanvas(event, zoomLevel);
             // wait for the point to appear before grabbing canvas
             setTimeout(() => mapImage.data.zoom.update(event, zoomLevel, event.point), 100);
@@ -320,7 +321,7 @@ function renderTracingOverlayModal() {
             const delta = rawCoordinate.subtract(point.data.startPoint);
             point.position = point.data.startPoint.subtract(point.data.grabPivot).add(delta.multiply(isMobile ? 0.08 : 0.2));
 
-            const zoomLevel = Math.min(0.8, 4 * mapImageGroup.scaling.x) * view.pixelRatio;
+            const zoomLevel = Math.min(0.8, 4 * mapImageGroup.scaling.x) * paper.view.pixelRatio;
             mapImage.data.zoom.update(event, zoomLevel, mapImageGroup.localToGlobal(point.position));
 
             if (this.data.outline) {
