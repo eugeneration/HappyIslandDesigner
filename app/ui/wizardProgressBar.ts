@@ -8,7 +8,10 @@ let progressGroup: paper.Group | null = null;
 let bgLine: paper.Path | null = null;
 let progressLine: paper.Path | null = null;
 let dots: paper.Path.Circle[] = [];
+let skipButton: paper.Group | null = null;
 let wizardChangeHandler: ((state: WizardState) => void) | null = null;
+let resizeHandler: (() => void) | null = null;
+let currentStepIndex = 0;
 
 const TOP_Y = 20;
 const PAD_X = 60;
@@ -19,6 +22,24 @@ function getDotX(index: number, viewWidth: number): number {
   const totalSteps = stepOrder.length;
   if (totalSteps <= 1) return viewWidth / 2;
   return PAD_X + index * ((viewWidth - 2 * PAD_X) / (totalSteps - 1));
+}
+
+function repositionProgressBar(): void {
+  if (!progressGroup) return;
+  const viewWidth = paper.view.viewSize.width;
+
+  if (bgLine) {
+    bgLine.segments[1].point.x = viewWidth - PAD_X;
+  }
+  for (let i = 0; i < dots.length; i++) {
+    dots[i].position.x = getDotX(i, viewWidth);
+  }
+  if (progressLine) {
+    progressLine.segments[1].point.x = getDotX(currentStepIndex, viewWidth);
+  }
+  if (skipButton) {
+    skipButton.position.x = viewWidth - 30;
+  }
 }
 
 export function showWizardProgress(): void {
@@ -68,7 +89,7 @@ export function showWizardProgress(): void {
   skipText.justification = 'center';
   skipText.fontFamily = 'TTNorms, sans-serif';
   skipText.fontSize = 12;
-  skipText.fillColor = colors.paper.color;
+  skipText.fillColor = colors.text.color;
 
   const skipBg = new paper.Path.Rectangle(
     new paper.Rectangle(
@@ -79,9 +100,9 @@ export function showWizardProgress(): void {
     ),
     new paper.Size(8, 8)
   );
-  skipBg.fillColor = colors.level3.color;
+  skipBg.fillColor = colors.paper.color;
 
-  const skipButton = new paper.Group([skipBg, skipText]);
+  skipButton = new paper.Group([skipBg, skipText]);
   skipButton.applyMatrix = false;
   skipButton.onClick = () => {
     skipWizard();
@@ -102,6 +123,10 @@ export function showWizardProgress(): void {
   };
   emitter.on('wizardStateChanged', wizardChangeHandler);
 
+  // Listen for resize
+  resizeHandler = repositionProgressBar;
+  emitter.on('resize', resizeHandler);
+
   prevLayer.activate();
 }
 
@@ -110,6 +135,7 @@ function updateWizardProgress(step: string): void {
 
   const currentIndex = stepOrder.indexOf(step as any);
   if (currentIndex === -1) return;
+  currentStepIndex = currentIndex;
 
   const viewWidth = paper.view.viewSize.width;
 
@@ -142,6 +168,10 @@ export function hideWizardProgress(): void {
     emitter.off('wizardStateChanged', wizardChangeHandler);
     wizardChangeHandler = null;
   }
+  if (resizeHandler) {
+    emitter.off('resize', resizeHandler);
+    resizeHandler = null;
+  }
   if (progressGroup) {
     progressGroup.remove();
     progressGroup = null;
@@ -149,4 +179,6 @@ export function hideWizardProgress(): void {
   bgLine = null;
   progressLine = null;
   dots = [];
+  skipButton = null;
+  currentStepIndex = 0;
 }

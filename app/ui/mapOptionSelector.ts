@@ -12,6 +12,9 @@ let selectorUI: paper.Group | null = null;
 let fixedUI: paper.Group | null = null;
 let frameHandler: ((event: { delta: number }) => void) | null = null;
 let interactionOverlay: paper.Path | null = null;
+let fixedLabelGroup: paper.Group | null = null;
+let fixedConfirmButton: paper.Group | null = null;
+let resizeHandler: (() => void) | null = null;
 
 export type OptionDirection = 'left' | 'right' | 'bottom';
 
@@ -478,17 +481,26 @@ export function showOptionSelector(config: MapOptionSelectorConfig): void {
     labelBg.fillColor = colors.paper.color;
     labelBg.opacity = 0.9;
 
-    const labelGroup = new paper.Group([labelBg, label]);
-    labelGroup.applyMatrix = false;
-    labelGroup.position = new paper.Point(viewWidth / 2, 60);
-    fixedUI.addChild(labelGroup);
+    fixedLabelGroup = new paper.Group([labelBg, label]);
+    fixedLabelGroup.applyMatrix = false;
+    fixedLabelGroup.position = new paper.Point(viewWidth / 2, 60);
+    fixedUI.addChild(fixedLabelGroup);
   }
 
   // Confirm button at bottom center, double size
-  const confirmButton = createConfirmButton(new paper.Point(0, 0));
-  confirmButton.scaling = new paper.Point(fixedScale * 1.5, fixedScale * 1.5);
-  confirmButton.position = new paper.Point(viewWidth / 2, bottomY);
-  fixedUI.addChild(confirmButton);
+  fixedConfirmButton = createConfirmButton(new paper.Point(0, 0));
+  fixedConfirmButton.scaling = new paper.Point(fixedScale * 1.5, fixedScale * 1.5);
+  fixedConfirmButton.position = new paper.Point(viewWidth / 2, bottomY);
+  fixedUI.addChild(fixedConfirmButton);
+
+  // Listen for resize
+  resizeHandler = () => {
+    const w = paper.view.viewSize.width;
+    const h = paper.view.viewSize.height;
+    if (fixedLabelGroup) fixedLabelGroup.position.x = w / 2;
+    if (fixedConfirmButton) fixedConfirmButton.position = new paper.Point(w / 2, h - 60);
+  };
+  emitter.on('resize', resizeHandler);
 
   layers.mapOverlayLayer.activate();
 
@@ -704,10 +716,16 @@ export function hideOptionSelector(): void {
   wheelPeakDisplacement = 0;
   wheelGestureCooldownUntil = 0;
   lastWheelEventTime = 0;
+  if (resizeHandler) {
+    emitter.off('resize', resizeHandler);
+    resizeHandler = null;
+  }
   interactionOverlay = null;
   currentConfig = null;
   optionCards = [];
   previewGroup = null;
+  fixedLabelGroup = null;
+  fixedConfirmButton = null;
 }
 
 function zoomToFit(

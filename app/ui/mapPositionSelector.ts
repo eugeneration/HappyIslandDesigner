@@ -9,6 +9,8 @@ import { getBlockState } from './edgeTiles';
 
 let selectorUI: paper.Group | null = null;
 let fixedUI: paper.Group | null = null;
+let labelGroup: paper.Group | null = null;
+let resizeHandler: (() => void) | null = null;
 
 const mapWidth = horizontalBlocks * horizontalDivisions; // 112
 const mapHeight = verticalBlocks * verticalDivisions; // 96
@@ -367,15 +369,27 @@ export function showPositionSelector(type: SelectionType, riverDirection?: River
   labelBg.fillColor = colors.paper.color;
   labelBg.opacity = 0.9;
 
-  const labelGroup = new paper.Group([labelBg, label]);
+  labelGroup = new paper.Group([labelBg, label]);
   labelGroup.applyMatrix = false;
   labelGroup.position = new paper.Point(viewWidth / 2, 60);
   fixedUI.addChild(labelGroup);
+
+  // Listen for resize
+  resizeHandler = () => {
+    if (labelGroup) {
+      labelGroup.position.x = paper.view.viewSize.width / 2;
+    }
+  };
+  emitter.on('resize', resizeHandler);
 
   layers.mapOverlayLayer.activate();
 }
 
 export function hidePositionSelector(): void {
+  if (resizeHandler) {
+    emitter.off('resize', resizeHandler);
+    resizeHandler = null;
+  }
   if (selectorUI) {
     selectorUI.remove();
     selectorUI = null;
@@ -384,6 +398,7 @@ export function hidePositionSelector(): void {
     fixedUI.remove();
     fixedUI = null;
   }
+  labelGroup = null;
 }
 
 function zoomToFit(bounds: paper.Rectangle): void {
