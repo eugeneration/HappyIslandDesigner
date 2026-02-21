@@ -826,14 +826,14 @@ function EntryPointStep() {
             bgColor='#D2E542'
             onClick={() => goToScreenshotFlow()}
           >
-            Generate from Screenshot
+            Generate from Screenshot<NewBadge />
           </EntryButton>
           <EntryButton
             imageSrc='static/img/newisland-editor.png'
             bgColor='#9CDDBC'
             onClick={() => goToTileEditorFlow()}
           >
-            Use Tile Editor
+            Use Tile Editor<NewBadge />
           </EntryButton>
           <EntryButton
             imageSrc='static/img/newisland-manual.png'
@@ -1117,6 +1117,29 @@ function Card({children, onClick, maxWidth}: CardProps) {
   );
 }
 
+function NewBadge() {
+  const expiry = new Date('2026-04-20T00:00:00Z'); // April 20 2026 GMT
+  if (Date.now() > expiry.getTime()) return null;
+
+  return (
+    <Box as="span" sx={{
+      bg: '#e75a2e', // pin
+      color: 'white',
+      fontSize: '10px',
+      fontWeight: 'bold',
+      fontFamily: 'heading',
+      px: '4px',
+      py: '3px',
+      borderRadius: 4,
+      ml: 1,
+      verticalAlign: 'middle',
+      display: 'inline-block',
+    }}>
+      NEW
+    </Box>
+  );
+}
+
 interface EntryButtonProps {
   children: React.ReactNode;
   onClick?: React.MouseEventHandler;
@@ -1135,7 +1158,7 @@ function EntryButton({ children, onClick, imageSrc, bgColor }: EntryButtonProps)
         bg: 'transparent',
         maxWidth: 300,
         p: 0,
-        m: [1, 2],
+        m: [2, 2],
         '&:hover': {
           bg: 'transparent',
         },
