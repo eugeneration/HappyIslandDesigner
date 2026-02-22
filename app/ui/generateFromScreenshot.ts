@@ -1900,6 +1900,10 @@ async function fillIconRegionsWithTerrain(
     let paintColor: RGB;
     let gridFillTerrain: TerrainType;
 
+    // Per-cell level map for grass fill (nearest-level BFS); empty for water/foot/LEVEL1_ALWAYS
+    const cellLevel = new Map<number, TerrainType>();
+    let fallbackLevel: TerrainType = TERRAIN.LEVEL1;
+
     if (fillBehavior === 'water') {
       paintColor = SCREENSHOT_COLORS.WATER[0];
       gridFillTerrain = TERRAIN.WATER;
@@ -1908,59 +1912,87 @@ async function fillIconRegionsWithTerrain(
       paintColor = terrainLevelToColor(footLevel);
       gridFillTerrain = footLevel;
     } else {
-      // Grass fill — determine level from surrounding pixels
-      let fillLevel: TerrainType = TERRAIN.LEVEL1;
-
+      // Grass fill — nearest-level BFS from surrounding grid terrain
       if (!LEVEL1_ALWAYS_TYPES.has(icon.template.type)) {
-        // Sample border pixels adjacent to the opaque shape
-        const grassSamples: RGB[] = [];
-        const visited = new Set<number>();
+        // Build the set of grid cells covered by the dilated pixel region
+        const coveredCells = new Set<number>();
+        for (const linearIdx of dilatedPixels) {
+          const ipx = linearIdx % imageWidth, ipy = Math.floor(linearIdx / imageWidth);
+          const { cx, cy } = pixelToIslandCoord(ipx, ipy, extents);
+          const gcx = Math.floor(cx), gcy = Math.floor(cy);
+          if (gcx < 0 || gcx >= ISLAND_COORD_WIDTH || gcy < 0 || gcy >= ISLAND_COORD_HEIGHT) continue;
+          coveredCells.add(gcy * ISLAND_COORD_WIDTH + gcx);
+        }
 
-        for (const linearIdx of opaquePixels) {
-          const px = linearIdx % imageWidth;
-          const py = Math.floor(linearIdx / imageWidth);
+        // Multi-source BFS: seed covered cells that are adjacent to LEVEL1/2/3 outside the region
+        const cellBfsQueue: Array<{ cellIdx: number; level: TerrainType }> = [];
+        const cellBfsVisited = new Set<number>();
+
+        for (const cellIdx of coveredCells) {
+          const ccx = cellIdx % ISLAND_COORD_WIDTH, ccy = Math.floor(cellIdx / ISLAND_COORD_WIDTH);
           for (let d = 0; d < 4; d++) {
-            const nx = px + dx4[d];
-            const ny = py + dy4[d];
-            if (nx < 0 || nx >= imageWidth || ny < 0 || ny >= imageHeight) continue;
-            const neighborIdx = ny * imageWidth + nx;
-            if (opaquePixels.has(neighborIdx)) continue; // inside the icon
-            if (visited.has(neighborIdx)) continue;
-            visited.add(neighborIdx);
-
-            const pixel = getPixelAt(data, imageWidth, nx, ny);
-            // Skip pixels matching the icon's own colors (anti-aliased bleed)
-            let isIconColor = false;
-            for (const ic of icon.template.colors) {
-              if (colorDistance(pixel, ic) <= icon.template.colorTolerance) {
-                isIconColor = true;
-                break;
-              }
-            }
-            if (isIconColor) continue;
-
-            if (isScreenshotGrass(pixel)) {
-              grassSamples.push(pixel);
-            }
+            const nx = ccx + dx4[d], ny = ccy + dy4[d];
+            if (nx < 0 || nx >= ISLAND_COORD_WIDTH || ny < 0 || ny >= ISLAND_COORD_HEIGHT) continue;
+            const nIdx = ny * ISLAND_COORD_WIDTH + nx;
+            if (coveredCells.has(nIdx)) continue;
+            const t = grid.primary[nIdx] as TerrainType;
+            if (t !== TERRAIN.LEVEL1 && t !== TERRAIN.LEVEL2 && t !== TERRAIN.LEVEL3) continue;
+            if (cellBfsVisited.has(cellIdx)) continue;
+            cellBfsVisited.add(cellIdx);
+            cellBfsQueue.push({ cellIdx, level: t });
           }
         }
 
-        fillLevel = resolveGrassLevel(grassSamples);
+        // BFS propagation: each covered cell gets the level of its nearest surrounding terrain
+        for (let qi = 0; qi < cellBfsQueue.length; qi++) {
+          const { cellIdx, level } = cellBfsQueue[qi];
+          cellLevel.set(cellIdx, level);
+          const ccx = cellIdx % ISLAND_COORD_WIDTH, ccy = Math.floor(cellIdx / ISLAND_COORD_WIDTH);
+          for (let d = 0; d < 4; d++) {
+            const nx = ccx + dx4[d], ny = ccy + dy4[d];
+            if (nx < 0 || nx >= ISLAND_COORD_WIDTH || ny < 0 || ny >= ISLAND_COORD_HEIGHT) continue;
+            const nIdx = ny * ISLAND_COORD_WIDTH + nx;
+            if (!coveredCells.has(nIdx) || cellBfsVisited.has(nIdx)) continue;
+            cellBfsVisited.add(nIdx);
+            cellBfsQueue.push({ cellIdx: nIdx, level });
+          }
+        }
+
+        // Fallback: most common BFS level (for cells unreachable by BFS), default LEVEL1
+        if (cellLevel.size > 0) {
+          const counts = new Map<TerrainType, number>();
+          for (const lvl of cellLevel.values()) counts.set(lvl, (counts.get(lvl) ?? 0) + 1);
+          let maxCount = 0;
+          for (const [lvl, count] of counts) {
+            if (count > maxCount) { maxCount = count; fallbackLevel = lvl; }
+          }
+        }
       }
 
-      paintColor = terrainLevelToColor(fillLevel);
-      gridFillTerrain = fillLevel;
+      paintColor = terrainLevelToColor(fallbackLevel);
+      gridFillTerrain = fallbackLevel;
     }
 
-    // 4. Paint over every pixel in the dilated fill region
+    // 4. Paint over every pixel in the dilated fill region.
+    // For grass fill: use per-cell level from BFS (different parts of a large icon may differ).
+    // For water/terrain-foot: uniform paintColor.
     for (const linearIdx of dilatedPixels) {
+      let c: RGB = paintColor;
+      if (fillBehavior === 'grass') {
+        const ipx = linearIdx % imageWidth, ipy = Math.floor(linearIdx / imageWidth);
+        const { cx, cy } = pixelToIslandCoord(ipx, ipy, extents);
+        const gcx = Math.floor(cx), gcy = Math.floor(cy);
+        if (gcx >= 0 && gcx < ISLAND_COORD_WIDTH && gcy >= 0 && gcy < ISLAND_COORD_HEIGHT) {
+          c = terrainLevelToColor(cellLevel.get(gcy * ISLAND_COORD_WIDTH + gcx) ?? fallbackLevel);
+        }
+      }
       const dataIdx = linearIdx * 4;
-      data[dataIdx] = paintColor.r;
-      data[dataIdx + 1] = paintColor.g;
-      data[dataIdx + 2] = paintColor.b;
+      data[dataIdx]     = c.r;
+      data[dataIdx + 1] = c.g;
+      data[dataIdx + 2] = c.b;
     }
 
-    // 5. Also update pixelGrid (needed for downstream fillEdgeRegionsWithLevel1 and debug)
+    // 5. Also update pixelGrid per-cell (needed for downstream fillEdgeRegionsWithLevel1 and debug)
     const [objW, objH] = icon.resolvedObjectSize ?? icon.template.objectSizeInCoords;
     const gx0 = Math.max(0, Math.round(icon.centerCoordX - objW / 2));
     const gy0 = Math.max(0, Math.round(icon.centerCoordY - objH / 2));
@@ -1969,7 +2001,10 @@ async function fillIconRegionsWithTerrain(
     for (let y = gy0; y < gy1; y++) {
       for (let x = gx0; x < gx1; x++) {
         const idx = y * ISLAND_COORD_WIDTH + x;
-        grid.primary[idx] = gridFillTerrain;
+        const lvl: TerrainType = fillBehavior === 'grass'
+          ? (cellLevel.get(idx) ?? fallbackLevel)
+          : gridFillTerrain;
+        grid.primary[idx] = lvl;
         grid.diagonal[idx] = DIAGONAL.NONE;
         grid.secondary[idx] = TERRAIN.UNKNOWN;
       }
@@ -4932,6 +4967,259 @@ async function savePixelGridDebug(grid: PixelGrid): Promise<void> {
   await downloadCanvas(overlayCanvas, 'debug_14b_pixel_overlay.png');
 }
 
+// ============ Path Vectorization & Fill ============
+
+function tracePathPolylines(grid: PixelGrid): [number, number][][] {
+  const pathSet = new Set<number>();
+  for (let i = 0; i < grid.primary.length; i++) {
+    if (grid.primary[i] === TERRAIN.PATH) pathSet.add(i);
+  }
+  if (pathSet.size === 0) return [];
+
+  const dx8 = [-1, 0, 1, -1, 1, -1, 0, 1];
+  const dy8 = [-1, -1, -1, 0, 0, 1, 1, 1];
+  const visited = new Set<number>();
+  const polylines: [number, number][][] = [];
+
+  for (const startIdx of pathSet) {
+    if (visited.has(startIdx)) continue;
+
+    // BFS to find this connected component
+    const component: number[] = [];
+    const compQueue = [startIdx];
+    const compVisited = new Set([startIdx]);
+    for (let qi = 0; qi < compQueue.length; qi++) {
+      const idx = compQueue[qi];
+      component.push(idx);
+      const cx = idx % ISLAND_COORD_WIDTH, cy = Math.floor(idx / ISLAND_COORD_WIDTH);
+      for (let d = 0; d < 8; d++) {
+        const nx = cx + dx8[d], ny = cy + dy8[d];
+        if (nx < 0 || nx >= ISLAND_COORD_WIDTH || ny < 0 || ny >= ISLAND_COORD_HEIGHT) continue;
+        const nIdx = ny * ISLAND_COORD_WIDTH + nx;
+        if (!pathSet.has(nIdx) || compVisited.has(nIdx)) continue;
+        compVisited.add(nIdx);
+        compQueue.push(nIdx);
+      }
+    }
+
+    // Find degree of each cell in component (8-connectivity path neighbors)
+    const degree = new Map<number, number>();
+    for (const idx of component) {
+      const cx = idx % ISLAND_COORD_WIDTH, cy = Math.floor(idx / ISLAND_COORD_WIDTH);
+      let deg = 0;
+      for (let d = 0; d < 8; d++) {
+        const nx = cx + dx8[d], ny = cy + dy8[d];
+        if (nx < 0 || nx >= ISLAND_COORD_WIDTH || ny < 0 || ny >= ISLAND_COORD_HEIGHT) continue;
+        const nIdx = ny * ISLAND_COORD_WIDTH + nx;
+        if (pathSet.has(nIdx)) deg++;
+      }
+      degree.set(idx, deg);
+    }
+
+    // Find walk start: prefer degree-1 endpoints; fall back to any unvisited cell
+    const endpoint = component.find(idx => degree.get(idx) === 1 && !visited.has(idx))
+      ?? component.find(idx => !visited.has(idx));
+    if (endpoint === undefined) continue;
+
+    // Walk from endpoint, emitting vertices at direction changes
+    const walkVisited = new Set<number>();
+    const polylineStack = [endpoint];
+
+    while (polylineStack.length > 0) {
+      let cur = polylineStack.pop()!;
+      if (walkVisited.has(cur)) continue;
+
+      const vertices: [number, number][] = [];
+      let prevDx = 0, prevDy = 0;
+      let continueWalk = true;
+
+      while (continueWalk) {
+        walkVisited.add(cur);
+        visited.add(cur);
+        const cx = cur % ISLAND_COORD_WIDTH, cy = Math.floor(cur / ISLAND_COORD_WIDTH);
+
+        // Find next unvisited path neighbor
+        let next = -1, ndx = 0, ndy = 0;
+        for (let d = 0; d < 8; d++) {
+          const nx = cx + dx8[d], ny = cy + dy8[d];
+          if (nx < 0 || nx >= ISLAND_COORD_WIDTH || ny < 0 || ny >= ISLAND_COORD_HEIGHT) continue;
+          const nIdx = ny * ISLAND_COORD_WIDTH + nx;
+          if (!pathSet.has(nIdx) || walkVisited.has(nIdx)) continue;
+          // Queue branching neighbors for separate polylines
+          if (next !== -1) { polylineStack.push(nIdx); continue; }
+          next = nIdx; ndx = nx - cx; ndy = ny - cy;
+        }
+
+        // Emit vertex if direction changed or at start/end
+        if (vertices.length === 0 || ndx !== prevDx || ndy !== prevDy) {
+          vertices.push([cx, cy]);
+        }
+
+        if (next === -1) {
+          continueWalk = false;
+        } else {
+          prevDx = ndx; prevDy = ndy;
+          cur = next;
+        }
+      }
+
+      if (vertices.length > 0) polylines.push(vertices);
+    }
+  }
+
+  return polylines;
+}
+
+async function processPathPixels(
+  data: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  extents: IslandExtents,
+  grid: PixelGrid,
+): Promise<[number, number][][]> {
+  // Step 1: Vectorize before filling (while grid still has PATH values)
+  const polylines = tracePathPolylines(grid);
+  const totalPoints = polylines.reduce((sum, p) => sum + p.length, 0);
+  console.log(`Path vectorization: ${polylines.length} polylines, ${totalPoints} vertices`);
+
+  // Step 2: Record which cells are PATH (before overwriting with level)
+  const wasPathCell = new Uint8Array(ISLAND_COORD_WIDTH * ISLAND_COORD_HEIGHT);
+  for (let i = 0; i < grid.primary.length; i++) {
+    if (grid.primary[i] === TERRAIN.PATH) wasPathCell[i] = 1;
+  }
+
+  // Step 3: Multi-source BFS — fill PATH cells with nearest LEVEL1/2/3
+  // Seed: every LEVEL1/2/3 cell enqueues its PATH neighbors
+  const bfsQueue: Array<{ cellIdx: number; level: TerrainType }> = [];
+  const bfsVisited = new Uint8Array(ISLAND_COORD_WIDTH * ISLAND_COORD_HEIGHT);
+  const dx4 = [0, 0, -1, 1], dy4 = [-1, 1, 0, 0];
+
+  for (let cy = 0; cy < ISLAND_COORD_HEIGHT; cy++) {
+    for (let cx = 0; cx < ISLAND_COORD_WIDTH; cx++) {
+      const idx = cy * ISLAND_COORD_WIDTH + cx;
+      const t = grid.primary[idx] as TerrainType;
+      if (t !== TERRAIN.LEVEL1 && t !== TERRAIN.LEVEL2 && t !== TERRAIN.LEVEL3) continue;
+      for (let d = 0; d < 4; d++) {
+        const nx = cx + dx4[d], ny = cy + dy4[d];
+        if (nx < 0 || nx >= ISLAND_COORD_WIDTH || ny < 0 || ny >= ISLAND_COORD_HEIGHT) continue;
+        const nIdx = ny * ISLAND_COORD_WIDTH + nx;
+        if (grid.primary[nIdx] !== TERRAIN.PATH || bfsVisited[nIdx]) continue;
+        bfsVisited[nIdx] = 1;
+        bfsQueue.push({ cellIdx: nIdx, level: t });
+      }
+    }
+  }
+
+  // BFS propagation through PATH cells
+  for (let qi = 0; qi < bfsQueue.length; qi++) {
+    const { cellIdx, level } = bfsQueue[qi];
+    grid.primary[cellIdx] = level;
+    grid.diagonal[cellIdx] = DIAGONAL.NONE;
+    grid.secondary[cellIdx] = TERRAIN.UNKNOWN;
+    const cx = cellIdx % ISLAND_COORD_WIDTH;
+    const cy = Math.floor(cellIdx / ISLAND_COORD_WIDTH);
+    for (let d = 0; d < 4; d++) {
+      const nx = cx + dx4[d], ny = cy + dy4[d];
+      if (nx < 0 || nx >= ISLAND_COORD_WIDTH || ny < 0 || ny >= ISLAND_COORD_HEIGHT) continue;
+      const nIdx = ny * ISLAND_COORD_WIDTH + nx;
+      if (grid.primary[nIdx] !== TERRAIN.PATH || bfsVisited[nIdx]) continue;
+      bfsVisited[nIdx] = 1;
+      bfsQueue.push({ cellIdx: nIdx, level });
+    }
+  }
+
+  // Step 4: Paint image pixels for originally-PATH grid cells; collect for extension step
+  const paintedPathPixelSet = new Set<number>();
+  for (let py = 0; py < imageHeight; py++) {
+    for (let px = 0; px < imageWidth; px++) {
+      const { cx, cy } = pixelToIslandCoord(px, py, extents);
+      const gx = Math.floor(cx), gy = Math.floor(cy);
+      if (gx < 0 || gx >= ISLAND_COORD_WIDTH || gy < 0 || gy >= ISLAND_COORD_HEIGHT) continue;
+      const cellIdx = gy * ISLAND_COORD_WIDTH + gx;
+      if (!wasPathCell[cellIdx]) continue;
+      const paintColor = terrainLevelToColor(grid.primary[cellIdx] as TerrainType);
+      const dataIdx = (py * imageWidth + px) * 4;
+      data[dataIdx]     = paintColor.r;
+      data[dataIdx + 1] = paintColor.g;
+      data[dataIdx + 2] = paintColor.b;
+      paintedPathPixelSet.add(py * imageWidth + px);
+    }
+  }
+
+  // Step 4.5: Expand path fill by a few pixels for transition/anti-aliased edge colors.
+  // Pixels just outside the classified PATH region often blend the tan path color with
+  // adjacent grass green; a looser color tolerance catches these edge pixels.
+  const PATH_EXTENSION_TOLERANCE = 65; // Looser than COLOR_TOLERANCE (40) for blended edge pixels
+  const PATH_EXTENSION_RADIUS = 3;
+  let extendedCount = 0;
+
+  const extVisited = new Set<number>(paintedPathPixelSet);
+  const extQueue: Array<{ pIdx: number; depth: number }> = [];
+
+  // Seed BFS from the boundary of painted path pixels
+  for (const pIdx of paintedPathPixelSet) {
+    const epx = pIdx % imageWidth, epy = Math.floor(pIdx / imageWidth);
+    for (let d = 0; d < 4; d++) {
+      const nx = epx + dx4[d], ny = epy + dy4[d];
+      if (nx < 0 || nx >= imageWidth || ny < 0 || ny >= imageHeight) continue;
+      const nIdx = ny * imageWidth + nx;
+      if (extVisited.has(nIdx)) continue;
+      extVisited.add(nIdx);
+      extQueue.push({ pIdx: nIdx, depth: 1 });
+    }
+  }
+
+  for (let qi = 0; qi < extQueue.length; qi++) {
+    const { pIdx, depth } = extQueue[qi];
+    const epx = pIdx % imageWidth, epy = Math.floor(pIdx / imageWidth);
+    const pixel = getPixelAt(data, imageWidth, epx, epy);
+
+    // Only extend into pixels that still look path-like (transition colors)
+    if (!matchesAnyColor(pixel, SCREENSHOT_COLORS.PATH, PATH_EXTENSION_TOLERANCE)) continue;
+
+    // Determine level from this pixel's grid cell (already filled by BFS in step 3)
+    const { cx, cy } = pixelToIslandCoord(epx, epy, extents);
+    const gx = Math.floor(cx), gy = Math.floor(cy);
+    if (gx < 0 || gx >= ISLAND_COORD_WIDTH || gy < 0 || gy >= ISLAND_COORD_HEIGHT) continue;
+    const cellIdx = gy * ISLAND_COORD_WIDTH + gx;
+    const level = grid.primary[cellIdx] as TerrainType;
+    if (level !== TERRAIN.LEVEL1 && level !== TERRAIN.LEVEL2 && level !== TERRAIN.LEVEL3) continue;
+
+    const paintColor = terrainLevelToColor(level);
+    const dataIdx = pIdx * 4;
+    data[dataIdx]     = paintColor.r;
+    data[dataIdx + 1] = paintColor.g;
+    data[dataIdx + 2] = paintColor.b;
+    extendedCount++;
+
+    // Continue BFS within radius
+    if (depth < PATH_EXTENSION_RADIUS) {
+      for (let d = 0; d < 4; d++) {
+        const nx = epx + dx4[d], ny = epy + dy4[d];
+        if (nx < 0 || nx >= imageWidth || ny < 0 || ny >= imageHeight) continue;
+        const nIdx = ny * imageWidth + nx;
+        if (extVisited.has(nIdx)) continue;
+        extVisited.add(nIdx);
+        extQueue.push({ pIdx: nIdx, depth: depth + 1 });
+      }
+    }
+  }
+
+  console.log(`Path extension: ${extendedCount} additional transition pixels painted`);
+
+  // Step 5: Debug image
+  const canvas = document.createElement('canvas');
+  canvas.width = imageWidth;
+  canvas.height = imageHeight;
+  const ctx = canvas.getContext('2d')!;
+  const imgData = ctx.createImageData(imageWidth, imageHeight);
+  imgData.data.set(data);
+  ctx.putImageData(imgData, 0, 0);
+  await downloadCanvas(canvas, 'debug_13d_post_path_fill.png');
+
+  return polylines;
+}
+
 // ============ Image Loading ============
 
 function loadImageFromFile(file: File): Promise<HTMLImageElement> {
@@ -5145,7 +5433,10 @@ export async function generateFromScreenshot(): Promise<void> {
   const detectedIcons = [...regularIcons, ...stairBridgeIcons]; // eslint-disable-line @typescript-eslint/no-unused-vars
   // detectedIcons (and detectedIconsToObjectGroups()) will be used when building the final v2 map output
 
-  // debug_14a/b: pixel grid
+  // 12. Detect and fill path pixels; vectorize for future SVG output
+  const pathPolylines = await processPathPixels(data, width, height, extents, pixelGrid); // eslint-disable-line @typescript-eslint/no-unused-vars
+
+  // debug_14a/b: pixel grid (after path fill — no PATH cells should remain)
   await savePixelGridDebug(pixelGrid);
 
   // Download all debug images as a single zip
@@ -5158,11 +5449,6 @@ export async function generateFromScreenshot(): Promise<void> {
 
   // 11. detect water pixels and fill them with their surrounding level
   // determine level of terrain under water by looking at pixels adjacent to terrain, layer must cut a straight line under the water
-
-  // 12. detect paths and fill them with their surrounding level
-  // try to detect curved corners, but don't try so hard
-  // note: path editing will have to include a 'repaint' tool, as well as a curving tool
-  // paths should also be inset
 
   console.log('Generate from Screenshot: done');
 }
