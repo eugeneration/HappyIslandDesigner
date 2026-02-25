@@ -2,6 +2,7 @@
 // Run: node scripts/generateBaseMapCache.js
 
 export const baseMapCache: Record<number, string> = {
+  "0": "0 - blank.svg",
   "1": "1 - SDfVaDl.svg",
   "2": "2 - yXDYVFD.svg",
   "3": "3 - PyzBUP1.svg",
@@ -112,6 +113,11 @@ export type BaseMapData = {
 };
 
 export const baseMapDataCache: Record<number, BaseMapData> = {
+  "0": {
+    "level2": [],
+    "level3": [],
+    "river": []
+  },
   "1": {
     "level2": [
       [

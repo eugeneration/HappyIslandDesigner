@@ -512,6 +512,29 @@ function updateAirportOverlay(): void {
   });
 }
 
+// Capture a low-res raster of the current edge tiles (SVG) with transparent center
+export function captureEdgeTileRaster(width: number): string | null {
+  if (!tilesGroup) return null;
+
+  // Clone tiles group (and edgeBg for water frame) into a temporary group for rasterization
+  layers.uiLayer.activate();
+  const group = new paper.Group();
+  if (edgeBg) group.addChild(edgeBg.clone());
+  group.addChild(tilesGroup.clone());
+
+  // Resolution = desired pixel width / island unit width (112)
+  const resolution = (width / 112) * 72;
+  const raster = group.rasterize(resolution);
+  const dataUrl = raster.toDataURL();
+
+  // Cleanup
+  raster.remove();
+  group.remove();
+  layers.mapEdgeLayer.activate();
+
+  return dataUrl;
+}
+
 // Show the geometry group
 export function showEdgeGeometry(): void {
   if (edgeGeometryGroup) edgeGeometryGroup.visible = true;

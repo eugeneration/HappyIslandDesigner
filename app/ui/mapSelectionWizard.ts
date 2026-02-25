@@ -457,6 +457,6 @@ export function autoCompleteToGrid(): void {
 
   // Emit so ModalMapSelect picks up the state, then do tile replacements
   // We use a slight delay so the blank map loads first
-  wizardState.step = 'grid';
+  wizardState.step = 'baseMapGrid';
   emitter.emit('autoIslandFlow', wizardState);
 }

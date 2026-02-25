@@ -5,12 +5,12 @@ import {Box, Button, Image, Flex, Grid, Heading, Text, Link} from '@theme-ui/com
 import { colors } from '../colors';
 import './modal.scss';
 import Layouts, { LayoutType, Layout, baseMapLayouts } from './islandLayouts';
-import { baseMapCache } from '../generatedBaseMapCache';
+import { getBaseMapSrc } from '../generatedBaseMapCache';
 import useBlockZoom from './useBlockZoom';
 
 import { loadMapFromJSONString, loadBaseMapFromSvg } from '../load';
 import {confirmDestructiveAction, isMapEmpty, autosaveTrigger} from '../state';
-import { loadEdgeTilesAsGeometry } from '../ui/edgeTiles';
+import { loadEdgeTilesAsGeometry, captureEdgeTileRaster } from '../ui/edgeTiles';
 import { emitter } from '../emitter';
 import { type OptionConfig } from '../ui/mapOptionSelector';
 import { showPositionSelector, hidePositionSelector, SelectionType, getPeninsulaPosition, getAirportBlocks, getSecretBeachBlock, getSecretBeachPosition, getRockPosition, getRockBlock, RiverDirection } from '../ui/mapPositionSelector';
@@ -108,6 +108,7 @@ export function CloseMapSelectModal() {
 export default function ModalMapSelect(){
   const [modalIsOpen,setIsOpen] = useState(false);
   const [wizardState, setWizardState] = useState<WizardState>(getWizardState());
+  const [edgeTileRaster, setEdgeTileRaster] = useState<string | null>(null);
 
   // Track filled placeholder positions for going back during fillPlaceholder step
   const filledPlaceholderPositions = useRef<{x: number, y: number}[]>([]);
@@ -137,6 +138,12 @@ export default function ModalMapSelect(){
   useEffect(() => {
     const handleWizardChange = (state: WizardState) => {
       setWizardState({ ...state });
+
+      // Capture edge tile raster when reaching baseMapGrid step
+      if (state.step === 'baseMapGrid') {
+        const raster = captureEdgeTileRaster(200);
+        setEdgeTileRaster(raster);
+      }
 
       // If moving to a modal step, open modal
       setIsOpen(isModalStep(state.step));
@@ -594,9 +601,8 @@ export default function ModalMapSelect(){
       state.rightRockPosition = 0;
       state.rightRockShape = 0;
 
-      // Load blank map first
-      const blankLayout = Layouts.blank[0];
-      loadMapFromJSONString(blankLayout.data);
+      // Load V2 blank terrain
+      await loadBaseMapFromSvg(0);
 
       // Show edge tiles and set river tiles
       initializeEdgeTiles();
@@ -720,7 +726,7 @@ export default function ModalMapSelect(){
           }}>
             <Image variant='block' sx={{maxWidth: 150}} src='static/img/nook-inc-white.png'/>
           </Box>
-          <IslandLayoutSelector wizardState={wizardState} />
+          <IslandLayoutSelector wizardState={wizardState} edgeTileRaster={edgeTileRaster} />
           <Box p={3} sx={{
             backgroundColor: colors.level3.cssColor,
             borderRadius: '4px 30px 30px 4px',
@@ -731,7 +737,7 @@ export default function ModalMapSelect(){
   );
 }
 
-function IslandLayoutSelector({ wizardState }: { wizardState: WizardState }) {
+function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: WizardState; edgeTileRaster: string | null }) {
   const [layout, setLayout] = useState<number>(-1);
   const [help, setHelp] = useState<boolean>(false);
 
@@ -791,6 +797,7 @@ function IslandLayoutSelector({ wizardState }: { wizardState: WizardState }) {
       case 'baseMapGrid':
         return <BaseMapGridStep
           layoutType={wizardState.riverDirection as LayoutType}
+          edgeTileRaster={edgeTileRaster}
           onSelect={async (baseMapIndex) => {
             await loadBaseMapFromSvg(baseMapIndex);
             // Convert edge tiles to geometry now that wizard is complete
@@ -941,12 +948,23 @@ function RiverDirectionStep() {
 // Base Map Grid Step - shows pre-made base maps for the selected river direction
 interface BaseMapGridStepProps {
   layoutType: LayoutType;
+  edgeTileRaster: string | null;
   onSelect: (baseMapIndex: number) => void;
   onBack: () => void;
 }
 
-function BaseMapGridStep({ layoutType, onSelect, onBack }: BaseMapGridStepProps) {
+function BaseMapGridStep({ layoutType, edgeTileRaster, onSelect, onBack }: BaseMapGridStepProps) {
   const baseMapIndices = baseMapLayouts[layoutType] || [];
+
+  const cardOverlay = edgeTileRaster ? (
+    <Image src={edgeTileRaster} sx={{
+      position: 'absolute',
+      top: 0, left: 0,
+      width: '100%', height: '100%',
+      objectFit: 'contain',
+      pointerEvents: 'none',
+    }}/>
+  ) : null;
 
   return (
     <>
@@ -963,17 +981,23 @@ function BaseMapGridStep({ layoutType, onSelect, onBack }: BaseMapGridStepProps)
         sx={{justifyItems: 'center' }}>
         {/* Blank option first (index 0) */}
         <Card key={0} onClick={() => onSelect(0)}>
-          <Image variant='card' src={'static/img/island-type-blank.png'}/>
+          <Box sx={{position: 'relative'}}>
+            <Image variant='card' src={getBaseMapSrc(0)}/>
+            {cardOverlay}
+          </Box>
         </Card>
         {/* River direction base maps */}
         {baseMapIndices.map((baseMapIndex) => {
-          const baseMap = baseMapCache[baseMapIndex];
-          if (!baseMap) return null;
+          const src = getBaseMapSrc(baseMapIndex);
+          if (!src) return null;
           return (
             <Card
               key={baseMapIndex}
               onClick={() => onSelect(baseMapIndex)}>
-              <Image variant='card' src={`static/base_map/${baseMap}`}/>
+              <Box sx={{position: 'relative'}}>
+                <Image variant='card' src={src}/>
+                {cardOverlay}
+              </Box>
             </Card>
           );
         })}
