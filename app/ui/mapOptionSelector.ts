@@ -13,7 +13,6 @@ let fixedUI: paper.Group | null = null;
 let frameHandler: ((event: { delta: number }) => void) | null = null;
 let interactionOverlay: paper.Path | null = null;
 let fixedLabelGroup: paper.Group | null = null;
-let fixedConfirmButton: paper.Group | null = null;
 let resizeHandler: (() => void) | null = null;
 
 export type OptionDirection = 'left' | 'right' | 'bottom';
@@ -89,6 +88,90 @@ let lastTouchDelta = 0;
 const TOUCH_DEAD_ZONE = 10;         // Pixels before recognizing as scroll
 const PIXELS_PER_CARD = 80;         // Pixels of drag per card scrolled
 const MOMENTUM_FACTOR = 80;          // Velocity multiplier for momentum
+
+// Selection animation constants
+const HOP_DURATION = 0.4;            // Hop arc to tile position (seconds) — dismiss runs in parallel
+const SQUISH_DURATION = 0.2;         // Squish-bounce on landing
+const PARTICLE_DURATION = 0.3;       // Star burst + card fade
+const VIEW_TRANSITION_DURATION = 0.4; // Smooth zoom/pan to next step
+const DISMISS_SLIDE_DISTANCE = 3;    // Island units cards slide away during dismiss
+const HOP_PEAK_SCALE_MULT = 1.4;     // Scale multiplier at hop peak (z-illusion)
+const SQUISH_AMPLITUDE = 0.15;       // Max deformation during squish (15%)
+const PARTICLE_COUNT = 8;
+const PARTICLE_SPEED = 30;           // Island units per second
+const PARTICLE_SIZE = 0.75;          // Island units, base size
+const SETTLE_DELAY = 0.5;           // Pause after particles before moving on
+
+// Selection animation types
+enum SelectionAnimPhase {
+  HopToTile = 'hopToTile',
+  LandingSquish = 'landingSquish',
+  ParticleBurst = 'particleBurst',
+  SettleDelay = 'settleDelay',
+  ViewTransition = 'viewTransition',
+}
+
+type Particle = {
+  item: paper.Item;
+  velocity: paper.Point;
+  life: number;
+  initialScale: number;
+  spinSpeed: number;
+};
+
+type SelectionAnimState = {
+  phase: SelectionAnimPhase;
+  phaseTime: number;
+  selectedCard: paper.Group;
+  otherCards: paper.Group[];
+  originalPositions: Map<paper.Group, paper.Point>;  // for dismiss slide
+  hopStart: paper.Point;
+  hopEnd: paper.Point;
+  hopStartScale: number;
+  hopEndScale: number;
+  particles: Particle[];
+  eventName: string;
+  eventValue: number;
+  eventEmitted: boolean;
+};
+
+// Selection animation state
+let selectionAnim: SelectionAnimState | null = null;
+let animationBlocked = false;
+
+// View transition state (smooth zoom/pan)
+let viewAnim: {
+  startZoom: number;
+  endZoom: number;
+  startCenter: paper.Point;
+  endCenter: paper.Point;
+  elapsed: number;
+  duration: number;
+  onComplete?: () => void;
+} | null = null;
+
+// Easing functions
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function bounceDamped(t: number): number {
+  const frequency = 2.5;
+  const decay = 4;
+  return Math.sin(t * Math.PI * frequency) * Math.exp(-t * decay);
+}
+
+function parabolicArc(t: number, start: number, peak: number, end: number): number {
+  // Quadratic Bezier: passes through peak at t=0.5
+  const p0 = start;
+  const p1 = 2 * peak - 0.5 * start - 0.5 * end;
+  const p2 = end;
+  return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+}
 
 function getScrollAxis(direction: OptionDirection): 'x' | 'y' {
   return direction === 'bottom' ? 'x' : 'y';
@@ -360,6 +443,7 @@ function createBackButton(position: paper.Point): paper.Group {
   arrow.add(new paper.Point(-0.5, 1.5));
 
   const button = createButton(bgCircle, 6, () => {
+    if (animationBlocked) return;
     hideOptionSelector();
     goBack();
   }, {
@@ -373,37 +457,402 @@ function createBackButton(position: paper.Point): paper.Group {
   return button;
 }
 
-function createConfirmButton(position: paper.Point): paper.Group {
-  const bgCircle = new paper.Path.Circle(new paper.Point(0, 0), 4);
-  bgCircle.fillColor = colors.jaybird.color;
+// ── Selection animation ──────────────────────────────────────────────
 
-  const check = new paper.Path();
-  check.strokeColor = colors.paper.color;
-  check.strokeWidth = 1;
-  check.strokeCap = 'round';
-  check.strokeJoin = 'round';
-  check.add(new paper.Point(-1.5, 0));
-  check.add(new paper.Point(-0.5, 1.2));
-  check.add(new paper.Point(1.5, -1));
+function startSelectionAnimation(card: paper.Group): void {
+  if (!currentConfig || animationBlocked) return;
+  animationBlocked = true;
 
-  const button = createButton(bgCircle, 6, () => {
-    if (currentConfig && selectedIndex >= 0) {
-      const option = currentConfig.options[selectedIndex];
-      emitter.emit(currentConfig.eventName, { value: option.value });
-      hideOptionSelector();
+  const tileSize = 16;
+  const currentScale = uiScale * CENTER_SCALE;
+  const hopEndScale = (tileSize / card.data.baseSize);
+
+  const otherCards = optionCards.filter(c => c !== card);
+  const originalPositions = new Map<paper.Group, paper.Point>();
+  optionCards.forEach(c => originalPositions.set(c, c.position.clone()));
+
+  selectionAnim = {
+    phase: SelectionAnimPhase.HopToTile,
+    phaseTime: 0,
+    selectedCard: card,
+    otherCards,
+    originalPositions,
+    hopStart: card.position.clone(),
+    hopEnd: currentConfig.anchorPoint.clone(),
+    hopStartScale: currentScale,
+    hopEndScale,
+    particles: [],
+    eventName: currentConfig.eventName,
+    eventValue: currentConfig.options[selectedIndex].value,
+    eventEmitted: false,
+  };
+}
+
+function updateSelectionAnimation(delta: number): void {
+  if (!selectionAnim) return;
+  selectionAnim.phaseTime += delta;
+
+  switch (selectionAnim.phase) {
+    case SelectionAnimPhase.HopToTile:
+      updateHopPhase(selectionAnim, delta);
+      break;
+    case SelectionAnimPhase.LandingSquish:
+      updateSquishPhase(selectionAnim, delta);
+      break;
+    case SelectionAnimPhase.ParticleBurst:
+      updateParticlePhase(selectionAnim, delta);
+      break;
+    case SelectionAnimPhase.SettleDelay:
+      updateSettleDelayPhase(selectionAnim, delta);
+      break;
+    case SelectionAnimPhase.ViewTransition:
+      updateViewTransitionPhase(selectionAnim, delta);
+      break;
+  }
+}
+
+function transitionToPhase(anim: SelectionAnimState, phase: SelectionAnimPhase): void {
+  anim.phase = phase;
+  anim.phaseTime = 0;
+}
+
+function updateHopPhase(anim: SelectionAnimState, _delta: number): void {
+  if (!currentConfig) return;
+  const t = Math.min(anim.phaseTime / HOP_DURATION, 1);
+  const eased = easeOutCubic(t);
+  const card = anim.selectedCard;
+
+  // Dismiss other cards in parallel with hop
+  const axis = getScrollAxis(currentConfig.direction);
+  anim.otherCards.forEach(c => {
+    c.opacity = 1 - eased;
+    const orig = anim.originalPositions.get(c)!;
+    const sign = c.data.index < selectedIndex ? -1 : 1;
+    const slideOffset = sign * DISMISS_SLIDE_DISTANCE * uiScale * eased;
+    if (axis === 'y') {
+      c.position = new paper.Point(orig.x, orig.y + slideOffset);
+    } else {
+      c.position = new paper.Point(orig.x + slideOffset, orig.y);
     }
-  }, {
-    highlightedColor: colors.blue.color,
-    selectedColor: colors.jaybird.color,
+  });
+  if (fixedUI) fixedUI.opacity = 1 - eased;
+  if (previewGroup) previewGroup.opacity = 0.7 * (1 - eased);
+
+  // Position: lerp with ease-out for responsive feel
+  card.position = anim.hopStart.add(
+    anim.hopEnd.subtract(anim.hopStart).multiply(eased)
+  );
+
+  // Scale: parabolic arc — larger at midpoint for z-illusion
+  const peakScale = Math.max(anim.hopStartScale, anim.hopEndScale) * HOP_PEAK_SCALE_MULT;
+  const scale = parabolicArc(t, anim.hopStartScale, peakScale, anim.hopEndScale);
+  card.scaling = new paper.Point(scale, scale);
+
+  // Rotation: ease back to 0
+  card.rotation = card.rotation * (1 - eased);
+
+  if (t >= 1) {
+    anim.otherCards.forEach(c => { c.visible = false; });
+    if (previewGroup) previewGroup.visible = false;
+    card.position = anim.hopEnd.clone();
+    card.scaling = new paper.Point(anim.hopEndScale, anim.hopEndScale);
+    card.rotation = 0;
+    transitionToPhase(anim, SelectionAnimPhase.LandingSquish);
+  }
+}
+
+function updateSquishPhase(anim: SelectionAnimState, _delta: number): void {
+  const t = Math.min(anim.phaseTime / SQUISH_DURATION, 1);
+  const card = anim.selectedCard;
+
+  // Emit event on first frame — tile swaps in underneath the card
+  if (!anim.eventEmitted) {
+    anim.eventEmitted = true;
+    emitter.emit(anim.eventName, { value: anim.eventValue });
+    if (hiddenEdgeTileBlock) {
+      showEdgeTileAtBlock(hiddenEdgeTileBlock.x, hiddenEdgeTileBlock.y);
+    }
+  }
+
+  // Damped oscillation squish
+  const squish = bounceDamped(t);
+  const scaleX = anim.hopEndScale * (1 + SQUISH_AMPLITUDE * squish);
+  const scaleY = anim.hopEndScale * (1 - SQUISH_AMPLITUDE * squish);
+  card.scaling = new paper.Point(scaleX, scaleY);
+
+  if (t >= 1) {
+    card.scaling = new paper.Point(anim.hopEndScale, anim.hopEndScale);
+    createParticleBurst(anim);
+    transitionToPhase(anim, SelectionAnimPhase.ParticleBurst);
+  }
+}
+
+function createStarPath(size: number): paper.Path {
+  const points: paper.Point[] = [];
+  const outerRadius = size;
+  const innerRadius = size * 0.4;
+  for (let i = 0; i < 8; i++) {
+    const angle = (i * Math.PI) / 4 - Math.PI / 2;
+    const radius = i % 2 === 0 ? outerRadius : innerRadius;
+    points.push(new paper.Point(
+      Math.cos(angle) * radius,
+      Math.sin(angle) * radius
+    ));
+  }
+  const star = new paper.Path(points);
+  star.closed = true;
+  return star;
+}
+
+function createParticleBurst(anim: SelectionAnimState): void {
+  const center = anim.hopEnd;
+  const cardRadius = anim.hopEndScale * anim.selectedCard.data.baseSize / 2;
+  anim.particles = [];
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const angle = (i / PARTICLE_COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.8;
+    const speed = PARTICLE_SPEED * (0.7 + Math.random() * 0.6);
+    const initialScale = 0.6 + Math.random() * 0.8;
+    const star = createStarPath(PARTICLE_SIZE * uiScale);
+    // Spawn from card edge, not center
+    star.position = center.add(new paper.Point(
+      Math.cos(angle) * cardRadius,
+      Math.sin(angle) * cardRadius
+    ));
+    star.fillColor = i % 2 === 0
+      ? new paper.Color('#FFD700')
+      : new paper.Color('#FFFFFF');
+    selectorUI?.addChild(star);
+    anim.particles.push({
+      item: star,
+      velocity: new paper.Point(
+        Math.cos(angle) * speed * uiScale,
+        Math.sin(angle) * speed * uiScale
+      ),
+      life: 1,
+      initialScale,
+      spinSpeed: (Math.random() - 0.5) * 720,
+    });
+  }
+}
+
+function updateParticlePhase(anim: SelectionAnimState, delta: number): void {
+  const t = Math.min(anim.phaseTime / PARTICLE_DURATION, 1);
+  const card = anim.selectedCard;
+
+  // Fade the selected card out quickly
+  card.opacity = Math.max(0, 1 - t * 3);
+
+  // Update particles
+  anim.particles.forEach(p => {
+    p.life -= delta / PARTICLE_DURATION;
+    p.item.position = p.item.position.add(p.velocity.multiply(delta));
+    p.velocity = p.velocity.multiply(0.95);
+    p.item.rotation += p.spinSpeed * delta;
+    const easedLife = easeOutCubic(Math.max(0, p.life));
+    p.item.opacity = easedLife;
+    const s = p.initialScale * easedLife;
+    p.item.scaling = new paper.Point(s, s);
   });
 
-  button.addChild(check);
-  button.position = position;
+  if (t >= 1) {
+    anim.particles.forEach(p => p.item.remove());
+    anim.particles = [];
+    card.visible = false;
+    cleanupSelectorUI();
+    transitionToPhase(anim, SelectionAnimPhase.SettleDelay);
+  }
+}
 
-  return button;
+function updateSettleDelayPhase(anim: SelectionAnimState, _delta: number): void {
+  if (anim.phaseTime >= SETTLE_DELAY) {
+    transitionToPhase(anim, SelectionAnimPhase.ViewTransition);
+  }
+}
+
+function updateViewTransitionPhase(anim: SelectionAnimState, _delta: number): void {
+  // View animation is driven by viewAnim (set by showOptionSelector wrapper).
+  // If no viewAnim arrives (next step is a modal), finish after a timeout.
+  if (!viewAnim && anim.phaseTime > 0.4) {
+    finishSelectionAnimation();
+  }
+}
+
+// ── Standalone tile particle bursts ──────────────────────────────────
+
+export function spawnTileParticles(blockX: number, blockY: number): void {
+  const center = new paper.Point(blockX * 16 + 8, blockY * 16 + 8);
+  const scale = 1 / paper.view.zoom;
+  const tileRadius = 8;
+  const particles: Particle[] = [];
+
+  layers.mapOverlayLayer.activate();
+
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const angle = (i / PARTICLE_COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.8;
+    const speed = PARTICLE_SPEED * (0.7 + Math.random() * 0.6);
+    const initialScale = 0.6 + Math.random() * 0.8;
+    const star = createStarPath(PARTICLE_SIZE * scale);
+    star.position = center.add(new paper.Point(
+      Math.cos(angle) * tileRadius,
+      Math.sin(angle) * tileRadius
+    ));
+    star.fillColor = i % 2 === 0
+      ? new paper.Color('#FFD700')
+      : new paper.Color('#FFFFFF');
+    layers.mapOverlayLayer.addChild(star);
+    particles.push({
+      item: star,
+      velocity: new paper.Point(
+        Math.cos(angle) * speed * scale,
+        Math.sin(angle) * speed * scale
+      ),
+      life: 1,
+      initialScale,
+      spinSpeed: (Math.random() - 0.5) * 720,
+    });
+  }
+
+  const elapsed = { value: 0 };
+  const handler = (event: { delta: number }) => {
+    elapsed.value += event.delta;
+    const t = Math.min(elapsed.value / PARTICLE_DURATION, 1);
+    particles.forEach(p => {
+      p.life -= event.delta / PARTICLE_DURATION;
+      p.item.position = p.item.position.add(p.velocity.multiply(event.delta));
+      p.velocity = p.velocity.multiply(0.95);
+      p.item.rotation += p.spinSpeed * event.delta;
+      const easedLife = easeOutCubic(Math.max(0, p.life));
+      p.item.opacity = easedLife;
+      const s = p.initialScale * easedLife;
+      p.item.scaling = new paper.Point(s, s);
+    });
+    if (t >= 1) {
+      particles.forEach(p => p.item.remove());
+      paper.view.off('frame', handler);
+    }
+  };
+  paper.view.on('frame', handler);
+}
+
+function updateViewAnimation(delta: number): void {
+  if (!viewAnim) return;
+  viewAnim.elapsed += delta;
+  const t = Math.min(viewAnim.elapsed / viewAnim.duration, 1);
+  const eased = easeInOutCubic(t);
+
+  paper.view.zoom = viewAnim.startZoom + (viewAnim.endZoom - viewAnim.startZoom) * eased;
+  paper.view.center = viewAnim.startCenter.add(
+    viewAnim.endCenter.subtract(viewAnim.startCenter).multiply(eased)
+  );
+
+  if (t >= 1) {
+    paper.view.zoom = viewAnim.endZoom;
+    paper.view.center = viewAnim.endCenter;
+    const onComplete = viewAnim.onComplete;
+    viewAnim = null;
+    onComplete?.();
+  }
+}
+
+function cleanupSelectorUI(): void {
+  if (selectorUI) {
+    const canvas = paper.view.element;
+    const data = selectorUI.data;
+    if (data?.wheelHandler) canvas.removeEventListener('wheel', data.wheelHandler);
+    if (data?.touchStartHandler) canvas.removeEventListener('touchstart', data.touchStartHandler);
+    if (data?.touchMoveHandler) canvas.removeEventListener('touchmove', data.touchMoveHandler);
+    if (data?.touchEndHandler) canvas.removeEventListener('touchend', data.touchEndHandler);
+  }
+  optionCards.forEach(c => c.remove());
+  optionCards = [];
+  if (previewGroup) { previewGroup.remove(); previewGroup = null; }
+  if (fixedUI) { fixedUI.remove(); fixedUI = null; }
+  if (resizeHandler) { emitter.off('resize', resizeHandler); resizeHandler = null; }
+  fixedLabelGroup = null;
+}
+
+function finishSelectionAnimation(): void {
+  if (selectorUI) { selectorUI.remove(); selectorUI = null; }
+  // Edge tile was already shown in squish phase — don't restore
+  hiddenEdgeTileBlock = null;
+  if (frameHandler) {
+    paper.view.off('frame', frameHandler);
+    frameHandler = null;
+  }
+  if (wheelSettleTimer) { clearTimeout(wheelSettleTimer); wheelSettleTimer = null; }
+  wheelGestureActive = false;
+  interactionOverlay = null;
+  currentConfig = null;
+  selectionAnim = null;
+  animationBlocked = false;
+}
+
+function computeZoomToFit(
+  anchor: paper.Point,
+  direction: OptionDirection,
+  spacing: number
+): { zoom: number; center: paper.Point } {
+  const view = paper.view;
+  const layer = layers.mapOverlayLayer;
+  const stackSpan = STACK_BASE_OFFSET + MAX_STACK_VISIBLE * STACK_CARD_OFFSET;
+  let minX: number, maxX: number, minY: number, maxY: number;
+
+  switch (direction) {
+    case 'bottom':
+      minX = anchor.x - stackSpan - spacing * 2;
+      maxX = anchor.x + stackSpan + spacing * 2;
+      minY = anchor.y - spacing;
+      maxY = anchor.y + spacing * 3;
+      break;
+    case 'left':
+      minX = anchor.x - spacing * 3;
+      maxX = anchor.x + spacing;
+      minY = anchor.y - stackSpan - spacing * 2;
+      maxY = anchor.y + stackSpan + spacing * 2;
+      break;
+    case 'right':
+      minX = anchor.x - spacing;
+      maxX = anchor.x + spacing * 3;
+      minY = anchor.y - stackSpan - spacing * 2;
+      maxY = anchor.y + stackSpan + spacing * 2;
+      break;
+  }
+
+  const localBounds = new paper.Rectangle(minX!, minY!, maxX! - minX!, maxY! - minY!);
+  const topLeft = layer.localToGlobal(localBounds.topLeft);
+  const bottomRight = layer.localToGlobal(localBounds.bottomRight);
+  const globalBounds = new paper.Rectangle(topLeft, bottomRight);
+
+  const viewPadding = 1.3;
+  const zoomX = view.viewSize.width / (globalBounds.width * viewPadding);
+  const zoomY = view.viewSize.height / (globalBounds.height * viewPadding);
+  const newZoom = Math.min(zoomX, zoomY, 4);
+
+  return { zoom: newZoom, center: globalBounds.center };
 }
 
 export function showOptionSelector(config: MapOptionSelectorConfig): void {
+  // If selection animation is running, defer this call until view transition completes
+  if (selectionAnim) {
+    const target = computeZoomToFit(config.anchorPoint, config.direction, config.spacing || 12);
+    viewAnim = {
+      startZoom: paper.view.zoom,
+      endZoom: target.zoom,
+      startCenter: paper.view.center.clone(),
+      endCenter: target.center.clone(),
+      elapsed: 0,
+      duration: VIEW_TRANSITION_DURATION,
+      onComplete: () => {
+        finishSelectionAnimation();
+        showOptionSelectorImmediate(config);
+      },
+    };
+    return;
+  }
+  showOptionSelectorImmediate(config);
+}
+
+function showOptionSelectorImmediate(config: MapOptionSelectorConfig): void {
   hideOptionSelector();
 
   currentConfig = config;
@@ -466,10 +915,9 @@ export function showOptionSelector(config: MapOptionSelectorConfig): void {
 
     // Click handler - confirm if already centered, otherwise scroll to this card
     card.onClick = () => {
+      if (animationBlocked) return;
       if (index === selectedIndex && currentConfig) {
-        const option = currentConfig.options[selectedIndex];
-        emitter.emit(currentConfig.eventName, { value: option.value });
-        hideOptionSelector();
+        startSelectionAnimation(card);
       } else {
         scrollToIndex(index);
       }
@@ -488,9 +936,7 @@ export function showOptionSelector(config: MapOptionSelectorConfig): void {
   fixedUI.applyMatrix = false;
 
   const viewWidth = paper.view.viewSize.width;
-  const viewHeight = paper.view.viewSize.height;
   const fixedScale = 5;
-  const bottomY = viewHeight - 60;
 
   // Back button at top-left
   const backButton = createBackButton(new paper.Point(0, 0));
@@ -525,19 +971,10 @@ export function showOptionSelector(config: MapOptionSelectorConfig): void {
     fixedUI.addChild(fixedLabelGroup);
   }
 
-  // pending deletion - confirm button replaced by clicking the centered card
-  // fixedConfirmButton = createConfirmButton(new paper.Point(0, 0));
-  // fixedConfirmButton.scaling = new paper.Point(fixedScale * 1.5, fixedScale * 1.5);
-  // fixedConfirmButton.position = new paper.Point(viewWidth / 2, bottomY);
-  // fixedUI.addChild(fixedConfirmButton);
-
   // Listen for resize
   resizeHandler = () => {
     const w = paper.view.viewSize.width;
-    const h = paper.view.viewSize.height;
     if (fixedLabelGroup) fixedLabelGroup.position.x = w / 2;
-    // pending deletion
-    // if (fixedConfirmButton) fixedConfirmButton.position = new paper.Point(w / 2, h - 60);
   };
   emitter.on('resize', resizeHandler);
 
@@ -555,8 +992,15 @@ export function showOptionSelector(config: MapOptionSelectorConfig): void {
   setupEventHandlers();
 
   // Start animation loop
-  frameHandler = () => {
-    updateDeckPositions();
+  frameHandler = (event: { delta: number }) => {
+    if (selectionAnim) {
+      updateSelectionAnimation(event.delta);
+    } else {
+      updateDeckPositions();
+    }
+    if (viewAnim) {
+      updateViewAnimation(event.delta);
+    }
   };
   paper.view.on('frame', frameHandler);
 
@@ -575,7 +1019,7 @@ function setupEventHandlers(): void {
     event.preventDefault();
     event.stopPropagation();
 
-    if (!currentConfig) return;
+    if (!currentConfig || animationBlocked) return;
 
     // Ignore late momentum events from macOS trackpad after gesture settled
     if (Date.now() < wheelGestureCooldownUntil) return;
@@ -632,7 +1076,7 @@ function setupEventHandlers(): void {
 
   // Touch handlers for mobile swipe - continuous with velocity
   const touchStartHandler = (event: TouchEvent) => {
-    if (event.touches.length !== 1) return;
+    if (event.touches.length !== 1 || animationBlocked) return;
     const touch = event.touches[0];
     touchStartX = touch.clientX;
     touchStartY = touch.clientY;
@@ -711,6 +1155,14 @@ function setupEventHandlers(): void {
 }
 
 export function hideOptionSelector(): void {
+  // Force-complete any in-progress animation
+  if (selectionAnim) {
+    selectionAnim.particles.forEach(p => p.item.remove());
+    selectionAnim = null;
+    animationBlocked = false;
+  }
+  viewAnim = null;
+
   if (selectorUI) {
     const canvas = paper.view.element;
     const data = selectorUI.data;
@@ -764,7 +1216,6 @@ export function hideOptionSelector(): void {
   optionCards = [];
   previewGroup = null;
   fixedLabelGroup = null;
-  fixedConfirmButton = null;
 }
 
 function zoomToFit(
@@ -772,46 +1223,9 @@ function zoomToFit(
   direction: OptionDirection,
   spacing: number
 ): void {
-  const view = paper.view;
-  const layer = layers.mapOverlayLayer;
-
-  // For deck stacking, we need less space since cards stack
-  const stackSpan = STACK_BASE_OFFSET + MAX_STACK_VISIBLE * STACK_CARD_OFFSET;
-  let minX: number, maxX: number, minY: number, maxY: number;
-
-  switch (direction) {
-    case 'bottom':
-      minX = anchor.x - stackSpan - spacing * 2;
-      maxX = anchor.x + stackSpan + spacing * 2;
-      minY = anchor.y - spacing;
-      maxY = anchor.y + spacing * 3;
-      break;
-    case 'left':
-      minX = anchor.x - spacing * 3;
-      maxX = anchor.x + spacing;
-      minY = anchor.y - stackSpan - spacing * 2;
-      maxY = anchor.y + stackSpan + spacing * 2;
-      break;
-    case 'right':
-      minX = anchor.x - spacing;
-      maxX = anchor.x + spacing * 3;
-      minY = anchor.y - stackSpan - spacing * 2;
-      maxY = anchor.y + stackSpan + spacing * 2;
-      break;
-  }
-
-  const localBounds = new paper.Rectangle(minX, minY, maxX - minX, maxY - minY);
-  const topLeft = layer.localToGlobal(localBounds.topLeft);
-  const bottomRight = layer.localToGlobal(localBounds.bottomRight);
-  const globalBounds = new paper.Rectangle(topLeft, bottomRight);
-
-  const viewPadding = 1.3;
-  const zoomX = view.viewSize.width / (globalBounds.width * viewPadding);
-  const zoomY = view.viewSize.height / (globalBounds.height * viewPadding);
-  const newZoom = Math.min(zoomX, zoomY, 4);
-
-  view.zoom = newZoom;
-  view.center = globalBounds.center;
+  const target = computeZoomToFit(anchor, direction, spacing);
+  paper.view.zoom = target.zoom;
+  paper.view.center = target.center;
 }
 
 export function isOptionSelectorVisible(): boolean {

@@ -14,7 +14,7 @@ import { loadEdgeTilesAsGeometry } from '../ui/edgeTiles';
 import { emitter } from '../emitter';
 import { type OptionConfig } from '../ui/mapOptionSelector';
 import { showPositionSelector, hidePositionSelector, SelectionType, getPeninsulaPosition, getAirportBlocks, getSecretBeachBlock, getSecretBeachPosition, getRockPosition, getRockBlock, RiverDirection } from '../ui/mapPositionSelector';
-import { showOptionSelector, OptionDirection } from '../ui/mapOptionSelector';
+import { showOptionSelector, OptionDirection, spawnTileParticles } from '../ui/mapOptionSelector';
 import { initializeEdgeTiles, fillEdgeTilesWithPlaceholders, replaceBlocks, restoreBlocks, setRiverTiles, getRemainingPlaceholders } from '../ui/edgeTiles';
 import { tileAssetIndices, getAssetByIndex, categoryAssetIndices, type TileDirection } from '../ui/edgeTileAssets';
 import {
@@ -389,6 +389,7 @@ export default function ModalMapSelect(){
       }
 
       replaceBlocks({ x: blockX, y: 5, assetIndex: categoryAssetIndices.bottom_river[value] });
+      spawnTileParticles(blockX, 5);
       setRiverMouth1Shape(value);
     };
 
@@ -415,6 +416,7 @@ export default function ModalMapSelect(){
       }
 
       replaceBlocks({ ...block, assetIndex: riverAssets[value] });
+      spawnTileParticles(block.x, block.y);
       setRiverMouth2Shape(value);
     };
 
@@ -427,6 +429,7 @@ export default function ModalMapSelect(){
       // Replace the placeholder blocks with airport tiles
       for (let i = 0; i < airportBlocks.length; i++) {
         replaceBlocks({ x: airportBlocks[i].x, y: airportBlocks[i].y, assetIndex: categoryAssetIndices.airport[i] });
+        setTimeout(() => spawnTileParticles(airportBlocks[i].x, airportBlocks[i].y), i * 100);
       }
 
       setAirportPosition(index);
@@ -451,6 +454,7 @@ export default function ModalMapSelect(){
         : categoryAssetIndices.right_peninsula;
 
       replaceBlocks({ x: blockX, y: blockY, assetIndex: peninsulaAssets[value] });
+      spawnTileParticles(blockX, blockY);
 
       setPeninsulaShape(value);
     };
@@ -468,6 +472,7 @@ export default function ModalMapSelect(){
         : categoryAssetIndices.bottom_right_dock;
 
       replaceBlocks({ x: blockX, y: blockY, assetIndex: dockAssets[value] });
+      spawnTileParticles(blockX, blockY);
 
       setDockShape(value);
     };
@@ -485,6 +490,7 @@ export default function ModalMapSelect(){
       const block = getSecretBeachBlock(riverDir, posIndex);
 
       replaceBlocks({ ...block, assetIndex: categoryAssetIndices.top_secret_beach[value] });
+      spawnTileParticles(block.x, block.y);
 
       setSecretBeachShape(value);
     };
@@ -501,6 +507,7 @@ export default function ModalMapSelect(){
       const block = getRockBlock('left', posIndex);
 
       replaceBlocks({ ...block, assetIndex: categoryAssetIndices.left_rock[value] });
+      spawnTileParticles(block.x, block.y);
 
       setLeftRockShape(value);
     };
@@ -517,6 +524,7 @@ export default function ModalMapSelect(){
       const block = getRockBlock('right', posIndex);
 
       replaceBlocks({ ...block, assetIndex: categoryAssetIndices.right_rock[value] });
+      spawnTileParticles(block.x, block.y);
 
       setRightRockShape(value);
     };
@@ -534,6 +542,7 @@ export default function ModalMapSelect(){
 
         // Replace the placeholder with selected tile
         replaceBlocks({ x: placeholder.x, y: placeholder.y, assetIndex: indices[value] });
+        spawnTileParticles(placeholder.x, placeholder.y);
 
         // Check if there are more placeholders
         const remainingAfter = getRemainingPlaceholders();
