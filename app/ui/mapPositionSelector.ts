@@ -8,6 +8,7 @@ import { goBack } from './mapSelectionWizard';
 import { getBlockState } from './edgeTiles';
 import { getMobileOperatingSystem } from '../helpers/getMobileOperatingSystem';
 import { getCachedSvgContent } from '../generatedTilesCache';
+import { startViewAnimation, tickViewAnimation, stopViewAnimation } from './viewAnimation';
 
 let selectorUI: paper.Group | null = null;
 let fixedUI: paper.Group | null = null;
@@ -19,39 +20,6 @@ let selectedPositionIndex: number | null = null;
 let positionButtons: paper.Group[] = [];
 let currentEventName: string | null = null;
 let frameHandler: ((event: { delta: number }) => void) | null = null;
-
-// View transition animation state
-const VIEW_TRANSITION_DURATION = 0.4;
-let viewAnim: {
-  startZoom: number;
-  endZoom: number;
-  startCenter: paper.Point;
-  endCenter: paper.Point;
-  elapsed: number;
-  duration: number;
-} | null = null;
-
-function easeInOutCubic(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-}
-
-function updateViewAnimation(delta: number): void {
-  if (!viewAnim) return;
-  viewAnim.elapsed += delta;
-  const t = Math.min(viewAnim.elapsed / viewAnim.duration, 1);
-  const eased = easeInOutCubic(t);
-
-  paper.view.zoom = viewAnim.startZoom + (viewAnim.endZoom - viewAnim.startZoom) * eased;
-  paper.view.center = viewAnim.startCenter.add(
-    viewAnim.endCenter.subtract(viewAnim.startCenter).multiply(eased)
-  );
-
-  if (t >= 1) {
-    paper.view.zoom = viewAnim.endZoom;
-    paper.view.center = viewAnim.endCenter;
-    viewAnim = null;
-  }
-}
 
 const mapWidth = horizontalBlocks * horizontalDivisions; // 112
 const mapHeight = verticalBlocks * verticalDivisions; // 96
@@ -679,7 +647,7 @@ export function hidePositionSelector(): void {
     paper.view.off('frame', frameHandler);
     frameHandler = null;
   }
-  viewAnim = null;
+  stopViewAnimation();
   if (resizeHandler) {
     emitter.off('resize', resizeHandler);
     resizeHandler = null;
@@ -718,19 +686,12 @@ function zoomToFit(bounds: paper.Rectangle): void {
   const newZoom = Math.min(zoomX, zoomY, 4);
 
   // Animate the view transition
-  viewAnim = {
-    startZoom: view.zoom,
-    endZoom: newZoom,
-    startCenter: view.center.clone(),
-    endCenter: globalBounds.center.clone(),
-    elapsed: 0,
-    duration: VIEW_TRANSITION_DURATION,
-  };
+  startViewAnimation({ zoom: newZoom, center: globalBounds.center.clone() });
 
   // Set up frame handler if not already running
   if (!frameHandler) {
     frameHandler = (event: { delta: number }) => {
-      updateViewAnimation(event.delta);
+      tickViewAnimation(event.delta);
     };
     paper.view.on('frame', frameHandler);
   }

@@ -8,6 +8,7 @@ import { getCachedSvgContent } from '../generatedTilesCache';
 import { getImageSrcForAsset } from './edgeTileAssets';
 import { hideEdgeTileAtBlock, showEdgeTileAtBlock } from './edgeTiles';
 import { getMobileOperatingSystem } from '../helpers/getMobileOperatingSystem';
+import { startViewAnimation, tickViewAnimation, stopViewAnimation, isViewAnimating, VIEW_TRANSITION_DURATION } from './viewAnimation';
 
 let selectorUI: paper.Group | null = null;
 let fixedUI: paper.Group | null = null;
@@ -95,7 +96,7 @@ const MOMENTUM_FACTOR = 80;          // Velocity multiplier for momentum
 const HOP_DURATION = 0.4;            // Hop arc to tile position (seconds) — dismiss runs in parallel
 const SQUISH_DURATION = 0.2;         // Squish-bounce on landing
 const PARTICLE_DURATION = 0.3;       // Star burst + card fade
-const VIEW_TRANSITION_DURATION = 0.4; // Smooth zoom/pan to next step
+// VIEW_TRANSITION_DURATION imported from ./viewAnimation
 const DISMISS_SLIDE_DISTANCE = 3;    // Island units cards slide away during dismiss
 const HOP_PEAK_SCALE_MULT = 1.4;     // Scale multiplier at hop peak (z-illusion)
 const SQUISH_AMPLITUDE = 0.15;       // Max deformation during squish (15%)
@@ -141,24 +142,9 @@ type SelectionAnimState = {
 let selectionAnim: SelectionAnimState | null = null;
 let animationBlocked = false;
 
-// View transition state (smooth zoom/pan)
-let viewAnim: {
-  startZoom: number;
-  endZoom: number;
-  startCenter: paper.Point;
-  endCenter: paper.Point;
-  elapsed: number;
-  duration: number;
-  onComplete?: () => void;
-} | null = null;
-
 // Easing functions
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
-}
-
-function easeInOutCubic(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
 function bounceDamped(t: number): number {
@@ -690,9 +676,9 @@ function updateSettleDelayPhase(anim: SelectionAnimState, _delta: number): void 
 }
 
 function updateViewTransitionPhase(anim: SelectionAnimState, _delta: number): void {
-  // View animation is driven by viewAnim (set by showOptionSelector wrapper).
-  // If no viewAnim arrives (next step is a modal), finish after a timeout.
-  if (!viewAnim && anim.phaseTime > 0.4) {
+  // View animation is driven by startViewAnimation (called by showOptionSelector wrapper).
+  // If no view animation arrives (next step is a modal), finish after a timeout.
+  if (!isViewAnimating() && anim.phaseTime > 0.4) {
     finishSelectionAnimation();
   }
 }
@@ -754,25 +740,7 @@ export function spawnTileParticles(blockX: number, blockY: number): void {
   paper.view.on('frame', handler);
 }
 
-function updateViewAnimation(delta: number): void {
-  if (!viewAnim) return;
-  viewAnim.elapsed += delta;
-  const t = Math.min(viewAnim.elapsed / viewAnim.duration, 1);
-  const eased = easeInOutCubic(t);
 
-  paper.view.zoom = viewAnim.startZoom + (viewAnim.endZoom - viewAnim.startZoom) * eased;
-  paper.view.center = viewAnim.startCenter.add(
-    viewAnim.endCenter.subtract(viewAnim.startCenter).multiply(eased)
-  );
-
-  if (t >= 1) {
-    paper.view.zoom = viewAnim.endZoom;
-    paper.view.center = viewAnim.endCenter;
-    const onComplete = viewAnim.onComplete;
-    viewAnim = null;
-    onComplete?.();
-  }
-}
 
 function cleanupSelectorUI(): void {
   if (selectorUI) {
@@ -856,18 +824,10 @@ export function showOptionSelector(config: MapOptionSelectorConfig): void {
   // If selection animation is running, defer this call until view transition completes
   if (selectionAnim) {
     const target = computeZoomToFit(config.anchorPoint, config.direction, config.spacing || 12);
-    viewAnim = {
-      startZoom: paper.view.zoom,
-      endZoom: target.zoom,
-      startCenter: paper.view.center.clone(),
-      endCenter: target.center.clone(),
-      elapsed: 0,
-      duration: VIEW_TRANSITION_DURATION,
-      onComplete: () => {
-        finishSelectionAnimation();
-        showOptionSelectorImmediate(config);
-      },
-    };
+    startViewAnimation(target, VIEW_TRANSITION_DURATION, () => {
+      finishSelectionAnimation();
+      showOptionSelectorImmediate(config);
+    });
     return;
   }
   showOptionSelectorImmediate(config);
@@ -1049,8 +1009,8 @@ function showOptionSelectorImmediate(config: MapOptionSelectorConfig): void {
     } else {
       updateDeckPositions();
     }
-    if (viewAnim) {
-      updateViewAnimation(event.delta);
+    if (isViewAnimating()) {
+      tickViewAnimation(event.delta);
     }
   };
   paper.view.on('frame', frameHandler);
@@ -1212,7 +1172,7 @@ export function hideOptionSelector(): void {
     selectionAnim = null;
     animationBlocked = false;
   }
-  viewAnim = null;
+  stopViewAnimation();
 
   if (selectorUI) {
     const canvas = paper.view.element;
@@ -1275,8 +1235,7 @@ function zoomToFit(
   spacing: number
 ): void {
   const target = computeZoomToFit(anchor, direction, spacing);
-  paper.view.zoom = target.zoom;
-  paper.view.center = target.center;
+  startViewAnimation(target);
 }
 
 export function isOptionSelectorVisible(): boolean {
