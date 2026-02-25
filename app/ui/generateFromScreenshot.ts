@@ -7,6 +7,7 @@ import {
   assetIndexToData, type TileDirection,
 } from './edgeTileAssets';
 import { tilesDataCache } from '../generatedTilesCache';
+import { loadMapFromJSONString } from '../load';
 
 // ============ Types ============
 
@@ -1754,7 +1755,8 @@ async function fillIconRegionsWithTerrain(
 ): Promise<void> {
   const imageHeight = Math.floor(data.length / 4 / imageWidth);
 
-  for (const icon of detectedIcons) {
+  for (let _ii = 0; _ii < detectedIcons.length; _ii++) {
+    const icon = detectedIcons[_ii];
     // 1. Load and scale the template to match the blob's screen-pixel size
     // Use rotated template if orientation was resolved
     let tmpl: { data: Uint8ClampedArray; width: number; height: number };
@@ -2672,10 +2674,12 @@ async function matchBlobToTemplate(
   const blobAspect = blobW / blobH;
   const blobFillRatio = blob.area / (blobW * blobH);
 
-  for (const candidate of candidates) {
+  for (let ci = 0; ci < candidates.length; ci++) {
+    const candidate = candidates[ci];
     if (candidate.orientations && candidate.orientations.length > 0) {
       // Orientation-aware: try each rotation and pick the best
-      for (const orient of candidate.orientations) {
+      for (let oi = 0; oi < candidate.orientations.length; oi++) {
+        const orient = candidate.orientations[oi];
         // Pre-filter: diagonal orientations (45°/135°) require an approximately square
         // bounding box and low fill ratio (the rotated bridge is diamond-shaped in its bbox,
         // filling ~50% of the area). Straight blobs have high fill ratios and non-square bboxes.
@@ -2860,7 +2864,8 @@ async function detectStairs(
   const blobDebug: BlobDebugEntry[] = [];
   const groupDebugResults: StairGroupDebug[] = [];
 
-  for (const { blobs: group, scanVertical } of allGroups) {
+  for (let _gi = 0; _gi < allGroups.length; _gi++) {
+    const { blobs: group, scanVertical } = allGroups[_gi];
     // Compute merged bounding box
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     let area = 0;
@@ -3024,7 +3029,8 @@ async function tryDetectSubIcons(
     template: IconTemplate; confidence: number;
   }> = [];
 
-  for (const [rMinX, rMinY, rMaxX, rMaxY] of corners) {
+  for (let _ci = 0; _ci < corners.length; _ci++) {
+    const [rMinX, rMinY, rMaxX, rMaxY] = corners[_ci];
     // Rescan image data for dark pixels in this corner (avoids scan-space index bug)
     let area = 0;
     for (let y = Math.max(0, rMinY); y <= Math.min(imageHeight - 1, rMaxY); y++) {
@@ -3299,7 +3305,9 @@ async function detectMapIcons(
   }
 
   // Phase 1: Collect all candidate detections (no grid clearing yet)
-  for (const [key, group] of colorGroups) {
+  const colorGroupEntries = Array.from(colorGroups.entries());
+  for (let _cgi = 0; _cgi < colorGroupEntries.length; _cgi++) {
+    const [key, group] = colorGroupEntries[_cgi];
     // Apply color group filters
     if (includeOnlyColorKeys && !includeOnlyColorKeys.has(key)) continue;
     if (excludeColorKeys?.has(key)) continue;
@@ -3336,7 +3344,8 @@ async function detectMapIcons(
       key === BRIDGE_COLOR_KEY ? 'bridges' :
       null;
 
-    for (const blob of blobs) {
+    for (let _bi = 0; _bi < blobs.length; _bi++) {
+      const blob = blobs[_bi];
       if (group.length === 1 && !refTemplate.orientations) {
         // Single template, no orientation variants — simple path
         const confidence = validateBlob(blob, refTemplate, ppc);
@@ -3464,7 +3473,8 @@ async function detectMapIcons(
       const minExpected = Math.min(...group.map(t => Math.min(...t.sizeInCoords)));
       const maxExpected = Math.max(...group.map(t => Math.max(...t.sizeInCoords)));
 
-      for (const auxBlob of auxBlobs) {
+      for (let _ai = 0; _ai < auxBlobs.length; _ai++) {
+        const auxBlob = auxBlobs[_ai];
         // Size filter: must be plausibly in range for a template in this group
         const bboxW = (auxBlob.maxX - auxBlob.minX + 1) / ppc;
         const bboxH = (auxBlob.maxY - auxBlob.minY + 1) / ppc;
@@ -5076,7 +5086,7 @@ async function processPathPixels(
   imageHeight: number,
   extents: IslandExtents,
   grid: PixelGrid,
-): Promise<[number, number][][]> {
+): Promise<{ polylines: [number, number][][]; pathOutlines: [number, number][][] }> {
   // Step 1: Vectorize before filling (while grid still has PATH values)
   const polylines = tracePathPolylines(grid);
   const totalPoints = polylines.reduce((sum, p) => sum + p.length, 0);
@@ -5207,6 +5217,14 @@ async function processPathPixels(
 
   console.log(`Path extension: ${extendedCount} additional transition pixels painted`);
 
+  // Step 4.6: Trace closed polygon outlines of the path region (for v2 map drawing layer)
+  const pathCellSet = new Set<number>();
+  for (let i = 0; i < wasPathCell.length; i++) {
+    if (wasPathCell[i]) pathCellSet.add(i);
+  }
+  const pathOutlines = traceTerrainOutline(pathCellSet);
+  console.log(`Path outline: ${pathOutlines.length} polygons`);
+
   // Step 5: Debug image
   const canvas = document.createElement('canvas');
   canvas.width = imageWidth;
@@ -5217,7 +5235,325 @@ async function processPathPixels(
   ctx.putImageData(imgData, 0, 0);
   await downloadCanvas(canvas, 'debug_13d_post_path_fill.png');
 
-  return polylines;
+  return { polylines, pathOutlines };
+}
+
+// ============ Terrain Outline Tracing ============
+
+// Minimum connected-component size (in grid cells) to include in terrain outlines.
+// Single isolated cells are treated as noise and skipped.
+const MIN_REGION_SIZE = 2;
+
+/**
+ * Traces closed polygon outlines for every 4-connected component in `cellSet`
+ * that has at least MIN_REGION_SIZE cells. Returns an array of closed polygons;
+ * each polygon is an array of [x, y] integer vertex coordinates with collinear
+ * intermediate vertices compressed out.
+ */
+function traceTerrainOutline(cellSet: Set<number>): [number, number][][] {
+  const VWIDTH = ISLAND_COORD_WIDTH + 1; // vertex grid width (113 for 112 cells)
+  const encodeV = (x: number, y: number) => y * VWIDTH + x;
+
+  const dx4c = [0, 1, 0, -1]; // 4-connectivity for component BFS
+  const dy4c = [-1, 0, 1, 0];
+
+  const polygons: [number, number][][] = [];
+  const globalVisited = new Set<number>();
+
+  for (const startIdx of cellSet) {
+    if (globalVisited.has(startIdx)) continue;
+
+    // BFS to find 4-connected component
+    const component: number[] = [];
+    const queue: number[] = [startIdx];
+    const compVisited = new Set<number>([startIdx]);
+    for (let qi = 0; qi < queue.length; qi++) {
+      const idx = queue[qi];
+      component.push(idx);
+      const cx = idx % ISLAND_COORD_WIDTH, cy = Math.floor(idx / ISLAND_COORD_WIDTH);
+      for (let d = 0; d < 4; d++) {
+        const nx = cx + dx4c[d], ny = cy + dy4c[d];
+        if (nx < 0 || nx >= ISLAND_COORD_WIDTH || ny < 0 || ny >= ISLAND_COORD_HEIGHT) continue;
+        const nIdx = ny * ISLAND_COORD_WIDTH + nx;
+        if (!cellSet.has(nIdx) || compVisited.has(nIdx)) continue;
+        compVisited.add(nIdx);
+        queue.push(nIdx);
+      }
+    }
+    for (const idx of component) globalVisited.add(idx);
+
+    if (component.length < MIN_REGION_SIZE) continue;
+
+    // Build directed half-edge map for the boundary of this component.
+    // Each directed edge goes CCW around the set (interior on the left).
+    // Vertex encoding: v(x, y) = y * VWIDTH + x
+    const edgeMap = new Map<number, number>(); // fromVertex → toVertex
+
+    for (const cellIdx of compVisited) {
+      const cx = cellIdx % ISLAND_COORD_WIDTH, cy = Math.floor(cellIdx / ISLAND_COORD_WIDTH);
+
+      // Top edge: (cx,cy)→(cx+1,cy) if (cx,cy-1) not in comp
+      if (cy === 0 || !compVisited.has((cy - 1) * ISLAND_COORD_WIDTH + cx))
+        edgeMap.set(encodeV(cx, cy), encodeV(cx + 1, cy));
+      // Right edge: (cx+1,cy)→(cx+1,cy+1) if (cx+1,cy) not in comp
+      if (cx === ISLAND_COORD_WIDTH - 1 || !compVisited.has(cy * ISLAND_COORD_WIDTH + cx + 1))
+        edgeMap.set(encodeV(cx + 1, cy), encodeV(cx + 1, cy + 1));
+      // Bottom edge: (cx+1,cy+1)→(cx,cy+1) if (cx,cy+1) not in comp
+      if (cy === ISLAND_COORD_HEIGHT - 1 || !compVisited.has((cy + 1) * ISLAND_COORD_WIDTH + cx))
+        edgeMap.set(encodeV(cx + 1, cy + 1), encodeV(cx, cy + 1));
+      // Left edge: (cx,cy+1)→(cx,cy) if (cx-1,cy) not in comp
+      if (cx === 0 || !compVisited.has(cy * ISLAND_COORD_WIDTH + cx - 1))
+        edgeMap.set(encodeV(cx, cy + 1), encodeV(cx, cy));
+    }
+
+    // Trace closed polygons by following the edge chain, compressing collinear segments
+    const edgeVisited = new Set<number>();
+    for (const [startFrom] of edgeMap) {
+      if (edgeVisited.has(startFrom)) continue;
+
+      const vertices: [number, number][] = [];
+      let cur = startFrom;
+      let prevDx = 0, prevDy = 0;
+
+      // Safety limit: a polygon can have at most 4 * component.length edges
+      const maxSteps = component.length * 4 + 4;
+      for (let step = 0; step < maxSteps; step++) {
+        if (step > 0 && cur === startFrom) break; // closed the loop
+        edgeVisited.add(cur);
+
+        const next = edgeMap.get(cur);
+        if (next === undefined) break; // broken chain (shouldn't happen)
+
+        const curX = cur % VWIDTH, curY = Math.floor(cur / VWIDTH);
+        const nextX = next % VWIDTH, nextY = Math.floor(next / VWIDTH);
+        const dx = nextX - curX, dy = nextY - curY;
+
+        // Emit vertex only when direction changes (compresses collinear segments)
+        if (vertices.length === 0 || dx !== prevDx || dy !== prevDy) {
+          vertices.push([curX, curY]);
+        }
+        prevDx = dx; prevDy = dy;
+        cur = next;
+      }
+
+      if (vertices.length >= 4) polygons.push(vertices);
+    }
+  }
+
+  return polygons;
+}
+
+// ============ Water Fill & Vectorization ============
+
+async function processWaterPixels(
+  data: Uint8ClampedArray,
+  imageWidth: number,
+  imageHeight: number,
+  extents: IslandExtents,
+  grid: PixelGrid,
+): Promise<{ waterOutlines: [number, number][][] }> {
+  const dx4 = [0, 0, -1, 1], dy4 = [-1, 1, 0, 0];
+
+  // Step 1: Record which cells are WATER (before overwriting with level)
+  const wasWaterCell = new Uint8Array(ISLAND_COORD_WIDTH * ISLAND_COORD_HEIGHT);
+  for (let i = 0; i < grid.primary.length; i++) {
+    if (grid.primary[i] === TERRAIN.WATER) wasWaterCell[i] = 1;
+  }
+
+  // Step 2: Multi-source BFS — fill WATER cells with nearest LEVEL1/2/3
+  const bfsQueue: Array<{ cellIdx: number; level: TerrainType }> = [];
+  const bfsVisited = new Uint8Array(ISLAND_COORD_WIDTH * ISLAND_COORD_HEIGHT);
+
+  for (let cy = 0; cy < ISLAND_COORD_HEIGHT; cy++) {
+    for (let cx = 0; cx < ISLAND_COORD_WIDTH; cx++) {
+      const idx = cy * ISLAND_COORD_WIDTH + cx;
+      const t = grid.primary[idx] as TerrainType;
+      if (t !== TERRAIN.LEVEL1 && t !== TERRAIN.LEVEL2 && t !== TERRAIN.LEVEL3) continue;
+      for (let d = 0; d < 4; d++) {
+        const nx = cx + dx4[d], ny = cy + dy4[d];
+        if (nx < 0 || nx >= ISLAND_COORD_WIDTH || ny < 0 || ny >= ISLAND_COORD_HEIGHT) continue;
+        const nIdx = ny * ISLAND_COORD_WIDTH + nx;
+        if (grid.primary[nIdx] !== TERRAIN.WATER || bfsVisited[nIdx]) continue;
+        bfsVisited[nIdx] = 1;
+        bfsQueue.push({ cellIdx: nIdx, level: t });
+      }
+    }
+  }
+
+  for (let qi = 0; qi < bfsQueue.length; qi++) {
+    const { cellIdx, level } = bfsQueue[qi];
+    grid.primary[cellIdx] = level;
+    grid.diagonal[cellIdx] = DIAGONAL.NONE;
+    grid.secondary[cellIdx] = TERRAIN.UNKNOWN;
+    const cx = cellIdx % ISLAND_COORD_WIDTH;
+    const cy = Math.floor(cellIdx / ISLAND_COORD_WIDTH);
+    for (let d = 0; d < 4; d++) {
+      const nx = cx + dx4[d], ny = cy + dy4[d];
+      if (nx < 0 || nx >= ISLAND_COORD_WIDTH || ny < 0 || ny >= ISLAND_COORD_HEIGHT) continue;
+      const nIdx = ny * ISLAND_COORD_WIDTH + nx;
+      if (grid.primary[nIdx] !== TERRAIN.WATER || bfsVisited[nIdx]) continue;
+      bfsVisited[nIdx] = 1;
+      bfsQueue.push({ cellIdx: nIdx, level });
+    }
+  }
+  console.log(`Water fill: ${bfsQueue.length} cells filled`);
+
+  // Step 3: Paint image pixels for originally-WATER grid cells; collect for extension step
+  const paintedWaterPixelSet = new Set<number>();
+  for (let py = 0; py < imageHeight; py++) {
+    for (let px = 0; px < imageWidth; px++) {
+      const { cx, cy } = pixelToIslandCoord(px, py, extents);
+      const gx = Math.floor(cx), gy = Math.floor(cy);
+      if (gx < 0 || gx >= ISLAND_COORD_WIDTH || gy < 0 || gy >= ISLAND_COORD_HEIGHT) continue;
+      const cellIdx = gy * ISLAND_COORD_WIDTH + gx;
+      if (!wasWaterCell[cellIdx]) continue;
+      const paintColor = terrainLevelToColor(grid.primary[cellIdx] as TerrainType);
+      const dataIdx = (py * imageWidth + px) * 4;
+      data[dataIdx]     = paintColor.r;
+      data[dataIdx + 1] = paintColor.g;
+      data[dataIdx + 2] = paintColor.b;
+      paintedWaterPixelSet.add(py * imageWidth + px);
+    }
+  }
+
+  // Step 3.5: Pixel-space BFS extension for water edge pixels
+  const WATER_EXTENSION_TOLERANCE = 40; // Same as base COLOR_TOLERANCE (water bleeds less than tan paths)
+  const WATER_EXTENSION_RADIUS = 3;
+  let waterExtendedCount = 0;
+
+  const extVisited = new Set<number>(paintedWaterPixelSet);
+  const extQueue: Array<{ pIdx: number; depth: number }> = [];
+  for (const pIdx of paintedWaterPixelSet) {
+    const epx = pIdx % imageWidth, epy = Math.floor(pIdx / imageWidth);
+    for (let d = 0; d < 4; d++) {
+      const nx = epx + dx4[d], ny = epy + dy4[d];
+      if (nx < 0 || nx >= imageWidth || ny < 0 || ny >= imageHeight) continue;
+      const nIdx = ny * imageWidth + nx;
+      if (extVisited.has(nIdx)) continue;
+      extVisited.add(nIdx);
+      extQueue.push({ pIdx: nIdx, depth: 1 });
+    }
+  }
+  for (let qi = 0; qi < extQueue.length; qi++) {
+    const { pIdx, depth } = extQueue[qi];
+    const epx = pIdx % imageWidth, epy = Math.floor(pIdx / imageWidth);
+    const pixel = getPixelAt(data, imageWidth, epx, epy);
+    if (!matchesAnyColor(pixel, SCREENSHOT_COLORS.WATER, WATER_EXTENSION_TOLERANCE)) continue;
+    const { cx, cy } = pixelToIslandCoord(epx, epy, extents);
+    const gx = Math.floor(cx), gy = Math.floor(cy);
+    if (gx < 0 || gx >= ISLAND_COORD_WIDTH || gy < 0 || gy >= ISLAND_COORD_HEIGHT) continue;
+    const cellIdx = gy * ISLAND_COORD_WIDTH + gx;
+    const level = grid.primary[cellIdx] as TerrainType;
+    if (level !== TERRAIN.LEVEL1 && level !== TERRAIN.LEVEL2 && level !== TERRAIN.LEVEL3) continue;
+    const paintColor = terrainLevelToColor(level);
+    const dataIdx = pIdx * 4;
+    data[dataIdx]     = paintColor.r;
+    data[dataIdx + 1] = paintColor.g;
+    data[dataIdx + 2] = paintColor.b;
+    waterExtendedCount++;
+    if (depth < WATER_EXTENSION_RADIUS) {
+      for (let d = 0; d < 4; d++) {
+        const nx = epx + dx4[d], ny = epy + dy4[d];
+        if (nx < 0 || nx >= imageWidth || ny < 0 || ny >= imageHeight) continue;
+        const nIdx = ny * imageWidth + nx;
+        if (extVisited.has(nIdx)) continue;
+        extVisited.add(nIdx);
+        extQueue.push({ pIdx: nIdx, depth: depth + 1 });
+      }
+    }
+  }
+  console.log(`Water extension: ${waterExtendedCount} additional transition pixels painted`);
+
+  // Step 4: Trace closed polygon outlines of the water region
+  const waterCellSet = new Set<number>();
+  for (let i = 0; i < wasWaterCell.length; i++) {
+    if (wasWaterCell[i]) waterCellSet.add(i);
+  }
+  const waterOutlines = traceTerrainOutline(waterCellSet);
+  console.log(`Water outline: ${waterOutlines.length} polygons`);
+
+  // Step 5: Debug image
+  const canvas = document.createElement('canvas');
+  canvas.width = imageWidth;
+  canvas.height = imageHeight;
+  const ctx = canvas.getContext('2d')!;
+  const imgData = ctx.createImageData(imageWidth, imageHeight);
+  imgData.data.set(data);
+  ctx.putImageData(imgData, 0, 0);
+  await downloadCanvas(canvas, 'debug_13e_post_water_fill.png');
+
+  return { waterOutlines };
+}
+
+// ============ Level Outline Vectorization ============
+
+function traceLevelOutlines(grid: PixelGrid): {
+  level2Outlines: [number, number][][];
+  level3Outlines: [number, number][][];
+} {
+  // LEVEL3 region: only cells classified as LEVEL3
+  const level3Set = new Set<number>();
+  for (let i = 0; i < grid.primary.length; i++) {
+    if (grid.primary[i] === TERRAIN.LEVEL3) level3Set.add(i);
+  }
+  const level3Outlines = traceTerrainOutline(level3Set);
+
+  // LEVEL2 region: cells classified as LEVEL2 or LEVEL3 (level2 "contains" level3)
+  const level2Set = new Set<number>();
+  for (let i = 0; i < grid.primary.length; i++) {
+    if (grid.primary[i] === TERRAIN.LEVEL2 || grid.primary[i] === TERRAIN.LEVEL3) level2Set.add(i);
+  }
+  const level2Outlines = traceTerrainOutline(level2Set);
+
+  console.log(`Level outlines: L2=${level2Outlines.length} polygons, L3=${level3Outlines.length} polygons`);
+  return { level2Outlines, level3Outlines };
+}
+
+// ============ V2 Map Assembly ============
+
+async function buildAndLoadV2Map(
+  pathOutlines:   [number, number][][],
+  waterOutlines:  [number, number][][],
+  level2Outlines: [number, number][][],
+  level3Outlines: [number, number][][],
+  edgeAssetIndices: number[],
+  objectGroups: Record<string, number[]>,
+): Promise<void> {
+  // Flatten a vertex array to the [x1,y1,x2,y2,...] format expected by decodeDrawing
+  const flatPoly = (verts: [number, number][]) => verts.flatMap(([x, y]) => [x, y]);
+
+  // level1: always the full-island rectangle
+  const level1Path = [0, 0, ISLAND_COORD_WIDTH, 0, ISLAND_COORD_WIDTH, ISLAND_COORD_HEIGHT, 0, ISLAND_COORD_HEIGHT];
+
+  // Encode a set of polygons as single path or CompoundPath (array of paths)
+  const encodePaths = (polys: [number, number][][]): number[] | number[][] => {
+    if (polys.length === 0) return [];
+    if (polys.length === 1) return flatPoly(polys[0]);
+    return polys.map(flatPoly);
+  };
+
+  const drawing: Record<string, number[] | number[][]> = {
+    level1: [level1Path], // CompoundPath with one child (full rectangle)
+  };
+
+  if (level2Outlines.length > 0) drawing['level2'] = encodePaths(level2Outlines);
+  if (level3Outlines.length > 0) drawing['level3'] = encodePaths(level3Outlines);
+  if (waterOutlines.length > 0)  drawing['water']  = encodePaths(waterOutlines);
+  if (pathOutlines.length > 0)   drawing['pathDirt'] = encodePaths(pathOutlines);
+
+  const v2Map: Record<string, unknown> = {
+    version: 'v2',
+    drawing,
+    edgeTiles: edgeAssetIndices,
+  };
+  if (Object.keys(objectGroups).length > 0) {
+    v2Map['objects'] = objectGroups;
+  }
+
+  const jsonStr = JSON.stringify(v2Map);
+  console.log(`Generate from Screenshot: loading v2 map (${jsonStr.length} bytes)...`);
+  loadMapFromJSONString(jsonStr);
+  console.log('Generate from Screenshot: v2 map loaded');
 }
 
 // ============ Image Loading ============
@@ -5433,10 +5769,17 @@ export async function generateFromScreenshot(): Promise<void> {
   const detectedIcons = [...regularIcons, ...stairBridgeIcons]; // eslint-disable-line @typescript-eslint/no-unused-vars
   // detectedIcons (and detectedIconsToObjectGroups()) will be used when building the final v2 map output
 
-  // 12. Detect and fill path pixels; vectorize for future SVG output
-  const pathPolylines = await processPathPixels(data, width, height, extents, pixelGrid); // eslint-disable-line @typescript-eslint/no-unused-vars
+  // 12a. Detect and fill path pixels; vectorize for future SVG output
+  const { polylines: pathPolylines, pathOutlines } = // eslint-disable-line @typescript-eslint/no-unused-vars
+    await processPathPixels(data, width, height, extents, pixelGrid);
 
-  // debug_14a/b: pixel grid (after path fill — no PATH cells should remain)
+  // 12b. Detect and fill water pixels; vectorize water region outline
+  const { waterOutlines } = await processWaterPixels(data, width, height, extents, pixelGrid);
+
+  // 12c. Vectorize terrain level outlines from the final grid state
+  const { level2Outlines, level3Outlines } = traceLevelOutlines(pixelGrid);
+
+  // debug_14a/b: pixel grid (after path + water fill — no PATH or WATER cells should remain)
   await savePixelGridDebug(pixelGrid);
 
   // Download all debug images as a single zip
@@ -5447,8 +5790,10 @@ export async function generateFromScreenshot(): Promise<void> {
   zipLink.download = 'debug_screenshot.zip';
   zipLink.click();
 
-  // 11. detect water pixels and fill them with their surrounding level
-  // determine level of terrain under water by looking at pixels adjacent to terrain, layer must cut a straight line under the water
+  // 13. Assemble and load the v2 map
+  const objectGroups = detectedIconsToObjectGroups(detectedIcons);
+  await buildAndLoadV2Map(pathOutlines, waterOutlines, level2Outlines, level3Outlines,
+    edgeResult.assetIndices, objectGroups);
 
   console.log('Generate from Screenshot: done');
 }

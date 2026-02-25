@@ -57,7 +57,7 @@ module.exports = (env, argv) => {
                 [
                   '@babel/preset-env',
                   {
-                    targets: { browsers: 'last 2 versions' },
+                    targets: { browsers: ['last 2 versions', 'not dead', 'not op_mini all'] },
                     useBuiltIns: 'entry',
                     corejs: '3',
                   },
@@ -70,7 +70,7 @@ module.exports = (env, argv) => {
                 [
                   '@babel/plugin-transform-runtime',
                   {
-                    regenerator: true,
+                    regenerator: false,
                   },
                 ],
                 ['babel-plugin-typescript-to-proptypes', {}],
