@@ -436,6 +436,12 @@ export default function ModalMapSelect(){
     };
 
     const handlePeninsulaPosSelected = ({ index }: { index: number }) => {
+      const currentState = getWizardState();
+      const side = currentState.peninsulaSide as 'left' | 'right';
+      const blockX = side === 'left' ? 0 : 6;
+      const blockY = index + 1;
+      const placeholderAsset = side === 'left' ? 912 : 913;
+      replaceBlocks({ x: blockX, y: blockY, assetIndex: placeholderAsset });
       setPeninsulaPosition(index);
     };
 
@@ -478,6 +484,10 @@ export default function ModalMapSelect(){
     };
 
     const handleSecretBeachPosSelected = ({ index }: { index: number }) => {
+      const currentState = getWizardState();
+      const riverDir = currentState.riverDirection as RiverDirection;
+      const block = getSecretBeachBlock(riverDir, index);
+      replaceBlocks({ ...block, assetIndex: 911 });
       setSecretBeachPosition(index);
     };
 

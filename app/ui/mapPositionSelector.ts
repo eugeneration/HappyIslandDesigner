@@ -6,11 +6,52 @@ import { createButton } from './createButton';
 import { horizontalBlocks, verticalBlocks, horizontalDivisions, verticalDivisions } from '../constants';
 import { goBack } from './mapSelectionWizard';
 import { getBlockState } from './edgeTiles';
+import { getMobileOperatingSystem } from '../helpers/getMobileOperatingSystem';
+import { getCachedSvgContent } from '../generatedTilesCache';
 
 let selectorUI: paper.Group | null = null;
 let fixedUI: paper.Group | null = null;
 let labelGroup: paper.Group | null = null;
+let subLabelText: paper.PointText | null = null;
 let resizeHandler: (() => void) | null = null;
+let previewGroup: paper.Group | null = null;
+let selectedPositionIndex: number | null = null;
+let positionButtons: paper.Group[] = [];
+let currentEventName: string | null = null;
+let frameHandler: ((event: { delta: number }) => void) | null = null;
+
+// View transition animation state
+const VIEW_TRANSITION_DURATION = 0.4;
+let viewAnim: {
+  startZoom: number;
+  endZoom: number;
+  startCenter: paper.Point;
+  endCenter: paper.Point;
+  elapsed: number;
+  duration: number;
+} | null = null;
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function updateViewAnimation(delta: number): void {
+  if (!viewAnim) return;
+  viewAnim.elapsed += delta;
+  const t = Math.min(viewAnim.elapsed / viewAnim.duration, 1);
+  const eased = easeInOutCubic(t);
+
+  paper.view.zoom = viewAnim.startZoom + (viewAnim.endZoom - viewAnim.startZoom) * eased;
+  paper.view.center = viewAnim.startCenter.add(
+    viewAnim.endCenter.subtract(viewAnim.startCenter).multiply(eased)
+  );
+
+  if (t >= 1) {
+    paper.view.zoom = viewAnim.endZoom;
+    paper.view.center = viewAnim.endCenter;
+    viewAnim = null;
+  }
+}
 
 const mapWidth = horizontalBlocks * horizontalDivisions; // 112
 const mapHeight = verticalBlocks * verticalDivisions; // 96
@@ -236,56 +277,263 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
   }
 }
 
-function createPositionButton(index: number, position: paper.Point, eventName: string, icon?: string): paper.Group {
-  let item: paper.Item;
+function getPreviewAssetIndex(type: SelectionType): number | null {
+  switch (type) {
+    case 'secretBeach': return 911;
+    case 'peninsulaLeft': return 912;
+    case 'peninsulaRight': return 913;
+    case 'leftRock': return 904;
+    case 'rightRock': return 905;
+    case 'airport': return null; // Special handling
+  }
+}
 
-  if (icon) {
-    // Invisible placeholder — replaced by SVG once it loads
-    const placeholder = new paper.Path.Circle(new paper.Point(0, 0), 0.1);
-    placeholder.fillColor = new paper.Color(0, 0, 0, 0);
-    item = placeholder;
+function getFloatingPreviewPosition(type: SelectionType, config: SelectionConfig): paper.Point {
+  const centerY = config.positions.reduce((sum, p) => sum + p.y, 0) / config.positions.length;
+  const centerX = config.positions.reduce((sum, p) => sum + p.x, 0) / config.positions.length;
+
+  switch (type) {
+    case 'peninsulaLeft':
+    case 'leftRock':
+      return new paper.Point(-8, centerY);
+    case 'peninsulaRight':
+    case 'rightRock':
+      return new paper.Point(mapWidth + 8, centerY);
+    case 'secretBeach':
+      return new paper.Point(centerX, -8);
+    case 'airport':
+      return new paper.Point(centerX, mapHeight + 8);
+  }
+}
+
+function createTilePreview(type: SelectionType): paper.Group {
+  const group = new paper.Group();
+  group.applyMatrix = false;
+  group.opacity = 0.7;
+
+  if (type === 'airport') {
+    // Airport: green background + two airport tile SVGs (34, 35) + airport icon
+    const bgLeft = new paper.Path.Rectangle(
+      new paper.Rectangle(-blockSize, -blockSize / 2, blockSize, blockSize)
+    );
+    bgLeft.fillColor = colors.level1.color;
+    group.addChild(bgLeft);
+
+    const bgRight = new paper.Path.Rectangle(
+      new paper.Rectangle(0, -blockSize / 2, blockSize, blockSize)
+    );
+    bgRight.fillColor = colors.level1.color;
+    group.addChild(bgRight);
+
+    // Load airport tile SVGs
+    const airportAssets = [34, 35];
+    airportAssets.forEach((assetId, i) => {
+      const cachedSvg = getCachedSvgContent(assetId);
+      if (cachedSvg) {
+        const item = paper.project.importSVG(cachedSvg, { insert: false });
+        if (item) {
+          const scale = blockSize / Math.max(item.bounds.width, item.bounds.height);
+          item.scale(scale);
+          item.position = new paper.Point((i - 0.5) * blockSize, 0);
+          group.addChild(item);
+        }
+      }
+    });
+
   } else {
-    const circle = new paper.Path.Circle(new paper.Point(0, 0), 4);
-    circle.fillColor = colors.water.color;
-    circle.strokeColor = colors.paper.color;
-    circle.strokeWidth = 1;
-    item = circle;
+    // Green level1 background behind the tile
+    const bg = new paper.Path.Rectangle(
+      new paper.Rectangle(-blockSize / 2, -blockSize / 2, blockSize, blockSize)
+    );
+    bg.fillColor = colors.level1.color;
+    group.addChild(bg);
+
+    const assetIndex = getPreviewAssetIndex(type);
+    if (assetIndex !== null) {
+      const cachedSvg = getCachedSvgContent(assetIndex);
+      if (cachedSvg) {
+        const item = paper.project.importSVG(cachedSvg, { insert: false });
+        if (item) {
+          const scale = blockSize / Math.max(item.bounds.width, item.bounds.height);
+          item.scale(scale);
+          item.position = new paper.Point(0, 0);
+          group.addChild(item);
+        }
+      }
+    }
   }
 
-  const button = createButton(item, 8, () => {
-    emitter.emit(eventName, { index });
+  return group;
+}
+
+function handlePositionTap(originalIndex: number, position: paper.Point, button: paper.Group): void {
+  if (selectedPositionIndex === originalIndex) {
+    // Second tap on same position — confirm
+    if (currentEventName) {
+      emitter.emit(currentEventName, { index: originalIndex });
+    }
     hidePositionSelector();
-  }, {
-    highlightedColor: colors.water.color,
-    selectedColor: colors.npc.color,
+  } else {
+    // First tap — show preview at this position, deselect previous
+    positionButtons.forEach(b => b.data.select(false));
+    button.data.select(true);
+    selectedPositionIndex = originalIndex;
+
+    if (previewGroup) {
+      previewGroup.visible = true;
+      previewGroup.position = position;
+    }
+
+    // Update sub-label text
+    if (subLabelText) {
+      const isMobile = getMobileOperatingSystem() !== 'unknown';
+      subLabelText.content = isMobile ? 'Tap again to confirm' : 'Click again to confirm';
+    }
+  }
+}
+
+function createTileSquareButton(index: number, position: paper.Point): paper.Group {
+  const group = new paper.Group();
+  group.applyMatrix = false;
+
+  const halfSize = blockSize / 2;
+  const rect = new paper.Path.Rectangle(
+    new paper.Rectangle(-halfSize, -halfSize, blockSize, blockSize)
+  );
+  rect.strokeColor = colors.paper.color;
+  rect.strokeWidth = 0.5;
+  rect.dashArray = [1.5, 1.5];
+  rect.fillColor = colors.invisible.color;
+
+  group.addChild(rect);
+  group.position = position;
+
+  // Pointer finger icon at bottom-right corner, hidden until selected
+  let pointer: paper.Item | null = null;
+  paper.project.importSVG('static/svg/pointer.svg', {
+    onLoad: (svgItem: paper.Item) => {
+      svgItem.scale(6 / svgItem.bounds.width);
+      svgItem.position = new paper.Point(halfSize, halfSize);
+      svgItem.visible = false;
+      pointer = svgItem;
+      group.addChild(svgItem);
+    },
+    insert: false,
   });
 
-  if (icon) {
-    // Load SVG properly — bounds are valid inside onLoad
-    paper.project.importSVG(icon, {
-      onLoad: (svgItem: paper.Item) => {
-        svgItem.scale(8 / svgItem.bounds.height);
-        svgItem.position = new paper.Point(0, 0);
-        svgItem.opacity = 0.5;
-        // button.children: [0]=bg circle, [1]=placeholder
-        button.insertChild(1, svgItem);
-        item.remove();
-      },
-      insert: false,
-    });
-  } else {
-    const label = new paper.PointText(new paper.Point(0, 2));
-    label.justification = 'center';
-    label.fontFamily = 'TTNorms, sans-serif';
-    label.fontSize = 5;
-    label.fillColor = colors.paper.color;
-    label.content = `${index + 1}`;
-    button.addChild(label);
+  function updateStyle() {
+    if (group.data.selected) {
+      rect.strokeColor = new paper.Color('#FFD700');
+      rect.strokeWidth = 0.8;
+      rect.dashArray = [];
+      group.bringToFront();
+    } else if (group.data.hovered) {
+      rect.strokeColor = colors.paper.color;
+      rect.strokeWidth = 0.8;
+      rect.dashArray = [1.5, 1.5];
+    } else {
+      rect.strokeColor = colors.paper.color;
+      rect.strokeWidth = 0.5;
+      rect.dashArray = [1.5, 1.5];
+    }
+    if (pointer) pointer.visible = group.data.selected;
   }
 
-  button.position = position;
+  group.data = {
+    selected: false,
+    hovered: false,
+    select(isSelected: boolean) {
+      group.data.selected = isSelected;
+      updateStyle();
+    },
+  };
 
-  return button;
+  group.onMouseEnter = () => { group.data.hovered = true; updateStyle(); };
+  group.onMouseLeave = () => { group.data.hovered = false; updateStyle(); };
+  group.onMouseUp = () => { handlePositionTap(index, position, group); };
+
+  return group;
+}
+
+function createAirportButton(index: number, position: paper.Point, icon: string): paper.Group {
+  const group = new paper.Group();
+  group.applyMatrix = false;
+
+  // Dotted outlines for the two airport tile positions (each 1 block wide)
+  const outline = new paper.Path.Rectangle(
+    new paper.Rectangle(-blockSize / 2, -blockSize / 2, blockSize, blockSize)
+  );
+  outline.strokeColor = colors.paper.color;
+  outline.strokeWidth = 0.5;
+  outline.dashArray = [1.5, 1.5];
+  outline.fillColor = null;
+  group.addChild(outline);
+
+  // Hit area: one block (16x16) centered at the airport icon
+  const rect = new paper.Path.Rectangle(
+    new paper.Rectangle(-blockSize / 2, -blockSize / 2, blockSize, blockSize)
+  );
+  rect.strokeWidth = 0;
+  rect.fillColor = colors.invisible.color;
+  group.addChild(rect);
+
+  // Airport icon
+  let iconItem: paper.Item | null = null;
+  paper.project.importSVG(icon, {
+    onLoad: (svgItem: paper.Item) => {
+      svgItem.scale(8 / svgItem.bounds.height);
+      svgItem.position = new paper.Point(0, 0);
+      svgItem.opacity = 0.5;
+      iconItem = svgItem;
+      group.addChild(svgItem);
+    },
+    insert: false,
+  });
+
+  // Pointer finger icon pointing toward the airplane icon
+  let pointer: paper.Item | null = null;
+  paper.project.importSVG('static/svg/pointer.svg', {
+    onLoad: (svgItem: paper.Item) => {
+      svgItem.scale(6 / svgItem.bounds.width);
+      svgItem.position = new paper.Point(blockSize - 12, blockSize / 2);
+      svgItem.visible = false;
+      pointer = svgItem;
+      group.addChild(svgItem);
+    },
+    insert: false,
+  });
+
+  group.position = position;
+
+  function updateStyle() {
+    if (group.data.selected) {
+      rect.strokeColor = new paper.Color('#FFD700');
+      rect.strokeWidth = 0.8;
+      rect.dashArray = [];
+      group.bringToFront();
+    } else {
+      rect.strokeWidth = 0;
+    }
+    if (pointer) pointer.visible = group.data.selected;
+    if (iconItem) {
+      iconItem.opacity = (group.data.selected || group.data.hovered) ? 0.8 : 0.5;
+    }
+  }
+
+  group.data = {
+    selected: false,
+    hovered: false,
+    select(isSelected: boolean) {
+      group.data.selected = isSelected;
+      updateStyle();
+    },
+  };
+
+  group.onMouseEnter = () => { group.data.hovered = true; updateStyle(); };
+  group.onMouseLeave = () => { group.data.hovered = false; updateStyle(); };
+  group.onMouseUp = () => { handlePositionTap(index, position, group); };
+
+  return group;
 }
 
 function createBackButton(): paper.Group {
@@ -313,7 +561,21 @@ export function showPositionSelector(type: SelectionType, riverDirection?: River
 
   const config = getSelectionConfig(type, riverDirection);
 
+  // Store state for two-tap flow
+  currentEventName = config.eventName;
+  selectedPositionIndex = null;
+  positionButtons = [];
+
   layers.mapOverlayLayer.activate();
+
+  // Create preview tile
+  previewGroup = createTilePreview(type);
+  if (type === 'airport') {
+    // Airport preview starts hidden, shown when a position is selected
+    previewGroup.visible = false;
+  } else {
+    previewGroup.position = getFloatingPreviewPosition(type, config);
+  }
 
   selectorUI = new paper.Group();
   selectorUI.applyMatrix = false;
@@ -322,18 +584,29 @@ export function showPositionSelector(type: SelectionType, riverDirection?: River
   config.positions.forEach((pos, index) => {
     // Use original index if available (for filtered peninsula positions)
     const originalIndex = config.originalIndices ? config.originalIndices[index] : index;
-    const button = createPositionButton(originalIndex, pos, config.eventName, config.icon);
+    const button = config.icon
+      ? createAirportButton(originalIndex, pos, config.icon)
+      : createTileSquareButton(originalIndex, pos);
     selectorUI!.addChild(button);
+    positionButtons.push(button);
   });
 
   // Zoom to fit
   zoomToFit(config.zoomBounds);
 
-  // Scale position buttons inversely to zoom so they appear constant size
-  const uiScale = 1 / paper.view.zoom;
-  selectorUI.children.forEach((child) => {
-    child.scale(uiScale);
-  });
+  // Pre-select middle position for non-airport types
+  if (!config.icon && positionButtons.length > 0) {
+    const midIdx = Math.floor(positionButtons.length / 2);
+    const midButton = positionButtons[midIdx];
+    const midOriginalIndex = config.originalIndices ? config.originalIndices[midIdx] : midIdx;
+    const midPosition = config.positions[midIdx];
+
+    midButton.data.select(true);
+    selectedPositionIndex = midOriginalIndex;
+    if (previewGroup) {
+      previewGroup.position = midPosition;
+    }
+  }
 
   // Create fixed UI (back button, label) on fixedLayer at bottom of screen
   layers.fixedLayer.activate();
@@ -357,19 +630,35 @@ export function showPositionSelector(type: SelectionType, riverDirection?: River
   label.fontSize = 16;
   label.fillColor = colors.text.color;
 
+  const isMobile = getMobileOperatingSystem() !== 'unknown';
+  const subLabel = new paper.PointText(new paper.Point(0, 18));
+  // Use longest text for background sizing, then set initial text
+  subLabel.content = isMobile ? 'Tap again to confirm' : 'Click again to confirm';
+  subLabel.justification = 'center';
+  subLabel.fontFamily = 'TTNorms, sans-serif';
+  subLabel.fontSize = 11;
+  subLabel.fillColor = colors.oceanText.color;
+  subLabelText = subLabel;
+
+  // Size background for longest possible text
+  const combinedBounds = label.bounds.unite(subLabel.bounds);
+  // Set initial text based on whether a position is pre-selected
+  subLabel.content = selectedPositionIndex !== null
+    ? (isMobile ? 'Tap again to confirm' : 'Click again to confirm')
+    : (isMobile ? 'Tap a location' : 'Click a location');
   const labelBg = new paper.Path.Rectangle(
     new paper.Rectangle(
-      label.bounds.x - 8,
-      label.bounds.y - 4,
-      label.bounds.width + 16,
-      label.bounds.height + 8
+      combinedBounds.x - 8,
+      combinedBounds.y - 4,
+      combinedBounds.width + 16,
+      combinedBounds.height + 8
     ),
     new paper.Size(6, 6)
   );
   labelBg.fillColor = colors.paper.color;
   labelBg.opacity = 0.9;
 
-  labelGroup = new paper.Group([labelBg, label]);
+  labelGroup = new paper.Group([labelBg, label, subLabel]);
   labelGroup.applyMatrix = false;
   labelGroup.position = new paper.Point(viewWidth / 2, 60);
   fixedUI.addChild(labelGroup);
@@ -386,9 +675,18 @@ export function showPositionSelector(type: SelectionType, riverDirection?: River
 }
 
 export function hidePositionSelector(): void {
+  if (frameHandler) {
+    paper.view.off('frame', frameHandler);
+    frameHandler = null;
+  }
+  viewAnim = null;
   if (resizeHandler) {
     emitter.off('resize', resizeHandler);
     resizeHandler = null;
+  }
+  if (previewGroup) {
+    previewGroup.remove();
+    previewGroup = null;
   }
   if (selectorUI) {
     selectorUI.remove();
@@ -399,6 +697,10 @@ export function hidePositionSelector(): void {
     fixedUI = null;
   }
   labelGroup = null;
+  subLabelText = null;
+  selectedPositionIndex = null;
+  positionButtons = [];
+  currentEventName = null;
 }
 
 function zoomToFit(bounds: paper.Rectangle): void {
@@ -415,8 +717,23 @@ function zoomToFit(bounds: paper.Rectangle): void {
   const zoomY = view.viewSize.height / (globalBounds.height * padding);
   const newZoom = Math.min(zoomX, zoomY, 4);
 
-  view.zoom = newZoom;
-  view.center = globalBounds.center;
+  // Animate the view transition
+  viewAnim = {
+    startZoom: view.zoom,
+    endZoom: newZoom,
+    startCenter: view.center.clone(),
+    endCenter: globalBounds.center.clone(),
+    elapsed: 0,
+    duration: VIEW_TRANSITION_DURATION,
+  };
+
+  // Set up frame handler if not already running
+  if (!frameHandler) {
+    frameHandler = (event: { delta: number }) => {
+      updateViewAnimation(event.delta);
+    };
+    paper.view.on('frame', frameHandler);
+  }
 }
 
 export function isPositionSelectorVisible(): boolean {

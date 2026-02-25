@@ -7,6 +7,7 @@ import { goBack } from './mapSelectionWizard';
 import { getCachedSvgContent } from '../generatedTilesCache';
 import { getImageSrcForAsset } from './edgeTileAssets';
 import { hideEdgeTileAtBlock, showEdgeTileAtBlock } from './edgeTiles';
+import { getMobileOperatingSystem } from '../helpers/getMobileOperatingSystem';
 
 let selectorUI: paper.Group | null = null;
 let fixedUI: paper.Group | null = null;
@@ -52,6 +53,7 @@ const SCROLL_SETTLE_THRESHOLD = 0.02; // Max offset from integer to consider "se
 let cardSpacing = 12;
 let optionCards: paper.Group[] = [];
 let previewGroup: paper.Group | null = null;
+let tilePointer: paper.Item | null = null;
 let hiddenEdgeTileBlock: { x: number; y: number } | null = null;
 let currentConfig: MapOptionSelectorConfig | null = null;
 let uiScale = 1;
@@ -385,6 +387,23 @@ function updateDeckPositions(): void {
       }
     });
   }
+
+  // Position pointer at center card's bottom-right, on top of all cards
+  if (tilePointer) {
+    const settled = isScrollSettled();
+    tilePointer.visible = settled;
+    if (settled) {
+      const centerCard = optionCards[selectedIndex];
+      if (centerCard) {
+        const halfSize = centerCard.data.baseSize / 2 * uiScale * CENTER_SCALE;
+        tilePointer.position = new paper.Point(
+          centerCard.position.x + halfSize,
+          centerCard.position.y + halfSize
+        );
+        tilePointer.bringToFront();
+      }
+    }
+  }
 }
 
 function scrollToIndex(index: number): void {
@@ -462,6 +481,7 @@ function createBackButton(position: paper.Point): paper.Group {
 function startSelectionAnimation(card: paper.Group): void {
   if (!currentConfig || animationBlocked) return;
   animationBlocked = true;
+  if (tilePointer) tilePointer.visible = false;
 
   const tileSize = 16;
   const currentScale = uiScale * CENTER_SCALE;
@@ -766,6 +786,7 @@ function cleanupSelectorUI(): void {
   optionCards.forEach(c => c.remove());
   optionCards = [];
   if (previewGroup) { previewGroup.remove(); previewGroup = null; }
+  if (tilePointer) { tilePointer.remove(); tilePointer = null; }
   if (fixedUI) { fixedUI.remove(); fixedUI = null; }
   if (resizeHandler) { emitter.off('resize', resizeHandler); resizeHandler = null; }
   fixedLabelGroup = null;
@@ -901,7 +922,25 @@ function showOptionSelectorImmediate(config: MapOptionSelectorConfig): void {
   // Create preview group (replaces anchor dot)
   previewGroup = new paper.Group();
   previewGroup.applyMatrix = false;
+  previewGroup.onClick = () => {
+    if (animationBlocked || !currentConfig) return;
+    const centerCard = optionCards[selectedIndex];
+    if (centerCard) {
+      startSelectionAnimation(centerCard);
+    }
+  };
   selectorUI.addChild(previewGroup);
+
+  // Pointer finger icon — tracks center card's bottom-right, layered on top of all cards
+  paper.project.importSVG('static/svg/pointer.svg', {
+    onLoad: (svgItem: paper.Item) => {
+      svgItem.scale(6 / svgItem.bounds.width);
+      svgItem.visible = false;
+      tilePointer = svgItem;
+      if (selectorUI) selectorUI.addChild(svgItem);
+    },
+    insert: false,
+  });
 
   // Create option cards (all at same position initially, will be positioned by updateDeckPositions)
   config.options.forEach((option, index) => {
@@ -953,19 +992,31 @@ function showOptionSelectorImmediate(config: MapOptionSelectorConfig): void {
     label.fontSize = 16;
     label.fillColor = colors.text.color;
 
+    const isMobile = getMobileOperatingSystem() !== 'unknown';
+    const subLabel = new paper.PointText(new paper.Point(0, 18));
+    subLabel.content = isMobile
+      ? 'Swipe to preview, tap to confirm'
+      : 'Scroll to preview, click to confirm';
+    subLabel.justification = 'center';
+    subLabel.fontFamily = 'TTNorms, sans-serif';
+    subLabel.fontSize = 11;
+    subLabel.fillColor = colors.oceanText.color;
+
+    // Size background to fit both lines
+    const combinedBounds = label.bounds.unite(subLabel.bounds);
     const labelBg = new paper.Path.Rectangle(
       new paper.Rectangle(
-        label.bounds.x - 8,
-        label.bounds.y - 4,
-        label.bounds.width + 16,
-        label.bounds.height + 8
+        combinedBounds.x - 8,
+        combinedBounds.y - 4,
+        combinedBounds.width + 16,
+        combinedBounds.height + 8
       ),
       new paper.Size(6, 6)
     );
     labelBg.fillColor = colors.paper.color;
     labelBg.opacity = 0.9;
 
-    fixedLabelGroup = new paper.Group([labelBg, label]);
+    fixedLabelGroup = new paper.Group([labelBg, label, subLabel]);
     fixedLabelGroup.applyMatrix = false;
     fixedLabelGroup.position = new paper.Point(viewWidth / 2, 60);
     fixedUI.addChild(fixedLabelGroup);

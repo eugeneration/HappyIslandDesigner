@@ -26,10 +26,12 @@ export const placeholderAssetIndexToData: Map<number, AssetData> = new Map([
   [909, { state: 'placeholder', direction: 'left', imageSrc: `${tilesPath}placeholder_left_river.svg` }],
   [910, { state: 'placeholder', direction: 'right', imageSrc: `${tilesPath}placeholder_right_river.svg` }],
   [911, { state: 'placeholder', direction: 'top', imageSrc: `${tilesPath}placeholder_top_secret_beach.svg` }],
+  [912, { state: 'placeholder', direction: 'left', imageSrc: `${tilesPath}placeholder_left_peninsula.svg` }],
+  [913, { state: 'placeholder', direction: 'right', imageSrc: `${tilesPath}placeholder_right_peninsula.svg` }],
 ]);
 
 export const placeholderIndexMin = 900;
-export const placeholderIndexMax = 911;
+export const placeholderIndexMax = 913;
 
 export function isPlaceholderIndex(index: number): boolean {
   return index >= placeholderIndexMin && index <= placeholderIndexMax;

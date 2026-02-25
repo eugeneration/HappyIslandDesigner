@@ -2,7 +2,7 @@ import paper from 'paper';
 import { emitter } from '../emitter';
 import { colors } from '../colors';
 import { layers } from '../layers';
-import { stepOrder, WizardState, skipWizard } from './mapSelectionWizard';
+import { stepOrder, WizardState, skipWizardNonDestructive } from './mapSelectionWizard';
 
 let progressGroup: paper.Group | null = null;
 let bgLine: paper.Path | null = null;
@@ -105,7 +105,7 @@ export function showWizardProgress(): void {
   skipButton = new paper.Group([skipBg, skipText]);
   skipButton.applyMatrix = false;
   skipButton.onClick = () => {
-    skipWizard();
+    skipWizardNonDestructive();
   };
   skipButton.onMouseEnter = () => {
     skipBg.opacity = 0.8;

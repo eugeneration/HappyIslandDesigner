@@ -125,6 +125,17 @@ export async function skipWizard(): Promise<void> {
   );
 }
 
+export function skipWizardNonDestructive(): void {
+  const confirmed = confirm('Skip the rest of the flow?');
+  if (confirmed) {
+    hidePositionSelector();
+    hideOptionSelector();
+    loadEdgeTilesAsGeometry();
+    autosaveTrigger();
+    resetWizard();
+  }
+}
+
 export function startWizard(): void {
   wizardState.step = 'entrypoint';
   emitter.emit('wizardStateChanged', wizardState);
@@ -323,6 +334,12 @@ export function goBack(): void {
         wizardState.peninsulaSide = null;
         break;
       case 'peninsulaPos':
+        // Restore the peninsula placeholder tile before clearing position
+        if (wizardState.peninsulaSide !== null && wizardState.peninsulaPosition !== null) {
+          const blockX = wizardState.peninsulaSide === 'left' ? 0 : 6;
+          const blockY = wizardState.peninsulaPosition + 1;
+          emitter.emit('restoreTile', { x: blockX, y: blockY });
+        }
         wizardState.peninsulaPosition = null;
         break;
       case 'peninsulaShape':
@@ -335,6 +352,17 @@ export function goBack(): void {
         wizardState.peninsulaShape = null;
         break;
       case 'secretBeachPos':
+        // Restore the secret beach placeholder tile before clearing position
+        if (wizardState.riverDirection !== null && wizardState.secretBeachPosition !== null) {
+          let columns: number[];
+          switch (wizardState.riverDirection) {
+            case 'west': columns = [3, 4, 5]; break;
+            case 'south': columns = [2, 3, 4]; break;
+            case 'east': columns = [1, 2, 3]; break;
+          }
+          const blockX = columns[wizardState.secretBeachPosition];
+          emitter.emit('restoreTile', { x: blockX, y: 0 });
+        }
         wizardState.secretBeachPosition = null;
         break;
       case 'secretBeachShape':
