@@ -43,6 +43,11 @@ const STACK_BASE_OFFSET = 8;        // Base offset from center (in island units)
 const STACK_CARD_OFFSET = 1.5;      // Offset between stacked cards
 const MAX_STACK_VISIBLE = 3;        // Max cards visible in each stack
 const ANIMATION_SPEED = 0.2;        // Lerp factor for smooth transitions
+const HOVER_SCALE = 1.05;           // 5% size increase on hover
+const HOVER_LIFT = -0.75;           // Move up 0.75 units on hover (center card only)
+const HOVER_TILT = 1.5;             // 1.5 degree tilt on hover (center card only)
+const HOVER_SPEED = 0.225;          // Lerp factor for hover animation
+const SCROLL_SETTLE_THRESHOLD = 0.02; // Max offset from integer to consider "settled" for hover
 
 // State
 let cardSpacing = 12;
@@ -96,7 +101,7 @@ function createOptionCard(
 ): paper.Group {
   const group = new paper.Group();
   group.applyMatrix = false;
-  group.data = { index, option, baseSize: buttonSize };
+  group.data = { index, option, baseSize: buttonSize, hovered: false, hoverAmount: 0 };
 
   // Shadow
   const shadowOffset = 0.5;
@@ -163,16 +168,30 @@ function createOptionCard(
   return group;
 }
 
+function isScrollSettled(): boolean {
+  return !touchMoved
+    && !wheelGestureActive
+    && Math.abs(scrollOffset - Math.round(scrollOffset)) < SCROLL_SETTLE_THRESHOLD
+    && Math.abs(targetScrollOffset - scrollOffset) < SCROLL_SETTLE_THRESHOLD;
+}
+
 function updateDeckPositions(): void {
   if (!currentConfig) return;
 
-  // Skip update when settled — both target and animated position at same integer
+  // Skip update when settled — both target and animated position at same integer, and no hover animating
   const settledEpsilon = 0.001;
+  const hoverAnimating = optionCards.some(c => Math.abs(c.data.hoverAmount - (c.data.hovered ? 1 : 0)) > settledEpsilon);
   const isSettled = lastZOrderCenter !== -1
     && Math.abs(targetScrollOffset - scrollOffset) < settledEpsilon
     && Math.abs(targetScrollOffset - Math.round(targetScrollOffset)) < settledEpsilon
-    && !touchMoved;
+    && !touchMoved
+    && !hoverAnimating;
   if (isSettled) return;
+
+  // Clear all hovers while scrolling so cards don't snap into hover animation mid-scroll
+  if (!isScrollSettled()) {
+    optionCards.forEach(c => { c.data.hovered = false; });
+  }
 
   const axis = getScrollAxis(currentConfig.direction);
   const anchor = currentConfig.anchorPoint;
@@ -233,8 +252,17 @@ function updateDeckPositions(): void {
       offset = direction * (STACK_BASE_OFFSET + stackPosition * STACK_CARD_OFFSET);
     }
 
-    const finalScale = scale * uiScale;
+    // Animate hover amount
+    const hoverTarget = card.data.hovered ? 1 : 0;
+    card.data.hoverAmount += (hoverTarget - card.data.hoverAmount) * HOVER_SPEED;
+    if (Math.abs(card.data.hoverAmount - hoverTarget) < 0.001) card.data.hoverAmount = hoverTarget;
+    const h = card.data.hoverAmount;
+
+    const hoverScale = 1 + (HOVER_SCALE - 1) * h;
+    const finalScale = scale * uiScale * hoverScale;
     card.scaling = new paper.Point(finalScale, finalScale);
+    const isCenter = card.data.index === selectedIndex;
+    card.rotation = isCenter ? HOVER_TILT * h : 0;
 
     // Position based on direction
     let baseOffset = 0;
@@ -250,10 +278,11 @@ function updateDeckPositions(): void {
         break;
     }
 
+    const lift = isCenter ? HOVER_LIFT * h : 0;
     if (axis === 'x') {
-      card.position = new paper.Point(anchor.x + offset, anchor.y + baseOffset);
+      card.position = new paper.Point(anchor.x + offset, anchor.y + baseOffset + lift);
     } else {
-      card.position = new paper.Point(anchor.x + baseOffset, anchor.y + offset);
+      card.position = new paper.Point(anchor.x + baseOffset + lift, anchor.y + offset);
     }
 
     // Z-order: center card on top, stacked cards behind
@@ -432,9 +461,18 @@ export function showOptionSelector(config: MapOptionSelectorConfig): void {
     optionCards.push(card);
     selectorUI!.addChild(card);
 
-    // Click handler - scroll to this card
+    card.onMouseEnter = () => { if (isScrollSettled()) card.data.hovered = true; };
+    card.onMouseLeave = () => { card.data.hovered = false; };
+
+    // Click handler - confirm if already centered, otherwise scroll to this card
     card.onClick = () => {
-      scrollToIndex(index);
+      if (index === selectedIndex && currentConfig) {
+        const option = currentConfig.options[selectedIndex];
+        emitter.emit(currentConfig.eventName, { value: option.value });
+        hideOptionSelector();
+      } else {
+        scrollToIndex(index);
+      }
     };
   });
 
@@ -487,18 +525,19 @@ export function showOptionSelector(config: MapOptionSelectorConfig): void {
     fixedUI.addChild(fixedLabelGroup);
   }
 
-  // Confirm button at bottom center, double size
-  fixedConfirmButton = createConfirmButton(new paper.Point(0, 0));
-  fixedConfirmButton.scaling = new paper.Point(fixedScale * 1.5, fixedScale * 1.5);
-  fixedConfirmButton.position = new paper.Point(viewWidth / 2, bottomY);
-  fixedUI.addChild(fixedConfirmButton);
+  // pending deletion - confirm button replaced by clicking the centered card
+  // fixedConfirmButton = createConfirmButton(new paper.Point(0, 0));
+  // fixedConfirmButton.scaling = new paper.Point(fixedScale * 1.5, fixedScale * 1.5);
+  // fixedConfirmButton.position = new paper.Point(viewWidth / 2, bottomY);
+  // fixedUI.addChild(fixedConfirmButton);
 
   // Listen for resize
   resizeHandler = () => {
     const w = paper.view.viewSize.width;
     const h = paper.view.viewSize.height;
     if (fixedLabelGroup) fixedLabelGroup.position.x = w / 2;
-    if (fixedConfirmButton) fixedConfirmButton.position = new paper.Point(w / 2, h - 60);
+    // pending deletion
+    // if (fixedConfirmButton) fixedConfirmButton.position = new paper.Point(w / 2, h - 60);
   };
   emitter.on('resize', resizeHandler);
 
