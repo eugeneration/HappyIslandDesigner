@@ -251,6 +251,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     minFillRatio: 0.4,
     opaqueArea: 294,                  // 56% of 528 total px
     maxCount: 10,
+    extraFillBuffer: 2,
   },
   {
     name: 'Player House',
@@ -265,6 +266,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     minFillRatio: 0.4,
     opaqueArea: 544,                  // 78% of 693 total px
     maxCount: 10,
+    extraFillBuffer: 2,
   },
   {
     name: 'Player Tent',
@@ -279,6 +281,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     minFillRatio: 0.35,
     opaqueArea: 262,
     maxCount: 10,
+    extraFillBuffer: 2,
   },
   // === Dark amenity group (#534D41) — differentiated by template matching ===
   {
@@ -296,6 +299,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     allowedOverlap: 2,
     auxiliaryBlobColors: [{ r: 0xFD, g: 0xFC, b: 0xFA }],  // #FDFCFA white icon interior
     auxiliaryBlobColorTolerance: 25,
+    extraFillBuffer: 2,
   },
   {
     name: 'Museum',
@@ -312,6 +316,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     allowedOverlap: 2,
     auxiliaryBlobColors: [{ r: 0xFD, g: 0xFC, b: 0xFA }],  // #FDFCFA white icon interior
     auxiliaryBlobColorTolerance: 25,
+    extraFillBuffer: 2,
   },
   {
     name: "Nook's Cranny",
@@ -328,6 +333,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     allowedOverlap: 2,
     auxiliaryBlobColors: [{ r: 0xFD, g: 0xFC, b: 0xFA }],  // #FDFCFA white icon interior
     auxiliaryBlobColorTolerance: 25,
+    extraFillBuffer: 2,
   },
   {
     name: 'Tent',
@@ -344,6 +350,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     allowedOverlap: 2,
     auxiliaryBlobColors: [{ r: 0xFD, g: 0xFC, b: 0xFA }],  // #FDFCFA white icon interior
     auxiliaryBlobColorTolerance: 25,
+    extraFillBuffer: 2,
   },
   {
     name: 'Airport',
@@ -359,6 +366,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     opaqueArea: 1201,                 // 79% of 1521 total px
     auxiliaryBlobColors: [{ r: 0xFD, g: 0xFC, b: 0xFA }],  // #FDFCFA white icon interior
     auxiliaryBlobColorTolerance: 25,
+    extraFillBuffer: 2,
   },
   {
     name: 'Antiques',
@@ -374,6 +382,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     opaqueArea: 1150,                 // 76% of 1521 total px
     auxiliaryBlobColors: [{ r: 0xFD, g: 0xFC, b: 0xFA }],  // #FDFCFA white icon interior
     auxiliaryBlobColorTolerance: 25,
+    extraFillBuffer: 2,
   },
 
   // === Large building group (dark circle #534D41, nosquare variant) ===
@@ -399,6 +408,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     tanRoundedRectFill: { widthCoords: 12, heightCoords: 10, borderRadiusCoords: 2 },
     auxiliaryBlobColors: [{ r: 0xFD, g: 0xFC, b: 0xFA }],  // #FDFCFA white icon interior
     auxiliaryBlobColorTolerance: 25,
+    extraFillBuffer: 2,
   },
   {
     name: 'Town Hall',
@@ -420,6 +430,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     tanRoundedRectFill: { widthCoords: 12, heightCoords: 10, borderRadiusCoords: 2 },
     auxiliaryBlobColors: [{ r: 0xFD, g: 0xFC, b: 0xFA }],  // #FDFCFA white icon interior
     auxiliaryBlobColorTolerance: 25,
+    extraFillBuffer: 2,
   },
 
   // === Orange marker (unique color, no v2 object) ===
@@ -452,7 +463,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     colorTolerance: 40,
     blockBoundaryTolerance: 60,       // Gridlines lighten the color at block boundaries
     maxSaturation: 0.25,              // Bridge is desaturated (~12%); rejects path-like pixels (~34%)
-    sizeInCoords: [2.1, 3.4],         // 11/5.33, 18/5.33
+    sizeInCoords: [2.1, 3.0],         // narrow × length (nominal 3-wide bridge)
     objectSizeInCoords: [4, 6],
     aspectRatioRange: [0.2, 5.0],
     minFillRatio: 0.3,
@@ -476,7 +487,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     colorTolerance: 40,
     blockBoundaryTolerance: 60,
     maxSaturation: 0.25,
-    sizeInCoords: [2.1, 4.5],         // 11/5.33, 24/5.33
+    sizeInCoords: [2.1, 4.0],         // narrow × length (nominal 4-wide bridge)
     objectSizeInCoords: [4, 6],
     aspectRatioRange: [0.2, 5.0],
     minFillRatio: 0.3,
@@ -500,7 +511,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     colorTolerance: 40,
     blockBoundaryTolerance: 60,
     maxSaturation: 0.25,
-    sizeInCoords: [2.1, 5.6],         // 11/5.33, 30/5.33
+    sizeInCoords: [2.1, 5.0],         // narrow × length (nominal 5-wide bridge)
     objectSizeInCoords: [4, 6],
     aspectRatioRange: [0.2, 5.0],
     minFillRatio: 0.3,
@@ -1601,6 +1612,9 @@ function fillEdgeRegionsInScreenshot(
   for (const match of edgeResult.matches) {
     const { blockX, blockY, refOpaqueMask } = match;
 
+    // Track pixels painted for this block so the extra fill can seed from their boundary
+    const paintedInBlock = new Set<number>();
+
     if (refOpaqueMask !== null) {
       // Use matched SVG opaque mask: paint all cells where the asset has any coverage
       for (let ly = 0; ly < 16; ly++) {
@@ -1612,6 +1626,13 @@ function fillEdgeRegionsInScreenshot(
           const cellTop    = Math.round(fullTop  + (blockY * 16 + ly) * ppc);
           const cellRight  = Math.round(fullLeft + (blockX * 16 + lx + 1) * ppc);
           const cellBottom = Math.round(fullTop  + (blockY * 16 + ly + 1) * ppc);
+          for (let py = cellTop; py < cellBottom; py++) {
+            if (py < 0 || py >= imageHeight) continue;
+            for (let px = cellLeft; px < cellRight; px++) {
+              if (px < 0 || px >= imageWidth) continue;
+              paintedInBlock.add(py * imageWidth + px);
+            }
+          }
           paintPixelRect(cellLeft, cellTop, cellRight, cellBottom);
         }
       }
@@ -1634,6 +1655,7 @@ function fillEdgeRegionsInScreenshot(
           data[pi + 1] = paintColor.g;
           data[pi + 2] = paintColor.b;
           pixelsPainted++;
+          paintedInBlock.add(py * imageWidth + px);
         }
       }
     }
@@ -1643,6 +1665,74 @@ function fillEdgeRegionsInScreenshot(
     const isRight  = blockX === BLOCK_COLS - 1;
     const isTop    = blockY === 0;
     const isBottom = blockY === BLOCK_ROWS - 1;
+
+    // BFS expansion from the boundary of the painted opaque mask region.
+    // Extends outward from where the edge tile's land coverage ends, catching
+    // sand/water transition pixels just beyond the opaque mask's reach.
+    // Skip river mouth tiles to preserve river water for downstream water detection.
+    const edgeAssetData = assetIndexToData.get(match.assetIndex);
+    const isRiverMouth = edgeAssetData?.state === 'river';
+
+    if (!isRiverMouth && paintedInBlock.size > 0) {
+      const EDGE_EXPAND_DEPTH = 8;
+      const EDGE_EXPAND_TOLERANCE = 80;  // Permissive: catches transition pixels between sand/water and grass
+      const edgeExpandQueue: Array<{ idx: number; depth: number }> = [];
+      const edgeExpandVisited = new Set<number>(paintedInBlock);
+
+      const edgeDx4 = [0, 0, -1, 1];
+      const edgeDy4 = [-1, 1, 0, 0];
+
+      // Seed BFS from boundary pixels of the painted region
+      for (const linearIdx of paintedInBlock) {
+        const bpx = linearIdx % imageWidth;
+        const bpy = Math.floor(linearIdx / imageWidth);
+        for (let d = 0; d < 4; d++) {
+          const nx = bpx + edgeDx4[d];
+          const ny = bpy + edgeDy4[d];
+          if (nx < 0 || nx >= imageWidth || ny < 0 || ny >= imageHeight) continue;
+          const nIdx = ny * imageWidth + nx;
+          if (edgeExpandVisited.has(nIdx)) continue;
+          edgeExpandVisited.add(nIdx);
+          edgeExpandQueue.push({ idx: nIdx, depth: 1 });
+        }
+      }
+
+      for (let qi = 0; qi < edgeExpandQueue.length; qi++) {
+        const { idx, depth } = edgeExpandQueue[qi];
+        if (depth > EDGE_EXPAND_DEPTH) continue;
+
+        const px = idx % imageWidth;
+        const py = Math.floor(idx / imageWidth);
+
+        // Permissive color check: match sand or water with tolerance 80 to catch
+        // transition/blended pixels at tile boundaries (default tolerance is 40).
+        const pixel = getPixelAt(data, imageWidth, px, py);
+        const isNearSandOrWater =
+          matchesAnyColor(pixel, SCREENSHOT_COLORS.SAND, EDGE_EXPAND_TOLERANCE) ||
+          matchesAnyColor(pixel, SCREENSHOT_COLORS.WATER, EDGE_EXPAND_TOLERANCE);
+        if (!isNearSandOrWater) continue;
+
+        // Paint this pixel with level1 grass
+        const pi = idx * 4;
+        data[pi]     = paintColor.r;
+        data[pi + 1] = paintColor.g;
+        data[pi + 2] = paintColor.b;
+        pixelsPainted++;
+
+        // Continue BFS to cardinal neighbors
+        if (depth < EDGE_EXPAND_DEPTH) {
+          for (let d = 0; d < 4; d++) {
+            const nx = px + edgeDx4[d];
+            const ny = py + edgeDy4[d];
+            if (nx < 0 || nx >= imageWidth || ny < 0 || ny >= imageHeight) continue;
+            const neighborIdx = ny * imageWidth + nx;
+            if (edgeExpandVisited.has(neighborIdx)) continue;
+            edgeExpandVisited.add(neighborIdx);
+            edgeExpandQueue.push({ idx: neighborIdx, depth: depth + 1 });
+          }
+        }
+      }
+    }
 
     const dxList: number[] = isLeft ? [-1] : isRight ? [1] : [];
     const dyList: number[] = isTop  ? [-1] : isBottom ? [1] : [];
@@ -1866,6 +1956,49 @@ async function fillIconRegionsWithTerrain(
       }
     }
 
+    // 2c. For diagonal bridges (45° or 135°), extend the fill diagonally by 2px.
+    // Bridges cross water/terrain boundaries, so expand unconditionally in diagonal directions.
+    if (icon.template.fillBehavior === 'water' && icon.orientation &&
+        (icon.orientation.rotation === 45 || icon.orientation.rotation === 135)) {
+      const DIAG_DEPTH = 2;
+      const diagDx = [1, 1, -1, -1];
+      const diagDy = [-1, 1, -1, 1];
+      const diagQueue: Array<{ idx: number; depth: number }> = [];
+
+      // Seed from boundary pixels of the current dilated set
+      for (const linearIdx of dilatedPixels) {
+        const px = linearIdx % imageWidth;
+        const py = Math.floor(linearIdx / imageWidth);
+        for (let d = 0; d < 4; d++) {
+          const nx = px + diagDx[d];
+          const ny = py + diagDy[d];
+          if (nx < 0 || nx >= imageWidth || ny < 0 || ny >= imageHeight) continue;
+          const neighborIdx = ny * imageWidth + nx;
+          if (dilatedPixels.has(neighborIdx)) continue;
+          diagQueue.push({ idx: neighborIdx, depth: 1 });
+        }
+      }
+
+      for (let qi = 0; qi < diagQueue.length; qi++) {
+        const { idx, depth } = diagQueue[qi];
+        if (dilatedPixels.has(idx)) continue;
+        if (depth > DIAG_DEPTH) continue;
+        dilatedPixels.add(idx);
+        if (depth < DIAG_DEPTH) {
+          const px = idx % imageWidth;
+          const py = Math.floor(idx / imageWidth);
+          for (let d = 0; d < 4; d++) {
+            const nx = px + diagDx[d];
+            const ny = py + diagDy[d];
+            if (nx < 0 || nx >= imageWidth || ny < 0 || ny >= imageHeight) continue;
+            const neighborIdx = ny * imageWidth + nx;
+            if (dilatedPixels.has(neighborIdx)) continue;
+            diagQueue.push({ idx: neighborIdx, depth: depth + 1 });
+          }
+        }
+      }
+    }
+
     // 3. For buildings with a tan rounded-rect base, also fill that region.
     // The dark-circle nosquare blob gives the anchor; the tan box sits behind it.
     if (icon.template.tanRoundedRectFill) {
@@ -1875,7 +2008,7 @@ async function fillIconRegionsWithTerrain(
       const rectMinX = Math.round(circCenterX - widthCoords * ppc / 2);
       const rectMaxX = Math.round(circCenterX + widthCoords * ppc / 2);
       const rectMinY = Math.round(bMinY);
-      const rectMaxY = Math.round(bMinY + heightCoords * ppc);
+      const rectMaxY = Math.round(bMinY + heightCoords * ppc) + 3;
       const r = Math.round(borderRadiusCoords * ppc);
 
       for (let ry = rectMinY; ry <= rectMaxY; ry++) {
@@ -4871,6 +5004,13 @@ const TERRAIN_DEBUG_COLORS: Record<number, [number, number, number]> = {
   [TERRAIN.GRASS]:   [0x50, 0x90, 0x42],  // Generic mid-green (should not appear in final output)
 };
 
+// Map terrain to level-only colors: anything not LEVEL2/LEVEL3 is treated as LEVEL1.
+function levelDebugColor(terrain: number): [number, number, number] {
+  if (terrain === TERRAIN.LEVEL3) return [0x65, 0xCA, 0x44];
+  if (terrain === TERRAIN.LEVEL2) return [0x46, 0xA5, 0x44];
+  return [0x3F, 0x7C, 0x41]; // LEVEL1 (and everything else)
+}
+
 async function savePixelGridDebug(grid: PixelGrid): Promise<void> {
   // === A: 112×96 terrain grid (one pixel per coordinate) ===
   const gridCanvas = document.createElement('canvas');
@@ -4885,14 +5025,14 @@ async function savePixelGridDebug(grid: PixelGrid): Promise<void> {
       const outIdx = idx * 4;
 
       if (grid.diagonal[idx] === DIAGONAL.NONE) {
-        const [r, g, b] = TERRAIN_DEBUG_COLORS[grid.primary[idx]] || [128, 128, 128];
+        const [r, g, b] = levelDebugColor(grid.primary[idx]);
         gridImageData.data[outIdx] = r;
         gridImageData.data[outIdx + 1] = g;
         gridImageData.data[outIdx + 2] = b;
       } else {
         // Diagonal: blend the two colors 50/50 at this resolution
-        const [r1, g1, b1] = TERRAIN_DEBUG_COLORS[grid.primary[idx]] || [128, 128, 128];
-        const [r2, g2, b2] = TERRAIN_DEBUG_COLORS[grid.secondary[idx]] || [128, 128, 128];
+        const [r1, g1, b1] = levelDebugColor(grid.primary[idx]);
+        const [r2, g2, b2] = levelDebugColor(grid.secondary[idx]);
         gridImageData.data[outIdx] = (r1 + r2) >> 1;
         gridImageData.data[outIdx + 1] = (g1 + g2) >> 1;
         gridImageData.data[outIdx + 2] = (b1 + b2) >> 1;
@@ -4917,14 +5057,14 @@ async function savePixelGridDebug(grid: PixelGrid): Promise<void> {
       const x0 = x * scale;
       const y0 = y * scale;
 
-      const [r1, g1, b1] = TERRAIN_DEBUG_COLORS[grid.primary[idx]] || [128, 128, 128];
+      const [r1, g1, b1] = levelDebugColor(grid.primary[idx]);
 
       if (grid.diagonal[idx] === DIAGONAL.NONE) {
         // Solid cell
         overlayCtx.fillStyle = `rgb(${r1},${g1},${b1})`;
         overlayCtx.fillRect(x0, y0, scale, scale);
       } else {
-        const [r2, g2, b2] = TERRAIN_DEBUG_COLORS[grid.secondary[idx]] || [128, 128, 128];
+        const [r2, g2, b2] = levelDebugColor(grid.secondary[idx]);
 
         if (grid.diagonal[idx] === DIAGONAL.BACKSLASH) {
           // '\' — top-left triangle = primary
@@ -5351,6 +5491,7 @@ async function processWaterPixels(
   imageHeight: number,
   extents: IslandExtents,
   grid: PixelGrid,
+  preEdgeWaterCells?: Uint8Array,
 ): Promise<{ waterOutlines: [number, number][][] }> {
   const dx4 = [0, 0, -1, 1], dy4 = [-1, 1, 0, 0];
 
@@ -5358,6 +5499,12 @@ async function processWaterPixels(
   const wasWaterCell = new Uint8Array(ISLAND_COORD_WIDTH * ISLAND_COORD_HEIGHT);
   for (let i = 0; i < grid.primary.length; i++) {
     if (grid.primary[i] === TERRAIN.WATER) wasWaterCell[i] = 1;
+  }
+  // Also include water cells that were converted to LEVEL1 by fillEdgeRegionsWithLevel1
+  if (preEdgeWaterCells) {
+    for (let i = 0; i < preEdgeWaterCells.length; i++) {
+      if (preEdgeWaterCells[i]) wasWaterCell[i] = 1;
+    }
   }
 
   // Step 2: Multi-source BFS — fill WATER cells with nearest LEVEL1/2/3
@@ -5737,7 +5884,34 @@ export async function generateFromScreenshot(): Promise<void> {
   // 10.5c Edge fill: paint edge block sand/rock pixels to level1 in raw pixel data,
   // then update terrain grid. Must happen before stair/bridge detection so sand ≈ stair
   // color false positives are eliminated from the pixel canvas.
+
+  // Snapshot water cells BEFORE edge fill converts them to LEVEL1
+  const preEdgeWaterCells = new Uint8Array(pixelGrid.primary.length);
+  for (let i = 0; i < pixelGrid.primary.length; i++) {
+    if (pixelGrid.primary[i] === TERRAIN.WATER) preEdgeWaterCells[i] = 1;
+  }
+
+  // debug_10a: pixel data BEFORE edge extra fill expansion
+  {
+    const c = document.createElement('canvas');
+    c.width = width; c.height = height;
+    const cx = c.getContext('2d')!;
+    const id = cx.createImageData(width, height);
+    id.data.set(data);
+    cx.putImageData(id, 0, 0);
+    await downloadCanvas(c, 'debug_10a_pre_edge_extra_fill.png');
+  }
   fillEdgeRegionsInScreenshot(data, width, height, extents, edgeResult);
+  // debug_10b: pixel data AFTER edge extra fill expansion
+  {
+    const c = document.createElement('canvas');
+    c.width = width; c.height = height;
+    const cx = c.getContext('2d')!;
+    const id = cx.createImageData(width, height);
+    id.data.set(data);
+    cx.putImageData(id, 0, 0);
+    await downloadCanvas(c, 'debug_10b_post_edge_extra_fill.png');
+  }
   fillEdgeRegionsWithLevel1(pixelGrid);
   // debug_10: pixel data after edge fill
   await saveEdgeFillDebug(data, width, height, extents, pixelGrid);
@@ -5774,7 +5948,7 @@ export async function generateFromScreenshot(): Promise<void> {
     await processPathPixels(data, width, height, extents, pixelGrid);
 
   // 12b. Detect and fill water pixels; vectorize water region outline
-  const { waterOutlines } = await processWaterPixels(data, width, height, extents, pixelGrid);
+  const { waterOutlines } = await processWaterPixels(data, width, height, extents, pixelGrid, preEdgeWaterCells);
 
   // 12c. Vectorize terrain level outlines from the final grid state
   const { level2Outlines, level3Outlines } = traceLevelOutlines(pixelGrid);
