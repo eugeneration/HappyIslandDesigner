@@ -57,8 +57,8 @@
   "scripts": {
     "generate-tiles-cache": "node scripts/generateTilesCache.js",
     "generate-base-map-cache": "node scripts/generateBaseMapCache.js",
-    "predev": "npm run generate-tiles-cache && npm run generate-base-map-cache",
-    "prebuild": "npm run generate-tiles-cache && npm run generate-base-map-cache",
+    "predev": "yarn generate-tiles-cache && yarn generate-base-map-cache",
+    "prebuild": "yarn generate-tiles-cache && yarn generate-base-map-cache",
     "dev": "webpack serve --mode development",
     "lint": "eslint --ext .ts,.js ./app/",
     "build": "webpack --mode production"
