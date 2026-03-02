@@ -154,6 +154,7 @@ type BlobDebugEntry = {
   colorGroup: 'stairs' | 'bridges';
   blob: ColorBlob;
   accepted: boolean;  // Whether blob passed validation and was added to allCandidates
+  rejectReason?: string;  // Why the blob was rejected (for debug label)
 };
 
 type DetectMapIconsResult = {
@@ -455,6 +456,9 @@ const ICON_TEMPLATES: IconTemplate[] = [
 
   // === Olive bridge group (#7F8267) — 3 sizes, orientation-aware ===
   {
+    // Bridge opaqueArea values count only pixels within olive colorTolerance (40),
+    // not all opaque pixels. The template image edges have greenish-teal pixels that
+    // fall outside tolerance and are never captured by blob detection.
     name: 'Bridge (3-wide)',
     category: 'construction',
     type: 'bridgeStoneVertical',
@@ -467,7 +471,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     objectSizeInCoords: [4, 6],
     aspectRatioRange: [0.2, 5.0],
     minFillRatio: 0.3,
-    opaqueArea: 187,
+    opaqueArea: 154,
     fillBehavior: 'water' as const,
     maxCount: 8,
     requiresWaterAdjacency: true,
@@ -491,7 +495,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     objectSizeInCoords: [4, 6],
     aspectRatioRange: [0.2, 5.0],
     minFillRatio: 0.3,
-    opaqueArea: 253,
+    opaqueArea: 212,
     fillBehavior: 'water' as const,
     maxCount: 8,
     requiresWaterAdjacency: true,
@@ -515,7 +519,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     objectSizeInCoords: [4, 6],
     aspectRatioRange: [0.2, 5.0],
     minFillRatio: 0.3,
-    opaqueArea: 319,
+    opaqueArea: 266,
     fillBehavior: 'water' as const,
     maxCount: 8,
     requiresWaterAdjacency: true,
@@ -557,7 +561,9 @@ const COLOR_TOLERANCE = 40; // Euclidean RGB distance
 // Bridge structural detection: railing is slightly lighter than center walkway.
 // Railing luma ≈ 139–147, center luma ≈ 124–133; minimum difference ≈ 6.
 const BRIDGE_RAILING_LUMA_MIN_DIFF = 8;
+const BRIDGE_RAILING_LUMA_MIN_DIFF_DIAG = 5;       // relaxed for diagonal (weaker contrast along 45° pixel lines)
 const BRIDGE_STRUCTURE_PASS_THRESHOLD = 0.4; // min fraction of cross-sections showing railing pattern
+const BRIDGE_STRUCTURE_PASS_THRESHOLD_DIAG = 0.25;  // relaxed for diagonal
 const BRIDGE_LUMA_MIN = 90;           // min luma for bridge tile pixels
 const BRIDGE_LUMA_MAX = 155;          // max luma for bridge tile pixels
 const BRIDGE_SAT_MAX_DETECT = 0.25;   // saturation cap for bridge extent detection
@@ -2494,23 +2500,52 @@ function structurallyScanBridgeOrientation(
   const luma = (r: number, g: number, b: number) => 0.299 * r + 0.587 * g + 0.114 * b;
 
   // Score one perpendicular cross-section strip.
-  // Outer ~20% of pixels should be brighter (railing) than the inner ~60% (center walkway).
-  function scoreStrip(getPixelLuma: (pos: number) => number, sampleMin: number, sampleMax: number): number {
+  // Scans inward from each side, skipping water/blended pixels, to find railing pixels.
+  // Railing (~20% of width) should be brighter than the walkway (estimated via lower quartile).
+  function scoreStrip(getPixelRGB: (pos: number) => { r: number; g: number; b: number }, sampleMin: number, sampleMax: number, lumaDiff: number = BRIDGE_RAILING_LUMA_MIN_DIFF): number {
     const N = sampleMax - sampleMin + 1;
     if (N < 4) return 0;
     const railN = Math.max(1, Math.round(N * 0.2));
-    let leftSum = 0, centerSum = 0, rightSum = 0;
-    let leftN = 0, centerN = 0, rightN = 0;
+    const lumaOf = (rgb: { r: number; g: number; b: number }) => 0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b;
+    // Skip water-like pixels (tolerance 60 to catch blended water/bridge edges)
+    // and out-of-bounds sentinel (0,0,0) from diagonal cross-sections
+    const shouldSkip = (rgb: { r: number; g: number; b: number }) =>
+      (rgb.r === 0 && rgb.g === 0 && rgb.b === 0) ||
+      matchesAnyColor(rgb, SCREENSHOT_COLORS.WATER, 60);
+
+    // Collect non-water pixel lumas for robust walkway estimate
+    const nonWaterLumas: number[] = [];
     for (let p = sampleMin; p <= sampleMax; p++) {
-      const l = getPixelLuma(p);
-      if (p < sampleMin + railN) { leftSum += l; leftN++; }
-      else if (p > sampleMax - railN) { rightSum += l; rightN++; }
-      else { centerSum += l; centerN++; }
+      const rgb = getPixelRGB(p);
+      if (!shouldSkip(rgb)) nonWaterLumas.push(lumaOf(rgb));
     }
-    if (centerN === 0 || leftN === 0 || rightN === 0) return 0;
-    const centerAvg = centerSum / centerN;
-    return (leftSum / leftN - centerAvg >= BRIDGE_RAILING_LUMA_MIN_DIFF &&
-            rightSum / rightN - centerAvg >= BRIDGE_RAILING_LUMA_MIN_DIFF) ? 1 : 0;
+    if (nonWaterLumas.length < 3) return 0;
+
+    // Walkway luma: lower quartile (immune to grid dots and railing, which are brighter)
+    nonWaterLumas.sort((a, b) => a - b);
+    const walkwayLuma = nonWaterLumas[Math.floor(nonWaterLumas.length * 0.25)];
+
+    // From left: skip water-like pixels, collect first railN non-water pixels as railing
+    let leftSum = 0, leftCount = 0;
+    for (let p = sampleMin; p <= sampleMax && leftCount < railN; p++) {
+      const rgb = getPixelRGB(p);
+      if (shouldSkip(rgb)) continue;
+      leftSum += lumaOf(rgb);
+      leftCount++;
+    }
+
+    // From right: skip water-like pixels, collect first railN non-water pixels as railing
+    let rightSum = 0, rightCount = 0;
+    for (let p = sampleMax; p >= sampleMin && rightCount < railN; p--) {
+      const rgb = getPixelRGB(p);
+      if (shouldSkip(rgb)) continue;
+      rightSum += lumaOf(rgb);
+      rightCount++;
+    }
+
+    if (leftCount === 0 || rightCount === 0) return 0;
+    return (leftSum / leftCount - walkwayLuma >= lumaDiff &&
+            rightSum / rightCount - walkwayLuma >= lumaDiff) ? 1 : 0;
   }
 
   function scoreVertical(): number {
@@ -2518,9 +2553,9 @@ function structurallyScanBridgeOrientation(
     let total = 0, count = 0;
     for (let y = minY; y <= maxY; y++) {
       if (y < 0 || y >= imageHeight) continue;
-      const sMinX = Math.max(0, minX - 1);
-      const sMaxX = Math.min(imageWidth - 1, maxX + 1);
-      total += scoreStrip(p => { const i = (y * imageWidth + p) * 4; return luma(data[i], data[i + 1], data[i + 2]); }, sMinX, sMaxX);
+      const sMinX = Math.max(0, minX - 2);
+      const sMaxX = Math.min(imageWidth - 1, maxX + 2);
+      total += scoreStrip(p => { const i = (y * imageWidth + p) * 4; return { r: data[i], g: data[i + 1], b: data[i + 2] }; }, sMinX, sMaxX);
       count++;
     }
     return count > 0 ? total / count : 0;
@@ -2531,9 +2566,9 @@ function structurallyScanBridgeOrientation(
     let total = 0, count = 0;
     for (let x = minX; x <= maxX; x++) {
       if (x < 0 || x >= imageWidth) continue;
-      const sMinY = Math.max(0, minY - 1);
-      const sMaxY = Math.min(imageHeight - 1, maxY + 1);
-      total += scoreStrip(p => { const i = (p * imageWidth + x) * 4; return luma(data[i], data[i + 1], data[i + 2]); }, sMinY, sMaxY);
+      const sMinY = Math.max(0, minY - 2);
+      const sMaxY = Math.min(imageHeight - 1, maxY + 2);
+      total += scoreStrip(p => { const i = (p * imageWidth + x) * 4; return { r: data[i], g: data[i + 1], b: data[i + 2] }; }, sMinY, sMaxY);
       count++;
     }
     return count > 0 ? total / count : 0;
@@ -2545,15 +2580,15 @@ function structurallyScanBridgeOrientation(
     if (!isDiagonal) return 0;
     let total = 0, count = 0;
     for (let C = minX + minY; C <= maxX + maxY; C++) {
-      const xLo = Math.max(minX, C - maxY);
-      const xHi = Math.min(maxX, C - minY);
+      const xLo = Math.max(0, Math.max(minX, C - maxY) - 2);
+      const xHi = Math.min(imageWidth - 1, Math.min(maxX, C - minY) + 2);
       if (xHi - xLo < 4) continue;
       total += scoreStrip(x => {
         const y = C - x;
-        if (y < 0 || y >= imageHeight || x < 0 || x >= imageWidth) return 0;
+        if (y < 0 || y >= imageHeight || x < 0 || x >= imageWidth) return { r: 0, g: 0, b: 0 };
         const i = (y * imageWidth + x) * 4;
-        return luma(data[i], data[i + 1], data[i + 2]);
-      }, xLo, xHi);
+        return { r: data[i], g: data[i + 1], b: data[i + 2] };
+      }, xLo, xHi, BRIDGE_RAILING_LUMA_MIN_DIFF_DIAG);
       count++;
     }
     return count > 0 ? total / count : 0;
@@ -2564,15 +2599,15 @@ function structurallyScanBridgeOrientation(
     if (!isDiagonal) return 0;
     let total = 0, count = 0;
     for (let C = minX - maxY; C <= maxX - minY; C++) {
-      const xLo = Math.max(minX, C + minY);
-      const xHi = Math.min(maxX, C + maxY);
+      const xLo = Math.max(0, Math.max(minX, C + minY) - 2);
+      const xHi = Math.min(imageWidth - 1, Math.min(maxX, C + maxY) + 2);
       if (xHi - xLo < 4) continue;
       total += scoreStrip(x => {
         const y = x - C;
-        if (y < 0 || y >= imageHeight || x < 0 || x >= imageWidth) return 0;
+        if (y < 0 || y >= imageHeight || x < 0 || x >= imageWidth) return { r: 0, g: 0, b: 0 };
         const i = (y * imageWidth + x) * 4;
-        return luma(data[i], data[i + 1], data[i + 2]);
-      }, xLo, xHi);
+        return { r: data[i], g: data[i + 1], b: data[i + 2] };
+      }, xLo, xHi, BRIDGE_RAILING_LUMA_MIN_DIFF_DIAG);
       count++;
     }
     return count > 0 ? total / count : 0;
@@ -2596,7 +2631,10 @@ function structurallyScanBridgeOrientation(
 
   if (scored.length === 0) return null;
   const best = scored.reduce((a, b) => a.score > b.score ? a : b);
-  if (best.score < BRIDGE_STRUCTURE_PASS_THRESHOLD) return null;
+  const structThreshold = (best.orient.rotation === 45 || best.orient.rotation === 135)
+    ? BRIDGE_STRUCTURE_PASS_THRESHOLD_DIAG
+    : BRIDGE_STRUCTURE_PASS_THRESHOLD;
+  if (best.score < structThreshold) return null;
 
   // Detect the actual bridge extent along its length direction, trimming path-pixel contamination.
   // Sweeps along the bridge direction; a position is "valid" if it has bridge-like pixel colors
@@ -3090,7 +3128,7 @@ async function detectStairs(
     });
 
     if (!accepted) {
-      blobDebug.push({ colorGroup: 'stairs', blob: mergedBlob, accepted: false });
+      blobDebug.push({ colorGroup: 'stairs', blob: mergedBlob, accepted: false, rejectReason: 'stair-scan' });
       continue;
     }
 
@@ -3484,7 +3522,7 @@ async function detectMapIcons(
         const confidence = validateBlob(blob, refTemplate, ppc);
         if (confidence < 0.4) {
           await tryDetectSubIcons(blob, [refTemplate], data, imageWidth, imageHeight, ppc, extents, allCandidates);
-          if (blobDebugGroup) blobDebug.push({ colorGroup: blobDebugGroup, blob, accepted: false });
+          if (blobDebugGroup) blobDebug.push({ colorGroup: blobDebugGroup, blob, accepted: false, rejectReason: 'shape' });
           continue;
         }
 
@@ -3518,7 +3556,7 @@ async function detectMapIcons(
       }
       if (bestShapeConfidence < 0.3) {
         await tryDetectSubIcons(blob, group, data, imageWidth, imageHeight, ppc, extents, allCandidates);
-        if (blobDebugGroup) blobDebug.push({ colorGroup: blobDebugGroup, blob, accepted: false });
+        if (blobDebugGroup) blobDebug.push({ colorGroup: blobDebugGroup, blob, accepted: false, rejectReason: 'shape' });
         continue;
       }
 
@@ -3533,7 +3571,7 @@ async function detectMapIcons(
           data, imageWidth, imageHeight, blob, bestTemplate.orientations, extents,
         );
         if (!structResult) {
-          if (blobDebugGroup) blobDebug.push({ colorGroup: blobDebugGroup, blob, accepted: false });
+          if (blobDebugGroup) blobDebug.push({ colorGroup: blobDebugGroup, blob, accepted: false, rejectReason: 'struct' });
           continue;
         }
         matchedTemplate = bestTemplate;
@@ -3550,7 +3588,7 @@ async function detectMapIcons(
       const confidence = bestShapeConfidence * 0.4 + matchScore * 0.6;
       if (confidence < 0.4) {
         await tryDetectSubIcons(blob, group, data, imageWidth, imageHeight, ppc, extents, allCandidates);
-        if (blobDebugGroup) blobDebug.push({ colorGroup: blobDebugGroup, blob, accepted: false });
+        if (blobDebugGroup) blobDebug.push({ colorGroup: blobDebugGroup, blob, accepted: false, rejectReason: 'conf' });
         continue;
       }
 
@@ -3795,42 +3833,49 @@ async function detectMapIcons(
       sideBResult = { slices: slicesB, passed: slicesB.some(s => s.water) };
 
     } else {
-      // Diagonal bridges (45°/135°): slice-based approach along the diagonal edge
+      // Diagonal bridges (45°/135°): walk along the bridge axis, check perpendicular
+      // "columns" at various distances from center, mirroring the column/row approach
+      // used for straight bridges. Each column runs the full axis length at a fixed
+      // perpendicular offset d from center, ranging from inside to outside the estimated edge.
+      const ppc = extents.pixelsPerCoord;
       const diagLen = Math.min(bMaxX - bMinX, bMaxY - bMinY);
-      let edgeAX = (_i: number) => 0, edgeAY = (_i: number) => 0;
-      let edgeBX = (_i: number) => 0, edgeBY = (_i: number) => 0;
-      let outADX = 0, outADY = 0, outBDX = 0, outBDY = 0;
+      // Bridge half-width in perpendicular steps (each step = √2 px)
+      const halfWidthSteps = Math.round((1.85 * ppc / 2) / Math.SQRT2);
 
+      // Axis direction and perpendicular direction
+      let ax0X: number, axDX: number;
+      let perpDX: number, perpDY: number;
       if (rotation === 45) {
-        // TLBR: water NE (top-right) and SW (bottom-left)
-        edgeAX = i => bMaxX - i; edgeAY = i => bMinY + i;  // top-right edge
-        outADX = 1; outADY = -1;
-        edgeBX = i => bMinX + i; edgeBY = i => bMaxY - i;  // bottom-left edge
-        outBDX = -1; outBDY = 1;
-      } else if (rotation === 135) {
-        // TRBL: water NW (top-left) and SE (bottom-right)
-        edgeAX = i => bMinX + i; edgeAY = i => bMinY + i;  // top-left edge
-        outADX = -1; outADY = -1;
-        edgeBX = i => bMaxX - i; edgeBY = i => bMaxY - i;  // bottom-right edge
-        outBDX = 1; outBDY = 1;
+        // TLBR: axis (+1,+1) from top-left, perp NE=(+1,-1)
+        ax0X = bMinX; axDX = 1;
+        perpDX = 1; perpDY = -1;
+      } else {
+        // TRBL: axis (-1,+1) from top-right, perp NW=(-1,-1)
+        ax0X = bMaxX; axDX = -1;
+        perpDX = -1; perpDY = -1;
       }
 
-      const checkDiagSlice = (ex: number, ey: number, odx: number, ody: number): boolean => {
-        let n = 0;
-        for (let d = 1; d <= BRIDGE_SLICE_OUTSIDE_PX; d++) {
-          const px = ex + odx * d, py = ey + ody * d;
+      const checkColumn = (d: number, side: 1 | -1): boolean => {
+        // side=+1 for sideA (NE/NW), side=-1 for sideB (SW/SE)
+        let n = 0, total = 0;
+        for (let i = 0; i <= diagLen; i++) {
+          const cx = ax0X + axDX * i;
+          const cy = bMinY + i;
+          const px = cx + side * perpDX * d;
+          const py = cy + side * perpDY * d;
           if (px < 0 || py < 0 || px >= imageWidth || py >= imageHeight) continue;
           const idx = (py * imageWidth + px) * 4;
           if (matchesAnyColor({ r: data[idx], g: data[idx + 1], b: data[idx + 2] }, SCREENSHOT_COLORS.WATER, 40)) n++;
+          total++;
         }
-        return n / BRIDGE_SLICE_OUTSIDE_PX >= BRIDGE_SLICE_WATER_THRESHOLD;
+        return total > 0 && n / total >= BRIDGE_SLICE_WATER_THRESHOLD;
       };
 
       const slicesA: BridgeSliceResult[] = [];
       const slicesB: BridgeSliceResult[] = [];
-      for (let i = 0; i < diagLen; i++) {
-        slicesA.push({ pos: i, water: checkDiagSlice(edgeAX(i), edgeAY(i), outADX, outADY) });
-        slicesB.push({ pos: i, water: checkDiagSlice(edgeBX(i), edgeBY(i), outBDX, outBDY) });
+      for (let d = halfWidthSteps - BRIDGE_SLICE_INSIDE_PX; d <= halfWidthSteps + BRIDGE_SLICE_OUTSIDE_PX; d++) {
+        slicesA.push({ pos: d, water: checkColumn(d, 1) });
+        slicesB.push({ pos: d, water: checkColumn(d, -1) });
       }
       sideAResult = { slices: slicesA, passed: slicesA.some(s => s.water) };
       sideBResult = { slices: slicesB, passed: slicesB.some(s => s.water) };
@@ -4352,25 +4397,31 @@ async function saveBridgeWaterDebug(
         ctx.fillStyle = water ? 'rgba(0,255,0,0.6)' : 'rgba(255,0,0,0.4)';
         ctx.fillRect(bMinX, y, w, 1);
       }
-    } else if (rotation === 45) {
-      // TLBR diagonal: dots at edge pixels along top-right and bottom-left edges
-      for (const { pos: i, water } of sideA.slices) {
-        ctx.fillStyle = water ? 'rgba(0,255,0,0.8)' : 'rgba(255,0,0,0.6)';
-        ctx.fillRect(bMaxX - i - 1, bMinY + i - 1, 3, 3);
+    } else if (rotation === 45 || rotation === 135) {
+      // Diagonal: draw lines parallel to bridge axis at each perpendicular offset d
+      const diagLen = Math.min(bMaxX - bMinX, bMaxY - bMinY);
+      const ax0X = rotation === 45 ? bMinX : bMaxX;
+      const axDX = rotation === 45 ? 1 : -1;
+      const perpDX = rotation === 45 ? 1 : -1;
+      const perpDY = rotation === 45 ? -1 : -1;
+
+      // Draw sideA columns (positive perp direction)
+      for (const { pos: d, water } of sideA.slices) {
+        ctx.fillStyle = water ? 'rgba(0,255,0,0.6)' : 'rgba(255,0,0,0.4)';
+        for (let i = 0; i <= diagLen; i += 2) {
+          const px = ax0X + axDX * i + perpDX * d;
+          const py = bMinY + i + perpDY * d;
+          ctx.fillRect(px, py, 1, 1);
+        }
       }
-      for (const { pos: i, water } of sideB.slices) {
-        ctx.fillStyle = water ? 'rgba(0,255,0,0.8)' : 'rgba(255,0,0,0.6)';
-        ctx.fillRect(bMinX + i - 1, bMaxY - i - 1, 3, 3);
-      }
-    } else if (rotation === 135) {
-      // TRBL diagonal: dots at edge pixels along top-left and bottom-right edges
-      for (const { pos: i, water } of sideA.slices) {
-        ctx.fillStyle = water ? 'rgba(0,255,0,0.8)' : 'rgba(255,0,0,0.6)';
-        ctx.fillRect(bMinX + i - 1, bMinY + i - 1, 3, 3);
-      }
-      for (const { pos: i, water } of sideB.slices) {
-        ctx.fillStyle = water ? 'rgba(0,255,0,0.8)' : 'rgba(255,0,0,0.6)';
-        ctx.fillRect(bMaxX - i - 1, bMaxY - i - 1, 3, 3);
+      // Draw sideB columns (negative perp direction)
+      for (const { pos: d, water } of sideB.slices) {
+        ctx.fillStyle = water ? 'rgba(0,255,0,0.6)' : 'rgba(255,0,0,0.4)';
+        for (let i = 0; i <= diagLen; i += 2) {
+          const px = ax0X + axDX * i - perpDX * d;
+          const py = bMinY + i - perpDY * d;
+          ctx.fillRect(px, py, 1, 1);
+        }
       }
     }
 
@@ -4405,6 +4456,7 @@ async function saveBlobDetectionDebug(
 
   for (const entry of blobDebug) {
     const { blob, accepted, colorGroup } = entry;
+    if (blob.area < 10) continue; // Skip tiny blobs to reduce noise
     const bboxW = blob.maxX - blob.minX + 1;
     const bboxH = blob.maxY - blob.minY + 1;
 
@@ -4426,6 +4478,9 @@ async function saveBlobDetectionDebug(
       blob.minX + 2,
       blob.minY + 13,
     );
+    if (!accepted && entry.rejectReason) {
+      ctx.fillText(entry.rejectReason, blob.minX + 2, blob.minY + 25);
+    }
   }
 
   await downloadCanvas(canvas, 'debug_11_blob_detection.png');
@@ -5564,7 +5619,7 @@ async function processWaterPixels(
   }
 
   // Step 3.5: Pixel-space BFS extension for water edge pixels
-  const WATER_EXTENSION_TOLERANCE = 40; // Same as base COLOR_TOLERANCE (water bleeds less than tan paths)
+  const WATER_EXTENSION_TOLERANCE = 80; // Higher tolerance since water is highly distinct from remaining colors
   const WATER_EXTENSION_RADIUS = 3;
   let waterExtendedCount = 0;
 
