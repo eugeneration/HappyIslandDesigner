@@ -876,8 +876,106 @@ function EntryPointStep() {
   );
 }
 
-// Screenshot Step - Placeholder for future screenshot-to-map feature
+// Screenshot Step - Upload screenshot to auto-generate island map
+const FLAVOR_TEXTS = [
+  'Scanning island...',
+  'Detecting boundaries...',
+  'Analyzing terrain...',
+  'Matching edge tiles...',
+  'Identifying structures...',
+  'Digging terrain...',
+  'Rerouting rivers...',
+  'Setting up amenities...',
+  'Building island...',
+  'Planting trees...',
+];
+
 function ScreenshotStep({ onBack }: { onBack: () => void }) {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const isGeneratingRef = useRef(false);
+  const [progress, setProgress] = useState({ completed: 0, total: 1 });
+  const [flavorIndex, setFlavorIndex] = useState(0);
+
+  // Rotate flavor text on a timer while generating
+  useEffect(() => {
+    if (!isGenerating) return;
+    const interval = setInterval(() => {
+      setFlavorIndex(prev => (prev + 1) % FLAVOR_TEXTS.length);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [isGenerating]);
+
+  const handleGenerate = async () => {
+    try {
+      const { generateFromScreenshot } = await import('../ui/generateFromScreenshot');
+      await generateFromScreenshot({
+        debug: false,
+        onFileSelected: () => {
+          isGeneratingRef.current = true;
+          setIsGenerating(true);
+          setProgress({ completed: 0, total: 1 });
+          setFlavorIndex(0);
+        },
+        onProgress: (completed, total) => {
+          setProgress({ completed, total });
+        },
+      });
+
+      // Only close modal if generation actually ran (file was selected)
+      if (isGeneratingRef.current) {
+        autosaveTrigger();
+        resetWizard();
+      }
+    } catch (err) {
+      console.error('Generate from Screenshot failed:', err);
+      isGeneratingRef.current = false;
+      setIsGenerating(false);
+    }
+  };
+
+  // --- Loading view ---
+  if (isGenerating) {
+    const pct = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
+    return (
+      <Flex sx={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 4, px: 3, minHeight: 300 }}>
+        <Image
+          src='static/gif/bob-loading.gif'
+          sx={{ width: 80, mb: 3 }}
+        />
+        <Text sx={{
+          fontFamily: 'heading',
+          fontWeight: 'bold',
+          fontSize: 2,
+          textAlign: 'center',
+          mb: 3,
+          minHeight: '1.5em',
+        }}>
+          {FLAVOR_TEXTS[flavorIndex]}
+        </Text>
+        <Box sx={{
+          width: '100%',
+          maxWidth: 300,
+          height: 16,
+          bg: 'overlay',
+          borderRadius: 8,
+          overflow: 'hidden',
+        }}>
+          <Box sx={{
+            width: `${pct}%`,
+            height: '100%',
+            bg: 'primary',
+            borderRadius: 8,
+            transition: 'width 0.3s ease-out',
+          }} />
+        </Box>
+        <Text sx={{ fontSize: 1, color: 'textSecondary', mt: 2 }}>
+          {`${pct}%`}
+        </Text>
+      </Flex>
+    );
+  }
+
+  // --- Idle view ---
   return (
     <>
       <Box sx={{position: 'absolute', left: 0, top: [1, 3]}}>
@@ -899,9 +997,15 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
           sx={{ maxWidth: '100%', maxHeight: 250, display: ['block', 'none'] }}
         />
       </Box>
-      <Text m={3} sx={{textAlign: 'center', color: 'gray'}}>
-        {'Coming soon...'}
-      </Text>
+      <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
+        <Button
+          variant='primary'
+          onClick={handleGenerate}
+          sx={{ px: 4, py: 2, fontSize: 2, fontWeight: 'bold' }}
+        >
+          {'Upload Screenshot'}
+        </Button>
+      </Box>
     </>
   );
 }

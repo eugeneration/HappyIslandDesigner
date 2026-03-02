@@ -3997,6 +3997,7 @@ async function saveIconDetectionDebug(
   filename: string,
   preprocessedData?: Uint8ClampedArray,
 ): Promise<void> {
+  if (skipDebug) return;
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D;
   if (preprocessedData) {
@@ -4242,6 +4243,7 @@ async function saveGridlineRemovalDebug(
   imageHeight: number,
   corrected: Uint8Array,
 ): Promise<void> {
+  if (skipDebug) return;
   // Draw corrected pixel data as the base
   const canvas = document.createElement('canvas');
   canvas.width = imageWidth;
@@ -4269,6 +4271,7 @@ async function saveEdgeTileDebug(
   extents: IslandExtents,
   edgeResult: EdgeTileMatchResult,
 ): Promise<void> {
+  if (skipDebug) return;
   const { canvas, ctx } = createDebugCanvas(image);
   const ppc = extents.pixelsPerCoord;
 
@@ -4319,6 +4322,7 @@ async function savePostIconFillDebug(
   imageWidth: number,
   imageHeight: number,
 ): Promise<void> {
+  if (skipDebug) return;
   const canvas = document.createElement('canvas');
   canvas.width = imageWidth;
   canvas.height = imageHeight;
@@ -4334,6 +4338,7 @@ async function savePostStairBridgeFillDebug(
   imageWidth: number,
   imageHeight: number,
 ): Promise<void> {
+  if (skipDebug) return;
   const canvas = document.createElement('canvas');
   canvas.width = imageWidth;
   canvas.height = imageHeight;
@@ -4358,6 +4363,7 @@ async function saveBridgeWaterDebug(
     accepted: boolean;
   }>,
 ): Promise<void> {
+  if (skipDebug) return;
   const canvas = document.createElement('canvas');
   canvas.width = imageWidth;
   canvas.height = imageHeight;
@@ -4446,6 +4452,7 @@ async function saveBlobDetectionDebug(
   imageHeight: number,
   blobDebug: BlobDebugEntry[],
 ): Promise<void> {
+  if (skipDebug) return;
   const canvas = document.createElement('canvas');
   canvas.width = imageWidth;
   canvas.height = imageHeight;
@@ -4501,6 +4508,7 @@ async function saveStairStagesDebug(
     accepted: boolean;
   }>,
 ): Promise<void> {
+  if (skipDebug) return;
   function makeCanvas(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
     const canvas = document.createElement('canvas');
     canvas.width = imageWidth;
@@ -4611,6 +4619,7 @@ async function saveEdgeFillDebug(
   extents: IslandExtents,
   grid: PixelGrid,
 ): Promise<void> {
+  if (skipDebug) return;
   const canvas = document.createElement('canvas');
   canvas.width = imageWidth;
   canvas.height = imageHeight;
@@ -4821,6 +4830,20 @@ function pixelateScreenshot(
   return grid;
 }
 
+// ============ Options ============
+
+export type GenerateOptions = {
+  /** When false, skips all debug image generation and zip download. Default: true. */
+  debug?: boolean;
+  /** Progress callback invoked after each major pipeline step. */
+  onProgress?: (completed: number, total: number) => void;
+  /** Called after the user selects a file but before heavy processing begins. */
+  onFileSelected?: () => void;
+};
+
+/** Module-level flag set by generateFromScreenshot() to gate debug output. */
+let skipDebug = false;
+
 // ============ Debug Image Output ============
 // Pattern from devTools.ts:3756-3760 (canvas → toDataURL → <a> download)
 
@@ -4830,6 +4853,7 @@ function pixelateScreenshot(
 let debugZip: any = null;
 
 async function downloadCanvas(canvas: HTMLCanvasElement, filename: string): Promise<void> {
+  if (skipDebug) return;
   if (debugZip !== null) {
     const blob = await new Promise<Blob>(resolve => canvas.toBlob(b => resolve(b!), 'image/png'));
     debugZip.file(filename, blob);
@@ -4855,6 +4879,7 @@ async function saveTopBoundaryDebug(
   result: BoundaryResult,
   width: number,
 ): Promise<void> {
+  if (skipDebug) return;
   const { canvas, ctx } = createDebugCanvas(image);
   const xStart = Math.floor(width / 3);
   const xEnd = Math.floor(2 * width / 3);
@@ -4894,6 +4919,7 @@ async function saveBottomBoundaryDebug(
   result: BoundaryResult,
   width: number,
 ): Promise<void> {
+  if (skipDebug) return;
   const { canvas, ctx } = createDebugCanvas(image);
   const xStart = Math.floor(width / 3);
   const xEnd = Math.floor(2 * width / 3);
@@ -4940,6 +4966,7 @@ async function saveLeftBoundaryDebug(
   topY: number,
   bottomY: number,
 ): Promise<void> {
+  if (skipDebug) return;
   const { canvas, ctx } = createDebugCanvas(image);
   const scanHeight = bottomY - topY;
 
@@ -4978,6 +5005,7 @@ async function saveRightBoundaryDebug(
   topY: number,
   bottomY: number,
 ): Promise<void> {
+  if (skipDebug) return;
   const { canvas, ctx } = createDebugCanvas(image);
   const scanHeight = bottomY - topY;
 
@@ -5014,6 +5042,7 @@ async function saveExtentsDebug(
   image: HTMLImageElement,
   extents: IslandExtents,
 ): Promise<void> {
+  if (skipDebug) return;
   const { canvas, ctx } = createDebugCanvas(image);
 
   // Full island extent — green dashed rectangle
@@ -5067,6 +5096,7 @@ function levelDebugColor(terrain: number): [number, number, number] {
 }
 
 async function savePixelGridDebug(grid: PixelGrid): Promise<void> {
+  if (skipDebug) return;
   // === A: 112×96 terrain grid (one pixel per coordinate) ===
   const gridCanvas = document.createElement('canvas');
   gridCanvas.width = ISLAND_COORD_WIDTH;
@@ -5793,7 +5823,15 @@ function openImageFileDialog(): Promise<File> {
 
 // ============ Main Entry Point ============
 
-export async function generateFromScreenshot(): Promise<void> {
+export async function generateFromScreenshot(options: GenerateOptions = {}): Promise<void> {
+  const { debug = true, onProgress, onFileSelected } = options;
+  skipDebug = !debug;
+
+  // Progress reporting — keep TOTAL_STEPS in sync with reportProgress() calls below
+  const TOTAL_STEPS = 13;
+  let currentStep = 0;
+  const reportProgress = () => { currentStep++; onProgress?.(currentStep, TOTAL_STEPS); };
+
   console.log('Generate from Screenshot: starting...');
 
   // 1. Open file dialog
@@ -5802,8 +5840,11 @@ export async function generateFromScreenshot(): Promise<void> {
     file = await openImageFileDialog();
   } catch {
     console.log('Generate from Screenshot: cancelled');
+    skipDebug = false;
     return;
   }
+
+  onFileSelected?.();
 
   console.log(`Generate from Screenshot: loading ${file.name} (${file.size} bytes)`);
 
@@ -5822,8 +5863,12 @@ export async function generateFromScreenshot(): Promise<void> {
   const data = imageData.data;
 
   // Set up zip accumulator for all debug images (lazy-import JSZip, never loaded at startup)
-  const JSZip = (await import('jszip')).default;
-  debugZip = new JSZip();
+  if (!skipDebug) {
+    const JSZip = (await import('jszip')).default;
+    debugZip = new JSZip();
+  }
+
+  reportProgress(); // step 1: image loaded
 
   // 4. Detect top boundary (rock cliff edge)
   console.log('Generate from Screenshot: detecting top boundary...');
@@ -5835,6 +5880,8 @@ export async function generateFromScreenshot(): Promise<void> {
   }
   await saveTopBoundaryDebug(image, topResult, width);
 
+  reportProgress(); // step 2: top boundary
+
   // 5. Detect bottom boundary (beach edge)
   console.log('Generate from Screenshot: detecting bottom boundary...');
   const bottomResult = detectBottomBoundary(data, width, height);
@@ -5844,6 +5891,8 @@ export async function generateFromScreenshot(): Promise<void> {
     console.warn('Generate from Screenshot: could not detect bottom boundary');
   }
   await saveBottomBoundaryDebug(image, bottomResult, width);
+
+  reportProgress(); // step 3: bottom boundary
 
   // 6-7. Detect left/right boundaries (sand edges)
   // These require top/bottom for the vertical scan range
@@ -5872,17 +5921,22 @@ export async function generateFromScreenshot(): Promise<void> {
     console.warn('Generate from Screenshot: skipping left/right detection — top/bottom boundaries required');
   }
 
+  reportProgress(); // step 4: left/right boundaries
+
   // 8. Derive full island extents from all 4 boundaries
   if (topResult.boundaryY === null || bottomResult.boundaryY === null) {
     console.warn('Generate from Screenshot: cannot derive extents — top/bottom boundary detection failed');
-    const earlyZipBlob = await debugZip.generateAsync({ type: 'blob' });
-    debugZip = null;
-    const earlyZipLink = document.createElement('a');
-    earlyZipLink.href = URL.createObjectURL(earlyZipBlob);
-    earlyZipLink.download = 'debug_screenshot.zip';
-    earlyZipLink.click();
+    if (!skipDebug && debugZip) {
+      const earlyZipBlob = await debugZip.generateAsync({ type: 'blob' });
+      debugZip = null;
+      const earlyZipLink = document.createElement('a');
+      earlyZipLink.href = URL.createObjectURL(earlyZipBlob);
+      earlyZipLink.download = 'debug_screenshot.zip';
+      earlyZipLink.click();
+    }
     console.log('Generate from Screenshot: done (early exit)');
-    return;
+    skipDebug = false;
+    throw new Error('Could not detect island boundaries in the screenshot.');
   }
 
   const extents = deriveFullExtents(
@@ -5904,6 +5958,8 @@ export async function generateFromScreenshot(): Promise<void> {
   const gridlineCorrected = removeGridlineOverlay(data, width, height, extents);
   await saveGridlineRemovalDebug(image, data, width, height, gridlineCorrected);
 
+  reportProgress(); // step 5: extents + gridline removal
+
   // 9. detect objects and fill them with a placeholder color or specific color
   // objects include location marker, player house, house, residence services, museum, shop, tailor, stairs
 
@@ -5911,12 +5967,16 @@ export async function generateFromScreenshot(): Promise<void> {
   console.log('Generate from Screenshot: pixelizing to terrain grid...');
   const pixelGrid = pixelateScreenshot(data, width, height, extents);
 
+  reportProgress(); // step 6: terrain grid
+
   // 10.5 Match edge tiles against reference library
   console.log('Generate from Screenshot: matching edge tiles...');
   const edgeResult = matchEdgeTiles(pixelGrid);
   const edgeAssetIndices = edgeResult.assetIndices; // eslint-disable-line @typescript-eslint/no-unused-vars
   // edgeAssetIndices will be used when building the final v2 map output
   await saveEdgeTileDebug(image, extents, edgeResult);  // debug_07
+
+  reportProgress(); // step 7: edge tiles
 
   // Color keys identifying stair and bridge color groups
   const STAIRS_KEY = colorKey({ r: 0xF5, g: 0xDE, b: 0x99 });
@@ -5936,6 +5996,8 @@ export async function generateFromScreenshot(): Promise<void> {
   // debug_09: pixel data after regular icon fill
   await savePostIconFillDebug(data, width, height);
 
+  reportProgress(); // step 8: regular icons
+
   // 10.5c Edge fill: paint edge block sand/rock pixels to level1 in raw pixel data,
   // then update terrain grid. Must happen before stair/bridge detection so sand ≈ stair
   // color false positives are eliminated from the pixel canvas.
@@ -5947,7 +6009,7 @@ export async function generateFromScreenshot(): Promise<void> {
   }
 
   // debug_10a: pixel data BEFORE edge extra fill expansion
-  {
+  if (!skipDebug) {
     const c = document.createElement('canvas');
     c.width = width; c.height = height;
     const cx = c.getContext('2d')!;
@@ -5958,7 +6020,7 @@ export async function generateFromScreenshot(): Promise<void> {
   }
   fillEdgeRegionsInScreenshot(data, width, height, extents, edgeResult);
   // debug_10b: pixel data AFTER edge extra fill expansion
-  {
+  if (!skipDebug) {
     const c = document.createElement('canvas');
     c.width = width; c.height = height;
     const cx = c.getContext('2d')!;
@@ -5970,6 +6032,8 @@ export async function generateFromScreenshot(): Promise<void> {
   fillEdgeRegionsWithLevel1(pixelGrid);
   // debug_10: pixel data after edge fill
   await saveEdgeFillDebug(data, width, height, extents, pixelGrid);
+
+  reportProgress(); // step 9: edge fill
 
   // 10.5d Pass 2: Detect stairs (custom stripe-pattern) and bridges (existing detection)
   console.log('Generate from Screenshot: detecting stairs (pass 2)...');
@@ -5991,8 +6055,12 @@ export async function generateFromScreenshot(): Promise<void> {
   // debug_13: pixel data after stair/bridge fill
   await savePostStairBridgeFillDebug(data, width, height);
 
+  reportProgress(); // step 10: stairs/bridges
+
   // Post-fill pass: find and erase the orange building-indicator icon (if present anywhere on map)
   await detectAndFillBuildingIndicator(data, width, height, extents, pixelGrid);
+
+  reportProgress(); // step 11: building indicator
 
   // All detected icons combined (for final map output)
   const detectedIcons = [...regularIcons, ...stairBridgeIcons]; // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -6011,18 +6079,25 @@ export async function generateFromScreenshot(): Promise<void> {
   // debug_14a/b: pixel grid (after path + water fill — no PATH or WATER cells should remain)
   await savePixelGridDebug(pixelGrid);
 
+  reportProgress(); // step 12: path + water + level outlines
+
   // Download all debug images as a single zip
-  const zipBlob = await debugZip.generateAsync({ type: 'blob' });
-  debugZip = null;
-  const zipLink = document.createElement('a');
-  zipLink.href = URL.createObjectURL(zipBlob);
-  zipLink.download = 'debug_screenshot.zip';
-  zipLink.click();
+  if (!skipDebug && debugZip) {
+    const zipBlob = await debugZip.generateAsync({ type: 'blob' });
+    debugZip = null;
+    const zipLink = document.createElement('a');
+    zipLink.href = URL.createObjectURL(zipBlob);
+    zipLink.download = 'debug_screenshot.zip';
+    zipLink.click();
+  }
 
   // 13. Assemble and load the v2 map
   const objectGroups = detectedIconsToObjectGroups(detectedIcons);
   await buildAndLoadV2Map(pathOutlines, waterOutlines, level2Outlines, level3Outlines,
     edgeResult.assetIndices, objectGroups);
 
+  reportProgress(); // step 13: map assembled and loaded
+
   console.log('Generate from Screenshot: done');
+  skipDebug = false;
 }
