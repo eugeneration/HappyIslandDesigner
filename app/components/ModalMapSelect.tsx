@@ -140,9 +140,13 @@ export default function ModalMapSelect(){
       setWizardState({ ...state });
 
       // Capture edge tile raster when reaching baseMapGrid step
+      // Use a delay to ensure all SVG tile imports have completed their callbacks
+      // (replaceBlocks uses async createTileImage which may not have finished)
       if (state.step === 'baseMapGrid') {
-        const raster = captureEdgeTileRaster(200);
-        setEdgeTileRaster(raster);
+        setTimeout(() => {
+          const raster = captureEdgeTileRaster(200);
+          setEdgeTileRaster(raster);
+        }, 100);
       }
 
       // If moving to a modal step, open modal
