@@ -113,6 +113,9 @@ export default function ModalMapSelect(){
   // Track filled placeholder positions for going back during fillPlaceholder step
   const filledPlaceholderPositions = useRef<{x: number, y: number}[]>([]);
 
+  // Track pending map step setup timeout so it can be cancelled on rapid step changes
+  const mapStepTimeoutRef = useRef<number | null>(null);
+
   // only called by external triggers
   function startModal() {
     startWizard();
@@ -152,9 +155,21 @@ export default function ModalMapSelect(){
       // If moving to a modal step, open modal
       setIsOpen(isModalStep(state.step));
 
+      // Clear any pending map step setup timeout
+      if (mapStepTimeoutRef.current !== null) {
+        clearTimeout(mapStepTimeoutRef.current);
+        mapStepTimeoutRef.current = null;
+      }
+
       // If moving to a map step, show appropriate selector
       if (isMapStep(state.step)) {
-        setTimeout(() => {
+        mapStepTimeoutRef.current = window.setTimeout(() => {
+          mapStepTimeoutRef.current = null;
+
+          // Clean up any previous position selector — option selector handles its
+          // own cleanup via showOptionSelectorImmediate → hideOptionSelector
+          hidePositionSelector();
+
           if (state.step === 'riverMouth1') {
             // Show edge tiles at the start of the wizard flow
             initializeEdgeTiles();
