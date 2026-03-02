@@ -13,8 +13,9 @@ import { isOptionSelectorVisible } from './ui/mapOptionSelector';
 export function zoom() {
   view.on('twofingermove', (event) => {
     changeZoomCentered(event.deltaScale * 500, event.center);
+    // Paper.js sums both fingers' deltas; divide by 2 to get average for 1:1 panning
     view.center = view.viewToProject(
-      view.projectToView(view.center).subtract(event.deltaPosition),
+      view.projectToView(view.center).subtract(event.deltaPosition.divide(2)),
     );
   });
 
