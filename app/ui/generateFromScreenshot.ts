@@ -2,12 +2,14 @@
 // Analyzes an ACNH map screenshot to detect island boundaries and generate a v2 map.
 // Step 1: Island extent detection via color-based boundary scanning.
 
+import { Raster, Point, Size } from 'paper';
 import {
   getTileDirection, getPlaceholderIndexForPosition,
   assetIndexToData, type TileDirection,
 } from './edgeTileAssets';
 import { tilesDataCache } from '../generatedTilesCache';
 import { loadMapFromJSONString } from '../load';
+import { updateMapOverlay } from './tracingOverlay';
 
 // ============ Types ============
 
@@ -6107,6 +6109,20 @@ export async function generateFromScreenshot(options: GenerateOptions = {}): Pro
     edgeResult.assetIndices, objectGroups);
 
   reportProgress(); // step 13: map assembled and loaded
+
+  // 14. Show original screenshot as overlay for comparison
+  const cropLeft = extents.full.left;
+  const cropTop = extents.full.top;
+  const cropW = extents.full.right - extents.full.left;
+  const cropH = extents.full.bottom - extents.full.top;
+  const raster = new Raster(new Size(cropW, cropH));
+  const rasterCtx = raster.context;
+  rasterCtx.drawImage(image, cropLeft, cropTop, cropW, cropH, 0, 0, cropW, cropH);
+  raster.scaling = new Point(
+    ISLAND_COORD_WIDTH / cropW,
+    ISLAND_COORD_HEIGHT / cropH,
+  );
+  updateMapOverlay(raster);
 
   console.log('Generate from Screenshot: done');
   skipDebug = false;
