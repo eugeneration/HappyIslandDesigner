@@ -937,7 +937,7 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
   if (isGenerating) {
     const pct = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
     return (
-      <Flex sx={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 4, px: 3, minHeight: 300 }}>
+      <Flex sx={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 4, px: 3, minHeight: 300, width: '80vw', maxWidth: 400 }}>
         <Image
           src='static/gif/bob-loading.gif'
           sx={{ width: 80, mb: 3 }}
