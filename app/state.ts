@@ -173,6 +173,14 @@ export function addToHistory(command) {
   emitter.emit('historyUpdate', 'add');
 }
 
+// When a new map is loaded (from file, autosave, or wizard), reset undo history and save immediately
+emitter.on('mapLoaded', () => {
+  state.index = -1;
+  state.history = [];
+  state.actionsSinceSave = 0;
+  autosaveMap();
+});
+
 export function autosaveTrigger() {
   // autosave
   actionsCount += 1;

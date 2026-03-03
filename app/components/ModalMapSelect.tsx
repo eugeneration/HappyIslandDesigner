@@ -10,6 +10,7 @@ import useBlockZoom from './useBlockZoom';
 
 import { loadMapFromJSONString, loadBaseMapFromSvg } from '../load';
 import {confirmDestructiveAction, isMapEmpty, autosaveTrigger} from '../state';
+import { setMapVersion, emitMapLoaded } from '../mapState';
 import { loadEdgeTilesAsGeometry, captureEdgeTileRaster } from '../ui/edgeTiles';
 import { emitter } from '../emitter';
 import { type OptionConfig } from '../ui/mapOptionSelector';
@@ -821,8 +822,8 @@ function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: Wi
             await loadBaseMapFromSvg(baseMapIndex);
             // Convert edge tiles to geometry now that wizard is complete
             loadEdgeTilesAsGeometry();
-            // Save to local storage for persistence
-            autosaveTrigger();
+            setMapVersion(2);
+            emitMapLoaded();
             resetWizard();
           }}
           onBack={goBack}
