@@ -7,6 +7,7 @@ import { horizontalBlocks, verticalBlocks, horizontalDivisions, verticalDivision
 import { goBack } from './mapSelectionWizard';
 import { getBlockState } from './edgeTiles';
 import { getMobileOperatingSystem } from '../helpers/getMobileOperatingSystem';
+import { createWrappedLabel } from '../helpers/createWrappedLabel';
 import { getCachedSvgContent } from '../generatedTilesCache';
 import { WIZARD_MAX_BLOCK_PX, startViewAnimation, tickViewAnimation, stopViewAnimation } from './viewAnimation';
 
@@ -237,7 +238,7 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
 
       const leftRockPositions = leftRockCandidates.map(p => p.point);
       return {
-        label: 'Select Left Rock Position',
+        label: 'Where is the Largest Rock on the Left Side?',
         positions: leftRockPositions,
         originalIndices: leftRockCandidates.map(p => p.originalIndex),
         zoomBounds: computePositionZoomBounds(leftRockPositions),
@@ -255,7 +256,7 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
 
       const rightRockPositions = rightRockCandidates.map(p => p.point);
       return {
-        label: 'Select Right Rock Position',
+        label: 'Where is the Largest Rock on the Right Side?',
         positions: rightRockPositions,
         originalIndices: rightRockCandidates.map(p => p.originalIndex),
         zoomBounds: computePositionZoomBounds(rightRockPositions),
@@ -405,6 +406,8 @@ function createTileSquareButton(index: number, position: paper.Point): paper.Gro
       svgItem.visible = false;
       pointer = svgItem;
       group.addChild(svgItem);
+      // Show pointer if button was already selected before SVG loaded
+      if (group.data.selected) pointer.visible = true;
     },
     insert: false,
   });
@@ -487,6 +490,8 @@ function createAirportButton(index: number, position: paper.Point, icon: string)
       svgItem.visible = false;
       pointer = svgItem;
       group.addChild(svgItem);
+      // Show pointer if button was already selected before SVG loaded
+      if (group.data.selected) pointer.visible = true;
     },
     insert: false,
   });
@@ -612,43 +617,19 @@ export function showPositionSelector(type: SelectionType, riverDirection?: River
   fixedUI.addChild(backButton);
 
   // Label below progress bar at top
-  const label = new paper.PointText(new paper.Point(0, 0));
-  label.content = config.label;
-  label.justification = 'center';
-  label.fontFamily = 'TTNorms, sans-serif';
-  label.fontSize = 16;
-  label.fillColor = colors.text.color;
-
   const isMobile = getMobileOperatingSystem() !== 'unknown';
-  const subLabel = new paper.PointText(new paper.Point(0, 18));
-  // Use longest text for background sizing, then set initial text
-  subLabel.content = isMobile ? 'Tap again to confirm' : 'Click again to confirm';
-  subLabel.justification = 'center';
-  subLabel.fontFamily = 'TTNorms, sans-serif';
-  subLabel.fontSize = 11;
-  subLabel.fillColor = colors.oceanText.color;
+  // Use longest subtitle text for background sizing
+  const longestSubLabel = isMobile ? 'Tap again to confirm' : 'Click again to confirm';
+  const maxLabelWidth = viewWidth - 140;
+  const { group: wrappedLabel, subLabel } = createWrappedLabel(config.label, longestSubLabel, maxLabelWidth);
   subLabelText = subLabel;
 
-  // Size background for longest possible text
-  const combinedBounds = label.bounds.unite(subLabel.bounds);
   // Set initial text based on whether a position is pre-selected
   subLabel.content = selectedPositionIndex !== null
     ? (isMobile ? 'Tap again to confirm' : 'Click again to confirm')
     : (isMobile ? 'Tap a location' : 'Click a location');
-  const labelBg = new paper.Path.Rectangle(
-    new paper.Rectangle(
-      combinedBounds.x - 8,
-      combinedBounds.y - 4,
-      combinedBounds.width + 16,
-      combinedBounds.height + 8
-    ),
-    new paper.Size(6, 6)
-  );
-  labelBg.fillColor = colors.paper.color;
-  labelBg.opacity = 0.9;
 
-  labelGroup = new paper.Group([labelBg, label, subLabel]);
-  labelGroup.applyMatrix = false;
+  labelGroup = wrappedLabel;
   labelGroup.position = new paper.Point(viewWidth / 2, 60);
   fixedUI.addChild(labelGroup);
 

@@ -317,7 +317,7 @@ export default function ModalMapSelect(){
               options: createOptionsFromAssets(categoryAssetIndices.left_rock),
               direction: 'left',
               eventName: 'leftRockShapeSelected',
-              title: 'Choose Rock Beach Shape',
+              title: 'Choose Rock Shape',
               spacing: 14,
               buttonSize: 12,
               hideEdgeTile: true,
@@ -335,7 +335,7 @@ export default function ModalMapSelect(){
               options: createOptionsFromAssets(categoryAssetIndices.right_rock),
               direction: 'right',
               eventName: 'rightRockShapeSelected',
-              title: 'Choose Rock Beach Shape',
+              title: 'Choose Rock Shape',
               spacing: 14,
               buttonSize: 12,
               hideEdgeTile: true,
@@ -1264,7 +1264,7 @@ function PeninsulaSideStep({ onBack }: { onBack: () => void }) {
           <Image src='static/img/back.png' />
         </Button>
       </Box>
-      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Peninsula Side?'}</Heading>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Select Peninsula Side'}</Heading>
       <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center', justifyContent: 'center'}}>
         <Card onClick={() => handleClick('left')}>
           <Image variant='card' src={'static/img/island-peninsula-left.png'}/>

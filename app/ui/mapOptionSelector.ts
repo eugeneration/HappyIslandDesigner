@@ -8,6 +8,7 @@ import { getCachedSvgContent } from '../generatedTilesCache';
 import { getImageSrcForAsset } from './edgeTileAssets';
 import { hideEdgeTileAtBlock, showEdgeTileAtBlock } from './edgeTiles';
 import { getMobileOperatingSystem } from '../helpers/getMobileOperatingSystem';
+import { createWrappedLabel } from '../helpers/createWrappedLabel';
 import { computeWizardZoom, SHAPE_SELECTOR_SPAN, startViewAnimation, tickViewAnimation, stopViewAnimation, isViewAnimating, VIEW_TRANSITION_DURATION } from './viewAnimation';
 
 let selectorUI: paper.Group | null = null;
@@ -924,39 +925,14 @@ function showOptionSelectorImmediate(config: MapOptionSelectorConfig): void {
 
   // Label below progress bar at top
   if (config.title) {
-    const label = new paper.PointText(new paper.Point(0, 0));
-    label.content = config.title;
-    label.justification = 'center';
-    label.fontFamily = 'TTNorms, sans-serif';
-    label.fontSize = 16;
-    label.fillColor = colors.text.color;
-
     const isMobile = getMobileOperatingSystem() !== 'unknown';
-    const subLabel = new paper.PointText(new paper.Point(0, 18));
-    subLabel.content = isMobile
+    const subLabelContent = isMobile
       ? 'Swipe to preview, tap to confirm'
       : 'Scroll to preview, click to confirm';
-    subLabel.justification = 'center';
-    subLabel.fontFamily = 'TTNorms, sans-serif';
-    subLabel.fontSize = 11;
-    subLabel.fillColor = colors.oceanText.color;
+    const maxLabelWidth = viewWidth - 140;
+    const { group: wrappedLabel } = createWrappedLabel(config.title, subLabelContent, maxLabelWidth);
 
-    // Size background to fit both lines
-    const combinedBounds = label.bounds.unite(subLabel.bounds);
-    const labelBg = new paper.Path.Rectangle(
-      new paper.Rectangle(
-        combinedBounds.x - 8,
-        combinedBounds.y - 4,
-        combinedBounds.width + 16,
-        combinedBounds.height + 8
-      ),
-      new paper.Size(6, 6)
-    );
-    labelBg.fillColor = colors.paper.color;
-    labelBg.opacity = 0.9;
-
-    fixedLabelGroup = new paper.Group([labelBg, label, subLabel]);
-    fixedLabelGroup.applyMatrix = false;
+    fixedLabelGroup = wrappedLabel;
     fixedLabelGroup.position = new paper.Point(viewWidth / 2, 60);
     fixedUI.addChild(fixedLabelGroup);
   }
