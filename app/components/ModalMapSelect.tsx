@@ -1001,9 +1001,21 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
         <Button
           variant='primary'
           onClick={handleGenerate}
-          sx={{ px: 4, py: 2, fontSize: 2, fontWeight: 'bold' }}
+          sx={{
+            width: 60,
+            height: 60,
+            borderRadius: '50%',
+            bg: 'rgba(66, 187, 243, 0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 0,
+            cursor: 'pointer',
+            '&:hover': { bg: '#42bbf3' },
+            '&:active': { bg: 'rgba(140, 151, 236, 0.5)' },
+          }}
         >
-          {'Upload Screenshot'}
+          <Image src='static/img/ui-upload-white.png' sx={{ width: 30, height: 30 }} />
         </Button>
       </Box>
     </>
