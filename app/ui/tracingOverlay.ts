@@ -95,6 +95,7 @@ function startTracingOverlay() {
 }
 function stopTracingOverlay() {
   if (tracingOverlayImage == null) return;
+  if (!confirm('Remove the photo overlay? This cannot be undone.')) return;
   showTracingOverlayUI(false);
   tracingOverlayImage.remove();
 }
