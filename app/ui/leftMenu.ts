@@ -8,7 +8,10 @@ import { toolCategoryDefinition } from '../tools';
 
 let leftToolMenuPosition: paper.Point;
 let leftToolMenu: paper.Group;
+let leftToolMenuBacking: paper.Path;
 const leftToolMenuIconHeight = 50;
+const defaultBackingHeight = 480;
+const extendedBackingHeight = 530;
 
 export function addToLeftToolMenu(icon?: any) {
   if (!icon) {
@@ -33,7 +36,7 @@ export function createLeftMenu() {
   leftToolMenu.applyMatrix = false;
   leftToolMenu.position = new paper.Point(30, 0);
 
-  const leftToolMenuBacking = new paper.Path();
+  leftToolMenuBacking = new paper.Path();
   leftToolMenuBacking.strokeColor = colors.paper.color;
   leftToolMenuBacking.strokeWidth = 120;
   leftToolMenuBacking.strokeCap = 'round';
@@ -47,6 +50,13 @@ export function createLeftMenu() {
 
   // add gap
   leftToolMenuPosition.y += 60;
+}
+
+export function setLeftMenuExtended(extended: boolean): void {
+  if (leftToolMenuBacking) {
+    const height = extended ? extendedBackingHeight : defaultBackingHeight;
+    leftToolMenuBacking.segments[1].point.y = height;
+  }
 }
 
 export function hideLeftMenu(): void {

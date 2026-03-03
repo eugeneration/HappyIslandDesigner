@@ -20,7 +20,7 @@ import { colors } from '../colors';
 import { imgPath } from '../constants';
 import { createMenu } from '../ui/createMenu';
 import { createButton } from '../ui/createButton';
-import { addToLeftToolMenu } from '../ui/leftMenu';
+import { addToLeftToolMenu, setLeftMenuExtended } from '../ui/leftMenu';
 import { layers } from '../layers';
 import { objectMap } from '../helpers/objectMap';
 import { createObjectIcon, placeObject } from '../ui/createObject';
@@ -520,10 +520,7 @@ export function initTools() {
       if (this.iconMenu === null) {
         layers.fixedLayer.activate();
 
-        const menuGroup = new paper.Group();
-        menuGroup.applyMatrix = false;
-
-        // "Adjust Edges" button
+        // "Adjust Edges" button - small blue square
         const adjustIcon = new paper.Path.Rectangle({
           rectangle: new paper.Rectangle(-8, -8, 16, 16),
           fillColor: colors.oceanDark.color,
@@ -535,17 +532,13 @@ export function initTools() {
           enterEdgeEditMode();
         });
 
-        menuGroup.addChild(adjustButton);
-        this.iconMenu = menuGroup;
-        this.iconMenu.pivot = new paper.Point(0, 0);
-      }
-
-      // Position menu next to tool icon
-      if (this.icon) {
-        this.iconMenu.position = new paper.Point(
-          this.icon.position.x + 50,
-          this.icon.position.y
+        this.iconMenu = createMenu(
+          { adjust: adjustButton },
+          { spacing: 45, extraColumns: 1 },
         );
+        this.iconMenu.data.setPointer(405);
+        this.iconMenu.pivot = new paper.Point(0, 0);
+        this.iconMenu.position = new paper.Point(100, 45);
       }
       this.iconMenu.visible = isSelected;
     },
@@ -612,28 +605,24 @@ export function initTools() {
     def.icon = button;
   });
 
-  // Edge tool - V2 only, programmatic icon
+  // Edge tool - V2 only
   {
     const edgeDef = toolCategoryDefinition.edge;
 
-    // Create colored square icon
-    const edgeIcon = new paper.Path.Rectangle({
-      rectangle: new paper.Rectangle(-10, -10, 20, 20),
-      fillColor: colors.oceanDark.color,
-      strokeColor: colors.text.color,
-      strokeWidth: 1,
-    });
-
-    const edgeButton = createButton(edgeIcon, 20, () => {
+    const tool = new paper.Raster(`${imgPath + toolPrefix}island.png`);
+    const edgeButton = createButton(tool, 20, () => {
       toolState.switchToolType('edge');
     });
+    tool.scaling = new paper.Point(0.2, 0.2);
 
     addToLeftToolMenu(edgeButton);
     edgeDef.icon = edgeButton;
 
     // Set visibility based on map version
     const updateEdgeToolVisibility = () => {
-      edgeButton.visible = isV2Map();
+      const visible = isV2Map();
+      edgeButton.visible = visible;
+      setLeftMenuExtended(visible);
     };
     updateEdgeToolVisibility();
     emitter.on('mapVersionChanged', updateEdgeToolVisibility);
