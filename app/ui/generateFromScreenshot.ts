@@ -6133,7 +6133,7 @@ export async function generateFromScreenshot(options: GenerateOptions = {}): Pro
     ISLAND_COORD_WIDTH / cropW,
     ISLAND_COORD_HEIGHT / cropH,
   );
-  updateMapOverlay(raster);
+  updateMapOverlay(raster, { startHidden: true });
 
   console.log('Generate from Screenshot: done');
   skipDebug = false;

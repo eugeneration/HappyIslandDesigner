@@ -76,6 +76,11 @@ function showTracingOverlayUI(isShown) {
     }
     resize();
 
+  }
+  tracingOverlayUI.bringToFront();
+  tracingOverlayUI.visible = isShown;
+
+  if (isShown) {
     showNuxTooltip({
       id: 'overlay_controls',
       text: 'Toggle overlay on/off',
@@ -83,8 +88,6 @@ function showTracingOverlayUI(isShown) {
       layer: layers.fixedLayer,
     });
   }
-  tracingOverlayUI.bringToFront();
-  tracingOverlayUI.visible = isShown;
 }
 
 let tracingOverlayImage: paper.Group;
@@ -124,7 +127,7 @@ export function toggleTracingOverlayVisible() {
 //}
 
 
-export function updateMapOverlay(raster) {
+export function updateMapOverlay(raster, options?: { startHidden?: boolean }) {
   if (tracingOverlayImage) {
     tracingOverlayImage.remove();
   }
@@ -135,6 +138,10 @@ export function updateMapOverlay(raster) {
   tracingOverlayImage.bounds.topLeft = new Point(0, 0);
 
   startTracingOverlay();
+  if (options?.startHidden) {
+    tracingOverlayImage.visible = false;
+    emitter.emit('updateTracingOverlayVisible', false);
+  }
 }
 
 function screenCoordinates(percentX, percentY, offsetX, offsetY) {
