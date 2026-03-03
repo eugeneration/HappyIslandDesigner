@@ -4334,6 +4334,11 @@ function showDevMenu(): void {
       isMenuOpen = false;
       import('./generateFromScreenshot').then(m => m.generateFromScreenshot());
     }},
+    { label: 'Reset NUX', action: () => {
+      hideDevMenu();
+      isMenuOpen = false;
+      import('./nuxTooltip').then(m => m.resetAllNux());
+    }},
   ];
 
   // Menu background

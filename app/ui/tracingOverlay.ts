@@ -5,6 +5,7 @@ import { colors } from '../colors';
 import { layers } from '../layers';
 import { createButton } from './createButton';
 import { clamp } from '../helpers/clamp';
+import { showNuxTooltip } from './nuxTooltip';
 
 let tracingOverlayUI;
 function showTracingOverlayUI(isShown) {
@@ -74,6 +75,13 @@ function showTracingOverlayUI(isShown) {
         screenCoordinates(1, 1, -4, -10);
     }
     resize();
+
+    showNuxTooltip({
+      id: 'overlay_controls',
+      text: 'Toggle overlay on/off',
+      target: tracingOverlayUI,
+      layer: layers.fixedLayer,
+    });
   }
   tracingOverlayUI.bringToFront();
   tracingOverlayUI.visible = isShown;
