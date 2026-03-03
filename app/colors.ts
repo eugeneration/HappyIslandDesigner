@@ -11,6 +11,7 @@ export const colors = {
 
   // terrain color
   water: { cssColor: '#83e1c3', color: c, key: '', name: '' },
+  waterLevel1Overlay77: { cssColor: '#9CFFE8', color: c, key: '', name: '' },
   sand: { cssColor: '#eee9a9', color: c, key: '', name: '' },
   level1: { cssColor: '#347941', color: c, key: '', name: '' },
   level2: { cssColor: '#35a043', color: c, key: '', name: '' },
