@@ -1,5 +1,5 @@
 import paper from 'paper';
-import { clearMap, setNewMapData, autosaveTrigger, addToHistory } from './state';
+import { clearMap, setNewMapData, addToHistory } from './state';
 import { decodeMap } from './save';
 import steg from './vendors/steganography';
 import LZString from 'lz-string';
@@ -74,7 +74,6 @@ export function loadMapFromJSONString(mapJSONString: string) {
   clearMap();
   const map = decodeMap(json);
   setNewMapData(map);
-  autosaveTrigger();
   emitMapLoaded();
 }
 

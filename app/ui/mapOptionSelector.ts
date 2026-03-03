@@ -8,7 +8,7 @@ import { getCachedSvgContent } from '../generatedTilesCache';
 import { getImageSrcForAsset } from './edgeTileAssets';
 import { hideEdgeTileAtBlock, showEdgeTileAtBlock } from './edgeTiles';
 import { getMobileOperatingSystem } from '../helpers/getMobileOperatingSystem';
-import { startViewAnimation, tickViewAnimation, stopViewAnimation, isViewAnimating, VIEW_TRANSITION_DURATION } from './viewAnimation';
+import { computeWizardZoom, SHAPE_SELECTOR_SPAN, startViewAnimation, tickViewAnimation, stopViewAnimation, isViewAnimating, VIEW_TRANSITION_DURATION } from './viewAnimation';
 
 let selectorUI: paper.Group | null = null;
 let fixedUI: paper.Group | null = null;
@@ -330,7 +330,7 @@ function updateDeckPositions(): void {
     const h = card.data.hoverAmount;
 
     const hoverScale = 1 + (HOVER_SCALE - 1) * h;
-    const finalScale = scale * uiScale * hoverScale;
+    const finalScale = scale * hoverScale;
     card.scaling = new paper.Point(finalScale, finalScale);
     const isCenter = card.data.index === selectedIndex;
     card.rotation = isCenter ? HOVER_TILT * h : 0;
@@ -381,7 +381,7 @@ function updateDeckPositions(): void {
     if (settled) {
       const centerCard = optionCards[selectedIndex];
       if (centerCard) {
-        const halfSize = centerCard.data.baseSize / 2 * uiScale * CENTER_SCALE;
+        const halfSize = centerCard.data.baseSize / 2 * CENTER_SCALE;
         tilePointer.position = new paper.Point(
           centerCard.position.x + halfSize,
           centerCard.position.y + halfSize
@@ -470,8 +470,8 @@ function startSelectionAnimation(card: paper.Group): void {
   if (tilePointer) tilePointer.visible = false;
 
   const tileSize = 16;
-  const currentScale = uiScale * CENTER_SCALE;
-  const hopEndScale = (tileSize / card.data.baseSize);
+  const currentScale = CENTER_SCALE;
+  const hopEndScale = (tileSize / (card.data.baseSize - 2));
 
   const otherCards = optionCards.filter(c => c !== card);
   const originalPositions = new Map<paper.Group, paper.Point>();
@@ -781,43 +781,22 @@ function computeZoomToFit(
   direction: OptionDirection,
   spacing: number
 ): { zoom: number; center: paper.Point } {
-  const view = paper.view;
-  const layer = layers.mapOverlayLayer;
-  const stackSpan = STACK_BASE_OFFSET + MAX_STACK_VISIBLE * STACK_CARD_OFFSET;
-  let minX: number, maxX: number, minY: number, maxY: number;
-
+  // Shift center toward the card stack so cards aren't at view edge
+  let centerX = anchor.x;
+  let centerY = anchor.y;
   switch (direction) {
     case 'bottom':
-      minX = anchor.x - stackSpan - spacing * 2;
-      maxX = anchor.x + stackSpan + spacing * 2;
-      minY = anchor.y - spacing;
-      maxY = anchor.y + spacing * 3;
+      centerY += spacing;
       break;
     case 'left':
-      minX = anchor.x - spacing * 3;
-      maxX = anchor.x + spacing;
-      minY = anchor.y - stackSpan - spacing * 2;
-      maxY = anchor.y + stackSpan + spacing * 2;
+      centerX -= spacing;
       break;
     case 'right':
-      minX = anchor.x - spacing;
-      maxX = anchor.x + spacing * 3;
-      minY = anchor.y - stackSpan - spacing * 2;
-      maxY = anchor.y + stackSpan + spacing * 2;
+      centerX += spacing;
       break;
   }
 
-  const localBounds = new paper.Rectangle(minX!, minY!, maxX! - minX!, maxY! - minY!);
-  const topLeft = layer.localToGlobal(localBounds.topLeft);
-  const bottomRight = layer.localToGlobal(localBounds.bottomRight);
-  const globalBounds = new paper.Rectangle(topLeft, bottomRight);
-
-  const viewPadding = 1.3;
-  const zoomX = view.viewSize.width / (globalBounds.width * viewPadding);
-  const zoomY = view.viewSize.height / (globalBounds.height * viewPadding);
-  const newZoom = Math.min(zoomX, zoomY, 4);
-
-  return { zoom: newZoom, center: globalBounds.center };
+  return computeWizardZoom(new paper.Point(centerX, centerY), SHAPE_SELECTOR_SPAN);
 }
 
 export function showOptionSelector(config: MapOptionSelectorConfig): void {
@@ -838,7 +817,7 @@ function showOptionSelectorImmediate(config: MapOptionSelectorConfig): void {
 
   currentConfig = config;
   cardSpacing = config.spacing || 12;
-  const buttonSize = (config.buttonSize || 10) * 1.5;
+  const buttonSize = (config.buttonSize || 10) * 1.2;
 
   // Reset state
   optionCards = [];
@@ -986,6 +965,16 @@ function showOptionSelectorImmediate(config: MapOptionSelectorConfig): void {
   resizeHandler = () => {
     const w = paper.view.viewSize.width;
     if (fixedLabelGroup) fixedLabelGroup.position.x = w / 2;
+    // Recalculate zoom for new window size
+    if (currentConfig) {
+      const target = computeZoomToFit(
+        currentConfig.anchorPoint,
+        currentConfig.direction,
+        cardSpacing
+      );
+      paper.view.zoom = target.zoom;
+      paper.view.center = target.center;
+    }
   };
   emitter.on('resize', resizeHandler);
 

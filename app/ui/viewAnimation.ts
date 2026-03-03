@@ -1,6 +1,36 @@
 import paper from 'paper';
+import { layers } from '../layers';
 
 export const VIEW_TRANSITION_DURATION = 0.4;
+export const WIZARD_MAX_BLOCK_PX = 150; // max physical size (px) one block should occupy on screen
+export const SHAPE_SELECTOR_SPAN = 32; // island units — focused tile + surrounding context
+
+export function computeWizardZoom(
+  center: paper.Point,
+  minVisibleSpan: number
+): { zoom: number; center: paper.Point } {
+  const view = paper.view;
+  const layer = layers.mapOverlayLayer;
+
+  const half = minVisibleSpan / 2;
+  const localBounds = new paper.Rectangle(
+    center.x - half, center.y - half,
+    minVisibleSpan, minVisibleSpan
+  );
+
+  const topLeft = layer.localToGlobal(localBounds.topLeft);
+  const bottomRight = layer.localToGlobal(localBounds.bottomRight);
+  const globalBounds = new paper.Rectangle(topLeft, bottomRight);
+
+  const fitZoomX = view.viewSize.width / globalBounds.width;
+  const fitZoomY = view.viewSize.height / globalBounds.height;
+  const globalBlockSize = globalBounds.width / minVisibleSpan * 16;
+  const maxZoom = WIZARD_MAX_BLOCK_PX / globalBlockSize;
+  const newZoom = Math.min(fitZoomX, fitZoomY, maxZoom);
+
+  const globalCenter = layer.localToGlobal(center);
+  return { zoom: newZoom, center: globalCenter };
+}
 
 let viewAnim: {
   startZoom: number;

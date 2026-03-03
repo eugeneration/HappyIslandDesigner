@@ -99,6 +99,8 @@ function stepShouldBeSkipped(step: WizardStep): boolean {
 }
 
 export function resetWizard(): void {
+  hidePositionSelector();
+  hideOptionSelector();
   wizardState = { ...initialState };
   hideWizardProgress();
   showLeftMenu();

@@ -21,6 +21,10 @@ import { uniteCompoundPath } from './helpers/unitCompoundPath';
 import { layers } from './layers';
 import { colors } from './colors';
 import { isEdgeTilesVisible, getInnerDrawableBounds } from './ui/edgeTiles';
+import { isV2Map } from './mapState';
+import { emitter } from './emitter';
+import { markWaterfallDirty } from './waterfall';
+import { appSettings } from './settings';
 
 const paintTools = {
   grid: 'grid',
@@ -223,6 +227,10 @@ export function addPath(isAdd, path, colorKey) {
     : state.drawing[colorKey].subtract(clippedPath);
   combined.locked = true;
   combined.fillColor = colors[colorKey].color;
+  if (colorKey === 'water' && isV2Map() && appSettings.showWaterEffects) {
+    combined.fillColor = colors.waterLevel1Overlay77.color;
+    combined.opacity = 0.77;
+  }
   combined.insertAbove(state.drawing[colorKey]);
 
   state.drawing[colorKey].remove();
@@ -232,6 +240,10 @@ export function addPath(isAdd, path, colorKey) {
   }
 
   state.drawing[colorKey] = combined;
+
+  if (colorKey === 'water' || colorKey === 'level2' || colorKey === 'level3') {
+    markWaterfallDirty();
+  }
 }
 
 export function applyDiff(isApply, diff) {
@@ -248,3 +260,15 @@ export function applyDiff(isApply, diff) {
     addPath(isAdd, colorDiff.path, colorKey);
   });
 }
+
+emitter.on('mapVersionChanged', () => {
+  const waterPath = state.drawing['water'];
+  if (!waterPath) return;
+  if (isV2Map() && appSettings.showWaterEffects) {
+    waterPath.fillColor = colors.waterLevel1Overlay77.color;
+    waterPath.opacity = 0.77;
+  } else {
+    waterPath.fillColor = colors.water.color;
+    waterPath.opacity = 1;
+  }
+});

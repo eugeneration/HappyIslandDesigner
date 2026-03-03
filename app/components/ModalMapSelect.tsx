@@ -10,6 +10,7 @@ import useBlockZoom from './useBlockZoom';
 
 import { loadMapFromJSONString, loadBaseMapFromSvg } from '../load';
 import {confirmDestructiveAction, isMapEmpty, autosaveTrigger} from '../state';
+import { setMapVersion, emitMapLoaded } from '../mapState';
 import { loadEdgeTilesAsGeometry, captureEdgeTileRaster } from '../ui/edgeTiles';
 import { emitter } from '../emitter';
 import { type OptionConfig } from '../ui/mapOptionSelector';
@@ -113,6 +114,9 @@ export default function ModalMapSelect(){
   // Track filled placeholder positions for going back during fillPlaceholder step
   const filledPlaceholderPositions = useRef<{x: number, y: number}[]>([]);
 
+  // Track pending map step setup timeout so it can be cancelled on rapid step changes
+  const mapStepTimeoutRef = useRef<number | null>(null);
+
   // only called by external triggers
   function startModal() {
     startWizard();
@@ -140,17 +144,33 @@ export default function ModalMapSelect(){
       setWizardState({ ...state });
 
       // Capture edge tile raster when reaching baseMapGrid step
+      // Use a delay to ensure all SVG tile imports have completed their callbacks
+      // (replaceBlocks uses async createTileImage which may not have finished)
       if (state.step === 'baseMapGrid') {
-        const raster = captureEdgeTileRaster(200);
-        setEdgeTileRaster(raster);
+        setTimeout(() => {
+          const raster = captureEdgeTileRaster(200);
+          setEdgeTileRaster(raster);
+        }, 100);
       }
 
       // If moving to a modal step, open modal
       setIsOpen(isModalStep(state.step));
 
+      // Clear any pending map step setup timeout
+      if (mapStepTimeoutRef.current !== null) {
+        clearTimeout(mapStepTimeoutRef.current);
+        mapStepTimeoutRef.current = null;
+      }
+
       // If moving to a map step, show appropriate selector
       if (isMapStep(state.step)) {
-        setTimeout(() => {
+        mapStepTimeoutRef.current = window.setTimeout(() => {
+          mapStepTimeoutRef.current = null;
+
+          // Clean up any previous position selector — option selector handles its
+          // own cleanup via showOptionSelectorImmediate → hideOptionSelector
+          hidePositionSelector();
+
           if (state.step === 'riverMouth1') {
             // Show edge tiles at the start of the wizard flow
             initializeEdgeTiles();
@@ -802,8 +822,8 @@ function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: Wi
             await loadBaseMapFromSvg(baseMapIndex);
             // Convert edge tiles to geometry now that wizard is complete
             loadEdgeTilesAsGeometry();
-            // Save to local storage for persistence
-            autosaveTrigger();
+            setMapVersion(2);
+            emitMapLoaded();
             resetWizard();
           }}
           onBack={goBack}

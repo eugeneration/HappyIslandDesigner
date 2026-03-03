@@ -5,6 +5,7 @@ import { autosaveMap } from './save';
 import objectIsEmpty from './helpers/objectIsEmpty';
 import { setEdgeTilesFromAssetIndices } from './ui/edgeTiles';
 import { setMapVersion } from './mapState';
+import { clearWaterfall } from './waterfall';
 
 /* eslint-disable default-case */
 export type State = {
@@ -51,6 +52,7 @@ export function clearMap() {
     state.objects[p].remove();
   });
   state.objects = {};
+  clearWaterfall();
 }
 
 export function setNewMapData(mapData) {
@@ -172,6 +174,14 @@ export function addToHistory(command) {
   autosaveTrigger();
   emitter.emit('historyUpdate', 'add');
 }
+
+// When a new map is loaded (from file, autosave, or wizard), reset undo history and save immediately
+emitter.on('mapLoaded', () => {
+  state.index = -1;
+  state.history = [];
+  state.actionsSinceSave = 0;
+  autosaveMap();
+});
 
 export function autosaveTrigger() {
   // autosave
