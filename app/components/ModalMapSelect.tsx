@@ -916,6 +916,7 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
   const isGeneratingRef = useRef(false);
   const [progress, setProgress] = useState({ completed: 0, total: 1 });
   const [flavorIndex, setFlavorIndex] = useState(0);
+  const [showTips, setShowTips] = useState(false);
 
   // Rotate flavor text on a timer while generating
   useEffect(() => {
@@ -996,18 +997,47 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
     );
   }
 
+  // --- Tips sub-view ---
+  if (showTips) {
+    return (
+      <>
+        <Box sx={{position: 'absolute', left: 0, top: [1, 3]}}>
+          <Button variant='icon' onClick={() => setShowTips(false)}>
+            <Image src='static/img/back.png' />
+          </Button>
+        </Box>
+        <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Screenshot Tips'}</Heading>
+        <Box sx={{ px: 3, pb: 3, maxWidth: 400, mx: 'auto' }}>
+          <Text sx={{ fontWeight: 'bold', color: 'secondary', mb: 2 }}>
+            {'Transferring from your Switch:'}
+          </Text>
+          <Box as='ul' sx={{ fontSize: 1, pl: 3, mb: 3, listStyle: 'disc' }}>
+            <Box as='li' sx={{ mb: 1 }}>{'Press the Capture button (square button on the left Joy-Con) to save a screenshot'}</Box>
+            <Box as='li' sx={{ mb: 1 }}>{'To transfer: go to Album \u2192 Send to Smartphone, or copy to PC via USB or microSD card'}</Box>
+            <Box as='li'>{'Use the actual in-game screenshot \u2014 a photo of the screen will not work'}</Box>
+          </Box>
+          <Text sx={{ fontWeight: 'bold', color: 'secondary', mb: 2 }}>
+            {'Taking a good screenshot:'}
+          </Text>
+          <Box as='ul' sx={{ fontSize: 1, pl: 3, listStyle: 'disc' }}>
+            <Box as='li' sx={{ mb: 1 }}>{'Open your NookPhone map screen before capturing'}</Box>
+            <Box as='li' sx={{ mb: 1 }}>{'Stand somewhere like the beach so your player pin doesn\'t block map details'}</Box>
+            <Box as='li' sx={{ mb: 1 }}>{'Avoid selecting icons on the map \u2014 the generator struggles with orange highlighted icons'}</Box>
+            <Box as='li'>{'After generating, use the overlay tool to compare and clean up any errors'}</Box>
+          </Box>
+        </Box>
+      </>
+    );
+  }
+
   // --- Idle view ---
   return (
-    <>
+    <Box sx={{ maxWidth: 480 }}>
       <Box sx={{position: 'absolute', left: 0, top: [1, 3]}}>
         <Button variant='icon' onClick={onBack}>
           <Image src='static/img/back.png' />
         </Button>
       </Box>
-      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Generate from Screenshot'}</Heading>
-      <Text m={3} sx={{textAlign: 'center'}}>
-        {'Upload a screenshot of your island map to automatically generate terrain.'}
-      </Text>
       <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
         <Image
           src='static/img/screenshot-instructions.png'
@@ -1018,28 +1048,58 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
           sx={{ maxWidth: '100%', maxHeight: 250, display: ['block', 'none'] }}
         />
       </Box>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Generate from Screenshot'}</Heading>
+      <Text m={3} sx={{textAlign: 'center', lineHeight: 1.5}}>
+        {'Upload a screenshot of your island map to automatically generate your island. '}
+        <Box
+          as='span'
+          onClick={() => setShowTips(true)}
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 18,
+            height: 18,
+            borderRadius: '50%',
+            border: '1.5px solid',
+            borderColor: 'secondary',
+            color: 'secondary',
+            fontSize: '11px',
+            fontWeight: 'bold',
+            lineHeight: 1,
+            cursor: 'pointer',
+            verticalAlign: 'text-bottom',
+            ml: 1,
+            '&:hover': { opacity: 0.8 },
+          }}
+        >{'?'}</Box>
+      </Text>
       <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
         <Button
           variant='primary'
           onClick={handleGenerate}
           sx={{
-            width: 60,
-            height: 60,
-            borderRadius: '50%',
             bg: 'rgba(66, 187, 243, 0.9)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            p: 0,
+            gap: 2,
+            px: 3,
+            py: 2,
+            borderRadius: 30,
             cursor: 'pointer',
+            fontFamily: 'heading',
+            fontSize: 2,
+            color: 'white',
             '&:hover': { bg: '#42bbf3' },
             '&:active': { bg: 'rgba(140, 151, 236, 0.5)' },
           }}
         >
-          <Image src='static/img/ui-upload-white.png' sx={{ width: 30, height: 30 }} />
+          <Image src='static/img/ui-upload-white.png' sx={{ width: 20, height: 20 }} />
+          {'Upload Screenshot'}
         </Button>
       </Box>
-    </>
+    </Box>
   );
 }
 
