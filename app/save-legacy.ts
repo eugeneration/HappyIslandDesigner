@@ -132,7 +132,6 @@ function decodeDrawing(encodedDrawing, version) {
   Object.keys(encodedDrawing).forEach((colorName) => {
     const colorData = getColorDataFromEncodedName(colorName);
     const pathData = encodedDrawing[colorName];
-
     // if array of arrays, make compound path
     let p;
     if (pathData.length === 0) {

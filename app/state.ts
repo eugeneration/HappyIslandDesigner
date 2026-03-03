@@ -61,7 +61,7 @@ export function setNewMapData(mapData) {
   if (mapData.edgeTiles) {
     setEdgeTilesFromAssetIndices(mapData.edgeTiles);
   }
-  
+
   // Set global map version state so V2 features (edge tool) are enabled
   setMapVersion(mapData.version);
 }
