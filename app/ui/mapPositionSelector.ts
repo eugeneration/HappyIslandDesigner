@@ -8,7 +8,7 @@ import { goBack } from './mapSelectionWizard';
 import { getBlockState } from './edgeTiles';
 import { getMobileOperatingSystem } from '../helpers/getMobileOperatingSystem';
 import { getCachedSvgContent } from '../generatedTilesCache';
-import { startViewAnimation, tickViewAnimation, stopViewAnimation } from './viewAnimation';
+import { WIZARD_MAX_BLOCK_PX, startViewAnimation, tickViewAnimation, stopViewAnimation } from './viewAnimation';
 
 let selectorUI: paper.Group | null = null;
 let fixedUI: paper.Group | null = null;
@@ -20,6 +20,7 @@ let selectedPositionIndex: number | null = null;
 let positionButtons: paper.Group[] = [];
 let currentEventName: string | null = null;
 let frameHandler: ((event: { delta: number }) => void) | null = null;
+let currentZoomBounds: paper.Rectangle | null = null;
 
 const mapWidth = horizontalBlocks * horizontalDivisions; // 112
 const mapHeight = verticalBlocks * verticalDivisions; // 96
@@ -122,6 +123,17 @@ export function getAirportBlocks(
   }
 }
 
+function computePositionZoomBounds(positions: paper.Point[]): paper.Rectangle {
+  const pad = blockSize; // half-block for block extent + half-block for visual padding
+  const xs = positions.map(p => p.x);
+  const ys = positions.map(p => p.y);
+  return new paper.Rectangle(
+    Math.min(...xs) - pad, Math.min(...ys) - pad,
+    Math.max(...xs) - Math.min(...xs) + pad * 2,
+    Math.max(...ys) - Math.min(...ys) + pad * 2
+  );
+}
+
 function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection): SelectionConfig {
   switch (type) {
     case 'airport': {
@@ -131,19 +143,11 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
             new paper.Point(mapWidth * 0.35, mapHeight - 8),
             new paper.Point(mapWidth * 0.65, mapHeight - 8),
           ];
-      const airportXs = positions.map(p => p.x);
-      const airportMinX = Math.min(...airportXs);
-      const airportMaxX = Math.max(...airportXs);
-      const airportCenterX = (airportMinX + airportMaxX) / 2;
-      const airportHalfW = Math.max(airportMaxX - airportMinX, blockSize) + blockSize * 1.5;
       return {
         label: 'Select Airport Position',
         icon: 'static/svg/amenity-airport.svg',
         positions,
-        zoomBounds: new paper.Rectangle(
-          airportCenterX - airportHalfW, mapHeight - 30,
-          airportHalfW * 2, 30
-        ),
+        zoomBounds: computePositionZoomBounds(positions),
         eventName: 'airportSelected',
       };
     }
@@ -156,11 +160,12 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
         { point: new paper.Point(blockSize / 2, 4 * blockSize + blockSize / 2), blockY: 4, originalIndex: 3 },
       ].filter(p => getBlockState(0, p.blockY) === 'placeholder' || getBlockState(0, p.blockY) === undefined);
 
+      const leftPositions = leftCandidates.map(p => p.point);
       return {
         label: 'Select Peninsula Position',
-        positions: leftCandidates.map(p => p.point),
+        positions: leftPositions,
         originalIndices: leftCandidates.map(p => p.originalIndex),
-        zoomBounds: new paper.Rectangle(0, 0, 30, mapHeight),
+        zoomBounds: computePositionZoomBounds(leftPositions),
         eventName: 'peninsulaPosSelected',
       };
     }
@@ -173,11 +178,12 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
         { point: new paper.Point(mapWidth - blockSize / 2, 4 * blockSize + blockSize / 2), blockY: 4, originalIndex: 3 },
       ].filter(p => getBlockState(horizontalBlocks - 1, p.blockY) === 'placeholder' || getBlockState(horizontalBlocks - 1, p.blockY) === undefined);
 
+      const rightPositions = rightCandidates.map(p => p.point);
       return {
         label: 'Select Peninsula Position',
-        positions: rightCandidates.map(p => p.point),
+        positions: rightPositions,
         originalIndices: rightCandidates.map(p => p.originalIndex),
-        zoomBounds: new paper.Rectangle(mapWidth - 30, 0, 30, mapHeight),
+        zoomBounds: computePositionZoomBounds(rightPositions),
         eventName: 'peninsulaPosSelected',
       };
     }
@@ -211,20 +217,12 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
         .filter(p => getBlockState(p.blockX, 0) === 'placeholder' || getBlockState(p.blockX, 0) === undefined);
 
       const beachPoints = beachCandidates.map(p => p.point);
-      const beachXs = beachPoints.map(p => p.x);
-      const beachMinX = Math.min(...beachXs);
-      const beachMaxX = Math.max(...beachXs);
-      const beachCenterX = (beachMinX + beachMaxX) / 2;
-      const beachHalfW = Math.max(beachMaxX - beachMinX, blockSize) + blockSize * 1.5;
 
       return {
         label: 'Select Secret Beach Position',
         positions: beachPoints,
         originalIndices: beachCandidates.map(p => p.originalIndex),
-        zoomBounds: new paper.Rectangle(
-          beachCenterX - beachHalfW, 0,
-          beachHalfW * 2, 30
-        ),
+        zoomBounds: computePositionZoomBounds(beachPoints),
         eventName: 'secretBeachPosSelected',
       };
     }
@@ -237,11 +235,12 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
         { point: new paper.Point(blockSize / 2, 4 * blockSize + blockSize / 2), blockY: 4, originalIndex: 3 },
       ].filter(p => getBlockState(0, p.blockY) === 'placeholder' || getBlockState(0, p.blockY) === undefined);
 
+      const leftRockPositions = leftRockCandidates.map(p => p.point);
       return {
         label: 'Select Left Rock Position',
-        positions: leftRockCandidates.map(p => p.point),
+        positions: leftRockPositions,
         originalIndices: leftRockCandidates.map(p => p.originalIndex),
-        zoomBounds: new paper.Rectangle(0, 0, 30, mapHeight),
+        zoomBounds: computePositionZoomBounds(leftRockPositions),
         eventName: 'leftRockPosSelected',
       };
     }
@@ -254,11 +253,12 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
         { point: new paper.Point(mapWidth - blockSize / 2, 4 * blockSize + blockSize / 2), blockY: 4, originalIndex: 3 },
       ].filter(p => getBlockState(horizontalBlocks - 1, p.blockY) === 'placeholder' || getBlockState(horizontalBlocks - 1, p.blockY) === undefined);
 
+      const rightRockPositions = rightRockCandidates.map(p => p.point);
       return {
         label: 'Select Right Rock Position',
-        positions: rightRockCandidates.map(p => p.point),
+        positions: rightRockPositions,
         originalIndices: rightRockCandidates.map(p => p.originalIndex),
-        zoomBounds: new paper.Rectangle(mapWidth - 30, 0, 30, mapHeight),
+        zoomBounds: computePositionZoomBounds(rightRockPositions),
         eventName: 'rightRockPosSelected',
       };
     }
@@ -580,6 +580,7 @@ export function showPositionSelector(type: SelectionType, riverDirection?: River
   });
 
   // Zoom to fit
+  currentZoomBounds = config.zoomBounds;
   zoomToFit(config.zoomBounds);
 
   // Pre-select middle position for non-airport types
@@ -656,6 +657,10 @@ export function showPositionSelector(type: SelectionType, riverDirection?: River
     if (labelGroup) {
       labelGroup.position.x = paper.view.viewSize.width / 2;
     }
+    // Recalculate zoom for new window size
+    if (currentZoomBounds) {
+      zoomToFit(currentZoomBounds);
+    }
   };
   emitter.on('resize', resizeHandler);
 
@@ -689,6 +694,7 @@ export function hidePositionSelector(): void {
   selectedPositionIndex = null;
   positionButtons = [];
   currentEventName = null;
+  currentZoomBounds = null;
 }
 
 function zoomToFit(bounds: paper.Rectangle): void {
@@ -703,7 +709,9 @@ function zoomToFit(bounds: paper.Rectangle): void {
   const padding = 1.5;
   const zoomX = view.viewSize.width / (globalBounds.width * padding);
   const zoomY = view.viewSize.height / (globalBounds.height * padding);
-  const newZoom = Math.min(zoomX, zoomY, 4);
+  const globalBlockSize = globalBounds.width / bounds.width * blockSize;
+  const maxZoom = WIZARD_MAX_BLOCK_PX / (globalBlockSize * padding);
+  const newZoom = Math.min(zoomX, zoomY, maxZoom);
 
   // Animate the view transition
   startViewAnimation({ zoom: newZoom, center: globalBounds.center.clone() });

@@ -8,7 +8,7 @@ import { getCachedSvgContent } from '../generatedTilesCache';
 import { getImageSrcForAsset } from './edgeTileAssets';
 import { hideEdgeTileAtBlock, showEdgeTileAtBlock } from './edgeTiles';
 import { getMobileOperatingSystem } from '../helpers/getMobileOperatingSystem';
-import { startViewAnimation, tickViewAnimation, stopViewAnimation, isViewAnimating, VIEW_TRANSITION_DURATION } from './viewAnimation';
+import { computeWizardZoom, SHAPE_SELECTOR_SPAN, startViewAnimation, tickViewAnimation, stopViewAnimation, isViewAnimating, VIEW_TRANSITION_DURATION } from './viewAnimation';
 
 let selectorUI: paper.Group | null = null;
 let fixedUI: paper.Group | null = null;
@@ -781,12 +781,6 @@ function computeZoomToFit(
   direction: OptionDirection,
   spacing: number
 ): { zoom: number; center: paper.Point } {
-  const view = paper.view;
-  const layer = layers.mapOverlayLayer;
-
-  // Use uniform span for consistent zoom across all directions
-  const halfSpan = spacing * 2 + STACK_BASE_OFFSET;
-
   // Shift center toward the card stack so cards aren't at view edge
   let centerX = anchor.x;
   let centerY = anchor.y;
@@ -802,22 +796,7 @@ function computeZoomToFit(
       break;
   }
 
-  // Square bounds → same zoom regardless of direction
-  const localBounds = new paper.Rectangle(
-    centerX - halfSpan, centerY - halfSpan,
-    halfSpan * 2, halfSpan * 2
-  );
-
-  const topLeft = layer.localToGlobal(localBounds.topLeft);
-  const bottomRight = layer.localToGlobal(localBounds.bottomRight);
-  const globalBounds = new paper.Rectangle(topLeft, bottomRight);
-
-  const viewPadding = 1.15;
-  const zoomX = view.viewSize.width / (globalBounds.width * viewPadding);
-  const zoomY = view.viewSize.height / (globalBounds.height * viewPadding);
-  const newZoom = Math.min(zoomX, zoomY, 5);
-
-  return { zoom: newZoom, center: globalBounds.center };
+  return computeWizardZoom(new paper.Point(centerX, centerY), SHAPE_SELECTOR_SPAN);
 }
 
 export function showOptionSelector(config: MapOptionSelectorConfig): void {
@@ -986,6 +965,16 @@ function showOptionSelectorImmediate(config: MapOptionSelectorConfig): void {
   resizeHandler = () => {
     const w = paper.view.viewSize.width;
     if (fixedLabelGroup) fixedLabelGroup.position.x = w / 2;
+    // Recalculate zoom for new window size
+    if (currentConfig) {
+      const target = computeZoomToFit(
+        currentConfig.anchorPoint,
+        currentConfig.direction,
+        cardSpacing
+      );
+      paper.view.zoom = target.zoom;
+      paper.view.center = target.center;
+    }
   };
   emitter.on('resize', resizeHandler);
 
