@@ -35,12 +35,9 @@ export function isMapEmpty() {
   return objectIsEmpty(state.objects) && objectIsEmpty(state.drawing);
 }
 
-export function confirmDestructiveAction(message: string, callback: Function) {
+export function confirmDestructiveActionAsync(message: string): Promise<boolean> {
   const empty = isMapEmpty();
-  const r = empty || confirm(message);
-  if (r === true) {
-    callback();
-  }
+  return Promise.resolve(empty || confirm(message));
 }
 
 export function clearMap() {

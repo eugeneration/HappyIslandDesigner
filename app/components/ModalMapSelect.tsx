@@ -9,7 +9,7 @@ import { getBaseMapSrc } from '../generatedBaseMapCache';
 import useBlockZoom from './useBlockZoom';
 
 import { loadMapFromJSONString, loadBaseMapFromSvg } from '../load';
-import {confirmDestructiveAction, isMapEmpty, autosaveTrigger} from '../state';
+import {confirmDestructiveActionAsync, isMapEmpty, autosaveTrigger} from '../state';
 import { setMapVersion, emitMapLoaded } from '../mapState';
 import { loadEdgeTilesAsGeometry, captureEdgeTileRaster } from '../ui/edgeTiles';
 import { emitter } from '../emitter';
@@ -839,11 +839,12 @@ function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: Wi
         return <IslandGridStep
           layoutType={wizardState.riverDirection as LayoutType}
           layouts={getLayouts(wizardState.riverDirection as LayoutType)}
-          onSelect={(index) => {
-            confirmDestructiveAction(
-              'Clear your map? You will lose all unsaved changes.',
-              () => setLayout(index)
+          onSelect={async (index) => {
+            const proceed = await confirmDestructiveActionAsync(
+              'Clear your map? You will lose all unsaved changes.'
             );
+            if (!proceed) return;
+            setLayout(index);
           }}
           onHelp={() => setHelp(true)}
           onBack={goBack}
@@ -1044,17 +1045,15 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
 
 // Step 1: River Direction
 function RiverDirectionStep() {
-  const handleClick = (direction: 'west' | 'south' | 'east') => {
-    confirmDestructiveAction(
-      'Clear your map? You will lose all unsaved changes.',
-      async () => {
-        // load blank terrain
-        await loadBaseMapFromSvg(0);
-
-        // Set direction and move to next step - wizard state handler will show airport selector
-        setRiverDirection(direction);
-      }
+  const handleClick = async (direction: 'west' | 'south' | 'east') => {
+    const proceed = await confirmDestructiveActionAsync(
+      'Clear your map? You will lose all unsaved changes.'
     );
+    if (!proceed) return;
+    // load blank terrain
+    await loadBaseMapFromSvg(0);
+    // Set direction and move to next step - wizard state handler will show airport selector
+    setRiverDirection(direction);
   };
 
   return (
@@ -1149,15 +1148,14 @@ function LegacyRiverDirectionStep({ onBack }: { onBack: () => void }) {
     setLegacyRiverDirection(direction);
   };
 
-  const handleBlankClick = () => {
-    confirmDestructiveAction(
-      'Clear your map? You will lose all unsaved changes.',
-      () => {
-        const blankLayout = Layouts.blank[0];
-        loadMapFromJSONString(blankLayout.data);
-        resetWizard();
-      }
+  const handleBlankClick = async () => {
+    const proceed = await confirmDestructiveActionAsync(
+      'Clear your map? You will lose all unsaved changes.'
     );
+    if (!proceed) return;
+    const blankLayout = Layouts.blank[0];
+    loadMapFromJSONString(blankLayout.data);
+    resetWizard();
   };
 
   return (

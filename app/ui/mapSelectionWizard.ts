@@ -3,7 +3,7 @@ import { hideLeftMenu, showLeftMenu } from './leftMenu';
 import { hideUndoMenu, showUndoMenu } from '../drawer';
 import { toolState } from '../tools/state';
 import { showWizardProgress, hideWizardProgress } from './wizardProgressBar';
-import { confirmDestructiveAction, autosaveTrigger } from '../state';
+import { confirmDestructiveActionAsync, autosaveTrigger } from '../state';
 import { loadBaseMapFromSvg } from '../load';
 import { initializeEdgeTiles, fillEdgeTilesWithPlaceholders, loadEdgeTilesAsGeometry } from './edgeTiles';
 import { getAirportBlocks, hidePositionSelector } from './mapPositionSelector';
@@ -112,19 +112,18 @@ export function resetWizard(): void {
 }
 
 export async function skipWizard(): Promise<void> {
-  confirmDestructiveAction(
-    'Clear your map? You will lose all unsaved changes.',
-    async () => {
-      hidePositionSelector();
-      hideOptionSelector();
-      await loadBaseMapFromSvg(0);
-      initializeEdgeTiles();
-      fillEdgeTilesWithPlaceholders();
-      loadEdgeTilesAsGeometry();
-      autosaveTrigger();
-      resetWizard();
-    }
+  const proceed = await confirmDestructiveActionAsync(
+    'Clear your map? You will lose all unsaved changes.'
   );
+  if (!proceed) return;
+  hidePositionSelector();
+  hideOptionSelector();
+  await loadBaseMapFromSvg(0);
+  initializeEdgeTiles();
+  fillEdgeTilesWithPlaceholders();
+  loadEdgeTilesAsGeometry();
+  autosaveTrigger();
+  resetWizard();
 }
 
 export function skipWizardNonDestructive(): void {

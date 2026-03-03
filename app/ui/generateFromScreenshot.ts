@@ -10,6 +10,7 @@ import {
 import { tilesDataCache } from '../generatedTilesCache';
 import { loadMapFromJSONString } from '../load';
 import { updateMapOverlay } from './tracingOverlay';
+import { confirmDestructiveActionAsync } from '../state';
 
 // ============ Types ============
 
@@ -5858,6 +5859,16 @@ export async function generateFromScreenshot(options: GenerateOptions = {}): Pro
     file = await openImageFileDialog();
   } catch {
     console.log('Generate from Screenshot: cancelled');
+    skipDebug = false;
+    return;
+  }
+
+  // 1b. Confirm destructive action (skipped if map is empty)
+  const proceed = await confirmDestructiveActionAsync(
+    'Clear your map? You will lose all unsaved changes.'
+  );
+  if (!proceed) {
+    console.log('Generate from Screenshot: cancelled by user');
     skipDebug = false;
     return;
   }
