@@ -124,19 +124,29 @@ export function getAirportBlocks(
 
 function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection): SelectionConfig {
   switch (type) {
-    case 'airport':
+    case 'airport': {
+      const positions = riverDirection
+        ? getAirportPositions(riverDirection)
+        : [
+            new paper.Point(mapWidth * 0.35, mapHeight - 8),
+            new paper.Point(mapWidth * 0.65, mapHeight - 8),
+          ];
+      const airportXs = positions.map(p => p.x);
+      const airportMinX = Math.min(...airportXs);
+      const airportMaxX = Math.max(...airportXs);
+      const airportCenterX = (airportMinX + airportMaxX) / 2;
+      const airportHalfW = Math.max(airportMaxX - airportMinX, blockSize) + blockSize * 1.5;
       return {
         label: 'Select Airport Position',
         icon: 'static/svg/amenity-airport.svg',
-        positions: riverDirection
-          ? getAirportPositions(riverDirection)
-          : [
-              new paper.Point(mapWidth * 0.35, mapHeight - 8),
-              new paper.Point(mapWidth * 0.65, mapHeight - 8),
-            ],
-        zoomBounds: new paper.Rectangle(0, mapHeight - 30, mapWidth, 30),
+        positions,
+        zoomBounds: new paper.Rectangle(
+          airportCenterX - airportHalfW, mapHeight - 30,
+          airportHalfW * 2, 30
+        ),
         eventName: 'airportSelected',
       };
+    }
     case 'peninsulaLeft': {
       // Filter out positions where the left edge block is occupied by river
       const leftCandidates = [
@@ -200,11 +210,21 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
         }))
         .filter(p => getBlockState(p.blockX, 0) === 'placeholder' || getBlockState(p.blockX, 0) === undefined);
 
+      const beachPoints = beachCandidates.map(p => p.point);
+      const beachXs = beachPoints.map(p => p.x);
+      const beachMinX = Math.min(...beachXs);
+      const beachMaxX = Math.max(...beachXs);
+      const beachCenterX = (beachMinX + beachMaxX) / 2;
+      const beachHalfW = Math.max(beachMaxX - beachMinX, blockSize) + blockSize * 1.5;
+
       return {
         label: 'Select Secret Beach Position',
-        positions: beachCandidates.map(p => p.point),
+        positions: beachPoints,
         originalIndices: beachCandidates.map(p => p.originalIndex),
-        zoomBounds: new paper.Rectangle(0, 0, mapWidth, 30),
+        zoomBounds: new paper.Rectangle(
+          beachCenterX - beachHalfW, 0,
+          beachHalfW * 2, 30
+        ),
         eventName: 'secretBeachPosSelected',
       };
     }
