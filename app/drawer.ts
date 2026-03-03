@@ -18,6 +18,7 @@ import { showMainMenu } from './ui/mainMenu';
 import { initLayers, layers } from './layers';
 import { colors } from './colors';
 import { tryLoadAutosaveMap } from './load';
+import { initWaterfall } from './waterfall';
 import { backgroundInit, drawBackground } from './background';
 import { resizeCoordinates } from './resizeCoordinates';
 import { keys } from './keyboard';
@@ -58,6 +59,7 @@ function onFrame() {
 
 export function drawer() {
   initLayers();
+  initWaterfall();
 
   layers.mapLayer.activate();
 

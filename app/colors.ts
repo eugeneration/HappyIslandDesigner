@@ -17,6 +17,7 @@ export const colors = {
   level2: { cssColor: '#35a043', color: c, key: '', name: '' },
   level3: { cssColor: '#4ac34e', color: c, key: '', name: '' },
   rock: { cssColor: '#737a89', color: c, key: '', name: '' },
+  waterfall: { cssColor: '#A4F2D8', color: c, key: '', name: '' },
   campground: { cssColor: '#b0a280', color: c, key: '', name: '' },
   townsquare: { cssColor: '#E2AA78', color: c, key: '', name: '' },
 

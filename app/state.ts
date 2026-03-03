@@ -5,6 +5,7 @@ import { autosaveMap } from './save';
 import objectIsEmpty from './helpers/objectIsEmpty';
 import { setEdgeTilesFromAssetIndices } from './ui/edgeTiles';
 import { setMapVersion } from './mapState';
+import { clearWaterfall } from './waterfall';
 
 /* eslint-disable default-case */
 export type State = {
@@ -51,6 +52,7 @@ export function clearMap() {
     state.objects[p].remove();
   });
   state.objects = {};
+  clearWaterfall();
 }
 
 export function setNewMapData(mapData) {

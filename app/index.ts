@@ -2,6 +2,7 @@ import { install } from './install';
 import { zoom } from './paper-zoom';
 import { drawer } from './drawer';
 import { initDevTools } from './ui/devTools';
+import './settings';
 import './index.scss';
 
 import browserUpdate from 'browser-update';

@@ -43,6 +43,14 @@ export function getDiff(path: paper.Path, colorKey: string) {
     });
   }
 
+  if (isV2Map() && colorKey === colors.water.key) {
+    const terrainKeys = [colors.level1.key, colors.level2.key, colors.level3.key];
+    // Water should not cut into terrain
+    terrainKeys.forEach((k) => delete editLayers[k]);
+    // Water should add to the water layer (V1 has addLayers:[] since water is implicit background)
+    editLayers[colors.water.key] = true;
+  }
+
   function isPath(item: paper.Item): item is paper.Path {
     return (item as paper.Path).segments !== undefined;
   }
