@@ -854,9 +854,17 @@ function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: Wi
     }
   };
 
+  // Cache last non-null content so the modal fade-out animation
+  // still shows the previous step instead of going empty
+  const lastContentRef = useRef<React.ReactNode>(null);
+  const content = renderContent();
+  if (content !== null) {
+    lastContentRef.current = content;
+  }
+
   return (
     <Box p={[0, 3]} sx={{position: 'relative'}}>
-      {renderContent()}
+      {content ?? lastContentRef.current}
     </Box>
   );
 }
