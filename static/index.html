@@ -49,6 +49,18 @@
       }
     </script>
 
+    <script>
+      // Detect non-production sites (forks, local dev) and downrank them
+      var PRODUCTION_HOST = 'eugeneration.github.io';
+      var isDevSite = window.location.hostname !== PRODUCTION_HOST;
+      if (isDevSite) {
+        var meta = document.createElement('meta');
+        meta.name = 'robots';
+        meta.content = 'noindex, nofollow';
+        document.head.appendChild(meta);
+      }
+    </script>
+
     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-159461234-1"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -74,6 +86,19 @@
     <div class="hidden">
       <p style="font-family: TTNorms;">.</p>
     </div>
+    <div id="dev-site-banner" style="display:none; position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:10000; background:#fdf252; color:#726a5a; text-align:center; padding:8px 20px; font-family:sans-serif; font-size:16px; border-radius:9999px; box-shadow:0 2px 8px rgba(0,0,0,0.2); transition:opacity 0.5s ease; pointer-events:auto;">
+      Dev Site — The official version is at <a href="https://eugeneration.github.io/HappyIslandDesigner/" style="color:#726a5a; font-weight:bold;">eugeneration.github.io/HappyIslandDesigner</a>
+    </div>
+    <script>
+      if (isDevSite) {
+        var banner = document.getElementById('dev-site-banner');
+        banner.style.display = 'block';
+        setTimeout(function() {
+          banner.style.opacity = '0';
+          banner.style.pointerEvents = 'none';
+        }, 5000);
+      }
+    </script>
     <div id="app">
       <canvas id="canvas" resize></canvas>
       <div id="ui-container"></div>
