@@ -1,7 +1,6 @@
 import { install } from './install';
 import { zoom } from './paper-zoom';
 import { drawer } from './drawer';
-import { initDevTools } from './ui/devTools';
 import './settings';
 import './index.scss';
 
@@ -21,6 +20,9 @@ i18next.init({
   await install();
   drawer();
   zoom();
-  initDevTools();
+  if (__DEV__) {
+    const { initDevTools } = await import('./ui/devTools');
+    initDevTools();
+  }
 })();
 /*eslint-enable */

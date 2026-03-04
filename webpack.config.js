@@ -80,7 +80,7 @@ module.exports = (env, argv) => {
         },
       ],
     },
-    devtool: 'eval-source-map',
+    devtool: isDev ? 'eval-source-map' : 'source-map',
     plugins: [
       new webpack.DefinePlugin({
         __DEV__: isDev,
