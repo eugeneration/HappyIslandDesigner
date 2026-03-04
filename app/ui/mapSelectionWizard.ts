@@ -160,7 +160,6 @@ export function goToTileEditorFlow(): void {
 }
 
 export function goToScreenshotFlow(): void {
-  enterWizardMode();
   wizardState.step = 'screenshot';
   emitter.emit('wizardStateChanged', wizardState);
 }

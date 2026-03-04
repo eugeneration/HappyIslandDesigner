@@ -270,8 +270,8 @@ function getPreviewAssetIndex(type: SelectionType): number | null {
     case 'secretBeach': return 911;
     case 'peninsulaLeft': return 912;
     case 'peninsulaRight': return 913;
-    case 'leftRock': return 904;
-    case 'rightRock': return 905;
+    case 'leftRock': return 914;
+    case 'rightRock': return 915;
     case 'airport': return null; // Special handling
   }
 }

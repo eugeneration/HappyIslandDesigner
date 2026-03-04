@@ -533,6 +533,8 @@ export default function ModalMapSelect(){
     };
 
     const handleLeftRockPosSelected = ({ index }: { index: number }) => {
+      const block = getRockBlock('left', index);
+      replaceBlocks({ ...block, assetIndex: 914 });
       setLeftRockPosition(index);
     };
 
@@ -550,6 +552,8 @@ export default function ModalMapSelect(){
     };
 
     const handleRightRockPosSelected = ({ index }: { index: number }) => {
+      const block = getRockBlock('right', index);
+      replaceBlocks({ ...block, assetIndex: 915 });
       setRightRockPosition(index);
     };
 
