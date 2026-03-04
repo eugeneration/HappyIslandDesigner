@@ -1,3 +1,4 @@
+import i18next from 'i18next';
 import { emitter } from '../emitter';
 import { hideLeftMenu, showLeftMenu } from './leftMenu';
 import { hideUndoMenu, showUndoMenu } from '../drawer';
@@ -127,7 +128,7 @@ export async function skipWizard(): Promise<void> {
 }
 
 export function skipWizardNonDestructive(): void {
-  const confirmed = confirm('Skip the rest of the flow?');
+  const confirmed = confirm(i18next.t('skip_confirm'));
   if (confirmed) {
     hidePositionSelector();
     hideOptionSelector();

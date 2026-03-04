@@ -108,6 +108,14 @@ const ja = {
     option_swipe_confirm: 'スワイプでプレビュー、タップで確定',
     option_scroll_confirm: 'スクロールでプレビュー、クリックで確定',
 
+    // Position selector prompts
+    new_badge: 'NEW',
+    click_again_confirm: 'もう一度クリックで確定',
+    tap_again_confirm: 'もう一度タップで確定',
+    click_location: '場所をクリック',
+    tap_location: '場所をタップ',
+    skip_confirm: '残りの手順をスキップしますか？',
+
     // Legacy flow
     wizard_choose_template: 'テンプレートを選んでください！',
     wizard_manual_description: '手動描画では島全体を描き直せますが、ゲーム内で再現できない部分もあります。',

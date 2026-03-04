@@ -108,6 +108,14 @@ const zhTW = {
     option_swipe_confirm: '滑動預覽，點選確認',
     option_scroll_confirm: '捲動預覽，點擊確認',
 
+    // Position selector prompts
+    new_badge: 'NEW',
+    click_again_confirm: '再次點擊確認',
+    tap_again_confirm: '再次點選確認',
+    click_location: '點擊一個位置',
+    tap_location: '點選一個位置',
+    skip_confirm: '跳過剩餘步驟？',
+
     // Legacy flow
     wizard_choose_template: '選擇繪圖範本！',
     wizard_manual_description: '手動繪製可以重新繪製整座島嶼，但部分內容可能無法在遊戲中實現。',

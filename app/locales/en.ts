@@ -109,6 +109,14 @@ const en = {
     option_swipe_confirm: 'Swipe to preview, tap to confirm',
     option_scroll_confirm: 'Scroll to preview, click to confirm',
 
+    // Position selector prompts
+    new_badge: 'NEW',
+    click_again_confirm: 'Click again to confirm',
+    tap_again_confirm: 'Tap again to confirm',
+    click_location: 'Click a location',
+    tap_location: 'Tap a location',
+    skip_confirm: 'Skip the rest of the flow?',
+
     // Legacy flow
     wizard_choose_template: 'Choose a Drawing Template!',
     wizard_manual_description: 'Manual Drawing lets you redraw the entire island, but not everything will work in game.',

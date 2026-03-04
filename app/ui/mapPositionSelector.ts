@@ -377,7 +377,7 @@ function handlePositionTap(originalIndex: number, position: paper.Point, button:
     // Update sub-label text
     if (subLabelText) {
       const isMobile = getMobileOperatingSystem() !== 'unknown';
-      subLabelText.content = isMobile ? 'Tap again to confirm' : 'Click again to confirm';
+      subLabelText.content = isMobile ? i18next.t('tap_again_confirm') : i18next.t('click_again_confirm');
     }
   }
 }
@@ -620,15 +620,15 @@ export function showPositionSelector(type: SelectionType, riverDirection?: River
   // Label below progress bar at top
   const isMobile = getMobileOperatingSystem() !== 'unknown';
   // Use longest subtitle text for background sizing
-  const longestSubLabel = isMobile ? 'Tap again to confirm' : 'Click again to confirm';
+  const longestSubLabel = isMobile ? i18next.t('tap_again_confirm') : i18next.t('click_again_confirm');
   const maxLabelWidth = viewWidth - 140;
   const { group: wrappedLabel, subLabel } = createWrappedLabel(config.label, longestSubLabel, maxLabelWidth);
   subLabelText = subLabel;
 
   // Set initial text based on whether a position is pre-selected
   subLabel.content = selectedPositionIndex !== null
-    ? (isMobile ? 'Tap again to confirm' : 'Click again to confirm')
-    : (isMobile ? 'Tap a location' : 'Click a location');
+    ? (isMobile ? i18next.t('tap_again_confirm') : i18next.t('click_again_confirm'))
+    : (isMobile ? i18next.t('tap_location') : i18next.t('click_location'));
 
   labelGroup = wrappedLabel;
   labelGroup.position = new paper.Point(viewWidth / 2, 60);

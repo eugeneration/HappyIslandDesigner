@@ -1384,7 +1384,7 @@ function NewBadge() {
       verticalAlign: 'middle',
       display: 'inline-block',
     }}>
-      NEW
+      {i18next.t('new_badge')}
     </Box>
   );
 }

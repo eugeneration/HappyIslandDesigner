@@ -108,6 +108,14 @@ const zhCN = {
     option_swipe_confirm: '滑动预览，点击确认',
     option_scroll_confirm: '滚动预览，点击确认',
 
+    // Position selector prompts
+    new_badge: 'NEW',
+    click_again_confirm: '再次点击确认',
+    tap_again_confirm: '再次点击确认',
+    click_location: '点击一个位置',
+    tap_location: '点击一个位置',
+    skip_confirm: '跳过剩余步骤？',
+
     // Legacy flow
     wizard_choose_template: '选择绘图模板！',
     wizard_manual_description: '手动绘制可以重新绘制整个岛屿，但部分内容可能无法在游戏中实现。',

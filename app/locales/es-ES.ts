@@ -108,6 +108,14 @@ const esES = {
     option_swipe_confirm: 'Desliza para previsualizar, toca para confirmar',
     option_scroll_confirm: 'Desplaza para previsualizar, haz clic para confirmar',
 
+    // Position selector prompts
+    new_badge: 'NEW',
+    click_again_confirm: 'Haz clic de nuevo para confirmar',
+    tap_again_confirm: 'Toca de nuevo para confirmar',
+    click_location: 'Haz clic en una ubicación',
+    tap_location: 'Toca una ubicación',
+    skip_confirm: '¿Omitir el resto del proceso?',
+
     // Legacy flow
     wizard_choose_template: '¡Elige una Plantilla de Dibujo!',
     wizard_manual_description: 'El dibujo manual te permite redibujar toda la isla, pero no todo funcionará en el juego.',

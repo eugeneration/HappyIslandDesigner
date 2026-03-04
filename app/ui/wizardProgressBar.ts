@@ -1,4 +1,5 @@
 import paper from 'paper';
+import i18next from 'i18next';
 import { emitter } from '../emitter';
 import { colors } from '../colors';
 import { layers } from '../layers';
@@ -85,7 +86,7 @@ export function showWizardProgress(): void {
 
   // Skip button at right of progress bar
   const skipText = new paper.PointText(new paper.Point(viewWidth - 30, TOP_Y + 4));
-  skipText.content = 'Skip';
+  skipText.content = i18next.t('wizard_skip');
   skipText.justification = 'center';
   skipText.fontFamily = 'TTNorms, sans-serif';
   skipText.fontSize = 12;
