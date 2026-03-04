@@ -1,7 +1,7 @@
 import i18next from 'i18next';
 import { emitter } from '../emitter';
 import { hideLeftMenu, showLeftMenu } from './leftMenu';
-import { hideUndoMenu, showUndoMenu } from '../drawer';
+import { hideUndoMenu, showUndoMenu, hideMainMenuButton, showMainMenuButton } from '../drawer';
 import { toolState } from '../tools/state';
 import { showWizardProgress, hideWizardProgress } from './wizardProgressBar';
 import { confirmDestructiveActionAsync, autosaveTrigger } from '../state';
@@ -106,6 +106,7 @@ export function resetWizard(): void {
   hideWizardProgress();
   showLeftMenu();
   showUndoMenu();
+  showMainMenuButton();
   toolState.isDevModeActive = false;
   toolState.onUp();
   toolState.switchToolType('terrain');
@@ -146,6 +147,7 @@ export function startWizard(): void {
 function enterWizardMode(): void {
   hideLeftMenu();
   hideUndoMenu();
+  hideMainMenuButton();
   toolState.isDevModeActive = true;
   toolState.onUp();
   showWizardProgress();

@@ -3,9 +3,7 @@ import i18next from 'i18next';
 import { emitter } from '../emitter';
 import { colors } from '../colors';
 import { layers } from '../layers';
-import { createButton } from './createButton';
 import { horizontalBlocks, verticalBlocks, horizontalDivisions, verticalDivisions } from '../constants';
-import { goBack } from './mapSelectionWizard';
 import { getBlockState } from './edgeTiles';
 import { getMobileOperatingSystem } from '../helpers/getMobileOperatingSystem';
 import { createWrappedLabel } from '../helpers/createWrappedLabel';
@@ -530,26 +528,6 @@ function createAirportButton(index: number, position: paper.Point, icon: string)
   return group;
 }
 
-function createBackButton(): paper.Group {
-  const bgCircle = new paper.Path.Circle(new paper.Point(0, 0), 4);
-  bgCircle.fillColor = colors.paper.color;
-
-  const arrow = new paper.Raster('static/img/back.png');
-  arrow.scale(0.09);
-
-  const button = createButton(bgCircle, 5, () => {
-    hidePositionSelector();
-    goBack();
-  }, {
-    highlightedColor: colors.paperOverlay.color,
-    selectedColor: colors.paperOverlay2.color,
-  });
-
-  button.addChild(arrow);
-
-  return button;
-}
-
 export function showPositionSelector(type: SelectionType, riverDirection?: RiverDirection): void {
   hidePositionSelector();
 
@@ -603,19 +581,13 @@ export function showPositionSelector(type: SelectionType, riverDirection?: River
     }
   }
 
-  // Create fixed UI (back button, label) on fixedLayer at bottom of screen
+  // Create fixed UI (label) on fixedLayer at bottom of screen
   layers.fixedLayer.activate();
   fixedUI = new paper.Group();
   fixedUI.applyMatrix = false;
+  emitter.emit('enableWizardBackButton');
 
   const viewWidth = paper.view.viewSize.width;
-  const fixedScale = 5;
-
-  // Back button at top-left
-  const backButton = createBackButton();
-  backButton.scaling = new paper.Point(fixedScale, fixedScale);
-  backButton.position = new paper.Point(30, 30);
-  fixedUI.addChild(backButton);
 
   // Label below progress bar at top
   const isMobile = getMobileOperatingSystem() !== 'unknown';
@@ -747,3 +719,8 @@ export function getRockBlock(
   const y = positionIndex + 1;
   return { x, y };
 }
+
+// Hide selector when wizard back button is pressed (avoids circular import with wizardProgressBar)
+emitter.on('wizardBackButtonPressed', () => {
+  hidePositionSelector();
+});

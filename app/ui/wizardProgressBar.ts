@@ -3,15 +3,20 @@ import i18next from 'i18next';
 import { emitter } from '../emitter';
 import { colors } from '../colors';
 import { layers } from '../layers';
-import { stepOrder, WizardState, skipWizardNonDestructive } from './mapSelectionWizard';
+import { createButton } from './createButton';
+import { stepOrder, WizardState, skipWizardNonDestructive, goBack, canGoBack } from './mapSelectionWizard';
 
 let progressGroup: paper.Group | null = null;
 let bgLine: paper.Path | null = null;
 let progressLine: paper.Path | null = null;
 let dots: paper.Path.Circle[] = [];
 let skipButton: paper.Group | null = null;
+let wizardBackButton: paper.Group | null = null;
+let backArrow: paper.Raster | null = null;
 let wizardChangeHandler: ((state: WizardState) => void) | null = null;
 let resizeHandler: (() => void) | null = null;
+let disableBackHandler: (() => void) | null = null;
+let enableBackHandler: (() => void) | null = null;
 let currentStepIndex = 0;
 
 const TOP_Y = 20;
@@ -117,6 +122,29 @@ export function showWizardProgress(): void {
   };
   progressGroup.addChild(skipButton);
 
+  // Back button at top-left
+  backArrow = new paper.Raster('static/img/back.png');
+  backArrow.scale(0.09);
+
+  const backBg = new paper.Path.Circle(new paper.Point(0, 0), 4);
+  backBg.fillColor = colors.paper.color;
+
+  wizardBackButton = createButton(backBg, 5, () => {
+    emitter.emit('wizardBackButtonPressed');
+    goBack();
+  }, {
+    highlightedColor: colors.yellow.color,
+    selectedColor: colors.yellow.color,
+  });
+  wizardBackButton.addChild(backArrow);
+  wizardBackButton.scaling = new paper.Point(5, 5);
+  wizardBackButton.position = new paper.Point(30, 30);
+  progressGroup.addChild(wizardBackButton);
+
+  // Disabled initially (first step, canGoBack() = false)
+  wizardBackButton.data.disable(true);
+  backArrow.opacity = 0.5;
+
   // Listen for state changes
   wizardChangeHandler = (state: WizardState) => {
     updateWizardProgress(state.step);
@@ -126,6 +154,12 @@ export function showWizardProgress(): void {
   // Listen for resize
   resizeHandler = repositionProgressBar;
   emitter.on('resize', resizeHandler);
+
+  // Listen for back button enable/disable from selectors (avoids circular imports)
+  disableBackHandler = () => disableWizardBackButton();
+  enableBackHandler = () => enableWizardBackButton();
+  emitter.on('disableWizardBackButton', disableBackHandler);
+  emitter.on('enableWizardBackButton', enableBackHandler);
 
   prevLayer.activate();
 }
@@ -158,6 +192,13 @@ function updateWizardProgress(step: string): void {
   if (progressLine) {
     progressLine.segments[1].point = new paper.Point(currentX, TOP_Y);
   }
+
+  // Sync back button state
+  if (wizardBackButton && backArrow) {
+    const canBack = canGoBack();
+    wizardBackButton.data.disable(!canBack);
+    backArrow.opacity = canBack ? 1 : 0.5;
+  }
 }
 
 export function hideWizardProgress(): void {
@@ -169,6 +210,14 @@ export function hideWizardProgress(): void {
     emitter.off('resize', resizeHandler);
     resizeHandler = null;
   }
+  if (disableBackHandler) {
+    emitter.off('disableWizardBackButton', disableBackHandler);
+    disableBackHandler = null;
+  }
+  if (enableBackHandler) {
+    emitter.off('enableWizardBackButton', enableBackHandler);
+    enableBackHandler = null;
+  }
   if (progressGroup) {
     progressGroup.remove();
     progressGroup = null;
@@ -177,5 +226,21 @@ export function hideWizardProgress(): void {
   progressLine = null;
   dots = [];
   skipButton = null;
+  wizardBackButton = null;
+  backArrow = null;
   currentStepIndex = 0;
+}
+
+function disableWizardBackButton(): void {
+  if (wizardBackButton) {
+    wizardBackButton.data.disable(true);
+    if (backArrow) backArrow.opacity = 0.5;
+  }
+}
+
+function enableWizardBackButton(): void {
+  if (wizardBackButton && canGoBack()) {
+    wizardBackButton.data.disable(false);
+    if (backArrow) backArrow.opacity = 1;
+  }
 }

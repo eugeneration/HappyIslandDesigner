@@ -24,6 +24,8 @@ import { resizeCoordinates } from './resizeCoordinates';
 import { keys } from './keyboard';
 
 let undoMenuRef: paper.Group | null = null;
+let mainMenuButtonRef: paper.Item | null = null;
+let mainMenuButtonIconRef: paper.Item | null = null;
 
 export function hideUndoMenu(): void {
   if (undoMenuRef) undoMenuRef.visible = false;
@@ -31,6 +33,16 @@ export function hideUndoMenu(): void {
 
 export function showUndoMenu(): void {
   if (undoMenuRef) undoMenuRef.visible = true;
+}
+
+export function hideMainMenuButton(): void {
+  if (mainMenuButtonRef) mainMenuButtonRef.visible = false;
+  if (mainMenuButtonIconRef) mainMenuButtonIconRef.visible = false;
+}
+
+export function showMainMenuButton(): void {
+  if (mainMenuButtonRef) mainMenuButtonRef.visible = true;
+  if (mainMenuButtonIconRef) mainMenuButtonIconRef.visible = true;
 }
 
 function initializeApp() {
@@ -196,6 +208,9 @@ export function drawer() {
   ]);
   mainMenuButtonIcon.fillColor = colors.text.color;
   mainMenuButtonIcon.locked = true;
+
+  mainMenuButtonRef = mainMenuButton;
+  mainMenuButtonIconRef = mainMenuButtonIcon;
 
   mainMenuButton.onMouseEnter = function () {
     mainMenuButton.tweenTo({ opacity: 1 }, 150);

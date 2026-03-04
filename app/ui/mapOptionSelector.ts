@@ -3,8 +3,6 @@ import i18next from 'i18next';
 import { emitter } from '../emitter';
 import { colors } from '../colors';
 import { layers } from '../layers';
-import { createButton } from './createButton';
-import { goBack } from './mapSelectionWizard';
 import { getCachedSvgContent } from '../generatedTilesCache';
 import { getImageSrcForAsset } from './edgeTileAssets';
 import { hideEdgeTileAtBlock, showEdgeTileAtBlock } from './edgeTiles';
@@ -435,40 +433,12 @@ function updatePreview(): void {
   }
 }
 
-function createBackButton(position: paper.Point): paper.Group {
-  const bgCircle = new paper.Path.Circle(new paper.Point(0, 0), 4);
-  bgCircle.fillColor = colors.paper.color;
-
-  const arrow = new paper.Path();
-  arrow.strokeColor = colors.text.color;
-  arrow.strokeWidth = 0.8;
-  arrow.strokeCap = 'round';
-  arrow.add(new paper.Point(1.5, 0));
-  arrow.add(new paper.Point(-1.5, 0));
-  arrow.add(new paper.Point(-0.5, -1.5));
-  arrow.add(new paper.Point(-1.5, 0));
-  arrow.add(new paper.Point(-0.5, 1.5));
-
-  const button = createButton(bgCircle, 6, () => {
-    if (animationBlocked) return;
-    hideOptionSelector();
-    goBack();
-  }, {
-    highlightedColor: colors.paperOverlay.color,
-    selectedColor: colors.paperOverlay2.color,
-  });
-
-  button.addChild(arrow);
-  button.position = position;
-
-  return button;
-}
-
 // ── Selection animation ──────────────────────────────────────────────
 
 function startSelectionAnimation(card: paper.Group): void {
   if (!currentConfig || animationBlocked) return;
   animationBlocked = true;
+  emitter.emit('disableWizardBackButton');
   if (tilePointer) tilePointer.visible = false;
 
   const tileSize = 16;
@@ -910,19 +880,13 @@ function showOptionSelectorImmediate(config: MapOptionSelectorConfig): void {
   // Calculate UI scale after zoom
   uiScale = 1 / paper.view.zoom;
 
-  // Create fixed UI (back button, label, confirm) on fixedLayer at bottom of screen
+  // Create fixed UI (label) on fixedLayer at bottom of screen
   layers.fixedLayer.activate();
   fixedUI = new paper.Group();
   fixedUI.applyMatrix = false;
+  emitter.emit('enableWizardBackButton');
 
   const viewWidth = paper.view.viewSize.width;
-  const fixedScale = 5;
-
-  // Back button at top-left
-  const backButton = createBackButton(new paper.Point(0, 0));
-  backButton.scaling = new paper.Point(fixedScale, fixedScale);
-  backButton.position = new paper.Point(30, 30);
-  fixedUI.addChild(backButton);
 
   // Label below progress bar at top
   if (config.title) {
@@ -1207,3 +1171,8 @@ function zoomToFit(
 export function isOptionSelectorVisible(): boolean {
   return selectorUI !== null && selectorUI.visible;
 }
+
+// Hide selector when wizard back button is pressed (avoids circular import with wizardProgressBar)
+emitter.on('wizardBackButtonPressed', () => {
+  hideOptionSelector();
+});
