@@ -6,14 +6,34 @@ import './index.scss';
 
 import browserUpdate from 'browser-update';
 import i18next from 'i18next';
-import { strings } from './strings';
+import en from './locales/en';
 
 browserUpdate({required:{i:79,f:45,o:45,s:-2,c:60},insecure:true,api:2020.03});
+
+const SUPPORTED_LANGS = ['en', 'zh-CN', 'zh-TW', 'es-ES', 'ja'];
+
+function detectLanguage(): string {
+  const browserLang = navigator.language;
+  if (SUPPORTED_LANGS.includes(browserLang)) return browserLang;
+  // Try base language (e.g. 'zh' → 'zh-CN', 'es' → 'es-ES')
+  const base = browserLang.split('-')[0];
+  return SUPPORTED_LANGS.find(l => l.startsWith(base)) || 'en';
+}
+
+const detectedLng = detectLanguage();
+
 i18next.init({
-  lng: 'en',
-  debug: true,
-  resources: strings,
+  lng: detectedLng,
+  fallbackLng: 'en',
+  resources: { en: { translation: en } },
 });
+
+// Load non-English bundle if needed
+if (detectedLng !== 'en') {
+  import(/* webpackChunkName: "locale-[request]" */ `./locales/${detectedLng}`).then(mod => {
+    i18next.addResourceBundle(detectedLng, 'translation', mod.default);
+  });
+}
 
 /*eslint-disable */
 (async () => {

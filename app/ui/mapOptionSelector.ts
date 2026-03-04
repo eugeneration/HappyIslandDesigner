@@ -1,4 +1,5 @@
 import paper from 'paper';
+import i18next from 'i18next';
 import { emitter } from '../emitter';
 import { colors } from '../colors';
 import { layers } from '../layers';
@@ -927,8 +928,8 @@ function showOptionSelectorImmediate(config: MapOptionSelectorConfig): void {
   if (config.title) {
     const isMobile = getMobileOperatingSystem() !== 'unknown';
     const subLabelContent = isMobile
-      ? 'Swipe to preview, tap to confirm'
-      : 'Scroll to preview, click to confirm';
+      ? i18next.t('option_swipe_confirm')
+      : i18next.t('option_scroll_confirm');
     const maxLabelWidth = viewWidth - 140;
     const { group: wrappedLabel } = createWrappedLabel(config.title, subLabelContent, maxLabelWidth);
 

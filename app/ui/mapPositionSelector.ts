@@ -1,4 +1,5 @@
 import paper from 'paper';
+import i18next from 'i18next';
 import { emitter } from '../emitter';
 import { colors } from '../colors';
 import { layers } from '../layers';
@@ -145,7 +146,7 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
             new paper.Point(mapWidth * 0.65, mapHeight - 8),
           ];
       return {
-        label: 'Select Airport Position',
+        label: i18next.t('wizard_select_airport'),
         icon: 'static/svg/amenity-airport.svg',
         positions,
         zoomBounds: computePositionZoomBounds(positions),
@@ -163,7 +164,7 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
 
       const leftPositions = leftCandidates.map(p => p.point);
       return {
-        label: 'Select Peninsula Position',
+        label: i18next.t('wizard_select_peninsula'),
         positions: leftPositions,
         originalIndices: leftCandidates.map(p => p.originalIndex),
         zoomBounds: computePositionZoomBounds(leftPositions),
@@ -181,7 +182,7 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
 
       const rightPositions = rightCandidates.map(p => p.point);
       return {
-        label: 'Select Peninsula Position',
+        label: i18next.t('wizard_select_peninsula'),
         positions: rightPositions,
         originalIndices: rightCandidates.map(p => p.originalIndex),
         zoomBounds: computePositionZoomBounds(rightPositions),
@@ -220,7 +221,7 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
       const beachPoints = beachCandidates.map(p => p.point);
 
       return {
-        label: 'Select Secret Beach Position',
+        label: i18next.t('wizard_select_secret_beach'),
         positions: beachPoints,
         originalIndices: beachCandidates.map(p => p.originalIndex),
         zoomBounds: computePositionZoomBounds(beachPoints),
@@ -238,7 +239,7 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
 
       const leftRockPositions = leftRockCandidates.map(p => p.point);
       return {
-        label: 'Where is the Largest Rock on the Left Side?',
+        label: i18next.t('wizard_select_left_rock'),
         positions: leftRockPositions,
         originalIndices: leftRockCandidates.map(p => p.originalIndex),
         zoomBounds: computePositionZoomBounds(leftRockPositions),
@@ -256,7 +257,7 @@ function getSelectionConfig(type: SelectionType, riverDirection?: RiverDirection
 
       const rightRockPositions = rightRockCandidates.map(p => p.point);
       return {
-        label: 'Where is the Largest Rock on the Right Side?',
+        label: i18next.t('wizard_select_right_rock'),
         positions: rightRockPositions,
         originalIndices: rightRockCandidates.map(p => p.originalIndex),
         zoomBounds: computePositionZoomBounds(rightRockPositions),

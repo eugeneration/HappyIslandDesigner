@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Modal from 'react-modal';
 import paper from 'paper';
 import {Box, Button, Image, Flex, Grid, Heading, Text, Link} from '@theme-ui/components'
+import i18next from 'i18next';
 import { colors } from '../colors';
 import './modal.scss';
 import { LayoutType, Layout, baseMapLayouts } from './islandLayouts';
@@ -192,7 +193,7 @@ export default function ModalMapSelect(){
               options: createOptionsFromAssets(categoryAssetIndices.bottom_river),
               direction: 'bottom',
               eventName: 'riverMouth1ShapeSelected',
-              title: 'Choose River Mouth Shape',
+              title: i18next.t('wizard_choose_river_mouth'),
               spacing: 14,
               buttonSize: 12,
               hideEdgeTile: true,
@@ -230,7 +231,7 @@ export default function ModalMapSelect(){
               options,
               direction,
               eventName: 'riverMouth2ShapeSelected',
-              title: 'Choose River Mouth Shape',
+              title: i18next.t('wizard_choose_river_mouth'),
               spacing: 14,
               buttonSize: 12,
               hideEdgeTile: true,
@@ -257,7 +258,7 @@ export default function ModalMapSelect(){
               options: peninsulaOptions,
               direction,
               eventName: 'peninsulaShapeSelected',
-              title: 'Choose Peninsula Shape',
+              title: i18next.t('wizard_choose_peninsula_shape'),
               spacing: 14,
               buttonSize: 12,
               hideEdgeTile: true,
@@ -279,7 +280,7 @@ export default function ModalMapSelect(){
               options: dockOptions,
               direction,
               eventName: 'dockShapeSelected',
-              title: 'Choose Dock Beach Shape',
+              title: i18next.t('wizard_choose_dock_shape'),
               spacing: 14,
               buttonSize: 12,
               hideEdgeTile: true,
@@ -298,7 +299,7 @@ export default function ModalMapSelect(){
               options: createOptionsFromAssets(categoryAssetIndices.top_secret_beach),
               direction: 'bottom',
               eventName: 'secretBeachShapeSelected',
-              title: 'Choose Secret Beach Shape',
+              title: i18next.t('wizard_choose_secret_beach'),
               spacing: 14,
               buttonSize: 12,
               hideEdgeTile: true,
@@ -316,7 +317,7 @@ export default function ModalMapSelect(){
               options: createOptionsFromAssets(categoryAssetIndices.left_rock),
               direction: 'left',
               eventName: 'leftRockShapeSelected',
-              title: 'Choose Rock Shape',
+              title: i18next.t('wizard_choose_rock_shape'),
               spacing: 14,
               buttonSize: 12,
               hideEdgeTile: true,
@@ -334,7 +335,7 @@ export default function ModalMapSelect(){
               options: createOptionsFromAssets(categoryAssetIndices.right_rock),
               direction: 'right',
               eventName: 'rightRockShapeSelected',
-              title: 'Choose Rock Shape',
+              title: i18next.t('wizard_choose_rock_shape'),
               spacing: 14,
               buttonSize: 12,
               hideEdgeTile: true,
@@ -368,7 +369,7 @@ export default function ModalMapSelect(){
                 options,
                 direction,
                 eventName: 'placeholderShapeSelected',
-                title: 'Choose Shape',
+                title: i18next.t('wizard_choose_shape'),
                 spacing: 14,
                 buttonSize: 12,
                 hideEdgeTile: true,
@@ -847,7 +848,7 @@ function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: Wi
           layouts={getLayouts(wizardState.riverDirection as LayoutType)}
           onSelect={async (index) => {
             const proceed = await confirmDestructiveActionAsync(
-              'Clear your map? You will lose all unsaved changes.'
+              i18next.t('clear_warn')
             );
             if (!proceed) return;
             setLayout(index);
@@ -878,7 +879,7 @@ function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: Wi
 function EntryPointStep() {
   return (
     <>
-      <Heading m={2} sx={{textAlign: 'center'}}>{'Create New Map'}</Heading>
+      <Heading m={2} sx={{textAlign: 'center'}}>{i18next.t('create_new_map')}</Heading>
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 3, px: 0 }}>
         <Flex sx={{flexDirection: ['column', 'row'], flexWrap: 'wrap', justifyContent: 'center', alignItems: ['center', 'flex-start'], maxWidth: 650}}>
           <EntryButton
@@ -886,21 +887,21 @@ function EntryPointStep() {
             bgColor='#D2E542'
             onClick={() => goToScreenshotFlow()}
           >
-            Generate from Screenshot<NewBadge />
+            {i18next.t('generate_from_screenshot')}<NewBadge />
           </EntryButton>
           <EntryButton
             imageSrc='static/img/newisland-editor.png'
             bgColor='#9CDDBC'
             onClick={() => goToTileEditorFlow()}
           >
-            Use Tile Editor<NewBadge />
+            {i18next.t('use_tile_editor')}<NewBadge />
           </EntryButton>
           <EntryButton
             imageSrc='static/img/newisland-manual.png'
             bgColor='#E59FA9'
             onClick={() => goToLegacyRiverSelection()}
           >
-            Draw Manually
+            {i18next.t('draw_manually')}
           </EntryButton>
           {/* Dummy item to keep second row left-aligned in 2-column layout */}
           <Box sx={{ width: '50%', maxWidth: 300, m: [1, 2], visibility: 'hidden', display: ['none', 'block'] }} />
@@ -911,18 +912,9 @@ function EntryPointStep() {
 }
 
 // Screenshot Step - Upload screenshot to auto-generate island map
-const FLAVOR_TEXTS = [
-  'Scanning island...',
-  'Detecting boundaries...',
-  'Analyzing terrain...',
-  'Matching edge tiles...',
-  'Identifying structures...',
-  'Digging terrain...',
-  'Rerouting rivers...',
-  'Setting up amenities...',
-  'Building island...',
-  'Planting trees...',
-];
+function getFlavorTexts(): string[] {
+  return Array.from({ length: 10 }, (_, i) => i18next.t(`screenshot_flavor_${i}`));
+}
 
 function ScreenshotStep({ onBack }: { onBack: () => void }) {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -935,7 +927,7 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     if (!isGenerating) return;
     const interval = setInterval(() => {
-      setFlavorIndex(prev => (prev + 1) % FLAVOR_TEXTS.length);
+      setFlavorIndex(prev => (prev + 1) % getFlavorTexts().length);
     }, 2500);
     return () => clearInterval(interval);
   }, [isGenerating]);
@@ -985,7 +977,7 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
           mb: 3,
           minHeight: '1.5em',
         }}>
-          {FLAVOR_TEXTS[flavorIndex]}
+          {getFlavorTexts()[flavorIndex]}
         </Text>
         <Box sx={{
           width: '100%',
@@ -1019,24 +1011,24 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
             <Image src='static/img/back.png' />
           </Button>
         </Box>
-        <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Screenshot Tips'}</Heading>
+        <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('screenshot_tips_title')}</Heading>
         <Box sx={{ px: 3, pb: 3, maxWidth: 400, mx: 'auto' }}>
           <Text sx={{ fontWeight: 'bold', color: 'secondary', mb: 2 }}>
-            {'Transferring from your Switch:'}
+            {i18next.t('screenshot_tips_transfer_heading')}
           </Text>
           <Box as='ul' sx={{ fontSize: 1, pl: 3, mb: 3, listStyle: 'disc' }}>
-            <Box as='li' sx={{ mb: 1 }}>{'Press the Capture button (square button on the left Joy-Con) to save a screenshot'}</Box>
-            <Box as='li' sx={{ mb: 1 }}>{'To transfer: go to Album \u2192 Send to Smartphone, or copy to PC via USB or microSD card'}</Box>
-            <Box as='li'>{'Use the actual in-game screenshot \u2014 a photo of the screen will not work'}</Box>
+            <Box as='li' sx={{ mb: 1 }}>{i18next.t('screenshot_tips_capture')}</Box>
+            <Box as='li' sx={{ mb: 1 }}>{i18next.t('screenshot_tips_transfer')}</Box>
+            <Box as='li'>{i18next.t('screenshot_tips_actual')}</Box>
           </Box>
           <Text sx={{ fontWeight: 'bold', color: 'secondary', mb: 2 }}>
-            {'Taking a good screenshot:'}
+            {i18next.t('screenshot_tips_good_heading')}
           </Text>
           <Box as='ul' sx={{ fontSize: 1, pl: 3, listStyle: 'disc' }}>
-            <Box as='li' sx={{ mb: 1 }}>{'Open your NookPhone map screen before capturing'}</Box>
-            <Box as='li' sx={{ mb: 1 }}>{'Stand somewhere like the beach so your player pin doesn\'t block map details'}</Box>
-            <Box as='li' sx={{ mb: 1 }}>{'Avoid selecting icons on the map \u2014 the generator struggles with orange highlighted icons'}</Box>
-            <Box as='li'>{'After generating, use the overlay tool to compare and clean up any errors'}</Box>
+            <Box as='li' sx={{ mb: 1 }}>{i18next.t('screenshot_tips_nookphone')}</Box>
+            <Box as='li' sx={{ mb: 1 }}>{i18next.t('screenshot_tips_stand')}</Box>
+            <Box as='li' sx={{ mb: 1 }}>{i18next.t('screenshot_tips_icons')}</Box>
+            <Box as='li'>{i18next.t('screenshot_tips_overlay')}</Box>
           </Box>
         </Box>
       </>
@@ -1061,9 +1053,9 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
           sx={{ maxWidth: '100%', maxHeight: 250, display: ['block', 'none'] }}
         />
       </Box>
-      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Generate from Screenshot'}</Heading>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('screenshot_title')}</Heading>
       <Text m={3} sx={{textAlign: 'center', lineHeight: 1.5}}>
-        {'Upload a screenshot of your island map to automatically generate your island. '}
+        {i18next.t('screenshot_description')}
         <Box
           as='span'
           onClick={() => setShowTips(true)}
@@ -1109,7 +1101,7 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
           }}
         >
           <Image src='static/img/ui-upload-white.png' sx={{ width: 20, height: 20 }} />
-          {'Upload Screenshot'}
+          {i18next.t('screenshot_upload')}
         </Button>
       </Box>
     </Box>
@@ -1120,7 +1112,7 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
 function RiverDirectionStep() {
   const handleClick = async (direction: 'west' | 'south' | 'east') => {
     const proceed = await confirmDestructiveActionAsync(
-      'Clear your map? You will lose all unsaved changes.'
+      i18next.t('clear_warn')
     );
     if (!proceed) return;
     // load blank terrain
@@ -1136,7 +1128,7 @@ function RiverDirectionStep() {
           <Image src='static/img/back.png' />
         </Button>
       </Box>
-      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Select Island River Direction'}</Heading>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('wizard_river_direction')}</Heading>
       <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center'}}>
         <Card onClick={() => handleClick('west')}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
         <Card onClick={() => handleClick('south')}><Image variant='card' src={'static/img/island-type-south.png'}/></Card>
@@ -1147,7 +1139,7 @@ function RiverDirectionStep() {
         sx={{textAlign: 'center', cursor: 'pointer', color: 'gray', textDecoration: 'underline'}}
         onClick={() => skipWizard()}
       >
-        {'Skip'}
+        {i18next.t('wizard_skip')}
       </Text>
     </>
   );
@@ -1187,8 +1179,8 @@ function BaseMapGridStep({ layoutType, edgeTileRaster, onSelect, onBack }: BaseM
           <Image src='static/img/back.png' />
         </Button>
       </Box>
-      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Choose Island Terrain'}</Heading>
-      <Text m={2} sx={{textAlign: 'center'}}>{'Flatten the island or choose one of the starter island layouts.'}</Text>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('wizard_choose_terrain')}</Heading>
+      <Text m={2} sx={{textAlign: 'center'}}>{i18next.t('wizard_choose_terrain_description')}</Text>
       {getBaseMapSrc && <Grid
         gap={0}
         columns={[2, 3, 4]}
@@ -1229,7 +1221,7 @@ function LegacyRiverDirectionStep({ onBack }: { onBack: () => void }) {
 
   const handleBlankClick = async () => {
     const proceed = await confirmDestructiveActionAsync(
-      'Clear your map? You will lose all unsaved changes.'
+      i18next.t('clear_warn')
     );
     if (!proceed) return;
     const { default: Layouts } = await import(/* webpackChunkName: "islandLayoutsV1" */ './islandLayoutsV1');
@@ -1245,8 +1237,8 @@ function LegacyRiverDirectionStep({ onBack }: { onBack: () => void }) {
           <Image src='static/img/back.png' />
         </Button>
       </Box>
-      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Choose a Drawing Template!'}</ Heading>
-      <Text m={2} sx={{textAlign: 'center'}}>{'Manual Drawing lets you redraw the entire island, but not everything will work in game.'}</ Text>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('wizard_choose_template')}</ Heading>
+      <Text m={2} sx={{textAlign: 'center'}}>{i18next.t('wizard_manual_description')}</ Text>
       <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center'}}>
         <Card onClick={() => handleClick('west')}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
         <Card onClick={() => handleClick('south')}><Image variant='card' src={'static/img/island-type-south.png'}/></Card>
@@ -1276,7 +1268,7 @@ function PeninsulaSideStep({ onBack }: { onBack: () => void }) {
           <Image src='static/img/back.png' />
         </Button>
       </Box>
-      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Select Peninsula Side'}</Heading>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('wizard_peninsula_side')}</Heading>
       <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center', justifyContent: 'center'}}>
         <Card onClick={() => handleClick('left')}>
           <Image variant='card' src={'static/img/island-peninsula-left.png'}/>
@@ -1302,7 +1294,7 @@ function DockSideStep({ onBack }: { onBack: () => void }) {
           <Image src='static/img/back.png' />
         </Button>
       </Box>
-      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Dock Side?'}</Heading>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('wizard_dock_side')}</Heading>
       <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center', justifyContent: 'center'}}>
         <Card onClick={() => handleClick('left')}>
           <Image variant='card' src={'static/img/island-dock-left.png'}/>
@@ -1332,7 +1324,7 @@ function IslandGridStep({ layoutType, layouts, onSelect, onHelp, onBack }: Islan
           <Image src='static/img/back.png' />
         </Button>
       </Box>
-      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Choose your Island!'}</Heading>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('wizard_choose_island')}</Heading>
       <Text m={2} sx={{textAlign: 'center'}}>{'You probably won\'t find an exact match, but pick one that roughly resembles your island.'}</Text>
       <Grid
         gap={0}
