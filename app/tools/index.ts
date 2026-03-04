@@ -607,24 +607,29 @@ export function initTools() {
 
   // Edge tool - V2 only
   {
-    const edgeDef = toolCategoryDefinition.edge;
+    // WIP: hide edge tool from left menu until fully implemented
+    const WIP_HIDE_EDGE_TOOL = true;
 
-    const tool = new paper.Raster(`${imgPath + toolPrefix}island.png`);
-    const edgeButton = createButton(tool, 20, () => {
-      toolState.switchToolType('edge');
-    });
-    tool.scaling = new paper.Point(0.2, 0.2);
+    if (!WIP_HIDE_EDGE_TOOL) {
+      const edgeDef = toolCategoryDefinition.edge;
 
-    addToLeftToolMenu(edgeButton);
-    edgeDef.icon = edgeButton;
+      const tool = new paper.Raster(`${imgPath + toolPrefix}island.png`);
+      const edgeButton = createButton(tool, 20, () => {
+        toolState.switchToolType('edge');
+      });
+      tool.scaling = new paper.Point(0.2, 0.2);
 
-    // Set visibility based on map version
-    const updateEdgeToolVisibility = () => {
-      const visible = isV2Map();
-      edgeButton.visible = visible;
-      setLeftMenuExtended(visible);
-    };
-    updateEdgeToolVisibility();
-    emitter.on('mapVersionChanged', updateEdgeToolVisibility);
+      addToLeftToolMenu(edgeButton);
+      edgeDef.icon = edgeButton;
+
+      // Set visibility based on map version
+      const updateEdgeToolVisibility = () => {
+        const visible = isV2Map();
+        edgeButton.visible = visible;
+        setLeftMenuExtended(visible);
+      };
+      updateEdgeToolVisibility();
+      emitter.on('mapVersionChanged', updateEdgeToolVisibility);
+    }
   }
 }
