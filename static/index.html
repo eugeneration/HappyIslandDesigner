@@ -14,6 +14,33 @@
     />
     <title>Happy Island Designer</title>
 
+    <script>
+      // Prevent site from being embedded in iframes by unauthorized origins
+      // Add trusted domains to this list to allow specific sites to iframe the app
+      var ALLOWED_IFRAME_HOSTS = [
+        // 'example.com',
+      ];
+      if (window.top !== window.self) {
+        var shouldBlock = true;
+        try {
+          var parentHost = window.top.location.hostname;
+          shouldBlock = !ALLOWED_IFRAME_HOSTS.some(function(host) {
+            return parentHost === host || parentHost.endsWith('.' + host);
+          });
+        } catch (e) {
+          // Cross-origin iframe — can't read parent host, block it
+        }
+        if (shouldBlock) {
+          try {
+            window.top.location.replace(window.location.href);
+          } catch (e) {
+            // Sandboxed iframe — redirect blocked, hide all content
+            document.documentElement.innerHTML = '';
+          }
+        }
+      }
+    </script>
+
     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-159461234-1"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
