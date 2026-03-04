@@ -15,14 +15,15 @@ let resizeHandler: (() => void) | null = null;
 let currentStepIndex = 0;
 
 const TOP_Y = 20;
-const PAD_X = 60;
+const PAD_LEFT = 72;
+const PAD_RIGHT = 80;
 const DOT_RADIUS = 4;
 const LINE_WIDTH = 2;
 
 function getDotX(index: number, viewWidth: number): number {
   const totalSteps = stepOrder.length;
   if (totalSteps <= 1) return viewWidth / 2;
-  return PAD_X + index * ((viewWidth - 2 * PAD_X) / (totalSteps - 1));
+  return PAD_LEFT + index * ((viewWidth - PAD_LEFT - PAD_RIGHT) / (totalSteps - 1));
 }
 
 function repositionProgressBar(): void {
@@ -30,7 +31,7 @@ function repositionProgressBar(): void {
   const viewWidth = paper.view.viewSize.width;
 
   if (bgLine) {
-    bgLine.segments[1].point.x = viewWidth - PAD_X;
+    bgLine.segments[1].point.x = viewWidth - PAD_RIGHT;
   }
   for (let i = 0; i < dots.length; i++) {
     dots[i].position.x = getDotX(i, viewWidth);
@@ -39,7 +40,7 @@ function repositionProgressBar(): void {
     progressLine.segments[1].point.x = getDotX(currentStepIndex, viewWidth);
   }
   if (skipButton) {
-    skipButton.position.x = viewWidth - 30;
+    skipButton.position.x = viewWidth - 16 - skipButton.bounds.width / 2;
   }
 }
 
@@ -56,8 +57,8 @@ export function showWizardProgress(): void {
 
   // Background line (full width)
   bgLine = new paper.Path.Line(
-    new paper.Point(PAD_X, TOP_Y),
-    new paper.Point(viewWidth - PAD_X, TOP_Y)
+    new paper.Point(PAD_LEFT, TOP_Y),
+    new paper.Point(viewWidth - PAD_RIGHT, TOP_Y)
   );
   bgLine.strokeColor = colors.paper.color;
   bgLine.strokeWidth = LINE_WIDTH;
@@ -65,8 +66,8 @@ export function showWizardProgress(): void {
 
   // Progress line (starts at zero length)
   progressLine = new paper.Path.Line(
-    new paper.Point(PAD_X, TOP_Y),
-    new paper.Point(PAD_X, TOP_Y)
+    new paper.Point(PAD_LEFT, TOP_Y),
+    new paper.Point(PAD_LEFT, TOP_Y)
   );
   progressLine.strokeColor = colors.level3.color;
   progressLine.strokeWidth = LINE_WIDTH;
@@ -77,17 +78,15 @@ export function showWizardProgress(): void {
   for (let i = 0; i < stepOrder.length; i++) {
     const x = getDotX(i, viewWidth);
     const dot = new paper.Path.Circle(new paper.Point(x, TOP_Y), DOT_RADIUS);
-    dot.strokeColor = colors.paper.color;
-    dot.strokeWidth = 1.5;
-    dot.fillColor = null;
+    dot.fillColor = colors.paper.color;
     progressGroup.addChild(dot);
     dots.push(dot);
   }
 
   // Skip button at right of progress bar
-  const skipText = new paper.PointText(new paper.Point(viewWidth - 30, TOP_Y + 4));
+  const skipText = new paper.PointText(new paper.Point(viewWidth - 16, TOP_Y + 4));
   skipText.content = i18next.t('wizard_skip');
-  skipText.justification = 'center';
+  skipText.justification = 'right';
   skipText.fontFamily = 'TTNorms, sans-serif';
   skipText.fontSize = 12;
   skipText.fillColor = colors.text.color;
@@ -145,15 +144,12 @@ function updateWizardProgress(step: string): void {
     if (i < currentIndex) {
       // Completed
       dot.fillColor = colors.level3.color;
-      dot.strokeColor = colors.level3.color;
     } else if (i === currentIndex) {
       // Current
-      dot.fillColor = null;
-      dot.strokeColor = colors.yellow.color;
+      dot.fillColor = colors.yellow.color;
     } else {
       // Future
-      dot.fillColor = null;
-      dot.strokeColor = colors.paper.color;
+      dot.fillColor = colors.paper.color;
     }
   }
 
