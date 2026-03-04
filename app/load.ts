@@ -8,7 +8,6 @@ import { OpenMapSelectModal } from './components/ModalMapSelect';
 import { deleteEdgeTiles } from './ui/edgeTiles';
 import { emitMapLoaded } from './mapState';
 import { addPath } from './paint';
-import { getBaseMapSrc } from './generatedBaseMapCache';
 import { layers } from './layers';
 import { colors } from './colors';
 
@@ -215,6 +214,7 @@ function extractLayers(svgContent: string): BaseMapLayers {
 // Load base map terrain from SVG file
 // Index 0 or cache miss: just clear terrain and fill level1 with green rectangle
 export async function loadBaseMapFromSvg(mapNumber: number): Promise<void> {
+  const { getBaseMapSrc } = await import('./generatedBaseMapCache');
   const svgPath = getBaseMapSrc(mapNumber);
 
   layers.mapLayer.activate();

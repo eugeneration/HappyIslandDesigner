@@ -16,7 +16,8 @@ import {
 } from './edgeTileAssets';
 import { setEdgeTilesFromAssetIndices } from './edgeTiles';
 import { setMapVersion } from '../mapState';
-import Layouts, { Layout, baseMapLayouts, LayoutType } from '../components/islandLayouts';
+import { Layout, baseMapLayouts, LayoutType } from '../components/islandLayouts';
+import Layouts from '../components/islandLayoutsV1';
 import { loadMapFromJSONString, loadBaseMapFromSvg } from '../load';
 import { safeCompoundIntersection } from '../helpers/safeCompoundIntersection';
 import { getCachedSvgContent } from '../generatedTilesCache';

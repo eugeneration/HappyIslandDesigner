@@ -4,8 +4,7 @@ import paper from 'paper';
 import {Box, Button, Image, Flex, Grid, Heading, Text, Link} from '@theme-ui/components'
 import { colors } from '../colors';
 import './modal.scss';
-import Layouts, { LayoutType, Layout, baseMapLayouts } from './islandLayouts';
-import { getBaseMapSrc } from '../generatedBaseMapCache';
+import { LayoutType, Layout, baseMapLayouts } from './islandLayouts';
 import useBlockZoom from './useBlockZoom';
 
 import { loadMapFromJSONString, loadBaseMapFromSvg } from '../load';
@@ -761,20 +760,15 @@ function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: Wi
   const [layout, setLayout] = useState<number>(-1);
   const [help, setHelp] = useState<boolean>(false);
   const lastContentRef = useRef<React.ReactNode>(null);
+  const [Layouts, setLayouts] = useState<Record<string, Layout[]> | null>(null);
 
-  // Handle layout selection in grid
+  // Lazy-load legacy V1 layout data
   useEffect(() => {
-    if (layout != -1) {
-      const layoutType = wizardState.riverDirection as LayoutType;
-      const layouts = getLayouts(layoutType);
-      if (layouts[layout]) {
-        loadMapFromJSONString(layouts[layout].data);
-        resetWizard();
-      }
-    }
-  }, [layout, wizardState.riverDirection]);
+    import('./islandLayoutsV1').then(m => setLayouts(m.default));
+  }, []);
 
   function getLayouts(type: LayoutType | null): Layout[] {
+    if (!Layouts) return [];
     switch (type) {
       case LayoutType.west:
         return Layouts.west;
@@ -787,6 +781,17 @@ function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: Wi
     }
     return [];
   }
+
+  // Handle layout selection in grid
+  useEffect(() => {
+    if (layout != -1 && Layouts) {
+      const layouts = Layouts[wizardState.riverDirection as LayoutType] || [];
+      if (layouts[layout]) {
+        loadMapFromJSONString(layouts[layout].data);
+        resetWizard();
+      }
+    }
+  }, [layout, wizardState.riverDirection, Layouts]);
 
   // Help screen
   if (help) {
@@ -1158,6 +1163,12 @@ interface BaseMapGridStepProps {
 
 function BaseMapGridStep({ layoutType, edgeTileRaster, onSelect, onBack }: BaseMapGridStepProps) {
   const baseMapIndices = baseMapLayouts[layoutType] || [];
+  const [getBaseMapSrc, setGetBaseMapSrc] = useState<((n: number) => string | null) | null>(null);
+
+  // Lazy-load generatedBaseMapCache
+  useEffect(() => {
+    import('../generatedBaseMapCache').then(m => setGetBaseMapSrc(() => m.getBaseMapSrc));
+  }, []);
 
   const cardOverlay = edgeTileRaster ? (
     <Image src={edgeTileRaster} sx={{
@@ -1178,7 +1189,7 @@ function BaseMapGridStep({ layoutType, edgeTileRaster, onSelect, onBack }: BaseM
       </Box>
       <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{'Choose Island Terrain'}</Heading>
       <Text m={2} sx={{textAlign: 'center'}}>{'Flatten the island or choose one of the starter island layouts.'}</Text>
-      <Grid
+      {getBaseMapSrc && <Grid
         gap={0}
         columns={[2, 3, 4]}
         sx={{justifyItems: 'center' }}>
@@ -1204,7 +1215,7 @@ function BaseMapGridStep({ layoutType, edgeTileRaster, onSelect, onBack }: BaseM
             </Card>
           );
         })}
-      </Grid>
+      </Grid>}
     </>
   );
 }
@@ -1221,6 +1232,7 @@ function LegacyRiverDirectionStep({ onBack }: { onBack: () => void }) {
       'Clear your map? You will lose all unsaved changes.'
     );
     if (!proceed) return;
+    const { default: Layouts } = await import('./islandLayoutsV1');
     const blankLayout = Layouts.blank[0];
     loadMapFromJSONString(blankLayout.data);
     resetWizard();
