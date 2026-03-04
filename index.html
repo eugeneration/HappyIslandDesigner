@@ -1,44 +1,43 @@
-<!DOCTYPE html>
-<html lang="en" class="no-focus-outline">
-  <head>
-    <meta property="og:title" content="Happy Island Designer" />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://eugeneration.github.io/HappyIslandDesigner/" />
-    <meta property="og:image" content="https://eugeneration.github.io/HappyIslandDesigner/thumbnail.png" />
-    <meta property="og:image:type" content="image/png" />
-    <meta property="og:description" content="Plan your dream island map. Made for Animal Crossing: New Horizons. Draw terrain and paths, place buildings, and trace your in-game map." />
-    <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, shrink-to-fit=no, user-scalable=no"
-    />
-    <title>Happy Island Designer</title>
-
-    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-159461234-1"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
+<!doctype html><html lang="en" class="no-focus-outline"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,shrink-to-fit=no,user-scalable=no"/><title>Happy Island Designer - Animal Crossing Island Planner</title><meta name="description" content="Plan your dream island map. Made for Animal Crossing: New Horizons. Draw terrain and paths, place buildings, and trace your in-game map."/><link rel="canonical" href="https://eugeneration.github.io/HappyIslandDesigner/"/><meta property="og:title" content="Happy Island Designer - Animal Crossing Island Planner"/><meta property="og:type" content="website"/><meta property="og:url" content="https://eugeneration.github.io/HappyIslandDesigner/"/><meta property="og:image" content="https://eugeneration.github.io/HappyIslandDesigner/thumbnail.png"/><meta property="og:image:type" content="image/png"/><meta property="og:description" content="Plan your dream island map. Made for Animal Crossing: New Horizons. Draw terrain and paths, place buildings, and trace your in-game map."/><meta name="twitter:card" content="summary_large_image"/><meta name="twitter:title" content="Happy Island Designer - Animal Crossing Island Planner"/><meta name="twitter:description" content="Plan your dream island map. Made for Animal Crossing: New Horizons. Draw terrain and paths, place buildings, and trace your in-game map."/><meta name="twitter:image" content="https://eugeneration.github.io/HappyIslandDesigner/thumbnail.png"/><script>// Prevent site from being embedded in iframes by unauthorized origins
+      // Add trusted domains to this list to allow specific sites to iframe the app
+      var ALLOWED_IFRAME_HOSTS = [
+        // 'example.com',
+      ];
+      if (window.top !== window.self) {
+        var shouldBlock = true;
+        try {
+          var parentHost = window.top.location.hostname;
+          shouldBlock = !ALLOWED_IFRAME_HOSTS.some(function(host) {
+            return parentHost === host || parentHost.endsWith('.' + host);
+          });
+        } catch (e) {
+          // Cross-origin iframe — can't read parent host, block it
+        }
+        if (shouldBlock) {
+          try {
+            window.top.location.replace(window.location.href);
+          } catch (e) {
+            // Sandboxed iframe — redirect blocked, hide all content
+            document.documentElement.innerHTML = '';
+          }
+        }
+      }</script><script>// Detect non-production sites (forks, local dev) and downrank them
+      var PRODUCTION_HOST = 'eugeneration.github.io';
+      var isDevSite = window.location.hostname !== PRODUCTION_HOST;
+      if (isDevSite) {
+        var meta = document.createElement('meta');
+        meta.name = 'robots';
+        meta.content = 'noindex, nofollow';
+        document.head.appendChild(meta);
+      }</script><script async src="https://www.googletagmanager.com/gtag/js?id=UA-159461234-1"></script><script>window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
 
-      gtag('config', 'UA-159461234-1');
-    </script>
-
-    <link rel="icon" href="favicon.ico" type="image/x-icon" />
-    <link
-      rel="preload"
-      href="./static/font/TTNorms-Bold.woff"
-      as="font"
-      type="font/woff"
-      crossorigin
-    />
-  <script defer src="vendor.bundle.js"></script><script defer src="main.bundle.js"></script></head>
-  <body>
-    <div class="hidden">
-      <p style="font-family: TTNorms;">.</p>
-    </div>
-    <div id="app">
-      <canvas id="canvas" resize></canvas>
-      <div id="ui-container"></div>
-    </div>
-  </body>
-</html>
+      gtag('config', 'UA-159461234-1');</script><link rel="icon" type="image/png" sizes="192x192" href="favicon-192x192.png"/><link rel="icon" type="image/png" sizes="48x48" href="favicon-48x48.png"/><link rel="icon" href="favicon.ico" type="image/x-icon"/><link rel="apple-touch-icon" sizes="192x192" href="favicon-192x192.png"/><link rel="preload" href="./static/font/TTNorms-Bold.woff" as="font" type="font/woff" crossorigin/><script defer="defer" src="dist/vendor.bundle.js"></script><script defer="defer" src="dist/main.bundle.js"></script><link href="dist/main.css" rel="stylesheet"></head><body><div class="hidden"><p style="font-family: TTNorms;">.</p></div><div id="dev-site-banner" style="display:none; position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:10000; background:#fdf252; color:#726a5a; text-align:center; padding:8px 20px; font-family:sans-serif; font-size:16px; border-radius:9999px; box-shadow:0 2px 8px rgba(0,0,0,0.2); transition:opacity 0.5s ease; pointer-events:auto;">Dev Site — The official version is at <a href="https://eugeneration.github.io/HappyIslandDesigner/" style="color:#726a5a; font-weight:bold;">eugeneration.github.io/HappyIslandDesigner</a></div><script>if (isDevSite) {
+        var banner = document.getElementById('dev-site-banner');
+        banner.style.display = 'block';
+        setTimeout(function() {
+          banner.style.opacity = '0';
+          banner.style.pointerEvents = 'none';
+        }, 5000);
+      }</script><div id="app"><canvas id="canvas" resize></canvas><div id="ui-container"></div></div></body></html>

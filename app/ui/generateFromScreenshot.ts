@@ -5893,7 +5893,7 @@ export async function generateFromScreenshot(options: GenerateOptions = {}): Pro
 
   // Set up zip accumulator for all debug images (lazy-import JSZip, never loaded at startup)
   if (!skipDebug) {
-    const JSZip = (await import('jszip')).default;
+    const JSZip = (await import(/* webpackChunkName: "jszip" */ 'jszip')).default;
     debugZip = new JSZip();
   }
 

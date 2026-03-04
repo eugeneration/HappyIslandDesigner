@@ -21,7 +21,7 @@ i18next.init({
   drawer();
   zoom();
   if (__DEV__) {
-    const { initDevTools } = await import('./ui/devTools');
+    const { initDevTools } = await import(/* webpackChunkName: "devTools" */ './ui/devTools');
     initDevTools();
   }
 })();

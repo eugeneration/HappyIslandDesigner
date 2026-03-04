@@ -764,7 +764,7 @@ function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: Wi
 
   // Lazy-load legacy V1 layout data
   useEffect(() => {
-    import('./islandLayoutsV1').then(m => setLayouts(m.default));
+    import(/* webpackChunkName: "islandLayoutsV1" */ './islandLayoutsV1').then(m => setLayouts(m.default));
   }, []);
 
   function getLayouts(type: LayoutType | null): Layout[] {
@@ -942,7 +942,7 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
 
   const handleGenerate = async () => {
     try {
-      const { generateFromScreenshot } = await import('../ui/generateFromScreenshot');
+      const { generateFromScreenshot } = await import(/* webpackChunkName: "generateFromScreenshot" */ '../ui/generateFromScreenshot');
       await generateFromScreenshot({
         debug: false,
         onFileSelected: () => {
@@ -1167,7 +1167,7 @@ function BaseMapGridStep({ layoutType, edgeTileRaster, onSelect, onBack }: BaseM
 
   // Lazy-load generatedBaseMapCache
   useEffect(() => {
-    import('../generatedBaseMapCache').then(m => setGetBaseMapSrc(() => m.getBaseMapSrc));
+    import(/* webpackChunkName: "generatedBaseMapCache" */ '../generatedBaseMapCache').then(m => setGetBaseMapSrc(() => m.getBaseMapSrc));
   }, []);
 
   const cardOverlay = edgeTileRaster ? (
@@ -1232,7 +1232,7 @@ function LegacyRiverDirectionStep({ onBack }: { onBack: () => void }) {
       'Clear your map? You will lose all unsaved changes.'
     );
     if (!proceed) return;
-    const { default: Layouts } = await import('./islandLayoutsV1');
+    const { default: Layouts } = await import(/* webpackChunkName: "islandLayoutsV1" */ './islandLayoutsV1');
     const blankLayout = Layouts.blank[0];
     loadMapFromJSONString(blankLayout.data);
     resetWizard();

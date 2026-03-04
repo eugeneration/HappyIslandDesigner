@@ -13,8 +13,10 @@ module.exports = (env, argv) => {
     mode: argv.mode || 'development',
     entry: ['./app/index'],
     output: {
-      path: path.join(__dirname),
+      path: path.join(__dirname, 'dist'),
+      publicPath: 'dist/',
       filename: '[name].bundle.js',
+      clean: true,
     },
     resolve: {
       modules: ['node_modules'],
@@ -98,16 +100,14 @@ module.exports = (env, argv) => {
       }),
       new HtmlWebpackPlugin({
         template: path.resolve(__dirname, 'static', 'index.html'),
-        filename: 'index.html',
+        filename: path.resolve(__dirname, 'index.html'),
       }),
       //new CopyPlugin([{ from: 'src/static', to: 'static' }]),
 
-      // new MiniCssExtractPlugin({
-      //   // Options similar to the same options in webpackOptions.output
-      //   // both options are optional
-      //   filename: '[name].css',
-      //   chunkFilename: '[id].css',
-      // }),
+      new MiniCssExtractPlugin({
+        filename: '[name].css',
+        chunkFilename: '[name].css',
+      }),
     ],
     optimization: {
       splitChunks: {

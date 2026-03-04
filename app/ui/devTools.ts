@@ -4189,7 +4189,7 @@ async function extractAllBaseMapTerrains(): Promise<void> {
 
   try {
     // Dynamic import - only loaded when this function runs (dev only)
-    const JSZip = (await import('jszip')).default;
+    const JSZip = (await import(/* webpackChunkName: "jszip" */ 'jszip')).default;
     const zip = new JSZip();
 
     batchMode = true;
@@ -4333,12 +4333,12 @@ function showDevMenu(): void {
     { label: 'From Screenshot', action: () => {
       hideDevMenu();
       isMenuOpen = false;
-      import('./generateFromScreenshot').then(m => m.generateFromScreenshot());
+      import(/* webpackChunkName: "generateFromScreenshot" */ './generateFromScreenshot').then(m => m.generateFromScreenshot());
     }},
     { label: 'Reset NUX', action: () => {
       hideDevMenu();
       isMenuOpen = false;
-      import('./nuxTooltip').then(m => m.resetAllNux());
+      import(/* webpackChunkName: "nuxTooltip" */ './nuxTooltip').then(m => m.resetAllNux());
     }},
   ];
 

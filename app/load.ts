@@ -95,7 +95,7 @@ export function loadImage(onLoad) {
     if (file.type == "image/heic") { // convert to png
       // this takes a long time, so show loading screen
       showLoadingScreen(true);
-      import("heic2any").then(heic2anyModule => {
+      import(/* webpackChunkName: "heic2any" */ "heic2any").then(heic2anyModule => {
         const heic2any = heic2anyModule.default;
         heic2any({blob: file })
           .then(function(conversionResult) {
@@ -214,7 +214,7 @@ function extractLayers(svgContent: string): BaseMapLayers {
 // Load base map terrain from SVG file
 // Index 0 or cache miss: just clear terrain and fill level1 with green rectangle
 export async function loadBaseMapFromSvg(mapNumber: number): Promise<void> {
-  const { getBaseMapSrc } = await import('./generatedBaseMapCache');
+  const { getBaseMapSrc } = await import(/* webpackChunkName: "generatedBaseMapCache" */ './generatedBaseMapCache');
   const svgPath = getBaseMapSrc(mapNumber);
 
   layers.mapLayer.activate();
