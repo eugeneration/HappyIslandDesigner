@@ -35,7 +35,7 @@ const zhTW = {
         '地形工具 \n'+
         '路徑工具\n'+
         '房屋工具\n'+
-        '建築工具\n'+
+        '設施工具\n'+
         '\n'+
         '存檔\n'+
         '打開地圖檔案\n'+
@@ -51,6 +51,67 @@ const zhTW = {
     import_tracing_overlay: '匯入描圖圖片',
     import_tracing_overlay_instructions: '1. 上傳地圖的照片或螢幕截圖\n\n2. 標註格線的四個角落',
     twitter: 'Twitter',
+
+    // Entry point
+    create_new_map: '建立新地圖',
+    generate_from_screenshot: '從截圖生成',
+    use_tile_editor: '使用地塊編輯器',
+    draw_manually: '手動繪製',
+
+    // Screenshot flow
+    screenshot_title: '從截圖生成',
+    screenshot_description: '上傳島嶼地圖的截圖，自動生成你的島嶼。',
+    screenshot_upload: '上傳截圖',
+    screenshot_tips_title: '截圖小秘訣',
+    screenshot_tips_transfer_heading: '從Switch傳輸截圖：',
+    screenshot_tips_capture: '按下截圖鍵（左Joy-Con上的方形按鈕）儲存截圖',
+    screenshot_tips_transfer: '傳輸方法：進入相簿 → 傳送到智慧型手機，或透過USB或microSD卡複製到電腦',
+    screenshot_tips_actual: '請使用遊戲內截圖——拍攝螢幕的照片無法辨識',
+    screenshot_tips_good_heading: '如何拍好截圖：',
+    screenshot_tips_nookphone: '截圖前請先開啟狸克手機的地圖畫面',
+    screenshot_tips_stand: '站在沙灘等位置，避免玩家圖示遮擋地圖細節',
+    screenshot_tips_icons: '不要選取地圖上的圖示——生成器無法辨識橘色高亮圖示',
+    screenshot_tips_overlay: '生成後，可以使用描圖覆蓋層工具對比並修正錯誤',
+    screenshot_flavor_0: '正在掃描島嶼...',
+    screenshot_flavor_1: '正在偵測邊界...',
+    screenshot_flavor_2: '正在分析地形...',
+    screenshot_flavor_3: '正在比對邊緣地塊...',
+    screenshot_flavor_4: '正在辨識建築...',
+    screenshot_flavor_5: '正在挖掘地形...',
+    screenshot_flavor_6: '正在改造河川...',
+    screenshot_flavor_7: '正在佈置設施...',
+    screenshot_flavor_8: '正在建設島嶼...',
+    screenshot_flavor_9: '正在種植樹木...',
+
+    // V2 wizard steps
+    wizard_river_direction: '選擇島嶼河流方向',
+    wizard_skip: '跳過',
+    wizard_choose_terrain: '選擇島嶼地形',
+    wizard_choose_terrain_description: '選擇平坦地形或初始島嶼佈局。',
+    wizard_peninsula_side: '選擇半島方向',
+    wizard_dock_side: '碼頭在哪一側？',
+    wizard_choose_river_mouth: '選擇河口形狀',
+    wizard_choose_peninsula_shape: '選擇半島形狀',
+    wizard_choose_dock_shape: '選擇碼頭沙灘形狀',
+    wizard_choose_secret_beach: '選擇秘密海灘形狀',
+    wizard_choose_rock_shape: '選擇岩石形狀',
+    wizard_choose_shape: '選擇形狀',
+
+    // Position selectors
+    wizard_select_airport: '選擇機場位置',
+    wizard_select_peninsula: '選擇半島位置',
+    wizard_select_secret_beach: '選擇秘密海灘位置',
+    wizard_select_left_rock: '左側的大岩石在哪裡？',
+    wizard_select_right_rock: '右側的大岩石在哪裡？',
+
+    // Option selector
+    option_swipe_confirm: '滑動預覽，點選確認',
+    option_scroll_confirm: '捲動預覽，點擊確認',
+
+    // Legacy flow
+    wizard_choose_template: '選擇繪圖範本！',
+    wizard_manual_description: '手動繪製可以重新繪製整座島嶼，但部分內容可能無法在遊戲中實現。',
+    wizard_choose_island: '選擇你的島嶼！',
 };
 
 export default zhTW;

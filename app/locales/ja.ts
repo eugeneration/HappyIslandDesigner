@@ -51,6 +51,67 @@ const ja = {
     import_tracing_overlay: 'トレース用画像をインポート',
     import_tracing_overlay_instructions: '1. ゲームマップの写真かスクリーンショットをアップロードします\n\n2. グリッドの四隅をマークします',
     twitter: 'Twitter',
+
+    // Entry point
+    create_new_map: '新しいマップを作成',
+    generate_from_screenshot: 'スクリーンショットから生成',
+    use_tile_editor: 'タイルエディターを使う',
+    draw_manually: '手動で描く',
+
+    // Screenshot flow
+    screenshot_title: 'スクリーンショットから生成',
+    screenshot_description: '島のマップのスクリーンショットをアップロードして、自動的に島を生成します。',
+    screenshot_upload: 'スクリーンショットをアップロード',
+    screenshot_tips_title: 'スクリーンショットのコツ',
+    screenshot_tips_transfer_heading: 'Switchからの転送方法：',
+    screenshot_tips_capture: 'キャプチャーボタン（左Joy-Conの四角いボタン）を押してスクリーンショットを保存',
+    screenshot_tips_transfer: '転送方法：アルバム → スマートフォンへ送る、またはUSBやmicroSDカードでPCにコピー',
+    screenshot_tips_actual: 'ゲーム内のスクリーンショットを使用してください——画面を撮影した写真では認識できません',
+    screenshot_tips_good_heading: '良いスクリーンショットを撮るには：',
+    screenshot_tips_nookphone: 'キャプチャーする前にたぬきフォンのマップ画面を開いてください',
+    screenshot_tips_stand: '砂浜など、プレイヤーのピンがマップの詳細を隠さない場所に立ってください',
+    screenshot_tips_icons: 'マップ上のアイコンを選択しないでください——オレンジ色にハイライトされたアイコンは認識できません',
+    screenshot_tips_overlay: '生成後、トレースオーバーレイツールで比較・修正できます',
+    screenshot_flavor_0: '島をスキャン中...',
+    screenshot_flavor_1: '境界を検出中...',
+    screenshot_flavor_2: '地形を分析中...',
+    screenshot_flavor_3: 'エッジタイルを照合中...',
+    screenshot_flavor_4: '施設を特定中...',
+    screenshot_flavor_5: '地形を掘削中...',
+    screenshot_flavor_6: '川を整備中...',
+    screenshot_flavor_7: '施設を配置中...',
+    screenshot_flavor_8: '島を建設中...',
+    screenshot_flavor_9: '木を植樹中...',
+
+    // V2 wizard steps
+    wizard_river_direction: '島の川の方向を選択',
+    wizard_skip: 'スキップ',
+    wizard_choose_terrain: '島の地形を選択',
+    wizard_choose_terrain_description: '島を平坦にするか、初期レイアウトから選んでください。',
+    wizard_peninsula_side: '岬の方向を選択',
+    wizard_dock_side: '桟橋はどちら側？',
+    wizard_choose_river_mouth: '河口の形を選択',
+    wizard_choose_peninsula_shape: '岬の形を選択',
+    wizard_choose_dock_shape: '桟橋のビーチの形を選択',
+    wizard_choose_secret_beach: '秘密のビーチの形を選択',
+    wizard_choose_rock_shape: '岩の形を選択',
+    wizard_choose_shape: '形を選択',
+
+    // Position selectors
+    wizard_select_airport: '飛行場の位置を選択',
+    wizard_select_peninsula: '岬の位置を選択',
+    wizard_select_secret_beach: '秘密のビーチの位置を選択',
+    wizard_select_left_rock: '左側の大きな岩はどこですか？',
+    wizard_select_right_rock: '右側の大きな岩はどこですか？',
+
+    // Option selector
+    option_swipe_confirm: 'スワイプでプレビュー、タップで確定',
+    option_scroll_confirm: 'スクロールでプレビュー、クリックで確定',
+
+    // Legacy flow
+    wizard_choose_template: 'テンプレートを選んでください！',
+    wizard_manual_description: '手動描画では島全体を描き直せますが、ゲーム内で再現できない部分もあります。',
+    wizard_choose_island: '島を選んでください！',
 };
 
 export default ja;
