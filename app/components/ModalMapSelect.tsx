@@ -760,6 +760,7 @@ export default function ModalMapSelect(){
 function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: WizardState; edgeTileRaster: string | null }) {
   const [layout, setLayout] = useState<number>(-1);
   const [help, setHelp] = useState<boolean>(false);
+  const lastContentRef = useRef<React.ReactNode>(null);
 
   // Handle layout selection in grid
   useEffect(() => {
@@ -856,7 +857,6 @@ function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: Wi
 
   // Cache last non-null content so the modal fade-out animation
   // still shows the previous step instead of going empty
-  const lastContentRef = useRef<React.ReactNode>(null);
   const content = renderContent();
   if (content !== null) {
     lastContentRef.current = content;
