@@ -245,7 +245,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
   {
     name: 'House',
     category: 'structures',
-    type: 'houseSprite',
+    type: 'houseIcon',
     imagePath: 'static/dev/icon-house.png',
     colors: [{ r: 0xFF, g: 0xC3, b: 0x22 }],  // #FFC322 gold (81% of opaque pixels)
     colorTolerance: 35,
@@ -260,7 +260,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
   {
     name: 'Player House',
     category: 'structures',
-    type: 'playerhouseSprite',
+    type: 'playerHouseIcon',
     imagePath: 'static/dev/icon-player-house.png',
     colors: [{ r: 0xFD, g: 0x83, b: 0xA8 }],  // #FD83A8 pink (69%)
     colorTolerance: 35,
@@ -275,7 +275,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
   {
     name: 'Player Tent',
     category: 'structures',
-    type: 'playerhouseSprite',
+    type: 'playerTentIcon',
     imagePath: 'static/dev/icon-player-tent.png',
     colors: [{ r: 0xFD, g: 0x83, b: 0xA8 }],  // #FD83A8 pink (72%)
     colorTolerance: 35,
@@ -291,7 +291,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
   {
     name: 'Able Sisters',
     category: 'amenities',
-    type: 'ableSprite',
+    type: 'ableIcon',
     imagePath: 'static/dev/icon-abel.png',
     colors: [{ r: 0x53, g: 0x4D, b: 0x41 }],  // #534D41 (50%)
     colorTolerance: 35,
@@ -308,7 +308,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
   {
     name: 'Museum',
     category: 'amenities',
-    type: 'museumSprite',
+    type: 'museumIcon',
     imagePath: 'static/dev/icon-museum.png',
     colors: [{ r: 0x53, g: 0x4D, b: 0x41 }],  // #534D41 (51%)
     colorTolerance: 35,
@@ -325,7 +325,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
   {
     name: "Nook's Cranny",
     category: 'amenities',
-    type: 'nookSprite',
+    type: 'nookIcon',
     imagePath: 'static/dev/icon-nooks-cranny.png',
     colors: [{ r: 0x53, g: 0x4D, b: 0x41 }],  // #534D41 (57%)
     colorTolerance: 35,
@@ -341,8 +341,8 @@ const ICON_TEMPLATES: IconTemplate[] = [
   },
   {
     name: 'Tent',
-    category: 'structures',
-    type: 'tentSprite',
+    category: 'amenities',
+    type: 'tentIcon',
     imagePath: 'static/dev/icon-tent.png',
     colors: [{ r: 0x53, g: 0x4D, b: 0x41 }],  // #534D41 (65%)
     colorTolerance: 35,
@@ -359,7 +359,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
   {
     name: 'Airport',
     category: 'amenities',
-    type: 'airportBlue',
+    type: 'airportIcon',
     imagePath: 'static/dev/icon-amenity-airport.png',
     colors: [{ r: 0x53, g: 0x4D, b: 0x41 }],  // #534D41 (71%)
     colorTolerance: 35,
@@ -375,7 +375,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
   {
     name: 'Antiques',
     category: 'amenities',
-    type: 'campsiteSprite',
+    type: 'antiquesIcon',
     imagePath: 'static/dev/icon-antiques.png',
     colors: [{ r: 0x53, g: 0x4D, b: 0x41 }],
     colorTolerance: 35,
@@ -395,7 +395,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
   {
     name: 'Resident Services',
     category: 'amenities',
-    type: 'center',
+    type: 'centerIcon',
     imagePath: 'static/dev/icon-amenity-center-nosquare.png',
     colors: [{ r: 0x53, g: 0x4D, b: 0x41 }],  // #534D41 dark circle (same as other buildings)
     colorTolerance: 35,
@@ -417,7 +417,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
   {
     name: 'Town Hall',
     category: 'amenities',
-    type: 'townhallSprite',
+    type: 'townhallIcon',
     imagePath: 'static/dev/icon-townhall-nosquare.png',
     colors: [{ r: 0x53, g: 0x4D, b: 0x41 }],  // #534D41 dark circle
     colorTolerance: 35,
@@ -464,7 +464,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
     // fall outside tolerance and are never captured by blob detection.
     name: 'Bridge (3-wide)',
     category: 'construction',
-    type: 'bridgeStoneVertical',
+    type: 'bridgeIconVertical',
     imagePath: 'static/dev/icon-bridge-3.png',
     colors: [{ r: 0x7F, g: 0x82, b: 0x67 }],  // #7F8267 olive
     colorTolerance: 40,
@@ -479,16 +479,16 @@ const ICON_TEMPLATES: IconTemplate[] = [
     maxCount: 8,
     requiresWaterAdjacency: true,
     orientations: [
-      { rotation: 0 as const,   objectType: 'bridgeStoneVertical',   objectCategory: 'construction', objectSize: [4, 6] as [number, number] },
-      { rotation: 90 as const,  objectType: 'bridgeStoneHorizontal', objectCategory: 'construction', objectSize: [6, 4] as [number, number] },
-      { rotation: 45 as const,  objectType: 'bridgeStoneTLBR',       objectCategory: 'construction', objectSize: [6, 6] as [number, number] },
-      { rotation: 135 as const, objectType: 'bridgeStoneTRBL',       objectCategory: 'construction', objectSize: [6, 6] as [number, number] },
+      { rotation: 0 as const,   objectType: 'bridgeIconVertical',   objectCategory: 'construction', objectSize: [4, 6] as [number, number] },
+      { rotation: 90 as const,  objectType: 'bridgeIconHorizontal', objectCategory: 'construction', objectSize: [6, 4] as [number, number] },
+      { rotation: 45 as const,  objectType: 'bridgeIconTLBR',       objectCategory: 'construction', objectSize: [6, 6] as [number, number] },
+      { rotation: 135 as const, objectType: 'bridgeIconTRBL',       objectCategory: 'construction', objectSize: [6, 6] as [number, number] },
     ],
   },
   {
     name: 'Bridge (4-wide)',
     category: 'construction',
-    type: 'bridgeStoneVertical',
+    type: 'bridgeIconVertical',
     imagePath: 'static/dev/icon-bridge-4.png',
     colors: [{ r: 0x7F, g: 0x82, b: 0x67 }],
     colorTolerance: 40,
@@ -503,16 +503,16 @@ const ICON_TEMPLATES: IconTemplate[] = [
     maxCount: 8,
     requiresWaterAdjacency: true,
     orientations: [
-      { rotation: 0 as const,   objectType: 'bridgeStoneVertical',   objectCategory: 'construction', objectSize: [4, 6] as [number, number] },
-      { rotation: 90 as const,  objectType: 'bridgeStoneHorizontal', objectCategory: 'construction', objectSize: [6, 4] as [number, number] },
-      { rotation: 45 as const,  objectType: 'bridgeStoneTLBR',       objectCategory: 'construction', objectSize: [6, 6] as [number, number] },
-      { rotation: 135 as const, objectType: 'bridgeStoneTRBL',       objectCategory: 'construction', objectSize: [6, 6] as [number, number] },
+      { rotation: 0 as const,   objectType: 'bridgeIconVertical',   objectCategory: 'construction', objectSize: [4, 6] as [number, number] },
+      { rotation: 90 as const,  objectType: 'bridgeIconHorizontal', objectCategory: 'construction', objectSize: [6, 4] as [number, number] },
+      { rotation: 45 as const,  objectType: 'bridgeIconTLBR',       objectCategory: 'construction', objectSize: [6, 6] as [number, number] },
+      { rotation: 135 as const, objectType: 'bridgeIconTRBL',       objectCategory: 'construction', objectSize: [6, 6] as [number, number] },
     ],
   },
   {
     name: 'Bridge (5-wide)',
     category: 'construction',
-    type: 'bridgeStoneVertical',
+    type: 'bridgeIconVertical',
     imagePath: 'static/dev/icon-bridge-5.png',
     colors: [{ r: 0x7F, g: 0x82, b: 0x67 }],
     colorTolerance: 40,
@@ -527,10 +527,10 @@ const ICON_TEMPLATES: IconTemplate[] = [
     maxCount: 8,
     requiresWaterAdjacency: true,
     orientations: [
-      { rotation: 0 as const,   objectType: 'bridgeStoneVertical',   objectCategory: 'construction', objectSize: [4, 6] as [number, number] },
-      { rotation: 90 as const,  objectType: 'bridgeStoneHorizontal', objectCategory: 'construction', objectSize: [6, 4] as [number, number] },
-      { rotation: 45 as const,  objectType: 'bridgeStoneTLBR',       objectCategory: 'construction', objectSize: [6, 6] as [number, number] },
-      { rotation: 135 as const, objectType: 'bridgeStoneTRBL',       objectCategory: 'construction', objectSize: [6, 6] as [number, number] },
+      { rotation: 0 as const,   objectType: 'bridgeIconVertical',   objectCategory: 'construction', objectSize: [4, 6] as [number, number] },
+      { rotation: 90 as const,  objectType: 'bridgeIconHorizontal', objectCategory: 'construction', objectSize: [6, 4] as [number, number] },
+      { rotation: 45 as const,  objectType: 'bridgeIconTLBR',       objectCategory: 'construction', objectSize: [6, 6] as [number, number] },
+      { rotation: 135 as const, objectType: 'bridgeIconTRBL',       objectCategory: 'construction', objectSize: [6, 6] as [number, number] },
     ],
   },
 
@@ -538,7 +538,7 @@ const ICON_TEMPLATES: IconTemplate[] = [
   {
     name: 'Stairs',
     category: 'construction',
-    type: 'stairsStoneUp',
+    type: 'stairsIconUp',
     imagePath: 'static/dev/icon-stairs.png',
     colors: [{ r: 0xF5, g: 0xDE, b: 0x99 }],  // #F5DE99 tan-yellow
     colorTolerance: 35,
@@ -551,10 +551,10 @@ const ICON_TEMPLATES: IconTemplate[] = [
     fillBehavior: 'terrain-foot' as const,
     maxCount: 8,
     orientations: [
-      { rotation: 0 as const,   objectType: 'stairsStoneUp',    objectCategory: 'construction', objectSize: [2, 4] as [number, number] },
-      { rotation: 90 as const,  objectType: 'stairsStoneRight',  objectCategory: 'construction', objectSize: [4, 2] as [number, number] },
-      { rotation: 180 as const, objectType: 'stairsStoneDown',   objectCategory: 'construction', objectSize: [2, 4] as [number, number] },
-      { rotation: 270 as const, objectType: 'stairsStoneLeft',   objectCategory: 'construction', objectSize: [4, 2] as [number, number] },
+      { rotation: 0 as const,   objectType: 'stairsIconUp',    objectCategory: 'construction', objectSize: [2, 4] as [number, number] },
+      { rotation: 90 as const,  objectType: 'stairsIconRight',  objectCategory: 'construction', objectSize: [4, 2] as [number, number] },
+      { rotation: 180 as const, objectType: 'stairsIconDown',   objectCategory: 'construction', objectSize: [2, 4] as [number, number] },
+      { rotation: 270 as const, objectType: 'stairsIconLeft',   objectCategory: 'construction', objectSize: [4, 2] as [number, number] },
     ],
   },
 ];
@@ -2981,7 +2981,7 @@ async function detectStairs(
   extents: IslandExtents,
 ): Promise<DetectMapIconsResult> {
   const ppc = extents.pixelsPerCoord;
-  const stairTemplate = ICON_TEMPLATES.find(t => t.type === 'stairsStoneUp')!;
+  const stairTemplate = ICON_TEMPLATES.find(t => t.type === 'stairsIconUp')!;
   const stairColor = stairTemplate.colors[0];
   const tolerance = stairTemplate.colorTolerance;
   const bbTolerance = stairTemplate.blockBoundaryTolerance;
