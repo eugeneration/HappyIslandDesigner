@@ -14,7 +14,7 @@ module.exports = (env, argv) => {
     entry: ['./app/index'],
     output: {
       path: path.join(__dirname, 'dist'),
-      publicPath: 'dist/',
+      publicPath: isDev ? '/' : 'dist/',
       filename: '[name].bundle.js',
       clean: true,
     },
@@ -100,7 +100,7 @@ module.exports = (env, argv) => {
       }),
       new HtmlWebpackPlugin({
         template: path.resolve(__dirname, 'static', 'index.html'),
-        filename: path.resolve(__dirname, 'index.html'),
+        filename: isDev ? 'index.html' : path.resolve(__dirname, 'index.html'),
       }),
       //new CopyPlugin([{ from: 'src/static', to: 'static' }]),
 
