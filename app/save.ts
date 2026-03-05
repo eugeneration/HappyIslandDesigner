@@ -78,6 +78,15 @@ export function autosaveMap() {
   return false;
 }
 
+export function autosaveMapRaw(jsonString: string) {
+  if (localStorage) {
+    localStorage.setItem('autosave', jsonString);
+    state.actionsSinceSave = 0;
+    return true;
+  }
+  return false;
+}
+
 // @ts-ignore
 window.clearAutosave = clearAutosave;
 export function clearAutosave() {

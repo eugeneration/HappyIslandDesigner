@@ -177,7 +177,6 @@ emitter.on('mapLoaded', () => {
   state.index = -1;
   state.history = [];
   state.actionsSinceSave = 0;
-  autosaveMap();
 });
 
 export function autosaveTrigger() {
