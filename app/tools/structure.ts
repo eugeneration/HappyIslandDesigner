@@ -7,6 +7,26 @@ import { loadSvg } from '../helpers/svgLoad';
 export const asyncStructureDefinition = new AsyncObjectDefinition();
 
 asyncStructureDefinition.value = {
+  houseIcon: {
+    svg: 'icon-house',
+    menuScaling: new paper.Point(1.2, 1.2),
+    scaling: new paper.Point(0.16, 0.16),
+    offset: new paper.Point(-2, -3.8),
+  },
+  playerHouseIcon: {
+    svg: 'icon-player-house',
+    menuScaling: new paper.Point(1.2, 1.2),
+    scaling: new paper.Point(0.16, 0.16),
+    size: new paper.Size(5, 4),
+    offset: new paper.Point(-2.5, -3.8),
+  },
+  playerTentIcon: {
+    svg: 'icon-playertent',
+    menuScaling: new paper.Point(1.2, 1.2),
+    scaling: new paper.Point(0.16, 0.16),
+    size: new paper.Size(5, 4),
+    offset: new paper.Point(-2.5, -3.8),
+  },
   tentRound: {},
   tentTriangle: {},
   tentTrapezoid: {},
@@ -87,14 +107,21 @@ export function load() {
     def.category = 'structures';
     def.type = structureType;
 
-    def.colorData = colors.npc;
+    if (!def.svg) {
+      def.colorData = colors.npc;
+    }
     def.scaling = def.scaling || new paper.Point(0.032, 0.032);
     def.menuScaling = def.menuScaling || new paper.Point(0.3, 0.3);
     def.size = def.size || new paper.Size(4, 4);
     def.offset = def.offset || new paper.Point(-2, -3.6);
     def.onSelect = function () {};
     // imnmediately load the assets
-    if (def.img) {
+    if (def.svg) {
+      loadSvg(def.svg, (item) => {
+        def.icon = item;
+        asyncStructureDefinition.onLoad();
+      });
+    } else if (def.img) {
       const img = new paper.Raster(def.img);
       def.icon = img;
       def.icon.onLoad = function () {

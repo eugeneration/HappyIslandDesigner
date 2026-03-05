@@ -179,7 +179,7 @@ class BaseObjectCategoryDefinition {
         const categoryDefinition = this;
         this.iconMenu = createMenu(
           objectMap(definitions, (def) => {
-            if (def.legacy || def.legacyCategory) {
+            if (def.legacy || def.legacyCategory || def.hidden) {
               return null;
             }
             const icon = createObjectIcon(def, getObjectData(def));

@@ -7,14 +7,91 @@ import { loadSvg } from '../helpers/svgLoad';
 export const asyncAmenitiesDefinition = new AsyncObjectDefinition();
 
 asyncAmenitiesDefinition.value = {
+  museumIcon: {
+    svg: 'icon-museum',
+    menuScaling: new paper.Point(0.85, 0.85),
+    scaling: new paper.Point(0.2, 0.2),
+    size: new paper.Size(7, 4),
+    offset: new paper.Point(-3.5, -6),
+  },
+  nookIcon: {
+    svg: 'icon-nooks-cranny',
+    menuScaling: new paper.Point(0.85, 0.85),
+    scaling: new paper.Point(0.2, 0.2),
+    size: new paper.Size(7, 4),
+    offset: new paper.Point(-3.5, -6),
+  },
+  ableIcon: {
+    svg: 'icon-abel',
+    menuScaling: new paper.Point(0.85, 0.85),
+    scaling: new paper.Point(0.2, 0.2),
+    size: new paper.Size(5, 4),
+    offset: new paper.Point(-2.5, -6),
+  },
+  airportIcon: {
+    svg: 'icon-airport',
+    menuScaling: new paper.Point(0.85, 0.85),
+    scaling: new paper.Point(0.2, 0.2),
+    size: new paper.Size(10, 6),
+    offset: new paper.Point(-5, -7),
+  },
+  townhallIcon: {
+    svg: 'icon-townhall',
+    menuScaling: new paper.Point(0.85, 0.85),
+    scaling: new paper.Point(0.2, 0.2),
+    size: new paper.Size(6, 4),
+    offset: new paper.Point(-3, -6),
+    extraObject() {
+      const baseGround = new paper.Path.Rectangle(
+        new paper.Rectangle(0, 0, 12, 10),
+        new paper.Size(1, 1),
+      );
+      baseGround.fillColor = colors.townsquare.color;
+      baseGround.position = new paper.Point(3, 3);
+      return baseGround;
+    },
+  },
+  centerIcon: {
+    svg: 'icon-amenity-center',
+    menuScaling: new paper.Point(0.85, 0.85),
+    scaling: new paper.Point(0.2, 0.2),
+    size: new paper.Size(6, 4),
+    offset: new paper.Point(-3, -6),
+    extraObject() {
+      const baseGround = new paper.Path.Rectangle(
+        new paper.Rectangle(0, 0, 12, 10),
+        new paper.Size(1, 1),
+      );
+      baseGround.fillColor = colors.campground.color;
+      baseGround.position = new paper.Point(3, 3);
+      return baseGround;
+    },
+  },
+  antiquesIcon: {
+    svg: 'icon-antiques',
+    menuScaling: new paper.Point(0.85, 0.85),
+    scaling: new paper.Point(0.2, 0.2),
+    size: new paper.Size(6, 4),
+    offset: new paper.Point(-3, -6),
+  },
+  tentIcon: {
+    svg: 'icon-tent',
+    menuScaling: new paper.Point(0.85, 0.85),
+    scaling: new paper.Point(0.2, 0.2),
+    size: new paper.Size(4, 4),
+    offset: new paper.Point(-2, -6),
+  },
   dock: {
     colorData: colors.dock,
     size: new paper.Size(7, 2),
     menuScaling: new paper.Point(0.2, 0.2),
     offset: new paper.Point(-3.5, -1.85),
   },
-  airport: {},
+  airport: {
+    hidden: true,
+  },
   center: {
+    hidden: true,
     extraObject() {
       const baseGround = new paper.Path.Rectangle(
         new paper.Rectangle(0, 0, 12, 10),
@@ -138,7 +215,12 @@ export function load() {
     def.offset = def.offset || new paper.Point(-4, -7.6);
     def.onSelect = () => {};
     // imnmediately load the assets
-    if (def.img) {
+    if (def.svg) {
+      loadSvg(def.svg, (item) => {
+        def.icon = item;
+        asyncAmenitiesDefinition.onLoad();
+      });
+    } else if (def.img) {
       const img = new paper.Raster(def.img);
       def.icon = img;
       def.icon.onLoad = function onLoad() {

@@ -1,9 +1,74 @@
 import paper from 'paper';
 import { AsyncObjectDefinition } from '../helpers/AsyncObjectDefinition';
+import { loadSvg } from '../helpers/svgLoad';
 
 export const asyncConstructionDefinition = new AsyncObjectDefinition();
 
+const length = 4;
+
 asyncConstructionDefinition.value = {
+  bridgeIconVertical: {
+    svg: 'icon-bridge',
+    scaling: new paper.Point(0.16, 0.05 * length),
+    menuScaling: new paper.Point(1.6, 1.3),
+    size: new paper.Size(4, length),
+    offset: new paper.Point(-2, -length),
+  },
+  bridgeIconHorizontal: {
+    svg: 'icon-bridge',
+    scaling: new paper.Point(0.16, 0.16),
+    menuScaling: new paper.Point(1.6, 1.6),
+    size: new paper.Size(6, 4),
+    offset: new paper.Point(-3 - 0.08, -2  - 0.08),
+    hidden: true,
+  },
+  bridgeIconTLBR: {
+    svg: 'icon-bridge',
+    scaling: new paper.Point(0.16, 0.16),
+    menuScaling: new paper.Point(0.8, 0.8),
+    size: new paper.Size(6, 6),
+    offset: new paper.Point(-3 - 0.08, -3  - 0.08),
+    hidden: true,
+  },
+  bridgeIconTRBL: {
+    svg: 'icon-bridge',
+    scaling: new paper.Point(0.16, 0.16),
+    menuScaling: new paper.Point(0.8, 0.8),
+    size: new paper.Size(6, 6),
+    offset: new paper.Point(-3 - 0.08, -3  - 0.08),
+    hidden: true,
+  },
+  stairsIconUp: {
+    svg: 'icon-stairs',
+    scaling: new paper.Point(0.175, 0.175),
+    menuScaling: new paper.Point(1.1, 1.1),
+    size: new paper.Size(2, 4),
+    offset: new paper.Point(-1, -4 + .5),
+  },
+  stairsIconDown: {
+    svg: 'icon-stairs',
+    scaling: new paper.Point(0.16, 0.16),
+    menuScaling: new paper.Point(1.2, 1.2),
+    size: new paper.Size(2, 4),
+    offset: new paper.Point(-1 - 0.08, -2  - 0.08),
+    hidden: true,
+  },
+  stairsIconLeft: {
+    svg: 'icon-stairs',
+    scaling: new paper.Point(0.16, 0.16),
+    menuScaling: new paper.Point(1.2, 1.2),
+    size: new paper.Size(4, 2),
+    offset: new paper.Point(-2 - 0.08, -1  - 0.08),
+    hidden: true,
+  },
+  stairsIconRight: {
+    svg: 'icon-stairs',
+    scaling: new paper.Point(0.16, 0.16),
+    menuScaling: new paper.Point(1.2, 1.2),
+    size: new paper.Size(4, 2),
+    offset: new paper.Point(-2 - 0.08, -1  - 0.08),
+    hidden: true,
+  },
   bridgeStoneHorizontal: {
     img: 'static/sprite/construction/bridge-stone-horizontal.png',
     size: new paper.Size(6, 4),
@@ -104,7 +169,12 @@ export function load() {
       def.offset || new paper.Point(-def.size.width / 2, -def.size.height);
     def.onSelect = function () {};
     // imnmediately load the assets
-    if (def.img) {
+    if (def.svg) {
+      loadSvg(def.svg, (item) => {
+        def.icon = item;
+        asyncConstructionDefinition.onLoad();
+      });
+    } else if (def.img) {
       const img = new paper.Raster(def.img);
       def.icon = img;
       def.icon.onLoad = function () {
