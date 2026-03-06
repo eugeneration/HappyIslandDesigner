@@ -326,6 +326,10 @@ export function initTools() {
           if (buttonMap[colors.rock.key]) {
             buttonMap[colors.rock.key].visible = !v2;
           }
+          // Move water button to rock's position for V2 (no gap)
+          if (buttonMap[colors.water.key]) {
+            buttonMap[colors.water.key].position.y = v2 ? 45 * 4 : 45 * 6;
+          }
           // If currently selected color is sand/rock and we're in V2, switch to level1
           if (v2 && (this.data.paintColorData.key === colors.sand.key || this.data.paintColorData.key === colors.rock.key)) {
             updatePaintColor(colors.level1);
