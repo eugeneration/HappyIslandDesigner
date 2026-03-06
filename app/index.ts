@@ -42,8 +42,14 @@ if (detectedLng !== 'en') {
   zoom();
   const skeleton = document.getElementById('loading-skeleton');
   if (skeleton) {
+    const dots = skeleton.querySelector('.skeleton-dots') as HTMLElement;
+    if (dots) {
+      dots.style.animation = 'fadeout 0.25s ease forwards';
+    }
     skeleton.classList.add('fade-out');
-    skeleton.addEventListener('animationend', () => skeleton.remove());
+    skeleton.addEventListener('animationend', (e) => {
+      if (e.target === skeleton) skeleton.remove();
+    });
   }
   if (__DEV__) {
     const { initDevTools } = await import(/* webpackChunkName: "devTools" */ './ui/devTools');

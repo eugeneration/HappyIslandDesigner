@@ -81,6 +81,24 @@
       type="font/woff"
       crossorigin
     />
+    <!-- Preload toolbar icons so they're cached before Paper.js requests them.
+         These match the icons created in app/tools/index.ts (tool-*),
+         app/drawer.ts (menu-undo/redo), and app/ui/leftMenu.ts (menu-help).
+         Update this list if toolbar icons are added/removed/renamed. -->
+    <link rel="preload" href="./static/img/tool-color.png" as="image" />
+    <link rel="preload" href="./static/img/tool-path.png" as="image" />
+    <link rel="preload" href="./static/img/tool-structure.png" as="image" />
+    <link rel="preload" href="./static/img/tool-amenities.png" as="image" />
+    <link rel="preload" href="./static/img/tool-construction.png" as="image" />
+    <link rel="preload" href="./static/img/tool-tree.png" as="image" />
+    <link rel="preload" href="./static/img/tool-flower.png" as="image" />
+    <link rel="preload" href="./static/img/menu-undo.png" as="image" />
+    <link rel="preload" href="./static/img/menu-redo.png" as="image" />
+    <link rel="preload" href="./static/img/menu-help.png" as="image" />
+    <link rel="preload" href="./static/img/ui-plus.png" as="image" />
+    <link rel="preload" href="./static/img/ui-minus.png" as="image" />
+    <link rel="preload" href="./static/img/menu-drawbrush.png" as="image" />
+    <link rel="preload" href="./static/img/menu-drawline.png" as="image" />
   </head>
   <body>
     <style>
@@ -89,13 +107,19 @@
       @keyframes bounce{0%,100%{transform:translateY(0) scaleX(1) scaleY(1);animation-timing-function:ease-in}8%{transform:translateY(13.75%) scaleX(1.3) scaleY(0.75);animation-timing-function:cubic-bezier(0.33,1,0.68,1)}30%{transform:translateY(-16px) scaleX(0.9) scaleY(1.1);animation-timing-function:cubic-bezier(0.32,0,0.67,0)}44%{transform:translateY(13.75%) scaleX(1.3) scaleY(0.75);animation-timing-function:ease-out}52%{transform:translateY(0) scaleX(1) scaleY(1)}}
       .skeleton-shimmer{position:relative;overflow:hidden}
       .skeleton-shimmer::after{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(45deg,#f5f3e5 30%,#ecebd5 50%,#f5f3e5 70%);background-size:200% 200%;animation:shimmer 1.5s ease-in-out infinite}
-      #loading-skeleton.fade-out{animation:fadeout 0.3s ease forwards}
+      #loading-skeleton.fade-out{animation:fadeout 1s ease forwards}
+      @keyframes slideInLeft{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:translateX(0)}}
+      @keyframes slideInRight{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+      .skeleton-slide-left{opacity:0;animation:slideInLeft 0.8s ease forwards;animation-delay:0.5s}
+      .skeleton-slide-right{opacity:0;animation:slideInRight 0.8s ease forwards;animation-delay:0.5s}
+      @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+      .skeleton-dots{opacity:0;animation:fadeIn 0.5s ease forwards;animation-delay:0.5s}
     </style>
     <div id="loading-skeleton" style="position:fixed;inset:0;z-index:9999;pointer-events:none;display:flex;align-items:center;justify-content:center">
       <div style="position:fixed;inset:0;background:#83e1c3"></div>
-      <div class="skeleton-shimmer" style="position:fixed;left:-60px;top:0;width:120px;height:540px;border-radius:0 0 60px 0;background:#f5f3e5"></div>
-      <div class="skeleton-shimmer" style="position:fixed;top:7px;right:8px;width:84px;height:46px;border-radius:23px;background:#f5f3e5"></div>
-      <div style="display:flex;gap:4px;font-size:32px;color:#57b499;font-weight:bold">
+      <div class="skeleton-shimmer skeleton-slide-left" style="position:fixed;left:-60px;top:0;width:120px;height:540px;border-radius:0 0 60px 0;background:#f5f3e5"></div>
+      <div class="skeleton-shimmer skeleton-slide-right" style="position:fixed;top:7px;right:8px;width:84px;height:46px;border-radius:23px;background:#f5f3e5"></div>
+      <div class="skeleton-dots" style="display:flex;gap:4px;font-size:32px;color:#57b499;font-weight:bold">
         <span style="animation:bounce 1s ease-in-out infinite">.</span>
         <span style="animation:bounce 1s ease-in-out 0.15s infinite">.</span>
         <span style="animation:bounce 1s ease-in-out 0.3s infinite">.</span>
