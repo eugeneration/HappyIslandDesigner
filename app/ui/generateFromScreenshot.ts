@@ -3996,9 +3996,8 @@ function detectedIconsToObjectGroups(
     // Convert center coords to top-left coords, since objectCreateCommand
     // treats the position as the top-left corner of the object.
     const [w, h] = icon.resolvedObjectSize ?? icon.template.objectSizeInCoords;
-    // Round to 2 decimal places to match save-legacy.ts encoding
-    const x = Math.round((icon.centerCoordX - w / 2 + Number.EPSILON) * 100) / 100;
-    const y = Math.round((icon.centerCoordY - h / 2 + Number.EPSILON) * 100) / 100;
+    const x = Math.round(icon.centerCoordX - w / 2);
+    const y = Math.round(icon.centerCoordY - h / 2);
     groups[key].push(x, y);
   }
   return groups;
