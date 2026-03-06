@@ -108,6 +108,12 @@ module.exports = (env, argv) => {
         filename: '[name].css',
         chunkFilename: '[name].css',
       }),
+      // Exclude acorn from the bundle. Paper.js optionally requires it for
+      // PaperScript support (with a try/catch fallback), but this app never
+      // uses PaperScript. Saves ~236K from the vendor bundle.
+      new webpack.IgnorePlugin({
+        resourceRegExp: /^acorn$/,
+      }),
     ],
     optimization: {
       splitChunks: {
