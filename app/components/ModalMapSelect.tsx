@@ -756,7 +756,7 @@ export default function ModalMapSelect(){
               backgroundColor: colors.level3.cssColor,
               borderRadius: '30px 4px 4px 30px',
             }}>
-              <Image variant='block' sx={{maxWidth: 150}} src='static/img/nook-inc-white.png'/>
+              <Image variant='block' sx={{width: 150, maxWidth: '100%', aspectRatio: '300 / 60'}} src='static/img/nook-inc-white.png'/>
             </Box>
           )}
           <IslandLayoutSelector wizardState={wizardState} edgeTileRaster={edgeTileRaster} />
@@ -1042,11 +1042,11 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
       <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
         <Image
           src='static/img/screenshot-instructions.png'
-          sx={{ maxWidth: '100%', maxHeight: 150, display: ['none', 'block'] }}
+          sx={{ width: 375, maxWidth: '100%', display: ['none', 'block'], aspectRatio: '657 / 263' }}
         />
         <Image
           src='static/img/screenshot-instructions-mobile.png'
-          sx={{ maxWidth: '100%', maxHeight: 250, display: ['block', 'none'] }}
+          sx={{ width: 136, maxWidth: '100%', display: ['block', 'none'], aspectRatio: '268 / 493' }}
         />
       </Box>
       <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('screenshot_title')}<BetaBadge /></Heading>
@@ -1329,7 +1329,7 @@ function IslandGridStep({ layoutType, layouts, onSelect, onBack }: IslandGridSte
           <Card
             key={index}
             onClick={() => onSelect(index)}>
-            <Image variant='card' src={`static/img/layouts/${layoutType}-${layout.name}.png`}/>
+            <Image variant='card' src={`static/img/layouts/${layoutType}-${layout.name}.png`} sx={{ aspectRatio: '300 / 245' }}/>
           </Card>
         ))}
       </Grid>
@@ -1349,12 +1349,13 @@ function Card({children, onClick, maxWidth}: CardProps) {
       m={[1, 2]}
       variant='card'
       onClick={onClick}
-      sx={maxWidth ? {maxWidth: maxWidth} : {maxWidth: 185}}
+      sx={maxWidth ? {maxWidth: maxWidth, width: maxWidth} : {maxWidth: 185, width: 185}}
     >
       {children}
     </Button>
   );
 }
+
 
 function Badge({ label, bg }: { label: string; bg: string }) {
   return (
@@ -1402,6 +1403,7 @@ function EntryButton({ children, onClick, imageSrc, bgColor }: EntryButtonProps)
         flexDirection: 'column',
         alignItems: 'center',
         bg: 'transparent',
+        width: ['100%', 300],
         maxWidth: 300,
         p: 0,
         m: [2, 2],
@@ -1432,6 +1434,7 @@ function EntryButton({ children, onClick, imageSrc, bgColor }: EntryButtonProps)
         <Image src={imageSrc} sx={{
           width: '100%',
           display: 'block',
+          aspectRatio: '514 / 303',
           transition: 'transform 0.5s',
         }} />
       </Box>

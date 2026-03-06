@@ -48,6 +48,8 @@ export default {
       width: '100%',
       maxWidth: 300,
       borderRadius: 6,
+      aspectRatio: '244 / 209',
+      backgroundColor: colors.water.cssColor,
     },
     icon: {
       width: 24,
