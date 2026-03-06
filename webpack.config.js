@@ -131,10 +131,12 @@ module.exports = (env, argv) => {
         {
           directory: path.join(__dirname, 'static'),
           publicPath: '/static',
+          watch: { ignored: ['**/worktrees/**'] },
         },
         {
           directory: __dirname,
           publicPath: '/',
+          watch: { ignored: ['**/worktrees/**'] },
         }
       ],
       hot: true,
