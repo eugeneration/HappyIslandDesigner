@@ -466,7 +466,16 @@ export function loadEdgeTilesAsGeometry(): void {
     edgeGeometryGroup.addChild(combined);
   }
 
+  edgeGeometryGroup.locked = true;
+
   updateAirportOverlay();
+}
+
+// Toggle whether edge tile geometry intercepts mouse events
+export function setEdgeTilesInteractive(interactive: boolean): void {
+  if (edgeGeometryGroup) {
+    edgeGeometryGroup.locked = !interactive;
+  }
 }
 
 // Update airport SVG overlay — shown when tiles 34+35 are adjacent on bottom row

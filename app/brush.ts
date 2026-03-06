@@ -9,6 +9,8 @@ import { layerDefinition } from './layerDefinition';
 import { pathDefinition } from './pathDefinition';
 import { getObjectData } from './helpers/getObjectData';
 import { createObjectPreviewAsync } from './ui/createObject';
+import { isV2Map } from './mapState';
+import { getInnerDrawableBounds } from './ui/edgeTiles';
 
 let rawBrushSize = 2;
 let brushSize = 2;
@@ -26,6 +28,35 @@ const brushTypes = {
 let brushLineForce = false;
 let brushType = brushTypes.rounded;
 let paintColor = colors.level1;
+
+let cursorInBounds = true;
+let brushPreviewActive = false;
+let objectPreviewActive = false;
+
+function updatePreviewVisibility() {
+  const brushVisible = cursorInBounds && brushPreviewActive;
+  brush.visible = brushVisible;
+  brushOutline.visible = brushVisible;
+  const objectVisible = cursorInBounds && objectPreviewActive;
+  if (objectPreview) objectPreview.visible = objectVisible;
+  if (objectPreviewOutline) objectPreviewOutline.visible = objectVisible;
+}
+
+export function setCursorInBounds(inBounds: boolean) {
+  if (cursorInBounds === inBounds) return;
+  cursorInBounds = inBounds;
+  updatePreviewVisibility();
+}
+
+export function setBrushPreviewActive(active: boolean) {
+  brushPreviewActive = active;
+  updatePreviewVisibility();
+}
+
+export function setObjectPreviewActive(active: boolean) {
+  objectPreviewActive = active;
+  updatePreviewVisibility();
+}
 
 export function initBrush() {
   brush = new paper.Path();
@@ -131,6 +162,12 @@ export function updateCoordinateLabel(event) {
   const coordinate = layers.mapOverlayLayer.globalToLocal(event.point);
   // coordinateLabel.content = '' + event.point + '\n' + coordinate.toString();
   // coordinateLabel.position = rawCoordinate;
+
+  if (isV2Map()) {
+    const inBounds = getInnerDrawableBounds().contains(coordinate);
+    setCursorInBounds(inBounds);
+    if (!inBounds) return;
+  }
 
   brushOutline.position = coordinate;
   brush.position = getBrushCenteredCoordinate(coordinate);

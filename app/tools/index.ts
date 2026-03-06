@@ -4,10 +4,8 @@ import {
   updateCoordinateLabel,
   updateObjectPreview,
   updatePaintColor,
-  getCurrentBrush,
-  getCurrentBrushOutline,
-  getCurrentObjectPreviewOutline,
-  getCurrentObjectPreview,
+  setBrushPreviewActive,
+  setObjectPreviewActive,
 } from '../brush';
 
 import * as amenitiesDef from './amenities';
@@ -33,8 +31,15 @@ import { pathDefinition } from '../pathDefinition';
 import { getColorAtCoordinate } from '../getColorAtCoordinate';
 import { startDraw, draw, endDraw } from '../paint';
 import { enterEdgeEditMode, exitEdgeEditMode, isEdgeEditModeActive } from '../ui/edgeTileEditor';
+import { setEdgeTilesInteractive, getInnerDrawableBounds } from '../ui/edgeTiles';
 
 const toolPrefix = 'tool-';
+
+function isOutOfIslandBounds(event): boolean {
+  if (!isV2Map()) return false;
+  const coord = layers.mapOverlayLayer.globalToLocal(event.point);
+  return !getInnerDrawableBounds().contains(coord);
+}
 
 class BaseToolCategoryDefinition {
   onSelect(subclass, isSelected, isReselected) {
@@ -46,9 +51,7 @@ class BaseToolCategoryDefinition {
       this.openMenu(subclass, isSelected);
     }
 
-    if (!isSelected) {
-      subclass.enablePreview(isSelected);
-    }
+    subclass.enablePreview(isSelected);
   }
   onMouseMove(subclass, event: paper.MouseEvent) {
     updateCoordinateLabel(event);
@@ -75,6 +78,10 @@ class BaseToolCategoryDefinition {
     }
   }
   updateTool(subclass, prevToolData, nextToolData, isToolTypeSwitch) {
+    // Make edge tiles block cursor only for terrain/path tools
+    const isTerrainTool = nextToolData.type === 'terrain' || nextToolData.type === 'path';
+    setEdgeTilesInteractive(isTerrainTool);
+
     const sameToolType =
       prevToolData &&
       prevToolData.definition.type === nextToolData.definition.type;
@@ -162,15 +169,7 @@ class BaseObjectCategoryDefinition {
   }
   enablePreview(isEnabled) {
     this.base.enablePreview(this, isEnabled);
-    const objectPreviewOutline = getCurrentObjectPreviewOutline();
-    const objectPreview = getCurrentObjectPreview();
-
-    if (objectPreviewOutline) {
-      objectPreviewOutline.visible = isEnabled;
-    }
-    if (objectPreview) {
-      objectPreview.visible = isEnabled;
-    }
+    setObjectPreviewActive(isEnabled);
   }
   openMenu(isSelected) {
     if (this.iconMenu === null) {
@@ -268,6 +267,7 @@ export function initTools() {
     },
     onMouseDown(event) {
       this.base.onMouseDown(this, event);
+      if (isOutOfIslandBounds(event)) return;
       if (paper.Key.isDown('alt')) {
         const rawCoordinate = layers.mapOverlayLayer.globalToLocal(event.point);
         updatePaintColor(getColorAtCoordinate(rawCoordinate));
@@ -276,6 +276,7 @@ export function initTools() {
     },
     onMouseDrag(event) {
       this.base.onMouseDrag(this, event);
+      if (isOutOfIslandBounds(event)) return;
       draw(event);
     },
     onMouseUp(event) {
@@ -287,8 +288,7 @@ export function initTools() {
     },
     enablePreview(isEnabled) {
       this.base.enablePreview(this, isEnabled);
-      getCurrentBrushOutline().visible = isEnabled;
-      getCurrentBrush().visible = isEnabled;
+      setBrushPreviewActive(isEnabled);
     },
     openMenu(isSelected) {
       if (this.iconMenu === null) {
@@ -367,6 +367,7 @@ export function initTools() {
     },
     onMouseDown(event) {
       this.base.onMouseDown(this, event);
+      if (isOutOfIslandBounds(event)) return;
       if (paper.Key.isDown('alt')) {
         const rawCoordinate = layers.mapOverlayLayer.globalToLocal(event.point);
         updatePaintColor(getColorAtCoordinate(rawCoordinate));
@@ -375,6 +376,7 @@ export function initTools() {
     },
     onMouseDrag(event) {
       this.base.onMouseDrag(this, event);
+      if (isOutOfIslandBounds(event)) return;
       draw(event);
     },
     onMouseUp(event) {
@@ -386,8 +388,7 @@ export function initTools() {
     },
     enablePreview(isEnabled) {
       this.base.enablePreview(this, isEnabled);
-      getCurrentBrushOutline().visible = isEnabled;
-      getCurrentBrush().visible = isEnabled;
+      setBrushPreviewActive(isEnabled);
     },
     openMenu(isSelected) {
       if (this.iconMenu === null) {
