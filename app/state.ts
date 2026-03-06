@@ -1,5 +1,5 @@
 import { emitter } from './emitter';
-import { applyCreateObject } from './ui/createObject';
+import { applyCreateObject, applyPropertyChange } from './ui/createObject';
 import { applyMoveCommand, applyDiff } from './paint';
 import { autosaveMap } from './save';
 import objectIsEmpty from './helpers/objectIsEmpty';
@@ -88,8 +88,10 @@ export function applyCommand(command, isApply: boolean) {
           applyCreateObject(!isApply, command);
           break;
         case 'position':
-          console.log(command)
           applyMoveCommand(isApply, command);
+          break;
+        case 'property':
+          applyPropertyChange(isApply, command);
           break;
         case 'color':
           break;
@@ -140,6 +142,17 @@ export function objectCreateCommand(objectData, position) {
 
 export function objectDeleteCommand(objectData, position) {
   return objectCommand('delete', position.clone(), objectData);
+}
+
+export function objectPropertyCommand(oldData, oldPosition, newData, newPosition) {
+  return {
+    type: 'object',
+    action: 'property',
+    oldData,
+    oldPosition: oldPosition.clone(),
+    newData,
+    newPosition: newPosition.clone(),
+  };
 }
 
 export function objectPositionCommand(objectId, prevPosition, position) {

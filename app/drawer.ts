@@ -22,6 +22,7 @@ import { initWaterfall } from './waterfall';
 import { backgroundInit, drawBackground } from './background';
 import { resizeCoordinates } from './resizeCoordinates';
 import { keys } from './keyboard';
+import { initObjectPanel, isPanelClick } from './ui/objectPanel';
 
 let undoMenuRef: paper.Group | null = null;
 let mainMenuButtonRef: paper.Item | null = null;
@@ -96,6 +97,9 @@ export function drawer() {
     if (keys.isSpaceDown) {
       return;
     }
+    if (isPanelClick(event)) {
+      return;
+    }
     toolState.onDown(event);
     if (toolState.toolIsActive) {
       toolState.activeTool.definition.onMouseDown(event);
@@ -145,6 +149,7 @@ export function drawer() {
   layers.fixedLayer.activate();
   initTools();
   addHelpButton();
+  initObjectPanel();
 
   function undoMenuButton(path, onPress) {
     const icon = new paper.Raster(path);

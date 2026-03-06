@@ -1,5 +1,6 @@
 import { toolCategoryDefinition } from '.';
 import { layers } from '../layers';
+import { emitter } from '../emitter';
 
 class ToolState {
   activeTool: any = null;
@@ -41,6 +42,7 @@ class ToolState {
     } else if (toolData) {
       toolData.definition.updateTool(prevTool, toolData, isToolTypeSwitch);
     }
+    emitter.emit('toolSwitched', toolData);
   }
   deleteSelection() {
     Object.keys(this.selected).forEach((objectId) => {
@@ -53,10 +55,12 @@ class ToolState {
     this.deselectAll();
     this.selected[object.data.id] = object;
     object.onSelect(true);
+    emitter.emit('objectSelected', object);
   }
   deselectObject(object) {
     delete this.selected[object.data.id];
     object.onSelect(false);
+    emitter.emit('objectDeselected');
   }
   deselectAll() {
     Object.keys(this.selected).forEach((objectId) => {
@@ -64,6 +68,7 @@ class ToolState {
       object.onSelect(false);
     });
     this.selected = {};
+    emitter.emit('objectDeselected');
   }
   onDown(event) {
     // deactivate the tool when something is selected or dragging an object

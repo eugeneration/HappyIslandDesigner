@@ -29,6 +29,10 @@ function decodeObject(encodedData, encodingVersion) {
   ) {
     const objectDefinition =
       toolCategoryDefinition[encodedData.category].tools.value[objectData.type];
+    if (!objectDefinition) {
+      console.warn(`Unknown object type "${objectData.type}" in category "${objectData.category}", skipping`);
+      return null;
+    }
     if (objectDefinition.legacy) {
       objectData.type = objectDefinition.legacy;
     }

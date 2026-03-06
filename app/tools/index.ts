@@ -22,6 +22,7 @@ import { addToLeftToolMenu, setLeftMenuExtended } from '../ui/leftMenu';
 import { layers } from '../layers';
 import { objectMap } from '../helpers/objectMap';
 import { createObjectIcon, placeObject } from '../ui/createObject';
+import { constructionDisplayNames } from './construction';
 import { layerDefinition } from '../layerDefinition';
 import { showBrushSizeUI } from '../ui/brushMenu';
 import { isV2Map } from '../mapState';
@@ -118,6 +119,13 @@ class BaseToolCategoryDefinition {
         ) {
           subclass.iconMenu.data.update(nextTool);
           updateObjectPreview();
+          // Update menu button icon for rotated construction variants
+          if (nextToolData.type === 'construction' &&
+              nextToolData.tool &&
+              constructionDisplayNames[nextTool] &&
+              nextToolData.definition.updateMenuButtonIcon) {
+            nextToolData.definition.updateMenuButtonIcon(nextToolData.tool);
+          }
         }
       }
     }
@@ -171,6 +179,31 @@ class BaseObjectCategoryDefinition {
     this.base.enablePreview(this, isEnabled);
     setObjectPreviewActive(isEnabled);
   }
+  menuBaseButtons: Record<string, { button: paper.Group, baseDef: any }> = {};
+
+  updateMenuButtonIcon(newDef) {
+    if (!this.iconMenu) return;
+    // Find which base button should show this variant
+    // For stairs: base is stairsIconUp, for bridge: base is bridgeIconVertical
+    const displayName = constructionDisplayNames[newDef.type];
+    if (!displayName) return;
+
+    const baseType = displayName === 'Stairs' ? 'stairsIconUp' : 'bridgeIconVertical4';
+    const entry = this.menuBaseButtons[baseType];
+    if (!entry) return;
+
+    const { button } = entry;
+    // Replace the icon child (index 1, after the circle backing at index 0)
+    const oldIcon = button.children[1];
+    if (oldIcon) oldIcon.remove();
+    const newIcon = createObjectIcon(newDef, getObjectData(newDef));
+    newIcon.scaling = newDef.menuScaling;
+    button.insertChild(1, newIcon);
+
+    // Update selection state to highlight the base button
+    this.iconMenu.data.update(baseType);
+  }
+
   openMenu(isSelected) {
     if (this.iconMenu === null) {
       this.tools.getAsyncValue((definitions) => {
@@ -183,11 +216,16 @@ class BaseObjectCategoryDefinition {
             }
             const icon = createObjectIcon(def, getObjectData(def));
             icon.scaling = def.menuScaling;
-            return createButton(icon, 20, () => {
+            const btn = createButton(icon, 20, () => {
               toolState.switchTool(
                 toolState.toolMapValue(categoryDefinition, def, {}),
               );
             });
+            // Track base buttons for stairs/bridge
+            if (constructionDisplayNames[def.type]) {
+              this.menuBaseButtons[def.type] = { button: btn, baseDef: def };
+            }
+            return btn;
           }),
           this.menuOptions,
         );
