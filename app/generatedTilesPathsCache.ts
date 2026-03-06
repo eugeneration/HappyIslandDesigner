@@ -6,6 +6,7 @@ export type TilePathData = {
     rock: number[][];
     sand: number[][];
     water: number[][];
+    dock: number[][];
   };
 };
 
@@ -84,7 +85,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "2": {
@@ -173,7 +175,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "3": {
@@ -250,7 +253,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "4": {
@@ -321,7 +325,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "5": {
@@ -410,7 +415,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "6": {
@@ -513,7 +519,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "7": {
@@ -599,7 +606,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           4,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "8": {
@@ -701,7 +709,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           4,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "9": {
@@ -825,7 +834,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "10": {
@@ -925,7 +935,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "11": {
@@ -1047,7 +1058,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "12": {
@@ -1171,7 +1183,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "13": {
@@ -1265,7 +1278,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           13
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "14": {
@@ -1381,7 +1395,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           13
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "15": {
@@ -1481,7 +1496,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           13
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "16": {
@@ -1593,7 +1609,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           13
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "17": {
@@ -1679,7 +1696,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           13
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "18": {
@@ -1761,7 +1779,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           13
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "19": {
@@ -1831,7 +1850,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           13
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "20": {
@@ -1899,7 +1919,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           13
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "21": {
@@ -1963,7 +1984,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           13
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "22": {
@@ -2051,7 +2073,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           13
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "23": {
@@ -2127,7 +2150,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           13
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "24": {
@@ -2223,7 +2247,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           13
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "25": {
@@ -2315,7 +2340,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           13
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "26": {
@@ -2411,7 +2437,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "27": {
@@ -2525,7 +2552,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "28": {
@@ -2635,7 +2663,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "29": {
@@ -2710,7 +2739,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "30": {
@@ -2791,7 +2821,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "31": {
@@ -2860,7 +2891,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "32": {
@@ -2949,7 +2981,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "34": {
@@ -3027,7 +3060,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "35": {
@@ -3087,7 +3121,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "39": {
@@ -3146,7 +3181,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "40": {
@@ -3197,7 +3233,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "41": {
@@ -3256,7 +3293,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "42": {
@@ -3307,7 +3345,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "43": {
@@ -3357,6 +3396,18 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           16,
           16
+        ]
+      ],
+      "dock": [
+        [
+          15,
+          4,
+          15,
+          6,
+          8,
+          6,
+          8,
+          4
         ]
       ]
     }
@@ -3416,6 +3467,18 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           16,
           16
+        ]
+      ],
+      "dock": [
+        [
+          8,
+          11,
+          8,
+          9,
+          15,
+          9,
+          15,
+          11
         ]
       ]
     }
@@ -3505,7 +3568,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "46": {
@@ -3605,7 +3669,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "47": {
@@ -3699,7 +3764,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "48": {
@@ -3758,7 +3824,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "49": {
@@ -3813,7 +3880,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "50": {
@@ -3880,7 +3948,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "51": {
@@ -3935,7 +4004,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "52": {
@@ -3989,6 +4059,18 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           16,
           16
+        ]
+      ],
+      "dock": [
+        [
+          7,
+          4,
+          7,
+          6,
+          1,
+          6,
+          1,
+          4
         ]
       ]
     }
@@ -4048,6 +4130,18 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           16,
           16
+        ]
+      ],
+      "dock": [
+        [
+          10,
+          12,
+          2,
+          12,
+          2,
+          10,
+          10,
+          10
         ]
       ]
     }
@@ -4124,7 +4218,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "55": {
@@ -4201,7 +4296,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "56": {
@@ -4284,7 +4380,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "57": {
@@ -4369,7 +4466,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "58": {
@@ -4446,7 +4544,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "59": {
@@ -4529,7 +4628,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           5
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "60": {
@@ -4634,7 +4734,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           4
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "61": {
@@ -4733,7 +4834,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "62": {
@@ -4825,7 +4927,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           12,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "63": {
@@ -4927,7 +5030,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           12,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "64": {
@@ -5001,7 +5105,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "65": {
@@ -5123,7 +5228,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "66": {
@@ -5249,7 +5355,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "67": {
@@ -5363,7 +5470,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "68": {
@@ -5450,7 +5558,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "69": {
@@ -5527,7 +5636,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "70": {
@@ -5616,7 +5726,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "71": {
@@ -5683,7 +5794,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "72": {
@@ -5748,7 +5860,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "73": {
@@ -5813,7 +5926,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "74": {
@@ -5913,7 +6027,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "75": {
@@ -6005,7 +6120,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "76": {
@@ -6083,7 +6199,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "77": {
@@ -6155,7 +6272,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "78": {
@@ -6232,7 +6350,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "79": {
@@ -6309,7 +6428,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "80": {
@@ -6383,7 +6503,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "81": {
@@ -6457,7 +6578,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "82": {
@@ -6559,7 +6681,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "83": {
@@ -6633,7 +6756,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "900": {
@@ -6723,7 +6847,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "901": {
@@ -6801,7 +6926,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           13
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "902": {
@@ -6844,7 +6970,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "903": {
@@ -6887,7 +7014,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "904": {
@@ -6916,7 +7044,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "905": {
@@ -6945,7 +7074,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "906": {
@@ -7005,7 +7135,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           13
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "907": {
@@ -7034,7 +7165,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "908": {
@@ -7081,7 +7213,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           16,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "909": {
@@ -7128,7 +7261,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "910": {
@@ -7175,7 +7309,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "911": {
@@ -7237,7 +7372,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           0,
           13
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "912": {
@@ -7296,7 +7432,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "913": {
@@ -7355,7 +7492,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "914": {
@@ -7403,7 +7541,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           13,
           16
         ]
-      ]
+      ],
+      "dock": []
     }
   },
   "915": {
@@ -7451,7 +7590,8 @@ export const tilesPathsCache: Record<number, TilePathData> = {
           3,
           0
         ]
-      ]
+      ],
+      "dock": []
     }
   }
 };

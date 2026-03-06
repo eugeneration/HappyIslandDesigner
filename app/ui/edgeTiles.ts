@@ -413,7 +413,7 @@ export function loadEdgeTilesAsGeometry(): void {
   edgeGeometryGroup.applyMatrix = false;
 
   // Collect all paths by terrain type
-  const allPaths: Record<string, paper.Path[]> = { rock: [], sand: [], water: [] };
+  const allPaths: Record<string, paper.Path[]> = { rock: [], sand: [], water: [], dock: [] };
 
   for (const [x, y] of ccwPositions) {
     const key = getBlockKey(x, y);
@@ -447,9 +447,10 @@ export function loadEdgeTilesAsGeometry(): void {
     rock: colors.rock.color,
     sand: colors.sand.color,
     water: colors.water.color,
+    dock: colors.dock.color,
   };
 
-  const renderOrder = ['water', 'sand', 'rock']; // bottom to top
+  const renderOrder = ['water', 'sand', 'dock', 'rock']; // bottom to top
   for (const terrainType of renderOrder) {
     const paths = allPaths[terrainType];
     if (!paths || paths.length === 0) continue;

@@ -14,6 +14,7 @@ const LAYER_COLORS = {
   '#737a89': 'rock',
   '#eee9a9': 'sand',
   '#83e1c3': 'water',
+  '#d5ac71': 'dock',
 };
 
 // Parse SVG path d attribute to flat coordinate arrays
@@ -47,7 +48,7 @@ function parsePathData(d) {
 
 // Extract layer data from SVG content
 function extractLayers(svgContent) {
-  const layers = { rock: [], sand: [], water: [] };
+  const layers = { rock: [], sand: [], water: [], dock: [] };
 
   // Match path elements - extract full path tag then parse attributes
   const pathRegex = /<path([^>]*)\/>/g;
@@ -145,6 +146,7 @@ export type TilePathData = {
     rock: number[][];
     sand: number[][];
     water: number[][];
+    dock: number[][];
   };
 };
 
