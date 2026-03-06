@@ -61,13 +61,17 @@
       }
     </script>
 
-    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-159461234-1"></script>
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'UA-159461234-1');
+      if (!isDevSite) {
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=G-D84QFBFDHP';
+        document.head.appendChild(s);
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-D84QFBFDHP');
+      }
     </script>
 
     <link rel="icon" type="image/png" sizes="192x192" href="favicon-192x192.png" />
