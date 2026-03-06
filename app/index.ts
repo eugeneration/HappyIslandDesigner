@@ -40,6 +40,11 @@ if (detectedLng !== 'en') {
   await install();
   drawer();
   zoom();
+  const skeleton = document.getElementById('loading-skeleton');
+  if (skeleton) {
+    skeleton.classList.add('fade-out');
+    skeleton.addEventListener('animationend', () => skeleton.remove());
+  }
   if (__DEV__) {
     const { initDevTools } = await import(/* webpackChunkName: "devTools" */ './ui/devTools');
     initDevTools();

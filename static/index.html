@@ -83,6 +83,24 @@
     />
   </head>
   <body>
+    <style>
+      @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+      @keyframes fadeout{to{opacity:0}}
+      @keyframes bounce{0%,100%{transform:translateY(0) scaleX(1) scaleY(1);animation-timing-function:ease-in}8%{transform:translateY(13.75%) scaleX(1.3) scaleY(0.75);animation-timing-function:cubic-bezier(0.33,1,0.68,1)}30%{transform:translateY(-16px) scaleX(0.9) scaleY(1.1);animation-timing-function:cubic-bezier(0.32,0,0.67,0)}44%{transform:translateY(13.75%) scaleX(1.3) scaleY(0.75);animation-timing-function:ease-out}52%{transform:translateY(0) scaleX(1) scaleY(1)}}
+      .skeleton-shimmer{position:relative;overflow:hidden}
+      .skeleton-shimmer::after{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(45deg,#f5f3e5 30%,#ecebd5 50%,#f5f3e5 70%);background-size:200% 200%;animation:shimmer 1.5s ease-in-out infinite}
+      #loading-skeleton.fade-out{animation:fadeout 0.3s ease forwards}
+    </style>
+    <div id="loading-skeleton" style="position:fixed;inset:0;z-index:9999;pointer-events:none;display:flex;align-items:center;justify-content:center">
+      <div style="position:fixed;inset:0;background:#83e1c3"></div>
+      <div class="skeleton-shimmer" style="position:fixed;left:-60px;top:0;width:120px;height:540px;border-radius:0 0 60px 0;background:#f5f3e5"></div>
+      <div class="skeleton-shimmer" style="position:fixed;top:7px;right:8px;width:84px;height:46px;border-radius:23px;background:#f5f3e5"></div>
+      <div style="display:flex;gap:4px;font-size:32px;color:#57b499;font-weight:bold">
+        <span style="animation:bounce 1s ease-in-out infinite">.</span>
+        <span style="animation:bounce 1s ease-in-out 0.15s infinite">.</span>
+        <span style="animation:bounce 1s ease-in-out 0.3s infinite">.</span>
+      </div>
+    </div>
     <div class="hidden">
       <p style="font-family: TTNorms;">.</p>
     </div>
@@ -96,6 +114,7 @@
         setTimeout(function() {
           banner.style.opacity = '0';
           banner.style.pointerEvents = 'none';
+          banner.addEventListener('transitionend', function() { banner.remove(); });
         }, 5000);
       }
     </script>
