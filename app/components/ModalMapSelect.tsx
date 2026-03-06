@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Modal from 'react-modal';
 import paper from 'paper';
-import {Box, Button, Image, Flex, Grid, Heading, Text, Link} from '@theme-ui/components'
+import {Box, Button, Image, Flex, Grid, Heading, Text} from '@theme-ui/components'
 import i18next from 'i18next';
 import { colors } from '../colors';
 import './modal.scss';
@@ -764,7 +764,6 @@ export default function ModalMapSelect(){
 
 function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: WizardState; edgeTileRaster: string | null }) {
   const [layout, setLayout] = useState<number>(-1);
-  const [help, setHelp] = useState<boolean>(false);
   const lastContentRef = useRef<React.ReactNode>(null);
   const [Layouts, setLayouts] = useState<Record<string, Layout[]> | null>(null);
 
@@ -798,24 +797,6 @@ function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: Wi
       }
     }
   }, [layout, wizardState.riverDirection, Layouts]);
-
-  // Help screen
-  if (help) {
-    return (
-      <Flex p={[0, 3]} sx={{flexDirection: 'column', alignItems: 'center', position: 'relative'}}>
-        <Box sx={{position: 'absolute', left: 0, top: [1, 30]}}>
-          <Button variant='icon' onClick={() => setHelp(false)}>
-            <Image sx={{width: 'auto'}} src='static/img/back.png' />
-          </Button>
-        </Box>
-        <Image sx={{width: 100, margin: 'auto'}} src={'static/img/blathers.png'}/>
-        <Heading m={3} sx={{px: 4, textAlign: 'center'}}>{'Please help contribute!'}</Heading>
-        <Text my={2}>{'Sorry, we don\'t have all the map templates yet (there are almost 100 river layouts in the game!). Each option you see here has been hand-made by a member of the community.'}</Text>
-        <Text my={2}>{'You can use the \'Tracing Overlay\' tool to trace an image of your island. When you\'re done please consider contributing your island map in either the '}<Link href={'https://github.com/eugeneration/HappyIslandDesigner/issues/59'}>Github</Link>{' or '}<Link href={'https://discord.gg/EtaqD5H'}>Discord</Link>!</Text>
-        <Text my={2}>{'Please note that your island may have different shaped rock formations, beaches, and building positions than another island with the same river layout.'}</Text>
-      </Flex>
-    );
-  }
 
   // Render content based on wizard step
   const renderContent = () => {
@@ -859,7 +840,6 @@ function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: Wi
             if (!proceed) return;
             setLayout(index);
           }}
-          onHelp={() => setHelp(true)}
           onBack={goBack}
         />;
       default:
@@ -1318,11 +1298,10 @@ interface IslandGridStepProps {
   layoutType: LayoutType;
   layouts: Layout[];
   onSelect: (index: number) => void;
-  onHelp: () => void;
   onBack: () => void;
 }
 
-function IslandGridStep({ layoutType, layouts, onSelect, onHelp, onBack }: IslandGridStepProps) {
+function IslandGridStep({ layoutType, layouts, onSelect, onBack }: IslandGridStepProps) {
   return (
     <>
       <Box sx={{position: 'absolute', left: 0, top: [1, 3]}}>
@@ -1342,12 +1321,7 @@ function IslandGridStep({ layoutType, layouts, onSelect, onHelp, onBack }: Islan
             onClick={() => onSelect(index)}>
             <Image variant='card' src={`static/img/layouts/${layoutType}-${layout.name}.png`}/>
           </Card>
-        )).concat(
-          <Card key={'help'} onClick={onHelp}>
-            <Image sx={{width: 24}} src={'static/img/menu-help.png'} />
-            <Text sx={{fontFamily: 'body'}}>{'Why isn\'t my map here?'}</Text>
-          </Card>
-        )}
+        ))}
       </Grid>
     </>
   );
