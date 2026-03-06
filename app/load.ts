@@ -152,7 +152,7 @@ type BaseMapLayers = {
 const LAYER_COLORS: Record<string, keyof BaseMapLayers> = {
   '#35a043': 'level2',
   '#4ac34e': 'level3',
-  '#83e1c3': 'river',
+  '#9CFFE8': 'river',
 };
 
 // Parse SVG path d attribute to arrays of paper.Point
