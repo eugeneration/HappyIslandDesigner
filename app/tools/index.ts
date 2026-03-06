@@ -501,7 +501,7 @@ export function initTools() {
   toolCategoryDefinition.structures =
     new BaseObjectCategoryDefinition({
       type: 'structures',
-      icon: 'structure',
+      icon: 'house',
       tools: structureDef.asyncStructureDefinition,
       menuOptions: { spacing: 50, perColumn: 9 },
       yPos: 160,
