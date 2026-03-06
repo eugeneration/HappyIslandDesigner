@@ -4,11 +4,32 @@ import { emitter } from '../emitter';
 import { colors } from '../colors';
 import { layers } from '../layers';
 import { createButton } from './createButton';
-import { stepOrder, WizardState, skipWizardNonDestructive, goBack, canGoBack } from './mapSelectionWizard';
+import { WizardStep, WizardState, skipWizardNonDestructive, goBack, canGoBack } from './mapSelectionWizard';
+
+type Milestone = {
+  steps: WizardStep[];
+  weight: number;
+};
+
+const milestones: Milestone[] = [
+  { steps: ['river', 'riverMouth1', 'riverMouth2'], weight: 1 },
+  { steps: ['airport'], weight: 1 },
+  { steps: ['dockSide', 'dockShape'], weight: 1 },
+  { steps: ['peninsulaSide', 'peninsulaPos', 'peninsulaShape'], weight: 1 },
+  { steps: ['secretBeachPos', 'secretBeachShape'], weight: 1 },
+  { steps: ['leftRockPos', 'leftRockShape'], weight: 1 },
+  { steps: ['rightRockPos', 'rightRockShape'], weight: 1 },
+  { steps: ['fillPlaceholder'], weight: 3 },
+  { steps: ['baseMapGrid'], weight: 1 },
+];
+
+// Total number of dots = milestones + 1 final dot
+const NUM_DOTS = milestones.length + 1;
 
 let progressGroup: paper.Group | null = null;
 let bgLine: paper.Path | null = null;
 let progressLine: paper.Path | null = null;
+let subProgressLine: paper.Path | null = null;
 let dots: paper.Path.Circle[] = [];
 let skipButton: paper.Group | null = null;
 let wizardBackButton: paper.Group | null = null;
@@ -17,7 +38,7 @@ let wizardChangeHandler: ((state: WizardState) => void) | null = null;
 let resizeHandler: (() => void) | null = null;
 let disableBackHandler: (() => void) | null = null;
 let enableBackHandler: (() => void) | null = null;
-let currentStepIndex = 0;
+let lastState: WizardState | null = null;
 
 const TOP_Y = 20;
 const PAD_LEFT = 72;
@@ -25,10 +46,54 @@ const PAD_RIGHT = 80;
 const DOT_RADIUS = 4;
 const LINE_WIDTH = 2;
 
+const totalWeight = milestones.reduce((sum, m) => sum + m.weight, 0);
+
+// Dots are at milestone boundaries. Index 0..milestones.length-1 are milestone start dots,
+// index milestones.length is the final dot at the end.
 function getDotX(index: number, viewWidth: number): number {
-  const totalSteps = stepOrder.length;
-  if (totalSteps <= 1) return viewWidth / 2;
-  return PAD_LEFT + index * ((viewWidth - PAD_LEFT - PAD_RIGHT) / (totalSteps - 1));
+  let cumWeight = 0;
+  for (let i = 0; i < index && i < milestones.length; i++) {
+    cumWeight += milestones[i].weight;
+  }
+  if (index >= milestones.length) cumWeight = totalWeight;
+  return PAD_LEFT + cumWeight * ((viewWidth - PAD_LEFT - PAD_RIGHT) / totalWeight);
+}
+
+function findMilestone(step: WizardStep): { milestoneIndex: number; subStepIndex: number } | null {
+  for (let i = 0; i < milestones.length; i++) {
+    const subIndex = milestones[i].steps.indexOf(step);
+    if (subIndex !== -1) {
+      return { milestoneIndex: i, subStepIndex: subIndex };
+    }
+  }
+  return null;
+}
+
+function getSubProgressX(state: WizardState, viewWidth: number): number | null {
+  const found = findMilestone(state.step as WizardStep);
+  if (!found) return null;
+
+  const { milestoneIndex, subStepIndex } = found;
+  const milestone = milestones[milestoneIndex];
+  const dotX = getDotX(milestoneIndex, viewWidth);
+  const nextDotX = getDotX(milestoneIndex + 1, viewWidth);
+
+  // For fillPlaceholder, use placeholder count for sub-progress
+  if (state.step === 'fillPlaceholder') {
+    if (state.totalPlaceholders > 0) {
+      const fraction = state.currentPlaceholderIndex / state.totalPlaceholders;
+      if (fraction > 0) return dotX + fraction * (nextDotX - dotX);
+    }
+    return null;
+  }
+
+  // If dockSide was skipped (west/east river), don't show sub-progress for dockShape
+  if (state.step === 'dockShape' && state.riverDirection !== 'south') return null;
+
+  // For normal milestones, sub-progress based on sub-step index
+  if (subStepIndex === 0) return null;
+  const fraction = subStepIndex / milestone.steps.length;
+  return dotX + fraction * (nextDotX - dotX);
 }
 
 function repositionProgressBar(): void {
@@ -41,8 +106,22 @@ function repositionProgressBar(): void {
   for (let i = 0; i < dots.length; i++) {
     dots[i].position.x = getDotX(i, viewWidth);
   }
-  if (progressLine) {
-    progressLine.segments[1].point.x = getDotX(currentStepIndex, viewWidth);
+  if (lastState) {
+    const found = findMilestone(lastState.step as WizardStep);
+    if (found && progressLine) {
+      progressLine.segments[1].point.x = getDotX(found.milestoneIndex, viewWidth);
+    }
+    if (subProgressLine) {
+      const subX = lastState ? getSubProgressX(lastState, viewWidth) : null;
+      if (subX !== null) {
+        const milestoneX = found ? getDotX(found.milestoneIndex, viewWidth) : PAD_LEFT;
+        subProgressLine.segments[0].point.x = milestoneX;
+        subProgressLine.segments[1].point.x = subX;
+        subProgressLine.visible = true;
+      } else {
+        subProgressLine.visible = false;
+      }
+    }
   }
   if (skipButton) {
     skipButton.position.x = viewWidth - 16 - skipButton.bounds.width / 2;
@@ -69,7 +148,7 @@ export function showWizardProgress(): void {
   bgLine.strokeWidth = LINE_WIDTH;
   progressGroup.addChild(bgLine);
 
-  // Progress line (starts at zero length)
+  // Completed progress line (dark, extends to current milestone dot)
   progressLine = new paper.Path.Line(
     new paper.Point(PAD_LEFT, TOP_Y),
     new paper.Point(PAD_LEFT, TOP_Y)
@@ -78,9 +157,19 @@ export function showWizardProgress(): void {
   progressLine.strokeWidth = LINE_WIDTH;
   progressGroup.addChild(progressLine);
 
-  // Create dots
+  // Sub-progress line (yellow, extends from milestone dot to sub-progress point)
+  subProgressLine = new paper.Path.Line(
+    new paper.Point(PAD_LEFT, TOP_Y),
+    new paper.Point(PAD_LEFT, TOP_Y)
+  );
+  subProgressLine.strokeColor = colors.yellow.color;
+  subProgressLine.strokeWidth = LINE_WIDTH;
+  subProgressLine.visible = false;
+  progressGroup.addChild(subProgressLine);
+
+  // Create dots (one per milestone + final dot)
   dots = [];
-  for (let i = 0; i < stepOrder.length; i++) {
+  for (let i = 0; i < NUM_DOTS; i++) {
     const x = getDotX(i, viewWidth);
     const dot = new paper.Path.Circle(new paper.Point(x, TOP_Y), DOT_RADIUS);
     dot.fillColor = colors.paper.color;
@@ -147,7 +236,7 @@ export function showWizardProgress(): void {
 
   // Listen for state changes
   wizardChangeHandler = (state: WizardState) => {
-    updateWizardProgress(state.step);
+    updateWizardProgress(state);
   };
   emitter.on('wizardStateChanged', wizardChangeHandler);
 
@@ -164,33 +253,45 @@ export function showWizardProgress(): void {
   prevLayer.activate();
 }
 
-function updateWizardProgress(step: string): void {
+function updateWizardProgress(state: WizardState): void {
   if (!progressGroup || dots.length === 0) return;
 
-  const currentIndex = stepOrder.indexOf(step as any);
-  if (currentIndex === -1) return;
-  currentStepIndex = currentIndex;
+  const found = findMilestone(state.step as WizardStep);
+  if (!found) return;
 
+  lastState = { ...state };
+  const { milestoneIndex } = found;
   const viewWidth = paper.view.viewSize.width;
 
+  // Color dots based on milestone progress
   for (let i = 0; i < dots.length; i++) {
     const dot = dots[i];
-    if (i < currentIndex) {
-      // Completed
-      dot.fillColor = colors.level3.color;
-    } else if (i === currentIndex) {
-      // Current
-      dot.fillColor = colors.yellow.color;
+    if (i < milestoneIndex) {
+      dot.fillColor = colors.level3.color; // Completed
+    } else if (i === milestoneIndex) {
+      dot.fillColor = colors.yellow.color; // Current
     } else {
-      // Future
-      dot.fillColor = colors.paper.color;
+      dot.fillColor = colors.paper.color; // Future
     }
   }
 
-  // Update progress line to extend to current dot
-  const currentX = getDotX(currentIndex, viewWidth);
+  // Completed progress line extends to current milestone's dot
   if (progressLine) {
-    progressLine.segments[1].point = new paper.Point(currentX, TOP_Y);
+    const milestoneX = getDotX(milestoneIndex, viewWidth);
+    progressLine.segments[1].point = new paper.Point(milestoneX, TOP_Y);
+  }
+
+  // Yellow sub-progress line for in-progress milestone
+  if (subProgressLine) {
+    const subX = getSubProgressX(state, viewWidth);
+    if (subX !== null) {
+      const milestoneX = getDotX(milestoneIndex, viewWidth);
+      subProgressLine.segments[0].point = new paper.Point(milestoneX, TOP_Y);
+      subProgressLine.segments[1].point = new paper.Point(subX, TOP_Y);
+      subProgressLine.visible = true;
+    } else {
+      subProgressLine.visible = false;
+    }
   }
 
   // Sync back button state
@@ -224,11 +325,12 @@ export function hideWizardProgress(): void {
   }
   bgLine = null;
   progressLine = null;
+  subProgressLine = null;
   dots = [];
   skipButton = null;
   wizardBackButton = null;
   backArrow = null;
-  currentStepIndex = 0;
+  lastState = null;
 }
 
 function disableWizardBackButton(): void {

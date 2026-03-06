@@ -6,7 +6,7 @@ import { toolState } from '../tools/state';
 import { showWizardProgress, hideWizardProgress } from './wizardProgressBar';
 import { confirmDestructiveActionAsync, autosaveTrigger } from '../state';
 import { loadBaseMapFromSvg } from '../load';
-import { initializeEdgeTiles, fillEdgeTilesWithPlaceholders, loadEdgeTilesAsGeometry } from './edgeTiles';
+import { initializeEdgeTiles, fillEdgeTilesWithPlaceholders, loadEdgeTilesAsGeometry, getRemainingPlaceholders } from './edgeTiles';
 import { getAirportBlocks, hidePositionSelector } from './mapPositionSelector';
 import { hideOptionSelector } from './mapOptionSelector';
 
@@ -30,6 +30,7 @@ export type WizardState = {
   rightRockPosition: number | null;
   rightRockShape: number | null;
   currentPlaceholderIndex: number;
+  totalPlaceholders: number;
 };
 
 const initialState: WizardState = {
@@ -50,6 +51,7 @@ const initialState: WizardState = {
   rightRockPosition: null,
   rightRockShape: null,
   currentPlaceholderIndex: 0,
+  totalPlaceholders: 0,
 };
 
 let wizardState: WizardState = { ...initialState };
@@ -165,6 +167,7 @@ export function goToScreenshotFlow(): void {
 }
 
 export function goToEntrypoint(): void {
+  hideWizardProgress();
   wizardState.step = 'entrypoint';
   emitter.emit('wizardStateChanged', wizardState);
 }
@@ -265,6 +268,7 @@ export function setRightRockShape(shape: number): void {
   wizardState.rightRockShape = shape;
   setNextStep();
   wizardState.currentPlaceholderIndex = 0;
+  wizardState.totalPlaceholders = getRemainingPlaceholders().length;
   emitter.emit('wizardStateChanged', wizardState);
 }
 
