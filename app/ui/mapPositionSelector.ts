@@ -7,7 +7,7 @@ import { horizontalBlocks, verticalBlocks, horizontalDivisions, verticalDivision
 import { getBlockState } from './edgeTiles';
 import { getMobileOperatingSystem } from '../helpers/getMobileOperatingSystem';
 import { createWrappedLabel } from '../helpers/createWrappedLabel';
-import { getCachedSvgContent } from '../generatedTilesCache';
+import { getCachedSvgContent } from '../lazyTilesCache';
 import { WIZARD_MAX_BLOCK_PX, startViewAnimation, tickViewAnimation, stopViewAnimation } from './viewAnimation';
 
 let selectorUI: paper.Group | null = null;

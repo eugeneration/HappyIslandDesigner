@@ -7,7 +7,7 @@ import {
   getTileDirection, getPlaceholderIndexForPosition,
   assetIndexToData, type TileDirection,
 } from './edgeTileAssets';
-import { tilesDataCache } from '../generatedTilesCache';
+import { tilesPathsCache } from '../generatedTilesPathsCache';
 import { loadMapFromJSONString } from '../load';
 import { updateMapOverlay } from './tracingOverlay';
 import { confirmDestructiveActionAsync } from '../state';
@@ -1359,27 +1359,39 @@ const SVG_EDGE_COLORS: Array<{ r: number; g: number; b: number; terrain: Terrain
   { r: 0x73, g: 0x7a, b: 0x89, terrain: TERRAIN.ROCK },   // #737a89
 ];
 
-// Parse SVG path elements from cached inner content
-function parseSvgPaths(svgInnerContent: string): Array<{ d: string; fill: string }> {
-  const paths: Array<{ d: string; fill: string }> = [];
-  const regex = /<path\s+d="([^"]+)"\s+fill="([^"]+)"\s*\/>/g;
-  let match;
-  while ((match = regex.exec(svgInnerContent)) !== null) {
-    paths.push({ d: match[1], fill: match[2] });
+// Build Path2D from flat coordinate arrays [x1,y1, x2,y2, ...]
+function coordsToPath2D(polygons: number[][]): Path2D {
+  const path = new Path2D();
+  for (const coords of polygons) {
+    if (coords.length < 4) continue;
+    path.moveTo(coords[0], coords[1]);
+    for (let i = 2; i < coords.length; i += 2) {
+      path.lineTo(coords[i], coords[i + 1]);
+    }
+    path.closePath();
   }
-  return paths;
+  return path;
 }
 
-// Render SVG paths to 16×16 canvas and classify each pixel as terrain.
-// Also returns opaqueMask: 1 where alpha >= 64 (any painted region, including antialiased edges).
-function rasterizeSvgToTerrainGrid(
-  svgInnerContent: string, ctx: CanvasRenderingContext2D,
+// Rasterize tile path data to 16×16 terrain grid using Canvas
+function rasterizeTilePathData(
+  pathData: { rock: number[][]; sand: number[][]; water: number[][] },
+  ctx: CanvasRenderingContext2D,
 ): { terrainGrid: Uint8Array; opaqueMask: Uint8Array } {
   ctx.clearRect(0, 0, 16, 16);
-  for (const { d, fill } of parseSvgPaths(svgInnerContent)) {
-    ctx.fillStyle = fill;
-    ctx.fill(new Path2D(d));
+  // Draw layers in same order as SVG (water first = background, then sand, then rock)
+  const layers: Array<{ polygons: number[][]; terrain: TerrainType }> = [
+    { polygons: pathData.water, terrain: TERRAIN.WATER },
+    { polygons: pathData.sand, terrain: TERRAIN.SAND },
+    { polygons: pathData.rock, terrain: TERRAIN.ROCK },
+  ];
+  for (const { polygons, terrain } of layers) {
+    if (polygons.length === 0) continue;
+    const color = SVG_EDGE_COLORS.find(c => c.terrain === terrain)!;
+    ctx.fillStyle = `rgb(${color.r},${color.g},${color.b})`;
+    ctx.fill(coordsToPath2D(polygons));
   }
+  // Read back pixels — same classification as before
   const imageData = ctx.getImageData(0, 0, 16, 16);
   const terrainGrid = new Uint8Array(256);
   const opaqueMask = new Uint8Array(256);
@@ -1389,9 +1401,8 @@ function rasterizeSvgToTerrainGrid(
     const b = imageData.data[i * 4 + 2];
     const a = imageData.data[i * 4 + 3];
     opaqueMask[i] = a >= 64 ? 1 : 0;
-    // Nearest SVG color by Euclidean distance (tolerance for antialiasing)
     let bestTerrain: TerrainType = TERRAIN.UNKNOWN;
-    let bestDist = 30; // max tolerance
+    let bestDist = 30;
     for (const c of SVG_EDGE_COLORS) {
       const dist = Math.sqrt((r - c.r) ** 2 + (g - c.g) ** 2 + (b - c.b) ** 2);
       if (dist < bestDist) { bestDist = dist; bestTerrain = c.terrain; }
@@ -1417,7 +1428,7 @@ type EdgeTileMatchResult = {
   matches: EdgeTileMatch[];
 };
 
-// Build reference library: rasterize all 83 edge tile SVGs into 16×16 terrain grids
+// Build reference library: rasterize all edge tile paths into 16×16 terrain grids
 function buildEdgeTileReferenceLibrary(): Map<number, EdgeTileRef> {
   const canvas = document.createElement('canvas');
   canvas.width = 16;
@@ -1426,9 +1437,9 @@ function buildEdgeTileReferenceLibrary(): Map<number, EdgeTileRef> {
   const library = new Map<number, EdgeTileRef>();
 
   for (const [index, data] of assetIndexToData) {
-    const cached = tilesDataCache[String(index)];
-    if (!cached) continue;
-    const { terrainGrid, opaqueMask } = rasterizeSvgToTerrainGrid(cached.svg, ctx);
+    const tileData = tilesPathsCache[index];
+    if (!tileData) continue;
+    const { terrainGrid, opaqueMask } = rasterizeTilePathData(tileData.pathData, ctx);
     library.set(index, { direction: data.direction, terrainGrid, opaqueMask });
   }
 

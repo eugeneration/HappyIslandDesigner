@@ -20,7 +20,7 @@ import { Layout, baseMapLayouts, LayoutType } from '../components/islandLayouts'
 import Layouts from '../components/islandLayoutsV1';
 import { loadMapFromJSONString, loadBaseMapFromSvg } from '../load';
 import { safeCompoundIntersection } from '../helpers/safeCompoundIntersection';
-import { getCachedSvgContent } from '../generatedTilesCache';
+import { getCachedSvgContent } from '../lazyTilesCache';
 import { encodeMap } from '../save';
 
 // Only initialize in dev builds

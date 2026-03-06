@@ -114,30 +114,27 @@ for (const file of files) {
 // Generate TypeScript output
 const output = `// Auto-generated file - do not edit manually
 // Run: node scripts/generateTilesCache.js
-
-// Common SVG wrapper added back when retrieving cached content
-const SVG_HEADER = '<?xml version="1.0" encoding="UTF-8"?>\\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="160" height="160">';
-const SVG_FOOTER = '</svg>';
+//
+// Stores raw SVG path content for each tile (no structured terrain data).
+// The CachedTileData type is consumed via lazyTilesCache.ts, which wraps
+// this module for lazy loading. For structured terrain path data (polygons
+// split by terrain type), see generatedTilesPathsCache.ts instead.
 
 export type CachedTileData = {
   svg: string;
 };
 
 export const tilesDataCache: Record<string, CachedTileData> = ${JSON.stringify(svgCache)};
-
-export function getCachedTileData(assetId: number): CachedTileData | undefined {
-  return tilesDataCache[assetId];
-}
-
-export function getCachedSvgContent(assetId: number): string | undefined {
-  const cached = tilesDataCache[assetId]?.svg;
-  if (!cached) return undefined;
-  return SVG_HEADER + cached + SVG_FOOTER;
-}
 `;
 
 fs.writeFileSync(svgOutputFile, output);
 
+
+// Read and embed the airport overlay SVG
+const airportSvgPath = path.join(__dirname, '../static/svg/amenity-airport.svg');
+const airportSvg = fs.existsSync(airportSvgPath)
+  ? fs.readFileSync(airportSvgPath, 'utf-8').trim()
+  : null;
 
 // Generate TypeScript output
 const pathsOutput = `// Auto-generated file - do not edit manually
@@ -153,9 +150,7 @@ export type TilePathData = {
 
 export const tilesPathsCache: Record<number, TilePathData> = ${JSON.stringify(pathsCache, null, 2)};
 
-export function getTilePathData(assetId: number): TilePathData | undefined {
-  return tilesPathsCache[assetId];
-}
+export const airportOverlaySvg: string | null = ${airportSvg ? JSON.stringify(airportSvg) : 'null'};
 `;
 
 fs.writeFileSync(pathsOutputFile, pathsOutput);

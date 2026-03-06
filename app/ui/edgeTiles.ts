@@ -12,8 +12,8 @@ import {
   getTileDirection,
   isPlaceholderIndex,
 } from './edgeTileAssets';
-import { getCachedSvgContent } from '../generatedTilesCache';
-import { tilesPathsCache } from '../generatedTilesPathsCache';
+import { getCachedSvgContent } from '../lazyTilesCache';
+import { tilesPathsCache, airportOverlaySvg } from '../generatedTilesPathsCache';
 
 let tilesGroup: paper.Group | null = null;
 let edgeBg: paper.PathItem | null = null;
@@ -509,16 +509,29 @@ function updateAirportOverlay(): void {
   airportOverlayGroup = new paper.Group();
   airportOverlayGroup.applyMatrix = false;
 
-  paper.project.importSVG('static/svg/amenity-airport.svg', {
-    onLoad: (svgItem: paper.Item) => {
-      if (!airportOverlayGroup) return;
+  // Use cached SVG string for synchronous import (no network fetch)
+  const airportSvg = airportOverlaySvg;
+  if (airportSvg) {
+    const svgItem = paper.project.importSVG(airportSvg, { insert: false });
+    if (svgItem) {
       const targetSize = 8;
       svgItem.scale(targetSize / svgItem.bounds.height);
       svgItem.position = new paper.Point(centerX, centerY);
       airportOverlayGroup.addChild(svgItem);
-    },
-    insert: false,
-  });
+    }
+  } else {
+    // Fallback: fetch from file (cache not loaded yet)
+    paper.project.importSVG('static/svg/amenity-airport.svg', {
+      onLoad: (svgItem: paper.Item) => {
+        if (!airportOverlayGroup) return;
+        const targetSize = 8;
+        svgItem.scale(targetSize / svgItem.bounds.height);
+        svgItem.position = new paper.Point(centerX, centerY);
+        airportOverlayGroup.addChild(svgItem);
+      },
+      insert: false,
+    });
+  }
 }
 
 // Capture a low-res raster of the current edge tiles (SVG) with transparent center

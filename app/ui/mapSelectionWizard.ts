@@ -9,6 +9,7 @@ import { loadBaseMapFromSvg } from '../load';
 import { initializeEdgeTiles, fillEdgeTilesWithPlaceholders, loadEdgeTilesAsGeometry, getRemainingPlaceholders } from './edgeTiles';
 import { getAirportBlocks, hidePositionSelector } from './mapPositionSelector';
 import { hideOptionSelector } from './mapOptionSelector';
+import { preloadTilesCache } from '../lazyTilesCache';
 
 export type WizardStep = 'entrypoint' | 'screenshot' | 'start' | 'river' | 'baseMapGrid' | 'riverMouth1' | 'riverMouth2' | 'airport' | 'peninsulaSide' | 'peninsulaPos' | 'peninsulaShape' | 'dockSide' | 'dockShape' | 'secretBeachPos' | 'secretBeachShape' | 'leftRockPos' | 'leftRockShape' | 'rightRockPos' | 'rightRockShape' | 'fillPlaceholder' | 'grid' | 'legacyriver' | 'legacygrid';
 
@@ -156,6 +157,7 @@ function enterWizardMode(): void {
 }
 
 export function goToTileEditorFlow(): void {
+  preloadTilesCache();
   enterWizardMode();
   wizardState.step = 'river';
   emitter.emit('wizardStateChanged', wizardState);
