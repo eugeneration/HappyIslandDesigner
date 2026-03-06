@@ -103,15 +103,8 @@ function stepShouldBeSkipped(step: WizardStep): boolean {
 }
 
 export function resetWizard(): void {
-  hidePositionSelector();
-  hideOptionSelector();
+  exitWizardMode();
   wizardState = { ...initialState };
-  hideWizardProgress();
-  showLeftMenu();
-  showUndoMenu();
-  showMainMenuButton();
-  toolState.isDevModeActive = false;
-  toolState.onUp();
   toolState.switchToolType('terrain');
   emitter.emit('wizardStateChanged', wizardState);
 }
@@ -121,8 +114,6 @@ export async function skipWizard(): Promise<void> {
     'Clear your map? You will lose all unsaved changes.'
   );
   if (!proceed) return;
-  hidePositionSelector();
-  hideOptionSelector();
   await loadBaseMapFromSvg(0);
   initializeEdgeTiles();
   fillEdgeTilesWithPlaceholders();
@@ -134,8 +125,6 @@ export async function skipWizard(): Promise<void> {
 export function skipWizardNonDestructive(): void {
   const confirmed = confirm(i18next.t('skip_confirm'));
   if (confirmed) {
-    hidePositionSelector();
-    hideOptionSelector();
     loadEdgeTilesAsGeometry();
     autosaveTrigger();
     resetWizard();
@@ -156,6 +145,17 @@ function enterWizardMode(): void {
   showWizardProgress();
 }
 
+function exitWizardMode(): void {
+  hidePositionSelector();
+  hideOptionSelector();
+  hideWizardProgress();
+  showLeftMenu();
+  showUndoMenu();
+  showMainMenuButton();
+  toolState.isDevModeActive = false;
+  toolState.onUp();
+}
+
 export function goToTileEditorFlow(): void {
   preloadTilesCache();
   enterWizardMode();
@@ -169,7 +169,7 @@ export function goToScreenshotFlow(): void {
 }
 
 export function goToEntrypoint(): void {
-  hideWizardProgress();
+  exitWizardMode();
   wizardState.step = 'entrypoint';
   emitter.emit('wizardStateChanged', wizardState);
 }

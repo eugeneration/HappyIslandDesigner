@@ -55,7 +55,7 @@ const zhTW = {
     // Entry point
     create_new_map: '建立新地圖',
     generate_from_screenshot: '從截圖生成',
-    use_tile_editor: '使用地塊編輯器',
+    tile_editor: '地塊編輯器',
     draw_manually: '手動繪製',
 
     // Screenshot flow
@@ -110,6 +110,7 @@ const zhTW = {
 
     // Position selector prompts
     new_badge: 'NEW',
+    beta_badge: '測試版',
     click_again_confirm: '再次點擊確認',
     tap_again_confirm: '再次點選確認',
     click_location: '點擊一個位置',

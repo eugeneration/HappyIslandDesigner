@@ -55,7 +55,7 @@ const ja = {
     // Entry point
     create_new_map: '新しいマップを作成',
     generate_from_screenshot: 'スクリーンショットから生成',
-    use_tile_editor: 'タイルエディターを使う',
+    tile_editor: 'タイルエディター',
     draw_manually: '手動で描く',
 
     // Screenshot flow
@@ -110,6 +110,7 @@ const ja = {
 
     // Position selector prompts
     new_badge: 'NEW',
+    beta_badge: 'BETA',
     click_again_confirm: 'もう一度クリックで確定',
     tap_again_confirm: 'もう一度タップで確定',
     click_location: '場所をクリック',

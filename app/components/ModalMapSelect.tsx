@@ -111,6 +111,7 @@ export default function ModalMapSelect(){
   const [modalIsOpen,setIsOpen] = useState(false);
   const [wizardState, setWizardState] = useState<WizardState>(getWizardState());
   const [edgeTileRaster, setEdgeTileRaster] = useState<string | null>(null);
+  const lastStepRef = useRef<string>(wizardState.step);
 
   // Track filled placeholder positions for going back during fillPlaceholder step
   const filledPlaceholderPositions = useRef<{x: number, y: number}[]>([]);
@@ -154,8 +155,12 @@ export default function ModalMapSelect(){
         }, 100);
       }
 
-      // If moving to a modal step, open modal
-      setIsOpen(isModalStep(state.step));
+      // If moving to a modal step, open modal and track step for fade-out
+      const isModal = isModalStep(state.step);
+      if (isModal) {
+        lastStepRef.current = state.step;
+      }
+      setIsOpen(isModal);
 
       // Clear any pending map step setup timeout
       if (mapStepTimeoutRef.current !== null) {
@@ -719,6 +724,7 @@ export default function ModalMapSelect(){
   }, []);
 
   const refCallback = useBlockZoom();
+  const hasHeader = lastStepRef.current !== 'entrypoint' && lastStepRef.current !== 'screenshot';
 
   return (
     <div>
@@ -741,21 +747,25 @@ export default function ModalMapSelect(){
           sx={{
             backgroundColor : colors.paper.cssColor,
             border: 0,
-            borderRadius: 8,
+            borderRadius: hasHeader ? 8 : 60,
             flexDirection: 'column',
             overflow: 'auto',
           }}>
-          <Box p={2} sx={{
-            backgroundColor: colors.level3.cssColor,
-            borderRadius: '30px 4px 4px 30px',
-          }}>
-            <Image variant='block' sx={{maxWidth: 150}} src='static/img/nook-inc-white.png'/>
-          </Box>
+          {hasHeader && (
+            <Box p={2} sx={{
+              backgroundColor: colors.level3.cssColor,
+              borderRadius: '30px 4px 4px 30px',
+            }}>
+              <Image variant='block' sx={{maxWidth: 150}} src='static/img/nook-inc-white.png'/>
+            </Box>
+          )}
           <IslandLayoutSelector wizardState={wizardState} edgeTileRaster={edgeTileRaster} />
-          <Box p={3} sx={{
-            backgroundColor: colors.level3.cssColor,
-            borderRadius: '4px 30px 30px 4px',
-          }} />
+          {hasHeader && (
+            <Box p={3} sx={{
+              backgroundColor: colors.level3.cssColor,
+              borderRadius: '4px 30px 30px 4px',
+            }} />
+          )}
         </Flex>
       </Modal>
     </div>
@@ -869,18 +879,18 @@ function EntryPointStep() {
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 3, px: 0 }}>
         <Flex sx={{flexDirection: ['column', 'row'], flexWrap: 'wrap', justifyContent: 'center', alignItems: ['center', 'flex-start'], maxWidth: 650}}>
           <EntryButton
-            imageSrc='static/img/newisland-generate.png'
-            bgColor='#D2E542'
-            onClick={() => goToScreenshotFlow()}
-          >
-            {i18next.t('generate_from_screenshot')}<NewBadge />
-          </EntryButton>
-          <EntryButton
             imageSrc='static/img/newisland-editor.png'
             bgColor='#9CDDBC'
             onClick={() => goToTileEditorFlow()}
           >
-            {i18next.t('use_tile_editor')}<NewBadge />
+            {i18next.t('tile_editor')}<NewBadge />
+          </EntryButton>
+          <EntryButton
+            imageSrc='static/img/newisland-generate.png'
+            bgColor='#D2E542'
+            onClick={() => goToScreenshotFlow()}
+          >
+            {i18next.t('generate_from_screenshot')}<BetaBadge />
           </EntryButton>
           <EntryButton
             imageSrc='static/img/newisland-manual.png'
@@ -1039,7 +1049,7 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
           sx={{ maxWidth: '100%', maxHeight: 250, display: ['block', 'none'] }}
         />
       </Box>
-      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('screenshot_title')}</Heading>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('screenshot_title')}<BetaBadge /></Heading>
       <Text m={3} sx={{textAlign: 'center', lineHeight: 1.5}}>
         {i18next.t('screenshot_description')}
         <Box
@@ -1346,13 +1356,10 @@ function Card({children, onClick, maxWidth}: CardProps) {
   );
 }
 
-function NewBadge() {
-  const expiry = new Date('2026-04-20T00:00:00Z'); // April 20 2026 GMT
-  if (Date.now() > expiry.getTime()) return null;
-
+function Badge({ label, bg }: { label: string; bg: string }) {
   return (
     <Box as="span" sx={{
-      bg: '#e75a2e', // pin
+      bg,
       color: 'white',
       fontSize: '10px',
       fontWeight: 'bold',
@@ -1361,12 +1368,22 @@ function NewBadge() {
       py: '3px',
       borderRadius: 4,
       ml: 1,
-      verticalAlign: 'middle',
+      verticalAlign: '3px',
       display: 'inline-block',
     }}>
-      {i18next.t('new_badge')}
+      {label}
     </Box>
   );
+}
+
+function NewBadge() {
+  const expiry = new Date('2026-04-20T00:00:00Z'); // April 20 2026 GMT
+  if (Date.now() > expiry.getTime()) return null;
+  return <Badge label={i18next.t('new_badge')} bg='#e75a2e' />;
+}
+
+function BetaBadge() {
+  return <Badge label={i18next.t('beta_badge')} bg='#bdb7aa' />;
 }
 
 interface EntryButtonProps {

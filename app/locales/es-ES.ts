@@ -55,7 +55,7 @@ const esES = {
     // Entry point
     create_new_map: 'Crear Nuevo Mapa',
     generate_from_screenshot: 'Generar desde Captura',
-    use_tile_editor: 'Usar Editor de Casillas',
+    tile_editor: 'Editor de Casillas',
     draw_manually: 'Dibujar Manualmente',
 
     // Screenshot flow
@@ -110,6 +110,7 @@ const esES = {
 
     // Position selector prompts
     new_badge: 'NEW',
+    beta_badge: 'BETA',
     click_again_confirm: 'Haz clic de nuevo para confirmar',
     tap_again_confirm: 'Toca de nuevo para confirmar',
     click_location: 'Haz clic en una ubicación',

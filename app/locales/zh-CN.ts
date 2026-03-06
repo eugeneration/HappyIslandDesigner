@@ -55,7 +55,7 @@ const zhCN = {
     // Entry point
     create_new_map: '创建新地图',
     generate_from_screenshot: '从截图生成',
-    use_tile_editor: '使用地块编辑器',
+    tile_editor: '地块编辑器',
     draw_manually: '手动绘制',
 
     // Screenshot flow
@@ -110,6 +110,7 @@ const zhCN = {
 
     // Position selector prompts
     new_badge: 'NEW',
+    beta_badge: '测试版',
     click_again_confirm: '再次点击确认',
     tap_again_confirm: '再次点击确认',
     click_location: '点击一个位置',

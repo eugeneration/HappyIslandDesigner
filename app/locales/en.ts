@@ -56,7 +56,7 @@ const en = {
     // Entry point
     create_new_map: 'Create New Map',
     generate_from_screenshot: 'Generate from Screenshot',
-    use_tile_editor: 'Use Tile Editor',
+    tile_editor: 'Tile Editor',
     draw_manually: 'Draw Manually',
 
     // Screenshot flow
@@ -111,6 +111,7 @@ const en = {
 
     // Position selector prompts
     new_badge: 'NEW',
+    beta_badge: 'BETA',
     click_again_confirm: 'Click again to confirm',
     tap_again_confirm: 'Tap again to confirm',
     click_location: 'Click a location',
