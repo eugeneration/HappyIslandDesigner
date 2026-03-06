@@ -6,9 +6,12 @@ import { emitter } from '../emitter';
 import { createButton } from './createButton';
 import { rotateObject, changeBridgeLength } from './createObject';
 import {
+  asyncConstructionDefinition,
   constructionDisplayNames,
   lengthOrder,
+  rotationOrder,
 } from '../tools/construction';
+import { toolCategoryDefinition } from '../tools';
 import { toolState } from '../tools/state';
 
 let panelGroup: paper.Group | null = null;
@@ -102,6 +105,21 @@ function isBridgeType(type: string): boolean {
   return type in lengthOrder;
 }
 
+function cycleActiveTool(cycleMap) {
+  const tool = toolState.activeTool && toolState.activeTool.tool;
+  if (!tool) return;
+  const nextType = cycleMap[tool.type];
+  if (!nextType) return;
+  const defs = asyncConstructionDefinition.value;
+  const nextDef = defs[nextType];
+  if (!nextDef) return;
+  const categoryDef = toolCategoryDefinition.construction;
+  toolState.switchTool(toolState.toolMapValue(categoryDef, nextDef, {}));
+  if (categoryDef.updateMenuButtonIcon) {
+    categoryDef.updateMenuButtonIcon(nextDef);
+  }
+}
+
 function showPanel(objectType: string, object) {
   currentObject = object;
   const displayName = constructionDisplayNames[objectType];
@@ -123,10 +141,6 @@ function showPanel(objectType: string, object) {
   buttons.forEach((btn, i) => {
     btn.position = new paper.Point(-totalWidth / 2 + i * spacing, 26);
   });
-
-  // Disable buttons when no object is selected (e.g. active tool, no selection)
-  rotateButton.data.disable(!object);
-  lengthButton.data.disable(!object);
 
   panelGroup.visible = true;
   positionPanel();
@@ -216,6 +230,8 @@ export function initObjectPanel() {
   rotateButton = createButton(rotateIcon, 20, () => {
     if (currentObject) {
       rotateObject(currentObject);
+    } else {
+      cycleActiveTool(rotationOrder);
     }
   });
 
@@ -224,6 +240,8 @@ export function initObjectPanel() {
   lengthButton = createButton(lengthIcon, 20, () => {
     if (currentObject) {
       changeBridgeLength(currentObject);
+    } else {
+      cycleActiveTool(lengthOrder);
     }
   });
 

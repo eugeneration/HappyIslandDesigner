@@ -119,12 +119,15 @@ class BaseToolCategoryDefinition {
         ) {
           subclass.iconMenu.data.update(nextTool);
           updateObjectPreview();
-          // Update menu button icon for rotated construction variants
+          // Update menu button icon and persist variant for construction tools
           if (nextToolData.type === 'construction' &&
               nextToolData.tool &&
-              constructionDisplayNames[nextTool] &&
-              nextToolData.definition.updateMenuButtonIcon) {
-            nextToolData.definition.updateMenuButtonIcon(nextToolData.tool);
+              constructionDisplayNames[nextTool]) {
+            const variantName = constructionDisplayNames[nextTool];
+            nextToolData.definition.lastVariant[variantName] = nextToolData.tool;
+            if (nextToolData.definition.updateMenuButtonIcon) {
+              nextToolData.definition.updateMenuButtonIcon(nextToolData.tool);
+            }
           }
         }
       }
@@ -180,6 +183,7 @@ class BaseObjectCategoryDefinition {
     setObjectPreviewActive(isEnabled);
   }
   menuBaseButtons: Record<string, { button: paper.Group, baseDef: any }> = {};
+  lastVariant: Record<string, any> = {};
 
   updateMenuButtonIcon(newDef) {
     if (!this.iconMenu) return;
@@ -198,6 +202,9 @@ class BaseObjectCategoryDefinition {
     if (oldIcon) oldIcon.remove();
     const newIcon = createObjectIcon(newDef, getObjectData(newDef));
     newIcon.scaling = newDef.menuScaling;
+    if (newDef.rotation) {
+      newIcon.rotate(newDef.rotation);
+    }
     button.insertChild(1, newIcon);
 
     // Update selection state to highlight the base button
@@ -217,8 +224,10 @@ class BaseObjectCategoryDefinition {
             const icon = createObjectIcon(def, getObjectData(def));
             icon.scaling = def.menuScaling;
             const btn = createButton(icon, 20, () => {
+              const displayName = constructionDisplayNames[def.type];
+              const toolDef = (displayName && this.lastVariant[displayName]) || def;
               toolState.switchTool(
-                toolState.toolMapValue(categoryDefinition, def, {}),
+                toolState.toolMapValue(categoryDefinition, toolDef, {}),
               );
             });
             // Track base buttons for stairs/bridge
