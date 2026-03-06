@@ -1,7 +1,6 @@
 import paper from 'paper';
 
 import { AsyncObjectDefinition } from '../helpers/AsyncObjectDefinition';
-import { loadSvg } from '../helpers/svgLoad';
 import { colors } from '../colors';
 
 export const asyncTreeDefinition = new AsyncObjectDefinition();
@@ -47,20 +46,20 @@ asyncTreeDefinition.value = {
   },
 
   flatBush: {
-    svg: 'bush',
+    svg: 'static/svg/tree-bush.svg',
   },
   flatTree: {
-    svg: 'fruit',
+    svg: 'static/svg/tree-fruit.svg',
   },
   flatPalm: {
-    svg: 'palm',
+    svg: 'static/svg/tree-palm.svg',
   },
   flatPine: {
-    svg: 'pine',
+    svg: 'static/svg/tree-pine.svg',
   },
 };
 
-export function load() {
+export function initDefaults() {
   Object.keys(asyncTreeDefinition.value).forEach((type) => {
     const def = asyncTreeDefinition.value[type];
     def.category = 'tree';
@@ -73,7 +72,6 @@ export function load() {
       new paper.Point(-def.size.width / 2, -def.size.height + 0.2);
     def.onSelect = function () {};
 
-    // imnmediately load the assets
     if (def.svg) {
       def.colorData = colors.level3;
       def.scaling = new paper.Point(0.03, 0.03);
@@ -81,20 +79,7 @@ export function load() {
       def.size = def.size || new paper.Size([1, 1]);
       def.offset = def.offset || new paper.Point(-1, -0.75);
       def.onSelect = function () {};
-      // imnmediately load the assets
-
-      loadSvg(`tree-${def.svg}`, (item) => {
-        // item.pivot += new paper.Point(-2, -3.6);
-        def.icon = item;
-        asyncTreeDefinition.onLoad();
-      });
-    } else if (def.img) {
-      const img = new paper.Raster(def.img);
-      def.icon = img;
-      def.icon.onLoad = function () {
-        asyncTreeDefinition.onLoad();
-      };
-      img.remove();
     }
   });
 }
+

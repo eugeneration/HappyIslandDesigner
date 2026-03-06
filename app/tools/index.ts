@@ -248,6 +248,12 @@ export const toolCategoryDefinition: any = {};
   //  },
 
 export function initTools() {
+  amenitiesDef.initDefaults();
+  structureDef.initDefaults();
+  constructionDef.initDefaults();
+  treeDef.initDefaults();
+  flowerDef.initDefaults();
+
   toolCategoryDefinition.terrain = {
     base: baseToolCategoryDefinition,
     type: 'terrain',
@@ -549,12 +555,6 @@ export function initTools() {
     },
   };
 
-  amenitiesDef.load();
-  structureDef.load();
-  constructionDef.load();
-  treeDef.load();
-  flowerDef.load();
-
   // function squircle (size){ // squircle=square+circle
   //  let hsize = size / 2; // half size
   //
@@ -637,4 +637,14 @@ export function initTools() {
       emitter.on('mapVersionChanged', updateEdgeToolVisibility);
     }
   }
+}
+
+export function loadObjectAsset(category: string, type: string) {
+  toolCategoryDefinition[category]?.tools?.loadItemAsset(type);
+}
+
+export function loadObjectSprites() {
+  Object.keys(toolCategoryDefinition).forEach((cat) => {
+    toolCategoryDefinition[cat].tools?.loadAllAssets();
+  });
 }

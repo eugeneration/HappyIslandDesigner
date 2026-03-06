@@ -11,7 +11,7 @@ import {
   updatePaintColor,
 } from './brush';
 import { toolState } from './tools/state';
-import { toolCategoryDefinition, initTools } from './tools';
+import { toolCategoryDefinition, initTools, loadObjectSprites } from './tools';
 import { createButton } from './ui/createButton';
 import { createLeftMenu, addHelpButton } from './ui/leftMenu';
 import { showMainMenu } from './ui/mainMenu';
@@ -248,7 +248,21 @@ export function drawer() {
 
   layers.mapLayer.activate();
 
-  tryLoadAutosaveMap();
+  // Load remaining sprites after first map load (map object sprites
+  // are already in-flight via createObjectAsync's per-item loading)
+  let spritesLoaded = false;
+  emitter.on('mapLoaded', () => {
+    if (spritesLoaded) return;
+    spritesLoaded = true;
+    loadObjectSprites();
+  });
+
+  const hasAutosave = tryLoadAutosaveMap();
+
+  if (!hasAutosave) {
+    // No map to load — load all sprites immediately
+    loadObjectSprites();
+  }
 
   paper.view.onResize = onResize;
   paper.view.onFrame = onFrame;

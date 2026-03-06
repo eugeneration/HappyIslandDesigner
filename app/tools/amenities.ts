@@ -2,41 +2,40 @@ import paper from 'paper';
 
 import { AsyncObjectDefinition } from '../helpers/AsyncObjectDefinition';
 import { colors } from '../colors';
-import { loadSvg } from '../helpers/svgLoad';
 
 export const asyncAmenitiesDefinition = new AsyncObjectDefinition();
 
 asyncAmenitiesDefinition.value = {
   museumIcon: {
-    svg: 'icon-museum',
+    svg: 'static/svg/icon-museum.svg',
     menuScaling: new paper.Point(0.85, 0.85),
     scaling: new paper.Point(0.2, 0.2),
     size: new paper.Size(7, 4),
     offset: new paper.Point(-3.5, -6),
   },
   nookIcon: {
-    svg: 'icon-nooks-cranny',
+    svg: 'static/svg/icon-nooks-cranny.svg',
     menuScaling: new paper.Point(0.85, 0.85),
     scaling: new paper.Point(0.2, 0.2),
     size: new paper.Size(7, 4),
     offset: new paper.Point(-3.5, -6),
   },
   ableIcon: {
-    svg: 'icon-abel',
+    svg: 'static/svg/icon-abel.svg',
     menuScaling: new paper.Point(0.85, 0.85),
     scaling: new paper.Point(0.2, 0.2),
     size: new paper.Size(5, 4),
     offset: new paper.Point(-2.5, -6),
   },
   airportIcon: {
-    svg: 'icon-airport',
+    svg: 'static/svg/icon-airport.svg',
     menuScaling: new paper.Point(0.85, 0.85),
     scaling: new paper.Point(0.2, 0.2),
     size: new paper.Size(10, 6),
     offset: new paper.Point(-5, -7),
   },
   townhallIcon: {
-    svg: 'icon-townhall',
+    svg: 'static/svg/icon-townhall.svg',
     menuScaling: new paper.Point(0.85, 0.85),
     scaling: new paper.Point(0.2, 0.2),
     size: new paper.Size(6, 4),
@@ -52,7 +51,7 @@ asyncAmenitiesDefinition.value = {
     },
   },
   centerIcon: {
-    svg: 'icon-amenity-center',
+    svg: 'static/svg/icon-amenity-center.svg',
     menuScaling: new paper.Point(0.85, 0.85),
     scaling: new paper.Point(0.2, 0.2),
     size: new paper.Size(6, 4),
@@ -68,20 +67,21 @@ asyncAmenitiesDefinition.value = {
     },
   },
   antiquesIcon: {
-    svg: 'icon-antiques',
+    svg: 'static/svg/icon-antiques.svg',
     menuScaling: new paper.Point(0.85, 0.85),
     scaling: new paper.Point(0.2, 0.2),
     size: new paper.Size(6, 4),
     offset: new paper.Point(-3, -6),
   },
   tentIcon: {
-    svg: 'icon-tent',
+    svg: 'static/svg/icon-tent.svg',
     menuScaling: new paper.Point(0.85, 0.85),
     scaling: new paper.Point(0.2, 0.2),
     size: new paper.Size(4, 4),
     offset: new paper.Point(-2, -6),
   },
   dock: {
+    svg: 'static/svg/amenity-dock.svg',
     colorData: colors.dock,
     size: new paper.Size(7, 2),
     menuScaling: new paper.Point(0.2, 0.2),
@@ -154,6 +154,7 @@ asyncAmenitiesDefinition.value = {
     offset: new paper.Point(-1, -1.85),
   },
   lighthouse: {
+    svg: 'static/svg/amenity-lighthouse.svg',
     colorData: colors.pin,
     size: new paper.Size([2, 2]),
     menuScaling: new paper.Point(0.3, 0.3),
@@ -204,7 +205,7 @@ asyncAmenitiesDefinition.value = {
   },
 };
 
-export function load() {
+export function initDefaults() {
   Object.keys(asyncAmenitiesDefinition.value).forEach((type) => {
     const def = asyncAmenitiesDefinition.value[type];
     def.category = 'amenities';
@@ -214,25 +215,6 @@ export function load() {
     def.size = def.size || new paper.Size([8, 8]);
     def.offset = def.offset || new paper.Point(-4, -7.6);
     def.onSelect = () => {};
-    // imnmediately load the assets
-    if (def.svg) {
-      loadSvg(def.svg, (item) => {
-        def.icon = item;
-        asyncAmenitiesDefinition.onLoad();
-      });
-    } else if (def.img) {
-      const img = new paper.Raster(def.img);
-      def.icon = img;
-      def.icon.onLoad = function onLoad() {
-        asyncAmenitiesDefinition.onLoad();
-      };
-      img.remove();
-    } else {
-      loadSvg(`amenity-${type}`, (item) => {
-        // item.pivot += new paper.Point(-2, -3.6);
-        def.icon = item;
-        asyncAmenitiesDefinition.onLoad();
-      });
-    }
   });
 }
+

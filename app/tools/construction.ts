@@ -1,6 +1,5 @@
 import paper from 'paper';
 import { AsyncObjectDefinition } from '../helpers/AsyncObjectDefinition';
-import { loadSvg } from '../helpers/svgLoad';
 
 export const asyncConstructionDefinition = new AsyncObjectDefinition();
 
@@ -8,14 +7,14 @@ const length = 4;
 
 asyncConstructionDefinition.value = {
   bridgeIconVertical: {
-    svg: 'icon-bridge',
+    svg: 'static/svg/icon-bridge.svg',
     scaling: new paper.Point(0.16, 0.05 * length),
     menuScaling: new paper.Point(1.6, 1.3),
     size: new paper.Size(4, length),
     offset: new paper.Point(-2, -length),
   },
   bridgeIconHorizontal: {
-    svg: 'icon-bridge',
+    svg: 'static/svg/icon-bridge.svg',
     scaling: new paper.Point(0.16, 0.16),
     menuScaling: new paper.Point(1.6, 1.6),
     size: new paper.Size(6, 4),
@@ -23,7 +22,7 @@ asyncConstructionDefinition.value = {
     hidden: true,
   },
   bridgeIconTLBR: {
-    svg: 'icon-bridge',
+    svg: 'static/svg/icon-bridge.svg',
     scaling: new paper.Point(0.16, 0.16),
     menuScaling: new paper.Point(0.8, 0.8),
     size: new paper.Size(6, 6),
@@ -31,7 +30,7 @@ asyncConstructionDefinition.value = {
     hidden: true,
   },
   bridgeIconTRBL: {
-    svg: 'icon-bridge',
+    svg: 'static/svg/icon-bridge.svg',
     scaling: new paper.Point(0.16, 0.16),
     menuScaling: new paper.Point(0.8, 0.8),
     size: new paper.Size(6, 6),
@@ -39,14 +38,14 @@ asyncConstructionDefinition.value = {
     hidden: true,
   },
   stairsIconUp: {
-    svg: 'icon-stairs',
+    svg: 'static/svg/icon-stairs.svg',
     scaling: new paper.Point(0.175, 0.175),
     menuScaling: new paper.Point(1.1, 1.1),
     size: new paper.Size(2, 4),
     offset: new paper.Point(-1, -4 + .5),
   },
   stairsIconDown: {
-    svg: 'icon-stairs',
+    svg: 'static/svg/icon-stairs.svg',
     scaling: new paper.Point(0.16, 0.16),
     menuScaling: new paper.Point(1.2, 1.2),
     size: new paper.Size(2, 4),
@@ -54,7 +53,7 @@ asyncConstructionDefinition.value = {
     hidden: true,
   },
   stairsIconLeft: {
-    svg: 'icon-stairs',
+    svg: 'static/svg/icon-stairs.svg',
     scaling: new paper.Point(0.16, 0.16),
     menuScaling: new paper.Point(1.2, 1.2),
     size: new paper.Size(4, 2),
@@ -62,7 +61,7 @@ asyncConstructionDefinition.value = {
     hidden: true,
   },
   stairsIconRight: {
-    svg: 'icon-stairs',
+    svg: 'static/svg/icon-stairs.svg',
     scaling: new paper.Point(0.16, 0.16),
     menuScaling: new paper.Point(1.2, 1.2),
     size: new paper.Size(4, 2),
@@ -158,7 +157,7 @@ asyncConstructionDefinition.value = {
   },
 };
 
-export function load() {
+export function initDefaults() {
   Object.keys(asyncConstructionDefinition.value).forEach((type) => {
     const def = asyncConstructionDefinition.value[type];
     def.category = 'construction';
@@ -168,19 +167,6 @@ export function load() {
     def.offset =
       def.offset || new paper.Point(-def.size.width / 2, -def.size.height);
     def.onSelect = function () {};
-    // imnmediately load the assets
-    if (def.svg) {
-      loadSvg(def.svg, (item) => {
-        def.icon = item;
-        asyncConstructionDefinition.onLoad();
-      });
-    } else if (def.img) {
-      const img = new paper.Raster(def.img);
-      def.icon = img;
-      def.icon.onLoad = function () {
-        asyncConstructionDefinition.onLoad();
-      };
-      img.remove();
-    }
   });
 }
+

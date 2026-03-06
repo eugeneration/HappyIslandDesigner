@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { toolCategoryDefinition } from '../tools';
+import { toolCategoryDefinition, loadObjectAsset } from '../tools';
 import { layers } from '../layers';
 import { getObjectData } from '../helpers/getObjectData';
 import {
@@ -65,15 +65,29 @@ export function createObjectPreview(objectDefinition, itemData) {
 }
 
 export function createObjectPreviewAsync(objectData, callback) {
-  toolCategoryDefinition[objectData.category].tools.getAsyncValue((tools) => {
-    callback(createObjectPreview(tools[objectData.type], objectData));
-  });
+  const categoryDef = toolCategoryDefinition[objectData.category];
+  const def = categoryDef && categoryDef.tools && categoryDef.tools.value[objectData.type];
+
+  if (def && def.icon) {
+    callback(createObjectPreview(def, objectData));
+  } else if (def) {
+    if (!def._onIconLoaded) def._onIconLoaded = [];
+    def._onIconLoaded.push(() => callback(createObjectPreview(def, objectData)));
+    loadObjectAsset(objectData.category, objectData.type);
+  }
 }
 
 export function createObjectAsync(objectData, callback) {
-  toolCategoryDefinition[objectData.category].tools.getAsyncValue((tools) => {
-    callback(createObject(tools[objectData.type], objectData));
-  });
+  const categoryDef = toolCategoryDefinition[objectData.category];
+  const def = categoryDef && categoryDef.tools && categoryDef.tools.value[objectData.type];
+
+  if (def && def.icon) {
+    callback(createObject(def, objectData));
+  } else if (def) {
+    if (!def._onIconLoaded) def._onIconLoaded = [];
+    def._onIconLoaded.push(() => callback(createObject(def, objectData)));
+    loadObjectAsset(objectData.category, objectData.type);
+  }
 }
 
 export function placeObject(event) {
