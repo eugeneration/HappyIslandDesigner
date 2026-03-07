@@ -39,12 +39,19 @@
           // Cross-origin iframe — can't read parent host, block it
         }
         if (shouldBlock) {
-          try {
-            window.top.location.replace(window.location.href);
-          } catch (e) {
-            // Sandboxed iframe — redirect blocked, hide all content
-            document.documentElement.innerHTML = '';
-          }
+          window.stop();
+          var url = 'https://eugeneration.github.io/HappyIslandDesigner/';
+          setTimeout(function() {
+            document.documentElement.innerHTML =
+              '\x3chead\x3e\x3ctitle\x3eHappy Island Designer\x3c/title\x3e\x3c/head\x3e' +
+              '\x3cbody style="margin:0;display:flex;align-items:center;justify-content:center;' +
+              'height:100vh;background:#f5f3e5;font-family:sans-serif"\x3e' +
+              '\x3cdiv style="text-align:center;color:#726a5a;font-size:20px;padding:20px"\x3e' +
+              'Please use Happy Island Designer at\x3cbr\x3e' +
+              '\x3ca href="' + url + '" target="_top" ' +
+              'style="color:#35a043;font-weight:bold"\x3eeugeneration.github.io/HappyIslandDesigner\x3c/a\x3e' +
+              '\x3c/div\x3e\x3c/body\x3e';
+          }, 0);
         }
       }
     </script>
