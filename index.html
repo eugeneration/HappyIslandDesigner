@@ -14,12 +14,19 @@
           // Cross-origin iframe — can't read parent host, block it
         }
         if (shouldBlock) {
-          try {
-            window.top.location.replace(window.location.href);
-          } catch (e) {
-            // Sandboxed iframe — redirect blocked, hide all content
-            document.documentElement.innerHTML = '';
-          }
+          window.stop();
+          var url = 'https://eugeneration.github.io/HappyIslandDesigner/';
+          setTimeout(function() {
+            document.documentElement.innerHTML =
+              '\x3chead\x3e\x3ctitle\x3eHappy Island Designer\x3c/title\x3e\x3c/head\x3e' +
+              '\x3cbody style="margin:0;display:flex;align-items:center;justify-content:center;' +
+              'height:100vh;background:#f5f3e5;font-family:sans-serif"\x3e' +
+              '\x3cdiv style="text-align:center;color:#726a5a;font-size:20px;padding:20px"\x3e' +
+              'Please use Happy Island Designer at\x3cbr\x3e' +
+              '\x3ca href="' + url + '" target="_top" ' +
+              'style="color:#35a043;font-weight:bold"\x3eeugeneration.github.io/HappyIslandDesigner\x3c/a\x3e' +
+              '\x3c/div\x3e\x3c/body\x3e';
+          }, 0);
         }
       }</script><script>// Detect non-production sites (forks, local dev) and downrank them
       var PRODUCTION_HOST = 'eugeneration.github.io';
@@ -38,7 +45,7 @@
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
         gtag('config', 'G-D84QFBFDHP');
-      }</script><link rel="icon" type="image/png" sizes="192x192" href="favicon-192x192.png"/><link rel="icon" type="image/png" sizes="48x48" href="favicon-48x48.png"/><link rel="icon" href="favicon.ico" type="image/x-icon"/><link rel="apple-touch-icon" sizes="192x192" href="favicon-192x192.png"/><link rel="preload" href="./static/font/TTNorms-Bold.woff" as="font" type="font/woff" crossorigin/><link rel="preload" href="./static/img/tool-color.png" as="image"/><link rel="preload" href="./static/img/tool-path.png" as="image"/><link rel="preload" href="./static/img/tool-house.png" as="image"/><link rel="preload" href="./static/img/tool-amenities.png" as="image"/><link rel="preload" href="./static/img/tool-construction.png" as="image"/><link rel="preload" href="./static/img/tool-tree.png" as="image"/><link rel="preload" href="./static/img/tool-flower.png" as="image"/><link rel="preload" href="./static/img/menu-undo.png" as="image"/><link rel="preload" href="./static/img/menu-redo.png" as="image"/><link rel="preload" href="./static/img/menu-help.png" as="image"/><link rel="preload" href="./static/img/ui-plus.png" as="image"/><link rel="preload" href="./static/img/ui-minus.png" as="image"/><link rel="preload" href="./static/img/menu-drawbrush.png" as="image"/><link rel="preload" href="./static/img/menu-drawline.png" as="image"/><script defer="defer" src="dist/vendor.bundle.js"></script><script defer="defer" src="dist/main.bundle.js"></script><link href="dist/main.css" rel="stylesheet"></head><body><style>@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+      }</script><link rel="icon" type="image/png" sizes="192x192" href="favicon-192x192.png"/><link rel="icon" type="image/png" sizes="48x48" href="favicon-48x48.png"/><link rel="icon" href="favicon.ico" type="image/x-icon"/><link rel="apple-touch-icon" sizes="192x192" href="favicon-192x192.png"/><link rel="preload" href="./static/img/tool-color.png" as="image"/><link rel="preload" href="./static/img/tool-path.png" as="image"/><link rel="preload" href="./static/img/tool-house.png" as="image"/><link rel="preload" href="./static/img/tool-amenities.png" as="image"/><link rel="preload" href="./static/img/tool-construction.png" as="image"/><link rel="preload" href="./static/img/tool-tree.png" as="image"/><link rel="preload" href="./static/img/tool-flower.png" as="image"/><link rel="preload" href="./static/img/menu-undo.png" as="image"/><link rel="preload" href="./static/img/menu-redo.png" as="image"/><link rel="preload" href="./static/img/menu-help.png" as="image"/><link rel="preload" href="./static/img/ui-plus.png" as="image"/><link rel="preload" href="./static/img/ui-minus.png" as="image"/><link rel="preload" href="./static/img/menu-drawbrush.png" as="image"/><link rel="preload" href="./static/img/menu-drawline.png" as="image"/><script defer="defer" src="dist/vendor.bundle.js"></script><script defer="defer" src="dist/main.bundle.js"></script><link href="dist/main.css" rel="stylesheet"></head><body><style>@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
       @keyframes fadeout{to{opacity:0}}
       @keyframes bounce{0%,100%{transform:translateY(0) scaleX(1) scaleY(1);animation-timing-function:ease-in}8%{transform:translateY(13.75%) scaleX(1.3) scaleY(0.75);animation-timing-function:cubic-bezier(0.33,1,0.68,1)}30%{transform:translateY(-16px) scaleX(0.9) scaleY(1.1);animation-timing-function:cubic-bezier(0.32,0,0.67,0)}44%{transform:translateY(13.75%) scaleX(1.3) scaleY(0.75);animation-timing-function:ease-out}52%{transform:translateY(0) scaleX(1) scaleY(1)}}
       .skeleton-shimmer{position:relative;overflow:hidden}
