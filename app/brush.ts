@@ -11,6 +11,7 @@ import { getObjectData } from './helpers/getObjectData';
 import { createObjectPreviewAsync } from './ui/createObject';
 import { isV2Map } from './mapState';
 import { getInnerDrawableBounds } from './ui/edgeTiles';
+import { trackMiscAction } from './analytics';
 
 let rawBrushSize = 2;
 let brushSize = 2;
@@ -341,6 +342,7 @@ function updateBrushPaths() {
 }
 
 export function cycleBrushHead() {
+  trackMiscAction('brush_cycle');
   const heads = Object.keys(brushTypes).sort((a, b) => {
     if (a === b) {
       return 0;
@@ -356,12 +358,14 @@ export function cycleBrushHead() {
 }
 
 export function decrementBrush() {
+  trackMiscAction('brush_size_change');
   rawBrushSize = Math.max(brushSize - 1, 0);
   brushSize = Math.max(rawBrushSize, 1);
   updateBrush();
 }
 
 export function incrementBrush() {
+  trackMiscAction('brush_size_change');
   rawBrushSize = Math.max(brushSize + 1, 0);
   brushSize = Math.max(rawBrushSize, 1);
   updateBrush();

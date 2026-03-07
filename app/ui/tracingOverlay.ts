@@ -6,6 +6,7 @@ import { layers } from '../layers';
 import { createButton } from './createButton';
 import { clamp } from '../helpers/clamp';
 import { showNuxTooltip } from './nuxTooltip';
+import { trackOverlayAction } from '../analytics';
 
 let tracingOverlayUI;
 function showTracingOverlayUI(isShown) {
@@ -99,12 +100,14 @@ function startTracingOverlay() {
 function stopTracingOverlay() {
   if (tracingOverlayImage == null) return;
   if (!confirm('Remove the photo overlay? This cannot be undone.')) return;
+  trackOverlayAction('close');
   showTracingOverlayUI(false);
   tracingOverlayImage.remove();
 }
 
 function incrementTracingOverlayAlpha(increase, amount?: number) {
   if (tracingOverlayImage == null) return;
+  trackOverlayAction('transparency');
   amount = amount ?? 0.1;
   const newOpacity = round(
     clamp(tracingOverlayImage.opacity + (increase ? 1 : -1) * amount, 0, 1),
@@ -117,6 +120,7 @@ function incrementTracingOverlayAlpha(increase, amount?: number) {
 
 export function toggleTracingOverlayVisible() {
   if (!tracingOverlayImage) return;
+  trackOverlayAction('toggle');
   tracingOverlayImage.visible = !tracingOverlayImage.visible;
   emitter.emit('updateTracingOverlayVisible', tracingOverlayImage.visible);
 }

@@ -10,6 +10,7 @@ import { emitter } from '../emitter';
 import { layers } from '../layers';
 import { updateMapOverlay } from './tracingOverlay';
 import { loadImage } from '../load';
+import { trackOverlayFlowStart, trackOverlayFlowComplete, trackOverlayFlowCancel } from '../analytics';
 
 let switchMenu: paper.Group;
 
@@ -17,6 +18,11 @@ export function showSwitchModal(isShown) {
   if (switchMenu == null) {
     if (!isShown) return;
     renderTracingOverlayModal();
+  }
+  if (isShown) {
+    trackOverlayFlowStart();
+  } else {
+    trackOverlayFlowCancel();
   }
   switchMenu.data.show(isShown);
 }
@@ -164,6 +170,7 @@ function renderTracingOverlayModal() {
       const confirmButton = createButton(confirmIcon, 30, function() {
         mapImage.data.perspectiveWarp();
         updateMapOverlay(mapImage.data.perspectiveWarpImage);
+        trackOverlayFlowComplete();
         switchMenu.data.show(false);
       }, {
         alpha: .9,

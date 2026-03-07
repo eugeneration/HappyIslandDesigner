@@ -9,8 +9,8 @@ import { LayoutType, Layout, baseMapLayouts } from './islandLayouts';
 import useBlockZoom from './useBlockZoom';
 
 import { loadMapFromJSONString, loadBaseMapFromSvg } from '../load';
-import {confirmDestructiveActionAsync, isMapEmpty, autosaveTrigger} from '../state';
-import { autosaveMap } from '../save';
+import {confirmDestructiveActionAsync, isMapEmpty, autosaveTrigger, state} from '../state';
+import { autosaveMap, encodeMap } from '../save';
 import { setMapVersion, emitMapLoaded } from '../mapState';
 import { loadEdgeTilesAsGeometry, captureEdgeTileRaster } from '../ui/edgeTiles';
 import { emitter } from '../emitter';
@@ -19,6 +19,16 @@ import { showPositionSelector, hidePositionSelector, SelectionType, getPeninsula
 import { showOptionSelector, OptionDirection, spawnTileParticles } from '../ui/mapOptionSelector';
 import { initializeEdgeTiles, fillEdgeTilesWithPlaceholders, replaceBlocks, restoreBlocks, setRiverTiles, getRemainingPlaceholders } from '../ui/edgeTiles';
 import { tileAssetIndices, getAssetByIndex, categoryAssetIndices, type TileDirection } from '../ui/edgeTileAssets';
+import {
+  trackWizardCancel,
+  trackWizardComplete,
+  trackWizardDenyChanges,
+  trackScreenshotDuration,
+  trackMapLoad,
+  trackMapComplexity,
+  computeMapComplexity,
+  getWizardFlowType,
+} from '../analytics';
 import {
   WizardState,
   getWizardState,
@@ -135,6 +145,7 @@ export default function ModalMapSelect(){
 
   function closeModal(){
     if (!isMapEmpty()) {
+      trackWizardCancel(getWizardFlowType(), wizardState.step);
       resetWizard();
       setIsOpen(false);
     }
@@ -803,6 +814,7 @@ function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: Wi
       const layouts = Layouts[wizardState.riverDirection as LayoutType] || [];
       if (layouts[layout]) {
         loadMapFromJSONString(layouts[layout].data);
+        trackWizardComplete('manual', 'template');
         resetWizard();
       }
     }
@@ -828,6 +840,7 @@ function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: Wi
             setMapVersion(2);
             autosaveMap();
             emitMapLoaded();
+            trackWizardComplete('tile_editor', baseMapIndex === 0 ? 'blank' : 'template');
             resetWizard();
           }}
           onBack={goBack}
@@ -847,7 +860,10 @@ function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: Wi
             const proceed = await confirmDestructiveActionAsync(
               i18next.t('clear_warn')
             );
-            if (!proceed) return;
+            if (!proceed) {
+              trackWizardDenyChanges('manual');
+              return;
+            }
             setLayout(index);
           }}
           onBack={goBack}
@@ -929,12 +945,14 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
   }, [isGenerating]);
 
   const handleGenerate = async () => {
+    let generateStartTime = 0;
     try {
       const { generateFromScreenshot } = await import(/* webpackChunkName: "generateFromScreenshot" */ '../ui/generateFromScreenshot');
       await generateFromScreenshot({
         debug: false,
         onFileSelected: () => {
           isGeneratingRef.current = true;
+          generateStartTime = Date.now();
           setIsGenerating(true);
           setProgress({ completed: 0, total: 1 });
           setFlavorIndex(0);
@@ -946,6 +964,10 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
 
       // Only close modal if generation actually ran (file was selected)
       if (isGeneratingRef.current) {
+        trackScreenshotDuration(Date.now() - generateStartTime);
+        trackWizardComplete('screenshot');
+        trackMapLoad('wizard_screenshot', 2);
+        trackMapComplexity(2, computeMapComplexity(state.drawing, state.objects), encodeMap().length);
         autosaveTrigger();
         resetWizard();
       }
@@ -1110,7 +1132,10 @@ function RiverDirectionStep() {
     const proceed = await confirmDestructiveActionAsync(
       i18next.t('clear_warn')
     );
-    if (!proceed) return;
+    if (!proceed) {
+      trackWizardDenyChanges('tile_editor');
+      return;
+    }
     // load blank terrain
     await loadBaseMapFromSvg(0);
     // Set direction and move to next step - wizard state handler will show airport selector
@@ -1219,10 +1244,14 @@ function LegacyRiverDirectionStep({ onBack }: { onBack: () => void }) {
     const proceed = await confirmDestructiveActionAsync(
       i18next.t('clear_warn')
     );
-    if (!proceed) return;
+    if (!proceed) {
+      trackWizardDenyChanges('manual');
+      return;
+    }
     const { default: Layouts } = await import(/* webpackChunkName: "islandLayoutsV1" */ './islandLayoutsV1');
     const blankLayout = Layouts.blank[0];
     loadMapFromJSONString(blankLayout.data);
+    trackWizardComplete('manual', 'blank');
     resetWizard();
   };
 

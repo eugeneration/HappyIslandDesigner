@@ -1,6 +1,6 @@
 import paper from 'paper';
 import { clearMap, setNewMapData, addToHistory } from './state';
-import { decodeMap, autosaveMapRaw } from './save';
+import { decodeMap, autosaveMapRaw, encodeMap } from './save';
 import steg from './vendors/steganography';
 import LZString from 'lz-string';
 import { showLoadingScreen } from "./ui/loadingScreen";
@@ -10,6 +10,8 @@ import { emitMapLoaded } from './mapState';
 import { addPath } from './paint';
 import { layers } from './layers';
 import { colors } from './colors';
+import { trackMapLoad, trackMapComplexity, computeMapComplexity } from './analytics';
+import { state } from './state';
 
 // todo - this file should be merged with save.ts, then optionally split into different modules
 // right now, very similar logic is split between two files which makes no sense
@@ -44,8 +46,12 @@ export function tryLoadAutosaveMap() {
     if (autosave !== null) {
       deleteEdgeTiles();
       clearMap();
-      setNewMapData(decodeMap(JSON.parse(autosave)));
+      const mapData = decodeMap(JSON.parse(autosave));
+      setNewMapData(mapData);
       emitMapLoaded();
+      const ver = mapData?.version === 2 ? 2 : 1;
+      trackMapLoad('autosave', ver);
+      trackMapComplexity(ver, computeMapComplexity(state.drawing, state.objects), encodeMap().length);
       return true;
     }
   }
@@ -57,7 +63,7 @@ export function tryLoadAutosaveMap() {
 // @ts-ignore
 window.loadMap = loadMapFromJSONString;
 
-export function loadMapFromJSONString(mapJSONString: string) {
+export function loadMapFromJSONString(mapJSONString: string, entryMethod?: string) {
   let json;
   try {
     json = JSON.parse(mapJSONString);
@@ -75,6 +81,11 @@ export function loadMapFromJSONString(mapJSONString: string) {
   setNewMapData(map);
   autosaveMapRaw(JSON.stringify(json));
   emitMapLoaded();
+  if (entryMethod) {
+    const ver = map?.version === 2 ? 2 : 1;
+    trackMapLoad(entryMethod, ver);
+    trackMapComplexity(ver, computeMapComplexity(state.drawing, state.objects), encodeMap().length);
+  }
 }
 
 export function loadMapFromFile() {
@@ -83,7 +94,7 @@ export function loadMapFromFile() {
       height: image.height,
       width: image.width,
     });
-    loadMapFromJSONString(mapJSONString);
+    loadMapFromJSONString(mapJSONString, 'file_load');
   });
 }
 

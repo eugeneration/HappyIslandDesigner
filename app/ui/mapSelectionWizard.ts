@@ -10,6 +10,7 @@ import { initializeEdgeTiles, fillEdgeTilesWithPlaceholders, loadEdgeTilesAsGeom
 import { getAirportBlocks, hidePositionSelector } from './mapPositionSelector';
 import { hideOptionSelector } from './mapOptionSelector';
 import { preloadTilesCache } from '../lazyTilesCache';
+import { trackWizardStart, trackWizardCancel, trackWizardComplete, trackWizardDenyChanges, getWizardFlowType } from '../analytics';
 
 export type WizardStep = 'entrypoint' | 'screenshot' | 'start' | 'river' | 'baseMapGrid' | 'riverMouth1' | 'riverMouth2' | 'airport' | 'peninsulaSide' | 'peninsulaPos' | 'peninsulaShape' | 'dockSide' | 'dockShape' | 'secretBeachPos' | 'secretBeachShape' | 'leftRockPos' | 'leftRockShape' | 'rightRockPos' | 'rightRockShape' | 'fillPlaceholder' | 'grid' | 'legacyriver' | 'legacygrid';
 
@@ -113,12 +114,16 @@ export async function skipWizard(): Promise<void> {
   const proceed = await confirmDestructiveActionAsync(
     'Clear your map? You will lose all unsaved changes.'
   );
-  if (!proceed) return;
+  if (!proceed) {
+    trackWizardDenyChanges('tile_editor');
+    return;
+  }
   await loadBaseMapFromSvg(0);
   initializeEdgeTiles();
   fillEdgeTilesWithPlaceholders();
   loadEdgeTilesAsGeometry();
   autosaveTrigger();
+  trackWizardComplete('tile_editor', 'skip', 'river');
   resetWizard();
 }
 
@@ -127,6 +132,7 @@ export function skipWizardNonDestructive(): void {
   if (confirmed) {
     loadEdgeTilesAsGeometry();
     autosaveTrigger();
+    trackWizardComplete('tile_editor', 'skip', wizardState.step);
     resetWizard();
   }
 }
@@ -160,15 +166,18 @@ export function goToTileEditorFlow(): void {
   preloadTilesCache();
   enterWizardMode();
   wizardState.step = 'river';
+  trackWizardStart('tile_editor');
   emitter.emit('wizardStateChanged', wizardState);
 }
 
 export function goToScreenshotFlow(): void {
   wizardState.step = 'screenshot';
+  trackWizardStart('screenshot');
   emitter.emit('wizardStateChanged', wizardState);
 }
 
 export function goToEntrypoint(): void {
+  trackWizardCancel(getWizardFlowType(), wizardState.step);
   exitWizardMode();
   wizardState.step = 'entrypoint';
   emitter.emit('wizardStateChanged', wizardState);
@@ -289,6 +298,7 @@ export function finishPlaceholders(): void {
 
 export function goToLegacyRiverSelection(): void {
   wizardState.step = 'legacyriver';
+  trackWizardStart('manual');
   emitter.emit('wizardStateChanged', wizardState);
 }
 

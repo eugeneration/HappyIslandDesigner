@@ -9,6 +9,7 @@ import { saveMapToFile } from '../save';
 import { loadMapFromFile } from '../load';
 import { showSwitchModal } from './tracingOverlayModal';
 import { OpenMapSelectModal } from '../components/ModalMapSelect';
+import { trackMainMenuAction } from '../analytics';
 
 
 export let mainMenu: paper.Group;
@@ -107,6 +108,7 @@ export function showMainMenu(isShown: boolean) {
       'static/img/menu-save.png',
       0, 0,
       () => {
+        trackMainMenuAction('save');
         saveMapToFile();
       },
     );
@@ -115,6 +117,7 @@ export function showMainMenu(isShown: boolean) {
       'static/img/menu-open.png',
       1, 0,
       () => {
+        trackMainMenuAction('open');
         loadMapFromFile();
       },
     );
@@ -123,6 +126,7 @@ export function showMainMenu(isShown: boolean) {
       'static/img/menu-new.png',
       2, 0,
       () => {
+        trackMainMenuAction('new_map');
         // eslint-disable-next-line no-alert, no-restricted-globals
         OpenMapSelectModal();
         showMainMenu(false);
@@ -131,7 +135,7 @@ export function showMainMenu(isShown: boolean) {
     const switchButton = createMenuButton(
       i18next.t('tracing_overlay'),
       'static/img/menu-overlay.png', 0, 1,
-      () => showSwitchModal(true));
+      () => { trackMainMenuAction('overlay'); showSwitchModal(true); });
 
     const twitterButton = createMenuButton(
       i18next.t('twitter'),

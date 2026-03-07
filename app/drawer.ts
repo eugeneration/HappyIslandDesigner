@@ -19,6 +19,7 @@ import { initLayers, layers } from './layers';
 import { colors } from './colors';
 import { tryLoadAutosaveMap } from './load';
 import { initWaterfall } from './waterfall';
+import { trackMainMenuAction } from './analytics';
 import { backgroundInit, drawBackground } from './background';
 import { resizeCoordinates } from './resizeCoordinates';
 import { keys } from './keyboard';
@@ -229,6 +230,7 @@ export function drawer() {
     mainMenuButtonIcon.fillColor = colors.yellow.color;
   };
   mainMenuButton.onMouseUp = function (event) {
+    trackMainMenuAction('menu_open');
     showMainMenu(true);
     if (mainMenuButton && mainMenuButton.onMouseLeave) {
       mainMenuButton.onMouseLeave(event);

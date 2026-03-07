@@ -6,6 +6,7 @@ import objectIsEmpty from './helpers/objectIsEmpty';
 import { setEdgeTilesFromAssetIndices } from './ui/edgeTiles';
 import { setMapVersion } from './mapState';
 import { clearWaterfall } from './waterfall';
+import { trackUndoRedo } from './analytics';
 
 /* eslint-disable default-case */
 export type State = {
@@ -105,6 +106,7 @@ export function undo() {
     applyCommand(state.history[state.index], false);
     state.index -= 1;
     emitter.emit('historyUpdate', 'undo');
+    trackUndoRedo('undo');
   } else {
     console.log('Nothing to undo');
   }
@@ -115,6 +117,7 @@ export function redo() {
     state.index += 1;
     applyCommand(state.history[state.index], true);
     emitter.emit('historyUpdate', 'redo');
+    trackUndoRedo('redo');
   } else {
     console.log('Nothing to redo');
   }

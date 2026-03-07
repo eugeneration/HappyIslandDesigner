@@ -12,6 +12,8 @@ import { getMobileOperatingSystem } from "./helpers/getMobileOperatingSystem";
 
 import { encodeMapV1, decodeMapV1, encodeObjectGroups, encodeDrawing } from './save-legacy';
 import { getEdgeAssetIndices, isEdgeTilesVisible } from './ui/edgeTiles';
+import { trackMapSave, trackMapComplexity, computeMapComplexity } from './analytics';
+import { getMapVersion } from './mapState';
 
 export function encodeMap() {
   // V1 map if no edge tiles are present
@@ -97,6 +99,7 @@ export function clearAutosave() {
 
 export function saveMapToFile() {
   let mapJson = encodeMap();
+  const jsonSizeBytes = mapJson.length;
   mapJson = LZString.compressToUTF16(mapJson);
 
   const saveMargins = new paper.Size(10, 10);
@@ -215,6 +218,9 @@ export function saveMapToFile() {
       } else {
         downloadDataURL(filename, mapRasterData);
       }
+      const ver = getMapVersion();
+      trackMapSave(ver);
+      trackMapComplexity(ver, computeMapComplexity(state.drawing, state.objects), jsonSizeBytes);
     },
     false,
   );

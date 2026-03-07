@@ -33,6 +33,7 @@ import { getColorAtCoordinate } from '../getColorAtCoordinate';
 import { startDraw, draw, endDraw } from '../paint';
 import { enterEdgeEditMode, exitEdgeEditMode, isEdgeEditModeActive } from '../ui/edgeTileEditor';
 import { setEdgeTilesInteractive, getInnerDrawableBounds } from '../ui/edgeTiles';
+import { trackMiscAction, trackObjectPlacement } from '../analytics';
 
 const toolPrefix = 'tool-';
 
@@ -167,6 +168,7 @@ class BaseObjectCategoryDefinition {
   }
   onMouseDown(event) {
     placeObject(event);
+    trackObjectPlacement(this.type);
     this.base.onMouseDown(this, event);
   }
   onMouseDrag(event) {
@@ -322,6 +324,7 @@ export function initTools() {
       this.base.onMouseDown(this, event);
       if (isOutOfIslandBounds(event)) return;
       if (paper.Key.isDown('alt')) {
+        trackMiscAction('color_pick');
         const rawCoordinate = layers.mapOverlayLayer.globalToLocal(event.point);
         updatePaintColor(getColorAtCoordinate(rawCoordinate));
       }
@@ -426,6 +429,7 @@ export function initTools() {
       this.base.onMouseDown(this, event);
       if (isOutOfIslandBounds(event)) return;
       if (paper.Key.isDown('alt')) {
+        trackMiscAction('color_pick');
         const rawCoordinate = layers.mapOverlayLayer.globalToLocal(event.point);
         updatePaintColor(getColorAtCoordinate(rawCoordinate));
       }

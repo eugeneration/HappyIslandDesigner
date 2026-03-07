@@ -1,6 +1,7 @@
 import { toolCategoryDefinition } from '.';
 import { layers } from '../layers';
 import { emitter } from '../emitter';
+import { trackToolUsage, trackMiscAction } from '../analytics';
 
 class ToolState {
   activeTool: any = null;
@@ -43,8 +44,10 @@ class ToolState {
       toolData.definition.updateTool(prevTool, toolData, isToolTypeSwitch);
     }
     emitter.emit('toolSwitched', toolData);
+    trackToolUsage(toolData.type);
   }
   deleteSelection() {
+    trackMiscAction('delete');
     Object.keys(this.selected).forEach((objectId) => {
       const object = this.selected[objectId];
       object.onDelete();

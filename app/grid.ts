@@ -12,6 +12,7 @@ import { getCurrentPaintColor, getBrushCenteredCoordinate, updateBrushDirection 
 import { layers } from './layers';
 import { uniteCompoundPath } from './helpers/unitCompoundPath';
 import { getDiff } from './helpers/getDiff';
+import { trackMiscAction } from './analytics';
 
 // ===============================================
 // GRID overlay
@@ -28,6 +29,7 @@ export function getGridRaster() {
 }
 
 export function toggleGrid() {
+  trackMiscAction('grid_toggle');
   gridRaster.visible = !gridRaster.visible;
 }
 

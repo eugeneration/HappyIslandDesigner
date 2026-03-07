@@ -25,6 +25,7 @@ import { isV2Map } from './mapState';
 import { emitter } from './emitter';
 import { markWaterfallDirty } from './waterfall';
 import { appSettings } from './settings';
+import { trackMiscAction, trackBrushStroke } from './analytics';
 
 const paintTools = {
   grid: 'grid',
@@ -58,6 +59,7 @@ export function draw(event) {
       const brushLineForce = getCurrentBrushLineForce();
       const isShift = paper.Key.isDown('shift');
       if (!brushLine && (isShift || brushLineForce)) {
+        trackMiscAction('shift_line');
         startDrawGrid(event.point);
       } else if (brushLine && !(isShift || brushLineForce)) {
         drawGrid(event.point);
@@ -84,6 +86,7 @@ export function draw(event) {
 }
 
 export function endDraw(event) {
+  trackBrushStroke(getCurrentPaintColor().key);
   switch (paintTool) {
     case paintTools.grid: {
       const brushLineForce = getCurrentBrushLineForce();
@@ -130,6 +133,7 @@ function getDrawPath(coordinate) {
 }
 
 export function drawLine(start: paper.Point, end: paper.Point): paper.Path {
+  trackMiscAction('line_tool');
   const drawPaths: paper.Path[] = [];
   if (brushSweep) {
     //prevDrawCoordinate = null;

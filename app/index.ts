@@ -3,6 +3,7 @@ import { zoom } from './paper-zoom';
 import { drawer } from './drawer';
 import './settings';
 import './index.scss';
+import { trackSessionStart, initAnalytics } from './analytics';
 
 import browserUpdate from 'browser-update';
 import i18next from 'i18next';
@@ -40,6 +41,13 @@ if (detectedLng !== 'en') {
   await install();
   drawer();
   zoom();
+
+  const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+  const isRefresh = navEntry?.type === 'reload';
+  const hasAutosave = !!(localStorage && localStorage.getItem('autosave'));
+  const loadTimeMs = Math.round(performance.now());
+  trackSessionStart(isRefresh, hasAutosave, i18next.language, loadTimeMs);
+  initAnalytics();
   const skeleton = document.getElementById('loading-skeleton');
   if (skeleton) {
     const dots = skeleton.querySelector('.skeleton-dots') as HTMLElement;

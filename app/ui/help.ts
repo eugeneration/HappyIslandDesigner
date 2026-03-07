@@ -3,10 +3,12 @@ import paper from 'paper';
 import { renderModal } from './modal';
 import { colors } from '../colors';
 import i18next from 'i18next';
+import { trackMiscAction } from '../analytics';
 
 export let helpMenu: paper.Group;
 
 export function showHelpMenu(isShown: boolean) {
+  if (isShown) trackMiscAction('help_menu');
   if (!helpMenu) {
     helpMenu = renderModal(i18next.t('hotkey'), 340, 560, () => {
       showHelpMenu(false);
