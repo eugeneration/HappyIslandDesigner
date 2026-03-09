@@ -14,6 +14,7 @@ import {
 import { toolCategoryDefinition } from '../tools';
 import { state } from '../state';
 import { toolState } from '../tools/state';
+import { imgPath } from '../constants';
 
 let panelGroup: paper.Group | null = null;
 let titleText: paper.PointText | null = null;
@@ -22,84 +23,15 @@ let lengthButton: paper.Group | null = null;
 let currentObject = null;
 
 function createRotateIcon() {
-  const g = new paper.Group();
-  // Circular arrow icon
-  const arc = new paper.Path.Arc(
-    new paper.Point(-7, -4),
-    new paper.Point(0, -8),
-    new paper.Point(7, -4),
-  );
-  arc.strokeColor = colors.text.color;
-  arc.strokeWidth = 2;
-  arc.strokeCap = 'round';
-
-  const arc2 = new paper.Path.Arc(
-    new paper.Point(7, 4),
-    new paper.Point(0, 8),
-    new paper.Point(-7, 4),
-  );
-  arc2.strokeColor = colors.text.color;
-  arc2.strokeWidth = 2;
-  arc2.strokeCap = 'round';
-
-  // Arrowheads
-  const arrow1 = new paper.Path([
-    new paper.Point(5, -8),
-    new paper.Point(9, -4),
-    new paper.Point(5, -1),
-  ]);
-  arrow1.strokeColor = colors.text.color;
-  arrow1.strokeWidth = 2;
-  arrow1.strokeCap = 'round';
-  arrow1.strokeJoin = 'round';
-
-  const arrow2 = new paper.Path([
-    new paper.Point(-5, 8),
-    new paper.Point(-9, 4),
-    new paper.Point(-5, 1),
-  ]);
-  arrow2.strokeColor = colors.text.color;
-  arrow2.strokeWidth = 2;
-  arrow2.strokeCap = 'round';
-  arrow2.strokeJoin = 'round';
-
-  g.addChildren([arc, arc2, arrow1, arrow2]);
-  return g;
+  const icon = new paper.Raster(`${imgPath}ui-rotate.png`);
+  icon.scaling = new paper.Point(0.36, 0.36);
+  return icon;
 }
 
 function createLengthIcon() {
-  const g = new paper.Group();
-  // Double-headed horizontal arrow
-  const line = new paper.Path.Line(
-    new paper.Point(-8, 0),
-    new paper.Point(8, 0),
-  );
-  line.strokeColor = colors.text.color;
-  line.strokeWidth = 2;
-  line.strokeCap = 'round';
-
-  const arrowL = new paper.Path([
-    new paper.Point(-4, -4),
-    new paper.Point(-8, 0),
-    new paper.Point(-4, 4),
-  ]);
-  arrowL.strokeColor = colors.text.color;
-  arrowL.strokeWidth = 2;
-  arrowL.strokeCap = 'round';
-  arrowL.strokeJoin = 'round';
-
-  const arrowR = new paper.Path([
-    new paper.Point(4, -4),
-    new paper.Point(8, 0),
-    new paper.Point(4, 4),
-  ]);
-  arrowR.strokeColor = colors.text.color;
-  arrowR.strokeWidth = 2;
-  arrowR.strokeCap = 'round';
-  arrowR.strokeJoin = 'round';
-
-  g.addChildren([line, arrowL, arrowR]);
-  return g;
+  const icon = new paper.Raster(`${imgPath}ui-width.png`);
+  icon.scaling = new paper.Point(0.36, 0.36);
+  return icon;
 }
 
 function isBridgeType(type: string): boolean {

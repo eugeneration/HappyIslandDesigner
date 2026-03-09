@@ -291,12 +291,6 @@ function swapObjectType(object, cycleMap) {
   applyCommand(command, true);
   addToHistory(command);
 
-  // Update the construction menu button icon to reflect the rotation
-  const categoryDef = toolCategoryDefinition.construction;
-  if (categoryDef.updateMenuButtonIcon) {
-    categoryDef.updateMenuButtonIcon(newDef);
-  }
-
   // Select the new object and emit event for panel
   const newObject = state.objects[oldData.id];
   if (newObject) {
