@@ -12,7 +12,7 @@ import { hideOptionSelector } from './mapOptionSelector';
 import { preloadTilesCache } from '../lazyTilesCache';
 import { trackWizardStart, trackWizardCancel, trackWizardComplete, trackWizardDenyChanges, getWizardFlowType } from '../analytics';
 
-export type WizardStep = 'entrypoint' | 'screenshot' | 'start' | 'river' | 'baseMapGrid' | 'riverMouth1' | 'riverMouth2' | 'airport' | 'peninsulaSide' | 'peninsulaPos' | 'peninsulaShape' | 'dockSide' | 'dockShape' | 'secretBeachPos' | 'secretBeachShape' | 'leftRockPos' | 'leftRockShape' | 'rightRockPos' | 'rightRockShape' | 'fillPlaceholder' | 'grid' | 'legacyriver' | 'legacygrid';
+export type WizardStep = 'entrypoint' | 'screenshot' | 'convert' | 'start' | 'river' | 'baseMapGrid' | 'riverMouth1' | 'riverMouth2' | 'airport' | 'peninsulaSide' | 'peninsulaPos' | 'peninsulaShape' | 'dockSide' | 'dockShape' | 'secretBeachPos' | 'secretBeachShape' | 'leftRockPos' | 'leftRockShape' | 'rightRockPos' | 'rightRockShape' | 'fillPlaceholder' | 'grid' | 'legacyriver' | 'legacygrid';
 
 export type WizardState = {
   step: WizardStep;
@@ -63,7 +63,7 @@ export const stepOrder: WizardStep[] = ['river', 'riverMouth1', 'riverMouth2', '
 const legacyStepOrder: WizardStep[] = ['river', 'legacyriver', 'legacygrid'];
 
 // Steps that show modal vs map selection
-export const modalSteps: WizardStep[] = ['entrypoint', 'screenshot', 'river', 'baseMapGrid', 'peninsulaSide', 'dockSide', 'grid', 'legacyriver', 'legacygrid'];
+export const modalSteps: WizardStep[] = ['entrypoint', 'screenshot', 'convert', 'river', 'baseMapGrid', 'peninsulaSide', 'dockSide', 'grid', 'legacyriver', 'legacygrid'];
 export const mapSteps: WizardStep[] = ['riverMouth1', 'riverMouth2', 'airport', 'dockShape', 'peninsulaPos', 'peninsulaShape', 'secretBeachPos', 'secretBeachShape', 'leftRockPos', 'leftRockShape', 'rightRockPos', 'rightRockShape', 'fillPlaceholder'];
 
 export function getWizardState(): WizardState {
@@ -173,6 +173,11 @@ export function goToTileEditorFlow(): void {
 export function goToScreenshotFlow(): void {
   wizardState.step = 'screenshot';
   trackWizardStart('screenshot');
+  emitter.emit('wizardStateChanged', wizardState);
+}
+
+export function goToConvertFlow(): void {
+  wizardState.step = 'convert';
   emitter.emit('wizardStateChanged', wizardState);
 }
 

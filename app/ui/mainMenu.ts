@@ -8,8 +8,10 @@ import { colors } from '../colors';
 import { saveMapToFile } from '../save';
 import { loadMapFromFile } from '../load';
 import { showSwitchModal } from './tracingOverlayModal';
-import { OpenMapSelectModal } from '../components/ModalMapSelect';
+import { OpenMapSelectModal, OpenConvertModal } from '../components/ModalMapSelect';
 import { trackMainMenuAction } from '../analytics';
+import { isV2Map } from '../mapState';
+import { emitter } from '../emitter';
 
 
 export let mainMenu: paper.Group;
@@ -137,6 +139,23 @@ export function showMainMenu(isShown: boolean) {
       'static/img/menu-overlay.png', 0, 1,
       () => { trackMainMenuAction('overlay'); showSwitchModal(true); });
 
+    const upgradeButton = createMenuButton(
+      'Upgrade to V2',
+      'static/img/menu-upgrade.png', 1, 1,
+      () => {
+        trackMainMenuAction('upgrade_v2');
+        OpenConvertModal();
+        showMainMenu(false);
+      },
+    );
+    upgradeButton.visible = !isV2Map();
+
+    const updateUpgradeVisibility = () => {
+      upgradeButton.visible = !isV2Map();
+    };
+    emitter.on('mapVersionChanged', updateUpgradeVisibility);
+    emitter.on('mapLoaded', updateUpgradeVisibility);
+
     const twitterButton = createMenuButton(
       i18next.t('twitter'),
       'static/img/menu-twitt.png',
@@ -152,9 +171,13 @@ export function showMainMenu(isShown: boolean) {
       loadButton,
       newButton,
       switchButton,
+      upgradeButton,
       twitterButton,
     ]);
     mainMenu.opacity = 0;
+  }
+  if (isShown) {
+    mainMenu.data.text.content = i18next.t('mainmenu');
   }
   mainMenu.tweenTo({ opacity: isShown ? 1 : 0 }, 200);
   mainMenu.locked = !isShown;

@@ -4,6 +4,7 @@ import paper from 'paper';
 import {Box, Button, Image, Flex, Grid, Heading, Text} from '@theme-ui/components'
 import i18next from 'i18next';
 import { colors } from '../colors';
+import { showToast } from '../ui/toast';
 import './modal.scss';
 import { LayoutType, Layout, baseMapLayouts } from './islandLayouts';
 import useBlockZoom from './useBlockZoom';
@@ -59,6 +60,7 @@ import {
   isMapStep,
   goToTileEditorFlow,
   goToScreenshotFlow,
+  goToConvertFlow,
   goToEntrypoint,
   skipWizard,
 } from '../ui/mapSelectionWizard';
@@ -116,6 +118,11 @@ export function OpenMapSelectModal() {
 
 export function CloseMapSelectModal() {
   document.getElementById('close-map-select')?.click();
+}
+
+export function OpenConvertModal() {
+  goToConvertFlow();
+  document.getElementById('open-convert-modal')?.click();
 }
 
 export default function ModalMapSelect(){
@@ -736,12 +743,13 @@ export default function ModalMapSelect(){
   }, []);
 
   const refCallback = useBlockZoom();
-  const hasHeader = lastStepRef.current !== 'entrypoint' && lastStepRef.current !== 'screenshot';
+  const hasHeader = lastStepRef.current !== 'entrypoint' && lastStepRef.current !== 'screenshot' && lastStepRef.current !== 'convert';
 
   return (
     <div>
       <button id="open-map-select" style={{display: 'none'}} onClick={startModal}>Open Modal</button>
-      <button id="close-map-select" style={{display: 'none'}} onClick={closeModal}>Open Modal</button>
+      <button id="close-map-select" style={{display: 'none'}} onClick={closeModal}>Close Modal</button>
+      <button id="open-convert-modal" style={{display: 'none'}} onClick={openModal}>Convert Modal</button>
       {/* @ts-ignore - react-modal types incompatible with React 16 */}
       <Modal
         isOpen={modalIsOpen}
@@ -828,6 +836,8 @@ function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: Wi
         return <EntryPointStep />;
       case 'screenshot':
         return <ScreenshotStep onBack={goToEntrypoint} />;
+      case 'convert':
+        return <ConvertStep onClose={resetWizard} />;
       case 'river':
         return <RiverDirectionStep />;
       case 'baseMapGrid':
@@ -1132,6 +1142,153 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
         >
           <Image src='static/img/ui-upload-white.png' sx={{ width: 20, height: 20 }} />
           {i18next.t('screenshot_upload')}
+        </Button>
+      </Box>
+    </Box>
+  );
+}
+
+// Convert V1 to V2 Step
+const convertFlavorTexts = [
+  'Analyzing edge tiles...',
+  'Scanning the coastline...',
+  'Looking for the airport...',
+  'Searching for the dock...',
+  'Mapping the peninsula...',
+  'Finding the secret beach...',
+  'Checking the rocks...',
+  'Matching terrain patterns...',
+  'Almost there...',
+  'Finalizing conversion...',
+];
+
+function ConvertStep({ onClose }: { onClose: () => void }) {
+  const [isConverting, setIsConverting] = useState(false);
+  const [progress, setProgress] = useState({ completed: 0, total: 1 });
+  const [flavorIndex, setFlavorIndex] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isConverting) return;
+    const interval = setInterval(() => {
+      setFlavorIndex(prev => (prev + 1) % convertFlavorTexts.length);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [isConverting]);
+
+  const handleConvert = async () => {
+    setErrorMessage(null);
+    setIsConverting(true);
+    setProgress({ completed: 0, total: 1 });
+    setFlavorIndex(0);
+    try {
+      const { convertV1ToV2 } = await import(/* webpackChunkName: "convertV1ToV2" */ '../ui/convertV1ToV2');
+      await convertV1ToV2({
+        debug: false,
+        onProgress: (completed, total) => {
+          setProgress({ completed, total });
+        },
+      });
+      autosaveTrigger();
+      onClose();
+      showToast('Conversion successful!');
+    } catch (err) {
+      console.error('V1 to V2 conversion failed:', err);
+      setIsConverting(false);
+      setErrorMessage('Conversion failed. Please try again.');
+    }
+  };
+
+  if (isConverting) {
+    const pct = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
+    return (
+      <Flex sx={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 4, px: 3, minHeight: 300, width: '80vw', maxWidth: 400 }}>
+        <Image
+          src='static/gif/bob-loading.gif'
+          sx={{ width: 80, mb: 3 }}
+        />
+        <Text sx={{
+          fontFamily: 'heading',
+          fontWeight: 'bold',
+          fontSize: 2,
+          textAlign: 'center',
+          mb: 3,
+          minHeight: '1.5em',
+        }}>
+          {convertFlavorTexts[flavorIndex]}
+        </Text>
+        <Box sx={{
+          width: '100%',
+          maxWidth: 300,
+          height: 16,
+          bg: 'overlay',
+          borderRadius: 8,
+          overflow: 'hidden',
+        }}>
+          <Box sx={{
+            width: `${pct}%`,
+            height: '100%',
+            bg: 'primary',
+            borderRadius: 8,
+            transition: 'width 0.3s ease-out',
+          }} />
+        </Box>
+        <Text sx={{ fontSize: 1, color: 'textSecondary', mt: 2 }}>
+          {`${pct}%`}
+        </Text>
+      </Flex>
+    );
+  }
+
+  return (
+    <Box sx={{ maxWidth: 420 }}>
+      <Heading m={2} sx={{ textAlign: 'center' }}>Upgrade to V2</Heading>
+      <Text m={3} sx={{ textAlign: 'center', lineHeight: 1.5 }}>
+        This will upgrade your map to the new format. The new format locks the beaches and edges of your island so you don&apos;t have to worry about drawing over it.
+      </Text>
+      <Text m={3} sx={{ textAlign: 'center', lineHeight: 1.5, fontWeight: 'bold', color: '#D32F2F' }}>
+        Save your map before converting — conversion might not produce perfect results.
+      </Text>
+      {errorMessage && (
+        <Text sx={{ textAlign: 'center', color: '#D32F2F', fontFamily: 'heading', fontWeight: 'bold', fontSize: 1, mb: 2 }}>
+          {errorMessage}
+        </Text>
+      )}
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, my: 3 }}>
+        <Button
+          variant='primary'
+          onClick={onClose}
+          sx={{
+            bg: 'rgba(150, 150, 150, 0.5)',
+            px: 3,
+            py: 2,
+            borderRadius: 30,
+            cursor: 'pointer',
+            fontFamily: 'heading',
+            fontSize: 2,
+            color: 'white',
+            '&:hover': { bg: 'rgba(150, 150, 150, 0.7)' },
+          }}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant='primary'
+          onClick={handleConvert}
+          sx={{
+            bg: 'rgba(66, 187, 243, 0.9)',
+            px: 3,
+            py: 2,
+            borderRadius: 30,
+            cursor: 'pointer',
+            fontFamily: 'heading',
+            fontSize: 2,
+            color: 'white',
+            '&:hover': { bg: '#42bbf3' },
+            '&:active': { bg: 'rgba(140, 151, 236, 0.5)' },
+          }}
+        >
+          Convert
         </Button>
       </Box>
     </Box>
