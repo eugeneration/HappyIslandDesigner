@@ -85,6 +85,12 @@ const esES = {
     screenshot_flavor_8: 'Construyendo isla...',
     screenshot_flavor_9: 'Plantando árboles...',
 
+    // Save tutorial
+    save_tutorial_title: 'Notas sobre el guardado',
+    save_tutorial_description: 'Esta imagen guardada es especial \u2014 los datos de tu mapa están codificados en los píxeles.',
+    save_tutorial_warning: '¡Los datos del mapa se perderán si editas o comprimes la imagen!',
+    save_tutorial_ok: 'Entendido',
+
     // Upgrade flow
     cancel: 'Cancelar',
     upgrade_to_v2: 'Actualizar a V2',

@@ -85,6 +85,12 @@ const ja = {
     screenshot_flavor_8: '島を建設中...',
     screenshot_flavor_9: '木を植樹中...',
 
+    // Save tutorial
+    save_tutorial_title: '保存について',
+    save_tutorial_description: 'この保存画像は特別です——マップデータがピクセルに埋め込まれています。',
+    save_tutorial_warning: '画像を編集・圧縮するとマップデータが失われます！',
+    save_tutorial_ok: 'わかりました',
+
     // Upgrade flow
     cancel: 'キャンセル',
     upgrade_to_v2: 'V2にアップグレード',

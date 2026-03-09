@@ -5,7 +5,7 @@ import { emitter } from '../emitter';
 
 const STORAGE_KEY = 'nux_dismissed';
 
-export function hasSeenTooltip(id: string): boolean {
+export function hasSeenNux(id: string): boolean {
   try {
     const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     return data[id] === true;
@@ -23,7 +23,7 @@ export function resetAllNux(): void {
   }
 }
 
-export function markTooltipSeen(id: string): void {
+export function markNuxSeen(id: string): void {
   try {
     const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     data[id] = true;
@@ -55,7 +55,7 @@ const POINTER_MARGIN = 12;
 export function showNuxTooltip(options: NuxTooltipOptions): paper.Group | null {
   const { id, text, target, layer, side = 'top' } = options;
 
-  if (hasSeenTooltip(id)) return null;
+  if (hasSeenNux(id)) return null;
 
   const prevLayer = paper.project.activeLayer;
   layer.activate();
@@ -166,7 +166,7 @@ export function showNuxTooltip(options: NuxTooltipOptions): paper.Group | null {
 
   // Dismiss on click: fade out, then remove
   group.onClick = function () {
-    markTooltipSeen(id);
+    markNuxSeen(id);
     group.tweenTo({ opacity: 0 }, 1000);
     setTimeout(() => {
       if (group.parent) group.remove();

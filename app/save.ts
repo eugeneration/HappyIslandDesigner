@@ -1,6 +1,7 @@
 // @ts-nocheck
 import paper from 'paper';
 import LZString from 'lz-string';
+import i18next from 'i18next';
 import steg from './vendors/steganography';
 
 import { state } from './state';
@@ -14,6 +15,7 @@ import { encodeMapV1, decodeMapV1, encodeObjectGroups, encodeDrawing } from './s
 import { getEdgeAssetIndices, isEdgeTilesVisible } from './ui/edgeTiles';
 import { trackMapSave, trackMapComplexity, computeMapComplexity } from './analytics';
 import { getMapVersion } from './mapState';
+import { hasSeenNux, markNuxSeen } from './ui/nuxTooltip';
 
 export function encodeMap() {
   // V1 map if no edge tiles are present
@@ -95,6 +97,124 @@ export function clearAutosave() {
   if (localStorage) {
     localStorage.removeItem('autosave');
   }
+}
+
+const SAVE_TUTORIAL_NUX_ID = 'save_tutorial';
+let pendingSaveTutorial = false;
+
+export function showPendingSaveTutorial(): void {
+  if (pendingSaveTutorial) {
+    pendingSaveTutorial = false;
+    showSaveTutorial();
+  }
+}
+
+function showSaveTutorial(): Promise<void> {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    Object.assign(overlay.style, {
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      width: '100%',
+      height: '100%',
+      background: 'rgba(0,0,0,0.4)',
+      zIndex: '10000',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      opacity: '0',
+      transition: 'opacity 0.3s ease',
+    });
+
+    const modal = document.createElement('div');
+    Object.assign(modal.style, {
+      background: '#fffbf0',
+      borderRadius: '24px',
+      padding: '28px 32px',
+      maxWidth: '480px',
+      minWidth: '300px',
+      width: '80vw',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+      fontFamily: 'TTNorms, sans-serif',
+      textAlign: 'center',
+    });
+
+    const img = document.createElement('img');
+    img.src = 'static/img/tutorial-saving.png';
+    Object.assign(img.style, {
+      width: '100%',
+      maxWidth: '420px',
+      aspectRatio: '1082 / 439',
+      marginBottom: '16px',
+      borderRadius: '12px',
+    });
+
+    const title = document.createElement('div');
+    title.textContent = i18next.t('save_tutorial_title');
+    Object.assign(title.style, {
+      fontSize: '18px',
+      fontWeight: '700',
+      color: '#3d3d3d',
+      marginBottom: '14px',
+    });
+
+    const desc = document.createElement('div');
+    Object.assign(desc.style, {
+      fontSize: '14px',
+      lineHeight: '1.5',
+      color: '#555',
+      marginBottom: '20px',
+    });
+    const descText = document.createTextNode(i18next.t('save_tutorial_description') + ' ');
+    const warning = document.createElement('span');
+    warning.textContent = i18next.t('save_tutorial_warning');
+    Object.assign(warning.style, {
+      fontWeight: '700',
+      color: '#1976D2',
+    });
+    desc.appendChild(descText);
+    desc.appendChild(warning);
+
+    const btn = document.createElement('button');
+    btn.textContent = i18next.t('save_tutorial_ok');
+    Object.assign(btn.style, {
+      background: 'rgba(66, 187, 243, 0.9)',
+      color: '#fff',
+      border: 'none',
+      borderRadius: '20px',
+      padding: '8px 32px',
+      fontSize: '15px',
+      fontWeight: '700',
+      fontFamily: 'TTNorms, sans-serif',
+      cursor: 'pointer',
+    });
+
+    const dismiss = () => {
+      markNuxSeen(SAVE_TUTORIAL_NUX_ID);
+      overlay.style.opacity = '0';
+      setTimeout(() => {
+        overlay.remove();
+        resolve();
+      }, 300);
+    };
+
+    btn.addEventListener('click', dismiss);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) dismiss();
+    });
+
+    modal.appendChild(img);
+    modal.appendChild(title);
+    modal.appendChild(desc);
+    modal.appendChild(btn);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    requestAnimationFrame(() => {
+      overlay.style.opacity = '1';
+    });
+  });
 }
 
 export function saveMapToFile() {
@@ -221,6 +341,10 @@ export function saveMapToFile() {
       const ver = getMapVersion();
       trackMapSave(ver);
       trackMapComplexity(ver, computeMapComplexity(state.drawing, state.objects), jsonSizeBytes);
+
+      if (!hasSeenNux(SAVE_TUTORIAL_NUX_ID)) {
+        pendingSaveTutorial = true;
+      }
     },
     false,
   );

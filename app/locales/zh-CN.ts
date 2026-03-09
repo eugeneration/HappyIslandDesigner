@@ -85,6 +85,12 @@ const zhCN = {
     screenshot_flavor_8: '正在建设岛屿...',
     screenshot_flavor_9: '正在种植树木...',
 
+    // Save tutorial
+    save_tutorial_title: '保存须知',
+    save_tutorial_description: '这张保存的图片很特别——你的地图数据被编码在像素中。',
+    save_tutorial_warning: '编辑或压缩图片会导致地图数据丢失！',
+    save_tutorial_ok: '知道了',
+
     // Upgrade flow
     cancel: '取消',
     upgrade_to_v2: '升级到V2',

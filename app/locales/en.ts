@@ -86,6 +86,12 @@ const en = {
     screenshot_flavor_8: 'Building island...',
     screenshot_flavor_9: 'Planting trees...',
 
+    // Save tutorial
+    save_tutorial_title: 'Notes on saving',
+    save_tutorial_description: 'The saved image is special \u2014 your map data is encoded into the pixels.',
+    save_tutorial_warning: 'Map data will be lost if you edit or compress the image!',
+    save_tutorial_ok: 'Got it',
+
     // Upgrade flow
     cancel: 'Cancel',
     upgrade_to_v2: 'Upgrade to V2',

@@ -85,6 +85,12 @@ const zhTW = {
     screenshot_flavor_8: '正在建設島嶼...',
     screenshot_flavor_9: '正在種植樹木...',
 
+    // Save tutorial
+    save_tutorial_title: '儲存須知',
+    save_tutorial_description: '這張儲存的圖片很特別——你的地圖資料被編碼在像素中。',
+    save_tutorial_warning: '編輯或壓縮圖片會導致地圖資料遺失！',
+    save_tutorial_ok: '知道了',
+
     // Upgrade flow
     cancel: '取消',
     upgrade_to_v2: '升級到V2',

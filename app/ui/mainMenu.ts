@@ -5,7 +5,7 @@ import i18next from 'i18next';
 
 import { renderModal } from './modal';
 import { colors } from '../colors';
-import { saveMapToFile } from '../save';
+import { saveMapToFile, showPendingSaveTutorial } from '../save';
 import { loadMapFromFile } from '../load';
 import { showSwitchModal } from './tracingOverlayModal';
 import { OpenMapSelectModal, OpenConvertModal } from '../components/ModalMapSelect';
@@ -181,4 +181,7 @@ export function showMainMenu(isShown: boolean) {
   }
   mainMenu.tweenTo({ opacity: isShown ? 1 : 0 }, 200);
   mainMenu.locked = !isShown;
+  if (!isShown) {
+    showPendingSaveTutorial();
+  }
 }
