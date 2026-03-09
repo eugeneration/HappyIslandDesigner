@@ -85,6 +85,25 @@ const ja = {
     screenshot_flavor_8: '島を建設中...',
     screenshot_flavor_9: '木を植樹中...',
 
+    // Upgrade flow
+    cancel: 'キャンセル',
+    upgrade_to_v2: 'V2にアップグレード',
+    upgrade_description: 'マップを新しいフォーマットにアップグレードします。新フォーマットでは砂浜と島の外周が固定されるため、誤って描き替える心配がありません。',
+    upgrade_warning: '変換前にマップを保存してください——変換結果が完璧でない場合があります。',
+    upgrade_success: '変換に成功しました！',
+    upgrade_failed: '変換に失敗しました。もう一度お試しください。',
+    upgrade_convert: '変換',
+    upgrade_flavor_0: 'エッジタイルを分析中...',
+    upgrade_flavor_1: '海岸線をスキャン中...',
+    upgrade_flavor_2: '飛行場を探索中...',
+    upgrade_flavor_3: '桟橋を検索中...',
+    upgrade_flavor_4: '岬をマッピング中...',
+    upgrade_flavor_5: '秘密のビーチを探索中...',
+    upgrade_flavor_6: '岩を確認中...',
+    upgrade_flavor_7: '地形パターンを照合中...',
+    upgrade_flavor_8: 'もうすぐ完了...',
+    upgrade_flavor_9: '変換を仕上げ中...',
+
     // V2 wizard steps
     wizard_river_direction: '島の川の方向を選択',
     wizard_skip: 'スキップ',

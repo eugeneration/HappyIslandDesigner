@@ -85,6 +85,25 @@ const esES = {
     screenshot_flavor_8: 'Construyendo isla...',
     screenshot_flavor_9: 'Plantando árboles...',
 
+    // Upgrade flow
+    cancel: 'Cancelar',
+    upgrade_to_v2: 'Actualizar a V2',
+    upgrade_description: 'Esto actualizará tu mapa al nuevo formato. El nuevo formato bloquea las playas y los bordes de tu isla para que no tengas que preocuparte por dibujar encima.',
+    upgrade_warning: 'Guarda tu mapa antes de convertir — la conversión podría no producir resultados perfectos.',
+    upgrade_success: '¡Conversión exitosa!',
+    upgrade_failed: 'La conversión falló. Por favor, inténtalo de nuevo.',
+    upgrade_convert: 'Convertir',
+    upgrade_flavor_0: 'Analizando casillas de borde...',
+    upgrade_flavor_1: 'Escaneando la costa...',
+    upgrade_flavor_2: 'Buscando el aeropuerto...',
+    upgrade_flavor_3: 'Buscando el embarcadero...',
+    upgrade_flavor_4: 'Mapeando la península...',
+    upgrade_flavor_5: 'Encontrando la playa secreta...',
+    upgrade_flavor_6: 'Revisando las rocas...',
+    upgrade_flavor_7: 'Comparando patrones de terreno...',
+    upgrade_flavor_8: 'Casi listo...',
+    upgrade_flavor_9: 'Finalizando la conversión...',
+
     // V2 wizard steps
     wizard_river_direction: 'Selecciona la Dirección del Río',
     wizard_skip: 'Omitir',

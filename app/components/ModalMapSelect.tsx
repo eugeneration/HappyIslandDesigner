@@ -1150,18 +1150,9 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
 }
 
 // Convert V1 to V2 Step
-const convertFlavorTexts = [
-  'Analyzing edge tiles...',
-  'Scanning the coastline...',
-  'Looking for the airport...',
-  'Searching for the dock...',
-  'Mapping the peninsula...',
-  'Finding the secret beach...',
-  'Checking the rocks...',
-  'Matching terrain patterns...',
-  'Almost there...',
-  'Finalizing conversion...',
-];
+function getConvertFlavorTexts(): string[] {
+  return Array.from({ length: 10 }, (_, i) => i18next.t(`upgrade_flavor_${i}`));
+}
 
 function ConvertStep({ onClose }: { onClose: () => void }) {
   const [isConverting, setIsConverting] = useState(false);
@@ -1172,7 +1163,7 @@ function ConvertStep({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (!isConverting) return;
     const interval = setInterval(() => {
-      setFlavorIndex(prev => (prev + 1) % convertFlavorTexts.length);
+      setFlavorIndex(prev => (prev + 1) % getConvertFlavorTexts().length);
     }, 2500);
     return () => clearInterval(interval);
   }, [isConverting]);
@@ -1194,13 +1185,13 @@ function ConvertStep({ onClose }: { onClose: () => void }) {
       trackConversion(true, Date.now() - startTime, diagnostic);
       autosaveTrigger();
       onClose();
-      showToast('Conversion successful!');
+      showToast(i18next.t('upgrade_success'));
     } catch (err) {
       console.error('V1 to V2 conversion failed:', err);
       trackConversion(false, Date.now() - startTime);
       trackError('v1_to_v2_conversion', err instanceof Error ? err.message : String(err));
       setIsConverting(false);
-      setErrorMessage('Conversion failed. Please try again.');
+      setErrorMessage(i18next.t('upgrade_failed'));
     }
   };
 
@@ -1220,7 +1211,7 @@ function ConvertStep({ onClose }: { onClose: () => void }) {
           mb: 3,
           minHeight: '1.5em',
         }}>
-          {convertFlavorTexts[flavorIndex]}
+          {getConvertFlavorTexts()[flavorIndex]}
         </Text>
         <Box sx={{
           width: '100%',
@@ -1247,12 +1238,12 @@ function ConvertStep({ onClose }: { onClose: () => void }) {
 
   return (
     <Box sx={{ maxWidth: 420 }}>
-      <Heading m={2} sx={{ textAlign: 'center' }}>Upgrade to V2</Heading>
+      <Heading m={2} sx={{ textAlign: 'center' }}>{i18next.t('upgrade_to_v2')}</Heading>
       <Text m={3} sx={{ textAlign: 'center', lineHeight: 1.5 }}>
-        This will upgrade your map to the new format. The new format locks the beaches and edges of your island so you don&apos;t have to worry about drawing over it.
+        {i18next.t('upgrade_description')}
       </Text>
       <Text m={3} sx={{ textAlign: 'center', lineHeight: 1.5, fontWeight: 'bold', color: '#D32F2F' }}>
-        Save your map before converting — conversion might not produce perfect results.
+        {i18next.t('upgrade_warning')}
       </Text>
       {errorMessage && (
         <Text sx={{ textAlign: 'center', color: '#D32F2F', fontFamily: 'heading', fontWeight: 'bold', fontSize: 1, mb: 2 }}>
@@ -1275,7 +1266,7 @@ function ConvertStep({ onClose }: { onClose: () => void }) {
             '&:hover': { bg: 'rgba(150, 150, 150, 0.7)' },
           }}
         >
-          Cancel
+          {i18next.t('cancel')}
         </Button>
         <Button
           variant='primary'
@@ -1293,7 +1284,7 @@ function ConvertStep({ onClose }: { onClose: () => void }) {
             '&:active': { bg: 'rgba(140, 151, 236, 0.5)' },
           }}
         >
-          Convert
+          {i18next.t('upgrade_convert')}
         </Button>
       </Box>
     </Box>

@@ -85,6 +85,25 @@ const zhTW = {
     screenshot_flavor_8: '正在建設島嶼...',
     screenshot_flavor_9: '正在種植樹木...',
 
+    // Upgrade flow
+    cancel: '取消',
+    upgrade_to_v2: '升級到V2',
+    upgrade_description: '這將把你的地圖升級到新格式。新格式會鎖定島嶼的沙灘和邊緣，這樣你就不用擔心畫到邊界外面了。',
+    upgrade_warning: '轉換前請先儲存地圖——轉換結果可能不完美。',
+    upgrade_success: '轉換成功！',
+    upgrade_failed: '轉換失敗，請重試。',
+    upgrade_convert: '轉換',
+    upgrade_flavor_0: '正在分析邊緣地塊...',
+    upgrade_flavor_1: '正在掃描海岸線...',
+    upgrade_flavor_2: '正在尋找機場...',
+    upgrade_flavor_3: '正在搜尋碼頭...',
+    upgrade_flavor_4: '正在繪製半島...',
+    upgrade_flavor_5: '正在尋找秘密海灘...',
+    upgrade_flavor_6: '正在檢查岩石...',
+    upgrade_flavor_7: '正在比對地形...',
+    upgrade_flavor_8: '即將完成...',
+    upgrade_flavor_9: '正在完成轉換...',
+
     // V2 wizard steps
     wizard_river_direction: '選擇島嶼河流方向',
     wizard_skip: '跳過',

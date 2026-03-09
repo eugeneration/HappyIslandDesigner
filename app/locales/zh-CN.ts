@@ -85,6 +85,25 @@ const zhCN = {
     screenshot_flavor_8: '正在建设岛屿...',
     screenshot_flavor_9: '正在种植树木...',
 
+    // Upgrade flow
+    cancel: '取消',
+    upgrade_to_v2: '升级到V2',
+    upgrade_description: '这将把你的地图升级到新格式。新格式会锁定岛屿的沙滩和边缘，这样你就不用担心画到边界外面了。',
+    upgrade_warning: '转换前请先保存地图——转换结果可能不完美。',
+    upgrade_success: '转换成功！',
+    upgrade_failed: '转换失败，请重试。',
+    upgrade_convert: '转换',
+    upgrade_flavor_0: '正在分析边缘地块...',
+    upgrade_flavor_1: '正在扫描海岸线...',
+    upgrade_flavor_2: '正在寻找机场...',
+    upgrade_flavor_3: '正在搜索码头...',
+    upgrade_flavor_4: '正在绘制半岛...',
+    upgrade_flavor_5: '正在寻找秘密沙滩...',
+    upgrade_flavor_6: '正在检查岩石...',
+    upgrade_flavor_7: '正在匹配地形...',
+    upgrade_flavor_8: '即将完成...',
+    upgrade_flavor_9: '正在完成转换...',
+
     // V2 wizard steps
     wizard_river_direction: '选择岛屿河流方向',
     wizard_skip: '跳过',

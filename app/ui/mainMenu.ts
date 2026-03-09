@@ -140,7 +140,7 @@ export function showMainMenu(isShown: boolean) {
       () => { trackMainMenuAction('overlay'); showSwitchModal(true); });
 
     const upgradeButton = createMenuButton(
-      'Upgrade to V2',
+      i18next.t('upgrade_to_v2'),
       'static/img/menu-upgrade.png', 1, 1,
       () => {
         trackMainMenuAction('upgrade_v2');

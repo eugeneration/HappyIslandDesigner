@@ -86,6 +86,25 @@ const en = {
     screenshot_flavor_8: 'Building island...',
     screenshot_flavor_9: 'Planting trees...',
 
+    // Upgrade flow
+    cancel: 'Cancel',
+    upgrade_to_v2: 'Upgrade to V2',
+    upgrade_description: 'This will upgrade your map to the new format. The new format locks the beaches and edges of your island so you don\'t have to worry about drawing over it.',
+    upgrade_warning: 'Save your map before converting — conversion might not produce perfect results.',
+    upgrade_success: 'Conversion successful!',
+    upgrade_failed: 'Conversion failed. Please try again.',
+    upgrade_convert: 'Convert',
+    upgrade_flavor_0: 'Analyzing edge tiles...',
+    upgrade_flavor_1: 'Scanning the coastline...',
+    upgrade_flavor_2: 'Looking for the airport...',
+    upgrade_flavor_3: 'Searching for the dock...',
+    upgrade_flavor_4: 'Mapping the peninsula...',
+    upgrade_flavor_5: 'Finding the secret beach...',
+    upgrade_flavor_6: 'Checking the rocks...',
+    upgrade_flavor_7: 'Matching terrain patterns...',
+    upgrade_flavor_8: 'Almost there...',
+    upgrade_flavor_9: 'Finalizing conversion...',
+
     // V2 wizard steps
     wizard_river_direction: 'Select Island River Direction',
     wizard_skip: 'Skip',
