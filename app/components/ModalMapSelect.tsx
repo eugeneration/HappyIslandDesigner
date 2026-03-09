@@ -30,6 +30,7 @@ import {
   computeMapComplexity,
   getWizardFlowType,
   trackError,
+  trackConversion,
 } from '../analytics';
 import {
   WizardState,
@@ -1181,19 +1182,23 @@ function ConvertStep({ onClose }: { onClose: () => void }) {
     setIsConverting(true);
     setProgress({ completed: 0, total: 1 });
     setFlavorIndex(0);
+    const startTime = Date.now();
     try {
       const { convertV1ToV2 } = await import(/* webpackChunkName: "convertV1ToV2" */ '../ui/convertV1ToV2');
-      await convertV1ToV2({
+      const diagnostic = await convertV1ToV2({
         debug: false,
         onProgress: (completed, total) => {
           setProgress({ completed, total });
         },
       });
+      trackConversion(true, Date.now() - startTime, diagnostic);
       autosaveTrigger();
       onClose();
       showToast('Conversion successful!');
     } catch (err) {
       console.error('V1 to V2 conversion failed:', err);
+      trackConversion(false, Date.now() - startTime);
+      trackError('v1_to_v2_conversion', err instanceof Error ? err.message : String(err));
       setIsConverting(false);
       setErrorMessage('Conversion failed. Please try again.');
     }

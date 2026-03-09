@@ -119,6 +119,16 @@ export function trackMainMenuAction(action: string): void {
   trackEvent('main_menu_action', { action });
 }
 
+export function trackConversion(success: boolean, durationMs: number, diagnostic?: { isValid: boolean; hasLowConfidence: boolean; riverDirection: string }): void {
+  trackEvent('v1_to_v2_conversion', {
+    success,
+    duration_seconds: Math.round(durationMs / 1000),
+    is_valid: diagnostic?.isValid ?? null,
+    has_low_confidence: diagnostic?.hasLowConfidence ?? null,
+    river_direction: diagnostic?.riverDirection ?? null,
+  });
+}
+
 export function trackError(errorType: string, message?: string): void {
   trackEvent('app_error', {
     error_type: errorType,
