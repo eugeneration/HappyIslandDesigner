@@ -50,6 +50,7 @@ const ja = {
     tracing_overlay: 'トレースオーバーレイ',
     import_tracing_overlay: 'トレース用画像をインポート',
     import_tracing_overlay_instructions: '1. ゲームマップの写真かスクリーンショットをアップロードします\n\n2. グリッドの四隅をマークします',
+    import_tracing_overlay_auto_corners: 'スクリーンショットを検出しました。コーナーを自動配置中...',
     twitter: 'Twitter',
 
     // Entry point
@@ -62,6 +63,7 @@ const ja = {
     screenshot_title: 'スクリーンショットから生成',
     screenshot_description: '島のマップのスクリーンショットをアップロードして、自動的に島を生成します。',
     screenshot_upload: 'スクリーンショットをアップロード',
+    screenshot_not_detected: '画像を処理できませんでした。マップのスクリーンショットをアップロードしてください。',
     screenshot_tips_title: 'スクリーンショットのコツ',
     screenshot_tips_transfer_heading: 'Switchからの転送方法：',
     screenshot_tips_capture: 'キャプチャーボタン（左Joy-Conの四角いボタン）を押してスクリーンショットを保存',

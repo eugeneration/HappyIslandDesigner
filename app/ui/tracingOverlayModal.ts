@@ -70,6 +70,118 @@ class ZoomCanvas {
   }
 }
 
+// Fast ocean-border check: samples pixels along image edges to detect ACNH screenshots.
+// Returns true if >= 50% of sampled border pixels are close to ocean blue.
+function isLikelyScreenshotRaster(raster: paper.Raster): boolean {
+  const width = raster.width;
+  const height = raster.height;
+  const data = (raster.getImageData(new paper.Rectangle(0, 0, width, height))).data;
+  const OCEAN_BLUE = { r: 0x75, g: 0xD3, b: 0xC1 };
+  const TOLERANCE = 40;
+  const STEP = 8;
+  let total = 0;
+  let waterCount = 0;
+
+  function isOcean(x: number, y: number): boolean {
+    const idx = (y * width + x) * 4;
+    const dr = data[idx] - OCEAN_BLUE.r;
+    const dg = data[idx + 1] - OCEAN_BLUE.g;
+    const db = data[idx + 2] - OCEAN_BLUE.b;
+    return Math.sqrt(dr * dr + dg * dg + db * db) <= TOLERANCE;
+  }
+
+  // Top and bottom edges
+  for (let x = 0; x < width; x += STEP) {
+    total += 2;
+    if (isOcean(x, 0)) waterCount++;
+    if (isOcean(x, height - 1)) waterCount++;
+  }
+  // Left and right edges
+  for (let y = 0; y < height; y += STEP) {
+    total += 2;
+    if (isOcean(0, y)) waterCount++;
+    if (isOcean(width - 1, y)) waterCount++;
+  }
+
+  return waterCount / total >= 0.5;
+}
+
+// Create a crosshair corner point at the given position.
+// Extracted so both manual clicks and auto-detection can create points.
+function createCornerPoint(
+  position: paper.Point,
+  mapImagePoints: paper.Group,
+  mapImageGroup: paper.Group,
+  isMobile: boolean,
+): paper.Item {
+  const point = new Group();
+  point.pivot = new Point(0, 0);
+  point.applyMatrix = false;
+  point.addChildren([
+    new Path.Circle({
+      center: [0, 0],
+      radius: 1,
+      fillColor: colors.yellow.color,
+    }),
+    new Path({
+      segments: [[0, 3], [0, 8]],
+      strokeWidth: 1,
+      strokeColor: colors.yellow.color,
+      strokeCap: 'round',
+    }),
+    new Path({
+      segments: [[3, 0], [8, 0]],
+      strokeWidth: 1,
+      strokeColor: colors.yellow.color,
+      strokeCap: 'round',
+    }),
+    new Path({
+      segments: [[0, -3], [0, -8]],
+      strokeWidth: 1,
+      strokeColor: colors.yellow.color,
+      strokeCap: 'round',
+    }),
+    new Path({
+      segments: [[-3, 0], [-8, 0]],
+      strokeWidth: 1,
+      strokeColor: colors.yellow.color,
+      strokeCap: 'round',
+    }),
+    new Path.Circle({
+      center: [0, 0],
+      radius: 15,
+      fillColor: colors.invisible.color,
+      strokeColor: colors.yellow.color,
+      strokeWidth: 2,
+    }),
+  ]);
+  point.scale(1 / mapImageGroup.scaling.x);
+  point.position = position;
+  point.data.startPoint = position;
+  point.data.grabPivot = new Point(0, 0);
+  point.locked = true;
+
+  point.data.updateColor = function() {
+    point.children.forEach(function(path) {
+      path.strokeColor =
+        point.data.selected ? colors.yellow.color
+        : point.data.hovered ? colors.lightYellow.color : colors.yellow.color;
+    })
+  }
+  point.data.hover = function(isHovered) {
+    point.data.hovered = isHovered;
+    point.data.updateColor();
+  }
+  point.data.select = function(isSelected) {
+    point.data.selected = isSelected;
+    point.data.updateColor();
+    if (isMobile) point.scale(isSelected ? 0.4 / mapImageGroup.scaling.x : 1 / mapImageGroup.scaling.x);
+  }
+
+  mapImagePoints.addChild(point);
+  return point;
+}
+
 function renderTracingOverlayModal() {
   const isMobile = Math.min(paper.view.viewSize.width, paper.view.viewSize.height) < 576;
   const margin = isMobile ? 5 : 20;
@@ -237,71 +349,7 @@ function renderTracingOverlayModal() {
 
         if (mapImage.data.points.length < 4 && !this.data.grabbedPoint) {
 
-            const point = new Group();
-            point.pivot = new Point(0, 0);
-            point.applyMatrix = false;
-            point.addChildren([
-            new Path.Circle({
-                center: [0, 0],
-                radius: 1,
-                fillColor: colors.yellow.color,
-            }),
-            new Path({
-                segments: [[0, 3], [0, 8]],
-                strokeWidth: 1,
-                strokeColor: colors.yellow.color,
-                strokeCap: 'round',
-            }),
-            new Path({
-                segments: [[3, 0], [8, 0]],
-                strokeWidth: 1,
-                strokeColor: colors.yellow.color,
-                strokeCap: 'round',
-            }),
-            new Path({
-                segments: [[0, -3], [0, -8]],
-                strokeWidth: 1,
-                strokeColor: colors.yellow.color,
-                strokeCap: 'round',
-            }),
-            new Path({
-                segments: [[-3, 0], [-8, 0]],
-                strokeWidth: 1,
-                strokeColor: colors.yellow.color,
-                strokeCap: 'round',
-            }),
-            new Path.Circle({
-                center: [0, 0],
-                radius: 15,
-                fillColor: colors.invisible.color,
-                strokeColor: colors.yellow.color,
-                strokeWidth: 2,
-            }),
-            ]);
-            point.scale(1 / mapImageGroup.scaling.x);
-            point.position = rawCoordinate;
-            point.data.startPoint = rawCoordinate;
-            point.data.grabPivot = new Point(0, 0);
-            point.locked = true;
-
-            point.data.updateColor = function() {
-            point.children.forEach(function(path) {
-                path.strokeColor =
-                point.data.selected ? colors.yellow.color
-                : point.data.hovered ? colors.lightYellow.color : colors.yellow.color;
-            })
-            }
-            point.data.hover = function(isHovered) {
-            point.data.hovered = isHovered;
-            point.data.updateColor();
-            }
-            point.data.select = function(isSelected) {
-            point.data.selected = isSelected;
-            point.data.updateColor();
-            if (isMobile) point.scale(isSelected ? 0.4 / mapImageGroup.scaling.x : 1 / mapImageGroup.scaling.x);
-            }
-
-            mapImagePoints.addChild(point);
+            const point = createCornerPoint(rawCoordinate, mapImagePoints, mapImageGroup, isMobile);
 
             mapImage.data.hoveredPoint = point;
             mapImage.data.grabbedPoint = point;
@@ -386,7 +434,7 @@ function renderTracingOverlayModal() {
           }
         }
         mapImage.data.updateOutline = function() {
-          if (this.outline) {
+          if (this.outline && this.outline.data && this.outline.data.update) {
               this.outline.data.update();
               return;
           }
@@ -524,9 +572,52 @@ function renderTracingOverlayModal() {
           });
         };
         mapImage.data.remove = function() {
+          if (this.autoDetectStatusText) {
+            this.autoDetectStatusText.remove();
+            this.autoDetectStatusText = null;
+          }
           emitter.emit('tracingOverlay_update_point', 0);
           mapImageGroup.removeChildren();
           uploadGroup.visible = true;
+        }
+
+        // Auto-detect corners for ACNH screenshots
+        if (isLikelyScreenshotRaster(mapImage)) {
+          // Show temporary status message above the image
+          const statusText = new PointText(new Point(switchMenu.data.width / 2, 14));
+          statusText.justification = 'center';
+          statusText.fontFamily = 'TTNorms, sans-serif';
+          statusText.fontSize = isMobile ? 12 : 14;
+          statusText.fillColor = colors.text.color;
+          statusText.content = i18next.t('import_tracing_overlay_auto_corners');
+          switchMenu.data.contents.addChild(statusText);
+          mapImage.data.autoDetectStatusText = statusText;
+
+          import('./generateFromScreenshot').then(({ detectIslandBounds }) => {
+            // Guard: user may have removed the image while the module was loading
+            if (!mapImage.parent) {
+              statusText.remove();
+              return;
+            }
+            const imageData = mapImage.getImageData(new paper.Rectangle(0, 0, mapImage.width, mapImage.height));
+            const bounds = detectIslandBounds(imageData.data, mapImage.width, mapImage.height);
+            if (bounds) {
+              const corners = [bounds.topLeft, bounds.topRight, bounds.bottomRight, bounds.bottomLeft];
+              for (const corner of corners) {
+                const pos = new Point(corner.x, corner.y);
+                const point = createCornerPoint(pos, mapImagePoints, mapImageGroup, isMobile);
+                mapImage.data.pointIndex = mapImage.data.points.length;
+                mapImage.data.points[mapImage.data.pointIndex] = point;
+              }
+              mapImage.data.updateOutline();
+              emitter.emit('tracingOverlay_update_point', 4);
+            }
+            // Fade out and remove the status message
+            setTimeout(() => {
+              statusText.remove();
+              mapImage.data.autoDetectStatusText = null;
+            }, 1500);
+          });
         }
       };
     }

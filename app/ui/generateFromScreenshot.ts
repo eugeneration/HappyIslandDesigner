@@ -100,6 +100,59 @@ type CellResult = {
   confidence: number; // 0–255
 };
 
+export type IslandBounds = {
+  topLeft: { x: number; y: number };
+  topRight: { x: number; y: number };
+  bottomRight: { x: number; y: number };
+  bottomLeft: { x: number; y: number };
+};
+
+// ============ Public API ============
+
+/**
+ * Detect the full island pixel bounds from raw screenshot image data.
+ * Returns 4 corner points in pixel coordinates, or null if boundaries can't be detected.
+ */
+export function detectIslandBounds(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+): IslandBounds | null {
+  const topResult = detectTopBoundary(data, width, height);
+  if (topResult.boundaryY == null) return null;
+
+  const bottomResult = detectBottomBoundary(data, width, height);
+  if (bottomResult.boundaryY == null) return null;
+
+  const leftResult = detectLeftBoundary(data, width, height, topResult.boundaryY, bottomResult.boundaryY);
+  const rightResult = detectRightBoundary(data, width, height, topResult.boundaryY, bottomResult.boundaryY);
+
+  const extents = deriveFullExtents(
+    topResult.boundaryY,
+    bottomResult.boundaryY,
+    leftResult.boundaryX,
+    rightResult.boundaryX,
+    width,
+  );
+
+  // Return the inner block corners (first gridline intersections).
+  // The island is 7×6 blocks; the inner 5×4 grid starts at block (1,1) = island coord (16,16)
+  // and ends at block (6,5) = island coord (96,80).
+  const ppc = extents.pixelsPerCoord;
+  const fullLeft = extents.full.left;
+  const fullTop = extents.full.top;
+  const blockLeft = Math.round(fullLeft + 16 * ppc);
+  const blockTop = Math.round(fullTop + 16 * ppc);
+  const blockRight = Math.round(fullLeft + 96 * ppc);
+  const blockBottom = Math.round(fullTop + 80 * ppc);
+  return {
+    topLeft: { x: blockLeft, y: blockTop },
+    topRight: { x: blockRight, y: blockTop },
+    bottomRight: { x: blockRight, y: blockBottom },
+    bottomLeft: { x: blockLeft, y: blockBottom },
+  };
+}
+
 // ============ Icon Detection Types ============
 
 // Orientation variant for multi-orientation icons (bridges, stairs)
@@ -5904,6 +5957,13 @@ export async function generateFromScreenshot(options: GenerateOptions = {}): Pro
   const imageData = ctx.getImageData(0, 0, width, height);
   const data = imageData.data;
 
+  // 3b. Quick validation: check if this looks like an ACNH screenshot
+  if (!detectIslandBounds(data, width, height)) {
+    console.warn('Generate from Screenshot: image does not appear to be an ACNH map screenshot');
+    skipDebug = false;
+    throw new Error('NOT_A_SCREENSHOT');
+  }
+
   // Set up zip accumulator for all debug images (lazy-import JSZip, never loaded at startup)
   if (!skipDebug) {
     const JSZip = (await import(/* webpackChunkName: "jszip" */ 'jszip')).default;
@@ -6150,4 +6210,38 @@ export async function generateFromScreenshot(options: GenerateOptions = {}): Pro
 
   console.log('Generate from Screenshot: done');
   skipDebug = false;
+}
+
+export async function isLikelyScreenshot(file: File): Promise<boolean> {
+  const image = await loadImageFromFile(file);
+  const { width, height } = image;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(image, 0, 0);
+  const data = ctx.getImageData(0, 0, width, height).data;
+
+  // Fast pre-check: ACNH map screenshots have ocean water around all borders.
+  // Sample pixels along the four edges and reject if < 50% match ocean blue.
+  const BORDER_STEP = 8; // sample every 8th pixel for speed
+  let borderTotal = 0;
+  let borderWater = 0;
+  const waterColors = SCREENSHOT_COLORS.WATER;
+  // Top and bottom edges
+  for (let x = 0; x < width; x += BORDER_STEP) {
+    borderTotal += 2;
+    if (matchesAnyColor(getPixelAt(data, width, x, 0), waterColors)) borderWater++;
+    if (matchesAnyColor(getPixelAt(data, width, x, height - 1), waterColors)) borderWater++;
+  }
+  // Left and right edges
+  for (let y = 0; y < height; y += BORDER_STEP) {
+    borderTotal += 2;
+    if (matchesAnyColor(getPixelAt(data, width, 0, y), waterColors)) borderWater++;
+    if (matchesAnyColor(getPixelAt(data, width, width - 1, y), waterColors)) borderWater++;
+  }
+  if (borderWater / borderTotal < 0.5) return false;
+
+  return detectIslandBounds(data, width, height) !== null;
 }

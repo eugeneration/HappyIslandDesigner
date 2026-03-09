@@ -50,6 +50,7 @@ const zhCN = {
     tracing_overlay: '描图覆盖层',
     import_tracing_overlay: '导入描图图片',
     import_tracing_overlay_instructions: '1. 上传地图的照片或屏幕截图\n\n2. 标记网格的四个角',
+    import_tracing_overlay_auto_corners: '检测到截图，正在自动定位角点...',
     twitter: '推特',
 
     // Entry point
@@ -62,6 +63,7 @@ const zhCN = {
     screenshot_title: '从截图生成',
     screenshot_description: '上传岛屿地图的截图，自动生成你的岛屿。',
     screenshot_upload: '上传截图',
+    screenshot_not_detected: '无法处理图片。请上传地图的截图。',
     screenshot_tips_title: '截图小贴士',
     screenshot_tips_transfer_heading: '从Switch传输截图：',
     screenshot_tips_capture: '按下截图键（左Joy-Con上的方形按钮）保存截图',

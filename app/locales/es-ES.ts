@@ -50,6 +50,7 @@ const esES = {
     tracing_overlay: 'Capa de Trazado',
     import_tracing_overlay: 'Importar Imagen para Trazado',
     import_tracing_overlay_instructions: '1. Sube una foto o captura de pantalla de tu mapa\n\n2. Marca las cuatro esquinas de la rejilla',
+    import_tracing_overlay_auto_corners: 'Captura detectada, posicionando esquinas automáticamente...',
     twitter: 'Twitter',
 
     // Entry point
@@ -62,6 +63,7 @@ const esES = {
     screenshot_title: 'Generar desde Captura',
     screenshot_description: 'Sube una captura de pantalla de tu mapa de isla para generar tu isla automáticamente.',
     screenshot_upload: 'Subir Captura',
+    screenshot_not_detected: 'No se pudo procesar la imagen. Por favor, sube una captura de pantalla del mapa.',
     screenshot_tips_title: 'Consejos para Capturas',
     screenshot_tips_transfer_heading: 'Transferir desde tu Switch:',
     screenshot_tips_capture: 'Pulsa el botón de captura (botón cuadrado en el Joy-Con izquierdo) para guardar una captura',

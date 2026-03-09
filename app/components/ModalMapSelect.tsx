@@ -28,6 +28,7 @@ import {
   trackMapComplexity,
   computeMapComplexity,
   getWizardFlowType,
+  trackError,
 } from '../analytics';
 import {
   WizardState,
@@ -934,6 +935,7 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
   const [progress, setProgress] = useState({ completed: 0, total: 1 });
   const [flavorIndex, setFlavorIndex] = useState(0);
   const [showTips, setShowTips] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Rotate flavor text on a timer while generating
   useEffect(() => {
@@ -945,6 +947,7 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
   }, [isGenerating]);
 
   const handleGenerate = async () => {
+    setErrorMessage(null);
     let generateStartTime = 0;
     try {
       const { generateFromScreenshot } = await import(/* webpackChunkName: "generateFromScreenshot" */ '../ui/generateFromScreenshot');
@@ -975,6 +978,10 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
       console.error('Generate from Screenshot failed:', err);
       isGeneratingRef.current = false;
       setIsGenerating(false);
+      if (err instanceof Error && err.message === 'NOT_A_SCREENSHOT') {
+        setErrorMessage(i18next.t('screenshot_not_detected'));
+        trackError('screenshot_not_detected');
+      }
     }
   };
 
@@ -1097,6 +1104,11 @@ function ScreenshotStep({ onBack }: { onBack: () => void }) {
           }}
         >{'?'}</Box>
       </Text>
+      {errorMessage && (
+        <Text sx={{ textAlign: 'center', color: '#D32F2F', fontFamily: 'heading', fontWeight: 'bold', fontSize: 1, mb: 2 }}>
+          {errorMessage}
+        </Text>
+      )}
       <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
         <Button
           variant='primary'

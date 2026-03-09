@@ -51,6 +51,7 @@ const en = {
     tracing_overlay: 'Tracing Overlay',
     import_tracing_overlay: 'Import Image for Tracing Overlay',
     import_tracing_overlay_instructions: '1. Upload a photo/screenshot of your map\n\n2. Mark the four corners of the grid',
+    import_tracing_overlay_auto_corners: 'Screenshot detected, auto-positioning corners...',
     twitter: 'Twitter',
 
     // Entry point
@@ -63,6 +64,7 @@ const en = {
     screenshot_title: 'Generate from Screenshot',
     screenshot_description: 'Upload a screenshot of your island map to automatically generate your island. ',
     screenshot_upload: 'Upload Screenshot',
+    screenshot_not_detected: 'Failed to process image. Please upload a screenshot of the map.',
     screenshot_tips_title: 'Screenshot Tips',
     screenshot_tips_transfer_heading: 'Transferring from your Switch:',
     screenshot_tips_capture: 'Press the Capture button (square button on the left Joy-Con) to save a screenshot',

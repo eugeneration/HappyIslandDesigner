@@ -50,6 +50,7 @@ const zhTW = {
     tracing_overlay: '描圖覆蓋層',
     import_tracing_overlay: '匯入描圖圖片',
     import_tracing_overlay_instructions: '1. 上傳地圖的照片或螢幕截圖\n\n2. 標註格線的四個角落',
+    import_tracing_overlay_auto_corners: '偵測到截圖，正在自動定位角點...',
     twitter: 'Twitter',
 
     // Entry point
@@ -62,6 +63,7 @@ const zhTW = {
     screenshot_title: '從截圖生成',
     screenshot_description: '上傳島嶼地圖的截圖，自動生成你的島嶼。',
     screenshot_upload: '上傳截圖',
+    screenshot_not_detected: '無法處理圖片。請上傳地圖的截圖。',
     screenshot_tips_title: '截圖小秘訣',
     screenshot_tips_transfer_heading: '從Switch傳輸截圖：',
     screenshot_tips_capture: '按下截圖鍵（左Joy-Con上的方形按鈕）儲存截圖',
