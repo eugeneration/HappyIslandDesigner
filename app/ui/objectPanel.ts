@@ -12,6 +12,7 @@ import {
   rotationOrder,
 } from '../tools/construction';
 import { toolCategoryDefinition } from '../tools';
+import { state } from '../state';
 import { toolState } from '../tools/state';
 
 let panelGroup: paper.Group | null = null;
@@ -229,7 +230,8 @@ export function initObjectPanel() {
   const rotateIcon = createRotateIcon();
   rotateButton = createButton(rotateIcon, 20, () => {
     if (currentObject) {
-      rotateObject(currentObject);
+      const obj = state.objects[currentObject.data.id] || currentObject;
+      rotateObject(obj);
     } else {
       cycleActiveTool(rotationOrder);
     }
@@ -239,7 +241,8 @@ export function initObjectPanel() {
   const lengthIcon = createLengthIcon();
   lengthButton = createButton(lengthIcon, 20, () => {
     if (currentObject) {
-      changeBridgeLength(currentObject);
+      const obj = state.objects[currentObject.data.id] || currentObject;
+      changeBridgeLength(obj);
     } else {
       cycleActiveTool(lengthOrder);
     }

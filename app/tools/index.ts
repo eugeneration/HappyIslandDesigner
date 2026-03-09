@@ -199,18 +199,30 @@ class BaseObjectCategoryDefinition {
     if (!entry) return;
 
     const { button } = entry;
-    // Replace the icon child (index 1, after the circle backing at index 0)
-    const oldIcon = button.children[1];
-    if (oldIcon) oldIcon.remove();
-    const newIcon = createObjectIcon(newDef, getObjectData(newDef));
-    newIcon.scaling = newDef.menuScaling;
-    if (newDef.rotation) {
-      newIcon.rotate(newDef.rotation);
-    }
-    button.insertChild(1, newIcon);
 
-    // Update selection state to highlight the base button
-    this.iconMenu.data.update(baseType);
+    const doUpdate = () => {
+      // Replace the icon child (index 1, after the circle backing at index 0)
+      const oldIcon = button.children[1];
+      if (oldIcon) oldIcon.remove();
+      const newIcon = createObjectIcon(newDef, getObjectData(newDef));
+      newIcon.scaling = newDef.menuScaling;
+      if (newDef.rotation) {
+        newIcon.rotate(newDef.rotation);
+      }
+      button.insertChild(1, newIcon);
+
+      // Update selection state to highlight the base button
+      this.iconMenu.data.update(baseType);
+    };
+
+    if (newDef.icon) {
+      doUpdate();
+    } else {
+      // Icon not loaded yet (hidden variant) — load on demand
+      if (!newDef._onIconLoaded) newDef._onIconLoaded = [];
+      newDef._onIconLoaded.push(doUpdate);
+      constructionDef.asyncConstructionDefinition.loadItemAsset(newDef.type);
+    }
   }
 
   openMenu(isSelected) {
