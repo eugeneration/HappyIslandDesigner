@@ -6,23 +6,55 @@ const PRODUCTION_HOST = 'eugeneration.github.io';
 const isDevSite = location.hostname !== PRODUCTION_HOST;
 
 let hitCounter = 2; // Start at 2; gtag.js uses _s=1 for the initial page_view
+let cachedClientId: string | null = null;
+let cachedSessionId: string | null = null;
+let cachedSessionCount: string | null = null;
+
+function initGtagFields(): void {
+  if (typeof window.gtag !== 'function') return;
+  window.gtag('get', 'G-D84QFBFDHP', 'client_id', (id: string) => {
+    cachedClientId = id;
+  });
+  window.gtag('get', 'G-D84QFBFDHP', 'session_id', (id: string) => {
+    cachedSessionId = id;
+  });
+  window.gtag('get', 'G-D84QFBFDHP', 'session_number', (n: string) => {
+    cachedSessionCount = String(n);
+  });
+}
 
 function getClientId(): string {
-  const ga = document.cookie.split('; ').find(c => c.startsWith('_ga='));
-  if (ga) {
-    // _ga cookie format: GA1.1.XXXXX.XXXXX → extract XXXXX.XXXXX
-    const parts = ga.split('.');
-    if (parts.length >= 4) return parts.slice(2).join('.');
+  if (cachedClientId) return cachedClientId;
+  // Sync fallback: read client ID from _ga cookie (format: GA1.1.<random>.<timestamp>)
+  const gaCookie = document.cookie.split('; ').find(c => c.startsWith('_ga='));
+  if (gaCookie) {
+    const parts = gaCookie.split('=')[1].split('.');
+    if (parts.length >= 4) {
+      cachedClientId = parts.slice(2).join('.');
+      return cachedClientId;
+    }
   }
-  // Fallback: generate a random client ID
-  return Math.floor(Math.random() * 2147483647) + '.' + Math.floor(Date.now() / 1000);
+  // Last resort: generate new ID (matches gtag.js format)
+  cachedClientId = Math.floor(Math.random() * 2147483647) + '.' + Math.floor(Date.now() / 1000);
+  return cachedClientId;
 }
 
 function getSessionData(): { sid: string; sct: string } {
-  // Session cookie format: GS1.1.<session_id>.<session_count>...
+  // Prefer values from gtag('get') API
+  if (cachedSessionId && cachedSessionCount) {
+    return { sid: cachedSessionId, sct: cachedSessionCount };
+  }
+  // Sync fallback: parse session cookie
   const cookie = document.cookie.split('; ').find(c => c.startsWith('_ga_D84QFBFDHP='));
   if (cookie) {
     const val = cookie.split('=')[1];
+    // GS2.1 format: GS2.1.s<sid>$o<sct>$g...$t...$j...$l...$h...
+    const sidMatch = val.match(/s(\d+)/);
+    const sctMatch = val.match(/o(\d+)/);
+    if (sidMatch && sctMatch) {
+      return { sid: sidMatch[1], sct: sctMatch[1] };
+    }
+    // GS1.1 format: GS1.1.<sid>.<sct>...
     const parts = val.split('.');
     if (parts.length >= 4) {
       return { sid: parts[2], sct: parts[3] };
@@ -335,6 +367,7 @@ export function trackOverlayFlowCancel(): void {
 // --- Init ---
 
 export function initAnalytics(): void {
+  initGtagFields();
   setInterval(flushBatchedEvents, 60000);
   window.addEventListener('beforeunload', () => {
     flushBatchedEvents(); // convert counters into trackEvent calls first

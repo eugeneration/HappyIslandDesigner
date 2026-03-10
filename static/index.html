@@ -84,8 +84,8 @@
       }
     </script>
 
-    <link rel="icon" type="image/png" sizes="192x192" href="https://eugeneration.github.io/HappyIslandDesigner/favicon-192x192.png" />
     <link rel="icon" type="image/png" sizes="48x48" href="https://eugeneration.github.io/HappyIslandDesigner/favicon-48x48.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="https://eugeneration.github.io/HappyIslandDesigner/favicon-192x192.png" />
     <link rel="icon" href="https://eugeneration.github.io/HappyIslandDesigner/favicon.ico" type="image/x-icon" />
     <link rel="apple-touch-icon" sizes="192x192" href="https://eugeneration.github.io/HappyIslandDesigner/favicon-192x192.png" />
     <!-- Preload toolbar icons so they're cached before Paper.js requests them.
@@ -122,7 +122,7 @@
       @keyframes fadeIn{from{opacity:0}to{opacity:1}}
       .skeleton-dots{opacity:0;animation:fadeIn 0.5s ease forwards;animation-delay:0.5s}
     </style>
-    <div id="loading-skeleton" style="position:fixed;inset:0;z-index:9999;pointer-events:none;display:flex;align-items:center;justify-content:center">
+    <div id="loading-skeleton" data-nosnippet style="position:fixed;inset:0;z-index:9999;pointer-events:none;display:flex;align-items:center;justify-content:center">
       <div style="position:fixed;inset:0;background:#83e1c3"></div>
       <div class="skeleton-shimmer skeleton-slide-left" style="position:fixed;left:-60px;top:0;width:120px;height:540px;border-radius:0 0 60px 0;background:#f5f3e5"></div>
       <div class="skeleton-shimmer skeleton-slide-right" style="position:fixed;top:7px;right:8px;width:84px;height:46px;border-radius:23px;background:#f5f3e5"></div>
@@ -132,16 +132,15 @@
         <span style="animation:bounce 1s ease-in-out 0.3s infinite">.</span>
       </div>
     </div>
-    <div class="hidden">
+    <div class="hidden" data-nosnippet>
       <p style="font-family: TTNorms;">.</p>
-    </div>
-    <div id="dev-site-banner" style="display:none; position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:10000; background:#fdf252; color:#726a5a; text-align:center; padding:8px 20px; font-family:sans-serif; font-size:16px; border-radius:9999px; box-shadow:0 2px 8px rgba(0,0,0,0.2); transition:opacity 0.5s ease; pointer-events:auto;">
-      Dev Site — The official version is at <a href="https://eugeneration.github.io/HappyIslandDesigner/" style="color:#726a5a; font-weight:bold;">eugeneration.github.io/HappyIslandDesigner</a>
     </div>
     <script>
       if (isDevSite) {
-        var banner = document.getElementById('dev-site-banner');
-        banner.style.display = 'block';
+        var banner = document.createElement('div');
+        banner.style.cssText = 'position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:10000; background:#fdf252; color:#726a5a; text-align:center; padding:8px 20px; font-family:sans-serif; font-size:16px; border-radius:9999px; box-shadow:0 2px 8px rgba(0,0,0,0.2); transition:opacity 0.5s ease; pointer-events:auto;';
+        banner.innerHTML = 'Dev Site \u2014 The official version is at <a href="https://eugeneration.github.io/HappyIslandDesigner/" style="color:#726a5a; font-weight:bold;">eugeneration.github.io/HappyIslandDesigner</a>';
+        document.body.appendChild(banner);
         setTimeout(function() {
           banner.style.opacity = '0';
           banner.style.pointerEvents = 'none';
