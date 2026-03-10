@@ -1,5 +1,4 @@
 import {colors} from '../colors'
-import { changePaintTool } from '../paint'
 
 const shadowColor = "rgba(75, 59, 50, 0.3)" // offblack
 
@@ -11,10 +10,13 @@ export default {
 
   colors: {
     text: colors.text.cssColor,
+    textSecondary: colors.secondaryText.cssColor,
     background: colors.paper.cssColor,
-    primary: '#33e',
-    secondary: '#333',
-    white: '#fff',
+    overlay: colors.paperOverlay.cssColor,
+    primary: colors.level3.cssColor,
+    secondary: colors.level2.cssColor,
+    white: colors.white.cssColor,
+    invisible: colors.invisible.cssColor,
   },
   fontSizes: [
     12, 14, 16, 20, 24, 32, 48, 64
@@ -46,6 +48,12 @@ export default {
       width: '100%',
       maxWidth: 300,
       borderRadius: 6,
+      aspectRatio: '244 / 209',
+      backgroundColor: colors.water.cssColor,
+    },
+    icon: {
+      width: 24,
+      height: 24,
     },
   },
 
@@ -55,6 +63,13 @@ export default {
       bg: 'primary',
       '&:hover': {
         bg: 'text',
+      }
+    },
+    borderless: {
+      color: 'text',
+      bg: 'invisible',
+      '&:hover': {
+        bg: 'overlay',
       }
     },
     card: {
@@ -85,7 +100,14 @@ export default {
       },
     },
   },
-
+  text: {
+    secondary: {
+      color: 'textSecondary',
+      fontFamily: 'body',
+      fontWeight: 'body',
+      lineHeight: 'body',
+    },
+  },
   styles: {
     root: {
       // uses the theme values provided above

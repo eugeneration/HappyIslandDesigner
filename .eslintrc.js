@@ -1,4 +1,5 @@
 module.exports = {
+    "root": true,
     "env": {
         "browser": true,
         "es6": true
@@ -34,6 +35,7 @@ module.exports = {
       {
         files: ['*.ts', '*.tsx'],
         rules: {
+          'no-unused-vars': 'off',
           '@typescript-eslint/no-unused-vars': [2, { args: 'none' }]
         }
       }

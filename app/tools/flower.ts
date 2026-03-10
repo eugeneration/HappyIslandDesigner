@@ -183,7 +183,7 @@ asyncFlowerDefinition.value = {
 
 };
 
-export function load() {
+export function initDefaults() {
   Object.keys(asyncFlowerDefinition.value).forEach((type) => {
     const def = asyncFlowerDefinition.value[type];
     def.category = 'flower';
@@ -195,13 +195,6 @@ export function load() {
       def.offset ||
       new paper.Point(-def.size.width / 2, -def.size.height + 0.2);
     def.onSelect = function () {};
-    if (def.img) {
-      const img = new paper.Raster(def.img);
-      def.icon = img;
-      def.icon.onLoad = function () {
-        asyncFlowerDefinition.onLoad();
-      };
-      img.remove();
-    }
   });
 }
+

@@ -3,10 +3,12 @@ import paper from 'paper';
 import { renderModal } from './modal';
 import { colors } from '../colors';
 import i18next from 'i18next';
+import { trackMiscAction } from '../analytics';
 
 export let helpMenu: paper.Group;
 
 export function showHelpMenu(isShown: boolean) {
+  if (isShown) trackMiscAction('help_menu');
   if (!helpMenu) {
     helpMenu = renderModal(i18next.t('hotkey'), 340, 560, () => {
       showHelpMenu(false);
@@ -20,7 +22,8 @@ export function showHelpMenu(isShown: boolean) {
     helpText.fontSize = 16;
     helpText.fontFamily = 'TTNorms, sans-serif';
     helpText.fillColor = colors.oceanText.color;
-    helpText.content = i18next.t('hotkey_tips1');
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    helpText.content = i18next.t('hotkey_tips1', { modifier: isMac ? 'cmd' : 'ctrl' });
 
     const helpText2 = new paper.PointText(new paper.Point(100, -10));
     helpText2.justification = 'left';
@@ -44,7 +47,7 @@ export function showHelpMenu(isShown: boolean) {
     versionCode.fontSize = 12;
     versionCode.fontFamily = 'TTNorms, sans-serif';
     versionCode.fillColor = colors.lightText.color;
-    versionCode.content = 'v0.4.1';
+    versionCode.content = 'v2.0.0';
 
     helpMenu.data.contents.addChildren([
       helpTextRaster,

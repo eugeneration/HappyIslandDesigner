@@ -8,6 +8,7 @@ import {
   cycleBrushHead,
 } from './brush';
 import { colors } from './colors';
+import { isV2Map } from './mapState';
 import { saveMapToFile, encodeMap } from './save';
 import { loadMapFromFile } from './load';
 import { toolCategoryDefinition } from './tools';
@@ -15,7 +16,7 @@ import { showMainMenu, mainMenu } from './ui/mainMenu';
 import { showHelpMenu, helpMenu } from './ui/help';
 import { toggleGrid } from './grid';
 import { redo, undo, state } from './state';
-import { toggleScreenshotVisible } from './ui/screenshotOverlay';
+import { toggleTracingOverlayVisible } from './ui/tracingOverlay';
 import { modals } from './ui/modal';
 
 export const keys = {
@@ -30,7 +31,7 @@ export function onKeyUp(event) {
       keys.isSpaceDown = false;
       break;
     case '`':
-      toggleScreenshotVisible();
+      toggleTracingOverlayVisible();
       delete keyDownMap['`'];
       break;
   }
@@ -46,10 +47,14 @@ export function onKeyDown(event) {
       keys.isSpaceDown = true;
       break;
     case '1':
-      updatePaintColor(colors.sand);
+      if (!isV2Map()) {
+        updatePaintColor(colors.sand);
+      }
       break;
     case '2':
-      updatePaintColor(colors.rock);
+      if (!isV2Map()) {
+        updatePaintColor(colors.rock);
+      }
       break;
     case '3':
       updatePaintColor(colors.level1);
@@ -114,12 +119,12 @@ export function onKeyDown(event) {
     case 'delete':
       toolState.deleteSelection();
       break;
-    case 'escape':
-      var isMainMenuShown = mainMenu && mainMenu.data.isShown();
+    case 'escape': {
+      const isMainMenuShown = mainMenu && mainMenu.data.isShown();
       if (isMainMenuShown) {
         showMainMenu(false);
       } else {
-        var otherModalShown = false;
+        let otherModalShown = false;
           modals.forEach(function (modal) {
             if (modal != mainMenu && modal.data.isShown()) {
               modal.data.show(false);
@@ -130,10 +135,12 @@ export function onKeyDown(event) {
             showMainMenu(true);
       }
       break;
-    case '?':
-      var isHelpMenuShown = helpMenu && helpMenu.data.isShown();
+    }
+    case '?': {
+      const isHelpMenuShown = helpMenu && helpMenu.data.isShown();
       showHelpMenu(!isHelpMenuShown);
       break;
+    }
     case '\\':
       toggleGrid();
       break;
@@ -172,7 +179,7 @@ export function onKeyDown(event) {
       break;
     case '`':
       if (!keyDownMap['`'])
-        toggleScreenshotVisible();
+        toggleTracingOverlayVisible();
       keyDownMap['`'] = true;
       break;
   }

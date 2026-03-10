@@ -1,41 +1,151 @@
 <!DOCTYPE html>
 <html lang="en" class="no-focus-outline">
   <head>
-    <meta property="og:title" content="Happy Island Designer" />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://eugeneration.github.io/HappyIslandDesigner/" />
-    <meta property="og:image" content="https://eugeneration.github.io/HappyIslandDesigner/thumbnail.png" />
-    <meta property="og:image:type" content="image/png" />
-    <meta property="og:description" content="Plan your dream island map. Made for Animal Crossing: New Horizons. Draw terrain and paths, place buildings, and trace your in-game map." />
     <meta charset="utf-8" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, shrink-to-fit=no, user-scalable=no"
     />
-    <title>Happy Island Designer</title>
+    <title>Happy Island Designer - Animal Crossing Island Planner</title>
+    <meta name="description" content="Plan your dream island map. Made for Animal Crossing: New Horizons. Draw terrain and paths, place buildings, and trace your in-game map." />
+    <link rel="canonical" href="https://eugeneration.github.io/HappyIslandDesigner/" />
 
-    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-159461234-1"></script>
+    <meta property="og:title" content="Happy Island Designer - Animal Crossing Island Planner" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://eugeneration.github.io/HappyIslandDesigner/" />
+    <meta property="og:image" content="https://eugeneration.github.io/HappyIslandDesigner/thumbnail.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:description" content="Plan your dream island map. Made for Animal Crossing: New Horizons. Draw terrain and paths, place buildings, and trace your in-game map." />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Happy Island Designer - Animal Crossing Island Planner" />
+    <meta name="twitter:description" content="Plan your dream island map. Made for Animal Crossing: New Horizons. Draw terrain and paths, place buildings, and trace your in-game map." />
+    <meta name="twitter:image" content="https://eugeneration.github.io/HappyIslandDesigner/thumbnail.png" />
+
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'UA-159461234-1');
+      // Prevent site from being embedded in iframes by unauthorized origins
+      // Add trusted domains to this list to allow specific sites to iframe the app
+      var ALLOWED_IFRAME_HOSTS = [
+        // 'example.com',
+      ];
+      if (window.top !== window.self) {
+        var shouldBlock = true;
+        try {
+          var parentHost = window.top.location.hostname;
+          shouldBlock = !ALLOWED_IFRAME_HOSTS.some(function(host) {
+            return parentHost === host || parentHost.endsWith('.' + host);
+          });
+        } catch (e) {
+          // Cross-origin iframe — can't read parent host, block it
+        }
+        if (shouldBlock) {
+          window.stop();
+          var url = 'https://eugeneration.github.io/HappyIslandDesigner/';
+          setTimeout(function() {
+            document.documentElement.innerHTML =
+              '\x3chead\x3e\x3ctitle\x3eHappy Island Designer\x3c/title\x3e\x3c/head\x3e' +
+              '\x3cbody style="margin:0;display:flex;align-items:center;justify-content:center;' +
+              'height:100vh;background:#f5f3e5;font-family:sans-serif"\x3e' +
+              '\x3cdiv style="text-align:center;color:#726a5a;font-size:20px;padding:20px"\x3e' +
+              'Please use Happy Island Designer at\x3cbr\x3e' +
+              '\x3ca href="' + url + '" target="_top" ' +
+              'style="color:#35a043;font-weight:bold"\x3eeugeneration.github.io/HappyIslandDesigner\x3c/a\x3e' +
+              '\x3c/div\x3e\x3c/body\x3e';
+          }, 0);
+        }
+      }
     </script>
 
+    <script>
+      // Detect non-production sites (forks, local dev) and downrank them
+      var PRODUCTION_HOST = 'eugeneration.github.io';
+      var isDevSite = window.location.hostname !== PRODUCTION_HOST;
+      if (isDevSite) {
+        var meta = document.createElement('meta');
+        meta.name = 'robots';
+        meta.content = 'noindex, nofollow';
+        document.head.appendChild(meta);
+      }
+    </script>
+
+    <script>
+      if (!isDevSite) {
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=G-D84QFBFDHP';
+        document.head.appendChild(s);
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-D84QFBFDHP');
+      }
+    </script>
+
+    <link rel="icon" type="image/png" sizes="192x192" href="favicon-192x192.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="favicon-48x48.png" />
     <link rel="icon" href="favicon.ico" type="image/x-icon" />
-    <link
-      rel="preload"
-      href="./static/font/TTNorms-Bold.woff"
-      as="font"
-      type="font/woff"
-      crossorigin
-    />
+    <link rel="apple-touch-icon" sizes="192x192" href="favicon-192x192.png" />
+    <!-- Preload toolbar icons so they're cached before Paper.js requests them.
+         These match the icons created in app/tools/index.ts (tool-*),
+         app/drawer.ts (menu-undo/redo), and app/ui/leftMenu.ts (menu-help).
+         Update this list if toolbar icons are added/removed/renamed. -->
+    <link rel="preload" href="./static/img/tool-color.png" as="image" />
+    <link rel="preload" href="./static/img/tool-path.png" as="image" />
+    <link rel="preload" href="./static/img/tool-house.png" as="image" />
+    <link rel="preload" href="./static/img/tool-amenities.png" as="image" />
+    <link rel="preload" href="./static/img/tool-construction.png" as="image" />
+    <link rel="preload" href="./static/img/tool-tree.png" as="image" />
+    <link rel="preload" href="./static/img/tool-flower.png" as="image" />
+    <link rel="preload" href="./static/img/menu-undo.png" as="image" />
+    <link rel="preload" href="./static/img/menu-redo.png" as="image" />
+    <link rel="preload" href="./static/img/menu-help.png" as="image" />
+    <link rel="preload" href="./static/img/ui-plus.png" as="image" />
+    <link rel="preload" href="./static/img/ui-minus.png" as="image" />
+    <link rel="preload" href="./static/img/menu-drawbrush.png" as="image" />
+    <link rel="preload" href="./static/img/menu-drawline.png" as="image" />
   </head>
   <body>
+    <style>
+      @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+      @keyframes fadeout{to{opacity:0}}
+      @keyframes bounce{0%,100%{transform:translateY(0) scaleX(1) scaleY(1);animation-timing-function:ease-in}8%{transform:translateY(13.75%) scaleX(1.3) scaleY(0.75);animation-timing-function:cubic-bezier(0.33,1,0.68,1)}30%{transform:translateY(-16px) scaleX(0.9) scaleY(1.1);animation-timing-function:cubic-bezier(0.32,0,0.67,0)}44%{transform:translateY(13.75%) scaleX(1.3) scaleY(0.75);animation-timing-function:ease-out}52%{transform:translateY(0) scaleX(1) scaleY(1)}}
+      .skeleton-shimmer{position:relative;overflow:hidden}
+      .skeleton-shimmer::after{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(45deg,#f5f3e5 30%,#ecebd5 50%,#f5f3e5 70%);background-size:200% 200%;animation:shimmer 1.5s ease-in-out infinite}
+      #loading-skeleton.fade-out{animation:fadeout 0.15s ease forwards}
+      @keyframes slideInLeft{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:translateX(0)}}
+      @keyframes slideInRight{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+      .skeleton-slide-left{opacity:0;animation:slideInLeft 0.8s ease forwards;animation-delay:0.5s}
+      .skeleton-slide-right{opacity:0;animation:slideInRight 0.8s ease forwards;animation-delay:0.5s}
+      @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+      .skeleton-dots{opacity:0;animation:fadeIn 0.5s ease forwards;animation-delay:0.5s}
+    </style>
+    <div id="loading-skeleton" style="position:fixed;inset:0;z-index:9999;pointer-events:none;display:flex;align-items:center;justify-content:center">
+      <div style="position:fixed;inset:0;background:#83e1c3"></div>
+      <div class="skeleton-shimmer skeleton-slide-left" style="position:fixed;left:-60px;top:0;width:120px;height:540px;border-radius:0 0 60px 0;background:#f5f3e5"></div>
+      <div class="skeleton-shimmer skeleton-slide-right" style="position:fixed;top:7px;right:8px;width:84px;height:46px;border-radius:23px;background:#f5f3e5"></div>
+      <div class="skeleton-dots" style="display:flex;gap:4px;font-size:32px;color:#57b499;font-weight:bold">
+        <span style="animation:bounce 1s ease-in-out infinite">.</span>
+        <span style="animation:bounce 1s ease-in-out 0.15s infinite">.</span>
+        <span style="animation:bounce 1s ease-in-out 0.3s infinite">.</span>
+      </div>
+    </div>
     <div class="hidden">
       <p style="font-family: TTNorms;">.</p>
     </div>
+    <div id="dev-site-banner" style="display:none; position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:10000; background:#fdf252; color:#726a5a; text-align:center; padding:8px 20px; font-family:sans-serif; font-size:16px; border-radius:9999px; box-shadow:0 2px 8px rgba(0,0,0,0.2); transition:opacity 0.5s ease; pointer-events:auto;">
+      Dev Site — The official version is at <a href="https://eugeneration.github.io/HappyIslandDesigner/" style="color:#726a5a; font-weight:bold;">eugeneration.github.io/HappyIslandDesigner</a>
+    </div>
+    <script>
+      if (isDevSite) {
+        var banner = document.getElementById('dev-site-banner');
+        banner.style.display = 'block';
+        setTimeout(function() {
+          banner.style.opacity = '0';
+          banner.style.pointerEvents = 'none';
+          banner.addEventListener('transitionend', function() { banner.remove(); });
+        }, 5000);
+      }
+    </script>
     <div id="app">
       <canvas id="canvas" resize></canvas>
       <div id="ui-container"></div>

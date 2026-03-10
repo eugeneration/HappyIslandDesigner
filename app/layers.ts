@@ -4,6 +4,7 @@ import paper from 'paper';
 export const layers: Record<
   | 'backgroundLayer'
   | 'mapLayer'
+  | 'mapEdgeLayer'
   | 'mapIconLayer'
   | 'mapOverlayLayer'
   | 'uiLayer'
@@ -16,6 +17,7 @@ export const layers: Record<
 export function initLayers() {
   layers.backgroundLayer = paper.project.activeLayer;
   layers.mapLayer = new paper.Layer();
+  layers.mapEdgeLayer = new paper.Layer();
   layers.mapIconLayer = new paper.Layer();
   layers.mapOverlayLayer = new paper.Layer();
   layers.uiLayer = new paper.Layer();
@@ -30,6 +32,8 @@ export function initLayers() {
 
   layers.mapLayer.applyMatrix = false;
   layers.mapLayer.pivot = new paper.Point(0, 0);
+  layers.mapEdgeLayer.applyMatrix = false;
+  layers.mapEdgeLayer.pivot = new paper.Point(0, 0);
   layers.mapIconLayer.applyMatrix = false;
   layers.mapIconLayer.pivot = new paper.Point(0, 0);
   layers.mapOverlayLayer.applyMatrix = false;

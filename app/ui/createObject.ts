@@ -1,9 +1,10 @@
 // @ts-nocheck
-import { toolCategoryDefinition } from '../tools';
+import { toolCategoryDefinition, loadObjectAsset } from '../tools';
 import { layers } from '../layers';
 import { getObjectData } from '../helpers/getObjectData';
 import {
   objectCreateCommand,
+  objectPropertyCommand,
   addToHistory,
   state,
   objectPositionCommand,
@@ -14,6 +15,11 @@ import { toolState } from '../tools/state';
 import { getObjectCenteredCoordinate } from '../brush';
 import { colors } from '../colors';
 import { createButton } from './createButton';
+import {
+  asyncConstructionDefinition,
+  rotationOrder,
+  lengthOrder,
+} from '../tools/construction';
 
 export function createObjectIcon(objectDefinition) {
   const item = objectDefinition.icon.clone({ insert: false });
@@ -26,18 +32,29 @@ export function createObjectIcon(objectDefinition) {
 export function createObjectBase(objectDefinition, itemData) {
   let item = createObjectIcon(objectDefinition);
   item.scaling = objectDefinition.scaling;
+  if (objectDefinition.rotation) {
+    item.rotate(objectDefinition.rotation);
+  }
 
   if (item.resolution) {
     item = new paper.Group(item);
   }
 
-  item.pivot = item.bounds.bottomCenter.add(objectDefinition.offset);
-  item.position = new paper.Point(0, 0);
+  if (objectDefinition.rotation != null) {
+    item.pivot = item.bounds.center;
+    item.position = new paper.Point(
+      objectDefinition.size.width / 2 + (objectDefinition.offset?.x || 0),
+      objectDefinition.size.height / 2 + (objectDefinition.offset?.y || 0),
+    );
+  } else {
+    item.pivot = item.bounds.bottomCenter.add(objectDefinition.offset);
+    item.position = new paper.Point(0, 0);
+  }
 
   const group = new paper.Group();
 
   const bound = new paper.Path.Rectangle(
-    new paper.Rectangle(item.position, objectDefinition.size),
+    new paper.Rectangle(new paper.Point(0, 0), objectDefinition.size),
     new paper.Size(0.15, 0.15),
   );
   bound.strokeColor = new paper.Color('white');
@@ -65,15 +82,29 @@ export function createObjectPreview(objectDefinition, itemData) {
 }
 
 export function createObjectPreviewAsync(objectData, callback) {
-  toolCategoryDefinition[objectData.category].tools.getAsyncValue((tools) => {
-    callback(createObjectPreview(tools[objectData.type], objectData));
-  });
+  const categoryDef = toolCategoryDefinition[objectData.category];
+  const def = categoryDef && categoryDef.tools && categoryDef.tools.value[objectData.type];
+
+  if (def && def.icon) {
+    callback(createObjectPreview(def, objectData));
+  } else if (def) {
+    if (!def._onIconLoaded) def._onIconLoaded = [];
+    def._onIconLoaded.push(() => callback(createObjectPreview(def, objectData)));
+    loadObjectAsset(objectData.category, objectData.type);
+  }
 }
 
 export function createObjectAsync(objectData, callback) {
-  toolCategoryDefinition[objectData.category].tools.getAsyncValue((tools) => {
-    callback(createObject(tools[objectData.type], objectData));
-  });
+  const categoryDef = toolCategoryDefinition[objectData.category];
+  const def = categoryDef && categoryDef.tools && categoryDef.tools.value[objectData.type];
+
+  if (def && def.icon) {
+    callback(createObject(def, objectData));
+  } else if (def) {
+    if (!def._onIconLoaded) def._onIconLoaded = [];
+    def._onIconLoaded.push(() => callback(createObject(def, objectData)));
+    loadObjectAsset(objectData.category, objectData.type);
+  }
 }
 
 export function placeObject(event) {
@@ -176,7 +207,7 @@ export function createObject(objectDefinition, itemData) {
       this.elements.bound.strokeColor = isSelected
         ? colors.selection.color
         : 'white';
-      this.elements.bound.strokeColor.alpha = group.state.focused ? 1 : 0;
+      this.elements.bound.strokeColor.alpha = isSelected ? 1 : (group.state.focused ? 0.6 : 0);
 
       group.showDeleteButton(isSelected);
     }
@@ -234,4 +265,73 @@ export function createObject(objectDefinition, itemData) {
   };
 
   return group;
+}
+
+function swapObjectType(object, cycleMap) {
+  const oldType = object.data.type;
+  const newType = cycleMap[oldType];
+  if (!newType) return null;
+
+  const defs = asyncConstructionDefinition.value;
+  const oldDef = defs[oldType];
+  const newDef = defs[newType];
+  if (!oldDef || !newDef) return null;
+
+  const oldCenter = object.position.add(
+    new paper.Point(oldDef.size.width / 2, oldDef.size.height / 2),
+  );
+  const newPosition = oldCenter.subtract(
+    new paper.Point(newDef.size.width / 2, newDef.size.height / 2),
+  ).round();
+
+  const oldData = { ...object.data };
+  const newData = { category: 'construction', type: newType, id: oldData.id };
+
+  const command = objectPropertyCommand(oldData, object.position, newData, newPosition);
+  applyCommand(command, true);
+  addToHistory(command);
+
+  // Select the new object and emit event for panel
+  const newObject = state.objects[oldData.id];
+  if (newObject) {
+    toolState.selectObject(newObject);
+  }
+
+  return newObject;
+}
+
+export function rotateObject(object) {
+  return swapObjectType(object, rotationOrder);
+}
+
+export function changeBridgeLength(object) {
+  return swapObjectType(object, lengthOrder);
+}
+
+export function applyPropertyChange(isApply, command) {
+  if (isApply) {
+    const { id } = command.oldData;
+    const object = state.objects[id];
+    if (object) {
+      object.remove();
+      delete state.objects[id];
+    }
+    createObjectAsync(command.newData, (newObj) => {
+      newObj.position = command.newPosition;
+      newObj.data.id = id;
+      state.objects[id] = newObj;
+    });
+  } else {
+    const { id } = command.oldData;
+    const object = state.objects[id];
+    if (object) {
+      object.remove();
+      delete state.objects[id];
+    }
+    createObjectAsync(command.oldData, (oldObj) => {
+      oldObj.position = command.oldPosition;
+      oldObj.data.id = id;
+      state.objects[id] = oldObj;
+    });
+  }
 }

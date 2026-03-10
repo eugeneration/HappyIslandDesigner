@@ -1,8 +1,12 @@
 import { emitter } from './emitter';
-import { applyCreateObject } from './ui/createObject';
+import { applyCreateObject, applyPropertyChange } from './ui/createObject';
 import { applyMoveCommand, applyDiff } from './paint';
 import { autosaveMap } from './save';
 import objectIsEmpty from './helpers/objectIsEmpty';
+import { setEdgeTilesFromAssetIndices } from './ui/edgeTiles';
+import { setMapVersion } from './mapState';
+import { clearWaterfall } from './waterfall';
+import { trackUndoRedo } from './analytics';
 
 /* eslint-disable default-case */
 export type State = {
@@ -32,12 +36,9 @@ export function isMapEmpty() {
   return objectIsEmpty(state.objects) && objectIsEmpty(state.drawing);
 }
 
-export function confirmDestructiveAction(message: string, callback: Function) {
+export function confirmDestructiveActionAsync(message: string): Promise<boolean> {
   const empty = isMapEmpty();
-  const r = empty || confirm(message);
-  if (r === true) {
-    callback();
-  }
+  return Promise.resolve(empty || confirm(message));
 }
 
 export function clearMap() {
@@ -49,11 +50,20 @@ export function clearMap() {
     state.objects[p].remove();
   });
   state.objects = {};
+  clearWaterfall();
 }
 
 export function setNewMapData(mapData) {
   // state.objects = mapData.objects; // objects are loaded asynchronously
   state.drawing = mapData.drawing;
+
+  // todo: edgetiles and mapversion should also be saved in this state file so undo/redo works
+  if (mapData.edgeTiles) {
+    setEdgeTilesFromAssetIndices(mapData.edgeTiles);
+  }
+
+  // Set global map version state so V2 features (edge tool) are enabled
+  setMapVersion(mapData.version);
 }
 
 export function canRedo() {
@@ -79,8 +89,10 @@ export function applyCommand(command, isApply: boolean) {
           applyCreateObject(!isApply, command);
           break;
         case 'position':
-          console.log(command)
           applyMoveCommand(isApply, command);
+          break;
+        case 'property':
+          applyPropertyChange(isApply, command);
           break;
         case 'color':
           break;
@@ -94,6 +106,7 @@ export function undo() {
     applyCommand(state.history[state.index], false);
     state.index -= 1;
     emitter.emit('historyUpdate', 'undo');
+    trackUndoRedo('undo');
   } else {
     console.log('Nothing to undo');
   }
@@ -104,6 +117,7 @@ export function redo() {
     state.index += 1;
     applyCommand(state.history[state.index], true);
     emitter.emit('historyUpdate', 'redo');
+    trackUndoRedo('redo');
   } else {
     console.log('Nothing to redo');
   }
@@ -131,6 +145,17 @@ export function objectCreateCommand(objectData, position) {
 
 export function objectDeleteCommand(objectData, position) {
   return objectCommand('delete', position.clone(), objectData);
+}
+
+export function objectPropertyCommand(oldData, oldPosition, newData, newPosition) {
+  return {
+    type: 'object',
+    action: 'property',
+    oldData,
+    oldPosition: oldPosition.clone(),
+    newData,
+    newPosition: newPosition.clone(),
+  };
 }
 
 export function objectPositionCommand(objectId, prevPosition, position) {
@@ -162,6 +187,13 @@ export function addToHistory(command) {
   autosaveTrigger();
   emitter.emit('historyUpdate', 'add');
 }
+
+// When a new map is loaded (from file, autosave, or wizard), reset undo history and save immediately
+emitter.on('mapLoaded', () => {
+  state.index = -1;
+  state.history = [];
+  state.actionsSinceSave = 0;
+});
 
 export function autosaveTrigger() {
   // autosave

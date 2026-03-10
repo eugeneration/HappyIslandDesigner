@@ -20,6 +20,12 @@ import { sweepPath } from './helpers/sweepPath';
 import { uniteCompoundPath } from './helpers/unitCompoundPath';
 import { layers } from './layers';
 import { colors } from './colors';
+import { isEdgeTilesVisible, getInnerDrawableBounds } from './ui/edgeTiles';
+import { isV2Map } from './mapState';
+import { emitter } from './emitter';
+import { markWaterfallDirty } from './waterfall';
+import { appSettings } from './settings';
+import { trackMiscAction, trackBrushStroke } from './analytics';
 
 const paintTools = {
   grid: 'grid',
@@ -53,6 +59,7 @@ export function draw(event) {
       const brushLineForce = getCurrentBrushLineForce();
       const isShift = paper.Key.isDown('shift');
       if (!brushLine && (isShift || brushLineForce)) {
+        trackMiscAction('shift_line');
         startDrawGrid(event.point);
       } else if (brushLine && !(isShift || brushLineForce)) {
         drawGrid(event.point);
@@ -79,6 +86,7 @@ export function draw(event) {
 }
 
 export function endDraw(event) {
+  trackBrushStroke(getCurrentPaintColor().key);
   switch (paintTool) {
     case paintTools.grid: {
       const brushLineForce = getCurrentBrushLineForce();
@@ -112,7 +120,7 @@ function getDrawPath(coordinate) {
   const brushPoints = getCurrentBrushPoints();
   const brushSize = getCurrentBrushSize();
 
-  var pos = getBrushCenteredCoordinate(coordinate);
+  const pos = getBrushCenteredCoordinate(coordinate);
   pos.x -= brushSize / 2 - 0.5;
   pos.y -= brushSize / 2 - 0.5;
 
@@ -125,6 +133,7 @@ function getDrawPath(coordinate) {
 }
 
 export function drawLine(start: paper.Point, end: paper.Point): paper.Path {
+  trackMiscAction('line_tool');
   const drawPaths: paper.Path[] = [];
   if (brushSweep) {
     //prevDrawCoordinate = null;
@@ -198,17 +207,47 @@ export function addPath(isAdd, path, colorKey) {
     state.drawing[colorKey] = new paper.Path();
     state.drawing[colorKey].locked = true;
   }
+
+  // For V2 maps (with edge tiles), clip the path to the inner drawable area
+  let clippedPath = path;
+  if (isEdgeTilesVisible()) {
+    const innerBounds = getInnerDrawableBounds();
+    const clipPath = new paper.Path.Rectangle(innerBounds);
+    const intersected = path.intersect(clipPath, { insert: false });
+    clipPath.remove();
+
+    // Only proceed if there's something left after clipping
+    if (intersected && !intersected.isEmpty()) {
+      clippedPath = intersected;
+    } else {
+      // Path was entirely outside the drawable area
+      path.remove();
+      return;
+    }
+  }
+
   const combined = isAdd
-    ? state.drawing[colorKey].unite(path)
-    : state.drawing[colorKey].subtract(path);
+    ? state.drawing[colorKey].unite(clippedPath)
+    : state.drawing[colorKey].subtract(clippedPath);
   combined.locked = true;
   combined.fillColor = colors[colorKey].color;
+  if (colorKey === 'water' && isV2Map() && appSettings.showWaterEffects) {
+    combined.fillColor = colors.waterLevel1Overlay77.color;
+    combined.opacity = 0.77;
+  }
   combined.insertAbove(state.drawing[colorKey]);
 
   state.drawing[colorKey].remove();
-  path.remove();
+  clippedPath.remove();
+  if (clippedPath !== path) {
+    path.remove();
+  }
 
   state.drawing[colorKey] = combined;
+
+  if (colorKey === 'water' || colorKey === 'level2' || colorKey === 'level3') {
+    markWaterfallDirty();
+  }
 }
 
 export function applyDiff(isApply, diff) {
@@ -225,3 +264,15 @@ export function applyDiff(isApply, diff) {
     addPath(isAdd, colorDiff.path, colorKey);
   });
 }
+
+emitter.on('mapVersionChanged', () => {
+  const waterPath = state.drawing['water'];
+  if (!waterPath) return;
+  if (isV2Map() && appSettings.showWaterEffects) {
+    waterPath.fillColor = colors.waterLevel1Overlay77.color;
+    waterPath.opacity = 0.77;
+  } else {
+    waterPath.fillColor = colors.water.color;
+    waterPath.opacity = 1;
+  }
+});

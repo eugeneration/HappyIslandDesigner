@@ -5,10 +5,13 @@ import i18next from 'i18next';
 
 import { renderModal } from './modal';
 import { colors } from '../colors';
-import { saveMapToFile } from '../save';
-import { loadMapFromFile, loadTemplate } from '../load';
-import { showSwitchModal } from './screenshotModal';
-import { OpenMapSelectModal } from '../components/ModalMapSelect';
+import { saveMapToFile, showPendingSaveTutorial } from '../save';
+import { loadMapFromFile } from '../load';
+import { showSwitchModal } from './tracingOverlayModal';
+import { OpenMapSelectModal, OpenConvertModal } from '../components/ModalMapSelect';
+import { trackMainMenuAction } from '../analytics';
+import { isV2Map } from '../mapState';
+import { emitter } from '../emitter';
 
 
 export let mainMenu: paper.Group;
@@ -107,6 +110,7 @@ export function showMainMenu(isShown: boolean) {
       'static/img/menu-save.png',
       0, 0,
       () => {
+        trackMainMenuAction('save');
         saveMapToFile();
       },
     );
@@ -115,6 +119,7 @@ export function showMainMenu(isShown: boolean) {
       'static/img/menu-open.png',
       1, 0,
       () => {
+        trackMainMenuAction('open');
         loadMapFromFile();
       },
     );
@@ -123,15 +128,33 @@ export function showMainMenu(isShown: boolean) {
       'static/img/menu-new.png',
       2, 0,
       () => {
+        trackMainMenuAction('new_map');
         // eslint-disable-next-line no-alert, no-restricted-globals
         OpenMapSelectModal();
         showMainMenu(false);
       },
     );
-    var switchButton = createMenuButton(
-      i18next.t('load_screenshot'),
-      'static/img/menu-switch.png', 0, 1,
-      () => showSwitchModal(true));
+    const switchButton = createMenuButton(
+      i18next.t('tracing_overlay'),
+      'static/img/menu-overlay.png', 0, 1,
+      () => { trackMainMenuAction('overlay'); showSwitchModal(true); });
+
+    const upgradeButton = createMenuButton(
+      i18next.t('upgrade_to_v2'),
+      'static/img/menu-upgrade.png', 1, 1,
+      () => {
+        trackMainMenuAction('upgrade_v2');
+        OpenConvertModal();
+        showMainMenu(false);
+      },
+    );
+    upgradeButton.visible = !isV2Map();
+
+    const updateUpgradeVisibility = () => {
+      upgradeButton.visible = !isV2Map();
+    };
+    emitter.on('mapVersionChanged', updateUpgradeVisibility);
+    emitter.on('mapLoaded', updateUpgradeVisibility);
 
     const twitterButton = createMenuButton(
       i18next.t('twitter'),
@@ -148,10 +171,17 @@ export function showMainMenu(isShown: boolean) {
       loadButton,
       newButton,
       switchButton,
+      upgradeButton,
       twitterButton,
     ]);
     mainMenu.opacity = 0;
   }
+  if (isShown) {
+    mainMenu.data.text.content = i18next.t('mainmenu');
+  }
   mainMenu.tweenTo({ opacity: isShown ? 1 : 0 }, 200);
   mainMenu.locked = !isShown;
+  if (!isShown) {
+    showPendingSaveTutorial();
+  }
 }

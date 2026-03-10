@@ -10,6 +10,7 @@ import { colors, Color } from './colors';
 export const layerDefinition: {
   [key: string]: {
     priority: number;
+    v2Priority?: number; // In V2, water is painted on top of all terrain (rivers cut through cliffs)
     elevation: number;
     addLayers: Color['key'][];
     cutLayers: Color['key'][];
@@ -68,6 +69,7 @@ export const layerDefinition: {
   },
   [colors.water.key]: {
     priority: 0,
+    v2Priority: 60,
     elevation: 0,
     addLayers: [],
     cutLayers: [

@@ -11,16 +11,41 @@ import {
   updatePaintColor,
 } from './brush';
 import { toolState } from './tools/state';
-import { toolCategoryDefinition, initTools } from './tools';
+import { toolCategoryDefinition, initTools, loadObjectSprites } from './tools';
 import { createButton } from './ui/createButton';
 import { createLeftMenu, addHelpButton } from './ui/leftMenu';
 import { showMainMenu } from './ui/mainMenu';
 import { initLayers, layers } from './layers';
 import { colors } from './colors';
 import { tryLoadAutosaveMap } from './load';
+import { initWaterfall } from './waterfall';
+import { trackMainMenuAction } from './analytics';
 import { backgroundInit, drawBackground } from './background';
 import { resizeCoordinates } from './resizeCoordinates';
 import { keys } from './keyboard';
+import { initObjectPanel, isPanelClick } from './ui/objectPanel';
+
+let undoMenuRef: paper.Group | null = null;
+let mainMenuButtonRef: paper.Item | null = null;
+let mainMenuButtonIconRef: paper.Item | null = null;
+
+export function hideUndoMenu(): void {
+  if (undoMenuRef) undoMenuRef.visible = false;
+}
+
+export function showUndoMenu(): void {
+  if (undoMenuRef) undoMenuRef.visible = true;
+}
+
+export function hideMainMenuButton(): void {
+  if (mainMenuButtonRef) mainMenuButtonRef.visible = false;
+  if (mainMenuButtonIconRef) mainMenuButtonIconRef.visible = false;
+}
+
+export function showMainMenuButton(): void {
+  if (mainMenuButtonRef) mainMenuButtonRef.visible = true;
+  if (mainMenuButtonIconRef) mainMenuButtonIconRef.visible = true;
+}
 
 function initializeApp() {
   toolState.switchToolType(toolCategoryDefinition.terrain.type);
@@ -48,6 +73,7 @@ function onFrame() {
 
 export function drawer() {
   initLayers();
+  initWaterfall();
 
   layers.mapLayer.activate();
 
@@ -70,6 +96,9 @@ export function drawer() {
 
   paper.view.onMouseDown = function onMouseDown(event) {
     if (keys.isSpaceDown) {
+      return;
+    }
+    if (isPanelClick(event)) {
       return;
     }
     toolState.onDown(event);
@@ -121,6 +150,7 @@ export function drawer() {
   layers.fixedLayer.activate();
   initTools();
   addHelpButton();
+  initObjectPanel();
 
   function undoMenuButton(path, onPress) {
     const icon = new paper.Raster(path);
@@ -146,6 +176,8 @@ export function drawer() {
       noPointer: true,
     },
   );
+
+  undoMenuRef = undoMenu;
 
   function updateUndoButtonState() {
     undoButton.data.disable(!canUndo());
@@ -183,6 +215,9 @@ export function drawer() {
   mainMenuButtonIcon.fillColor = colors.text.color;
   mainMenuButtonIcon.locked = true;
 
+  mainMenuButtonRef = mainMenuButton;
+  mainMenuButtonIconRef = mainMenuButtonIcon;
+
   mainMenuButton.onMouseEnter = function () {
     mainMenuButton.tweenTo({ opacity: 1 }, 150);
     mainMenuButtonIcon.tweenTo({ fillColor: colors.offWhite.color }, 150);
@@ -195,6 +230,7 @@ export function drawer() {
     mainMenuButtonIcon.fillColor = colors.yellow.color;
   };
   mainMenuButton.onMouseUp = function (event) {
+    trackMainMenuAction('menu_open');
     showMainMenu(true);
     if (mainMenuButton && mainMenuButton.onMouseLeave) {
       mainMenuButton.onMouseLeave(event);
@@ -219,7 +255,21 @@ export function drawer() {
 
   layers.mapLayer.activate();
 
-  tryLoadAutosaveMap();
+  // Load remaining sprites after first map load (map object sprites
+  // are already in-flight via createObjectAsync's per-item loading)
+  let spritesLoaded = false;
+  emitter.on('mapLoaded', () => {
+    if (spritesLoaded) return;
+    spritesLoaded = true;
+    loadObjectSprites();
+  });
+
+  const hasAutosave = tryLoadAutosaveMap();
+
+  if (!hasAutosave) {
+    // No map to load — load all sprites immediately
+    loadObjectSprites();
+  }
 
   paper.view.onResize = onResize;
   paper.view.onFrame = onFrame;

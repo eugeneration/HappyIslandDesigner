@@ -3,7 +3,147 @@ import { AsyncObjectDefinition } from '../helpers/AsyncObjectDefinition';
 
 export const asyncConstructionDefinition = new AsyncObjectDefinition();
 
+const SQRT2 = Math.sqrt(2);
+
 asyncConstructionDefinition.value = {
+  // Bridge vertical
+  bridgeIconVertical3: {
+    svg: 'static/svg/icon-bridge.svg',
+    rotation: 0,
+    scaling: new paper.Point(0.16, 0.05 * 3),
+    menuScaling: new paper.Point(1.4, 1.0),
+    size: new paper.Size(4, 3),
+    hidden: true,
+  },
+  bridgeIconVertical4: {
+    svg: 'static/svg/icon-bridge.svg',
+    rotation: 0,
+    scaling: new paper.Point(0.16, 0.05 * 4),
+    menuScaling: new paper.Point(1.4, 1.3),
+    size: new paper.Size(4, 4),
+  },
+  bridgeIconVertical5: {
+    svg: 'static/svg/icon-bridge.svg',
+    rotation: 0,
+    scaling: new paper.Point(0.16, 0.05 * 5),
+    menuScaling: new paper.Point(1.4, 1.6),
+    size: new paper.Size(4, 5),
+    hidden: true,
+  },
+  // Bridge horizontal
+  bridgeIconHorizontal3: {
+    svg: 'static/svg/icon-bridge.svg',
+    rotation: 90,
+    scaling: new paper.Point(0.16, 0.05 * 3),
+    menuScaling: new paper.Point(1.4, 1.0),
+    size: new paper.Size(3, 4),
+    hidden: true,
+  },
+  bridgeIconHorizontal4: {
+    svg: 'static/svg/icon-bridge.svg',
+    rotation: 90,
+    scaling: new paper.Point(0.16, 0.05 * 4),
+    menuScaling: new paper.Point(1.4, 1.3),
+    size: new paper.Size(4, 4),
+    hidden: true,
+  },
+  bridgeIconHorizontal5: {
+    svg: 'static/svg/icon-bridge.svg',
+    rotation: 90,
+    scaling: new paper.Point(0.16, 0.05 * 5),
+    menuScaling: new paper.Point(1.4, 1.6),
+    size: new paper.Size(5, 4),
+    hidden: true,
+  },
+  // Bridge TLBR (top-left to bottom-right diagonal)
+  bridgeIconTLBR3: {
+    svg: 'static/svg/icon-bridge.svg',
+    rotation: 135,
+    scaling: new paper.Point(0.16, 0.05 * 2.5 * SQRT2),
+    menuScaling: new paper.Point(1.4, 1.0),
+    size: new paper.Size(3, 3),
+    offset: new paper.Point(0.25, -0.25),
+    hidden: true,
+  },
+  bridgeIconTLBR4: {
+    svg: 'static/svg/icon-bridge.svg',
+    rotation: 135,
+    scaling: new paper.Point(0.16, 0.05 * 3 * SQRT2),
+    menuScaling: new paper.Point(1.4, 1.3),
+    size: new paper.Size(4, 4),
+    hidden: true,
+  },
+  bridgeIconTLBR5: {
+    svg: 'static/svg/icon-bridge.svg',
+    rotation: 135,
+    scaling: new paper.Point(0.16, 0.05 * 3.5 * SQRT2),
+    menuScaling: new paper.Point(1.4, 1.6),
+    size: new paper.Size(4, 4),
+    offset: new paper.Point(0.25, -0.25),
+    hidden: true,
+  },
+  // Bridge TRBL (top-right to bottom-left diagonal)
+  bridgeIconTRBL3: {
+    svg: 'static/svg/icon-bridge.svg',
+    rotation: 45,
+    scaling: new paper.Point(0.16, 0.05 * 2.5 * SQRT2),
+    menuScaling: new paper.Point(1.4, 1.0),
+    size: new paper.Size(3, 3),
+    offset: new paper.Point(0.25, -0.25),
+    hidden: true,
+  },
+  bridgeIconTRBL4: {
+    svg: 'static/svg/icon-bridge.svg',
+    rotation: 45,
+    scaling: new paper.Point(0.16, 0.05 * 3 * SQRT2),
+    menuScaling: new paper.Point(1.4, 1.3),
+    size: new paper.Size(4, 4),
+    hidden: true,
+  },
+  bridgeIconTRBL5: {
+    svg: 'static/svg/icon-bridge.svg',
+    rotation: 45,
+    scaling: new paper.Point(0.16, 0.05 * 3.5 * SQRT2),
+    menuScaling: new paper.Point(1.4, 1.6),
+    size: new paper.Size(4, 4),
+    offset: new paper.Point(0.25, -0.25),
+    hidden: true,
+  },
+  stairsIconUp: {
+    svg: 'static/svg/icon-stairs.svg',
+    rotation: 0,
+    scaling: new paper.Point(0.175, 0.175),
+    menuScaling: new paper.Point(1.1, 1.1),
+    size: new paper.Size(2, 4),
+    offset: new paper.Point(0, -0.25),
+  },
+  stairsIconRight: {
+    svg: 'static/svg/icon-stairs.svg',
+    rotation: 90,
+    scaling: new paper.Point(0.175, 0.175),
+    menuScaling: new paper.Point(1.1, 1.1),
+    size: new paper.Size(4, 2),
+    offset: new paper.Point(0.25, 0),
+    hidden: true,
+  },
+  stairsIconDown: {
+    svg: 'static/svg/icon-stairs.svg',
+    rotation: 180,
+    scaling: new paper.Point(0.175, 0.175),
+    menuScaling: new paper.Point(1.1, 1.1),
+    size: new paper.Size(2, 4),
+    offset: new paper.Point(0, 0.25),
+    hidden: true,
+  },
+  stairsIconLeft: {
+    svg: 'static/svg/icon-stairs.svg',
+    rotation: 270,
+    scaling: new paper.Point(0.175, 0.175),
+    menuScaling: new paper.Point(1.1, 1.1),
+    size: new paper.Size(4, 2),
+    offset: new paper.Point(-0.25, 0),
+    hidden: true,
+  },
   bridgeStoneHorizontal: {
     img: 'static/sprite/construction/bridge-stone-horizontal.png',
     size: new paper.Size(6, 4),
@@ -75,7 +215,31 @@ asyncConstructionDefinition.value = {
     img: 'static/sprite/construction/stairs-wood-right.png',
     size: new paper.Size(4, 2),
   },
-  // legacy
+  // legacy (unsuffixed bridge names → renamed to 4-suffix)
+  bridgeIconVertical: {
+    legacy: 'bridgeIconVertical4',
+    svg: 'static/svg/icon-bridge.svg',
+    size: new paper.Size(4, 4),
+    hidden: true,
+  },
+  bridgeIconHorizontal: {
+    legacy: 'bridgeIconHorizontal4',
+    svg: 'static/svg/icon-bridge.svg',
+    size: new paper.Size(4, 4),
+    hidden: true,
+  },
+  bridgeIconTLBR: {
+    legacy: 'bridgeIconTLBR4',
+    svg: 'static/svg/icon-bridge.svg',
+    size: new paper.Size(6, 6),
+    hidden: true,
+  },
+  bridgeIconTRBL: {
+    legacy: 'bridgeIconTRBL4',
+    svg: 'static/svg/icon-bridge.svg',
+    size: new paper.Size(6, 6),
+    hidden: true,
+  },
   bridgeHorizontalSprite: {
     img: 'static/sprite/structure-bridge-horizontal.png',
     menuScaling: new paper.Point(0.17, 0.17),
@@ -93,24 +257,72 @@ asyncConstructionDefinition.value = {
   },
 };
 
-export function load() {
+export const rotationOrder: Record<string, string> = {
+  // stairs
+  stairsIconUp: 'stairsIconRight',
+  stairsIconRight: 'stairsIconDown',
+  stairsIconDown: 'stairsIconLeft',
+  stairsIconLeft: 'stairsIconUp',
+  // bridge length 3
+  bridgeIconVertical3: 'bridgeIconTRBL3',
+  bridgeIconTRBL3: 'bridgeIconHorizontal3',
+  bridgeIconHorizontal3: 'bridgeIconTLBR3',
+  bridgeIconTLBR3: 'bridgeIconVertical3',
+  // bridge length 4
+  bridgeIconVertical4: 'bridgeIconTRBL4',
+  bridgeIconTRBL4: 'bridgeIconHorizontal4',
+  bridgeIconHorizontal4: 'bridgeIconTLBR4',
+  bridgeIconTLBR4: 'bridgeIconVertical4',
+  // bridge length 5
+  bridgeIconVertical5: 'bridgeIconTRBL5',
+  bridgeIconTRBL5: 'bridgeIconHorizontal5',
+  bridgeIconHorizontal5: 'bridgeIconTLBR5',
+  bridgeIconTLBR5: 'bridgeIconVertical5',
+};
+
+export const lengthOrder: Record<string, string> = {
+  // vertical
+  bridgeIconVertical3: 'bridgeIconVertical4',
+  bridgeIconVertical4: 'bridgeIconVertical5',
+  bridgeIconVertical5: 'bridgeIconVertical3',
+  // horizontal
+  bridgeIconHorizontal3: 'bridgeIconHorizontal4',
+  bridgeIconHorizontal4: 'bridgeIconHorizontal5',
+  bridgeIconHorizontal5: 'bridgeIconHorizontal3',
+  // TLBR
+  bridgeIconTLBR3: 'bridgeIconTLBR4',
+  bridgeIconTLBR4: 'bridgeIconTLBR5',
+  bridgeIconTLBR5: 'bridgeIconTLBR3',
+  // TRBL
+  bridgeIconTRBL3: 'bridgeIconTRBL4',
+  bridgeIconTRBL4: 'bridgeIconTRBL5',
+  bridgeIconTRBL5: 'bridgeIconTRBL3',
+};
+
+export const constructionDisplayNames: Record<string, string> = {
+  stairsIconUp: 'Stairs', stairsIconRight: 'Stairs',
+  stairsIconDown: 'Stairs', stairsIconLeft: 'Stairs',
+  bridgeIconVertical3: 'Bridge', bridgeIconVertical4: 'Bridge', bridgeIconVertical5: 'Bridge',
+  bridgeIconHorizontal3: 'Bridge', bridgeIconHorizontal4: 'Bridge', bridgeIconHorizontal5: 'Bridge',
+  bridgeIconTLBR3: 'Bridge', bridgeIconTLBR4: 'Bridge', bridgeIconTLBR5: 'Bridge',
+  bridgeIconTRBL3: 'Bridge', bridgeIconTRBL4: 'Bridge', bridgeIconTRBL5: 'Bridge',
+};
+
+export function initDefaults() {
   Object.keys(asyncConstructionDefinition.value).forEach((type) => {
     const def = asyncConstructionDefinition.value[type];
     def.category = 'construction';
     def.type = type;
     def.scaling = def.scaling || new paper.Point(0.029, 0.029);
     def.menuScaling = def.menuScaling || new paper.Point(0.18, 0.18);
-    def.offset =
-      def.offset || new paper.Point(-def.size.width / 2, -def.size.height);
-    def.onSelect = function () {};
-    // imnmediately load the assets
-    if (def.img) {
-      const img = new paper.Raster(def.img);
-      def.icon = img;
-      def.icon.onLoad = function () {
-        asyncConstructionDefinition.onLoad();
-      };
-      img.remove();
+    if (def.rotation != null) {
+      // Center-based positioning: offset is a fine-tuning displacement from center
+      def.offset = def.offset || new paper.Point(0, 0);
+    } else {
+      // Legacy bottomCenter-based positioning: offset from bottom-center of icon bounds
+      def.offset =
+        def.offset || new paper.Point(-def.size.width / 2, -def.size.height);
     }
+    def.onSelect = function () {};
   });
 }

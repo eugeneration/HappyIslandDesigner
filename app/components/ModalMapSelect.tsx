@@ -1,15 +1,83 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Modal from 'react-modal';
-import {Box, Button, Image, Flex, Grid, Heading, Text, Link} from 'theme-ui'
+import paper from 'paper';
+import {Box, Button, Image, Flex, Grid, Heading, Text} from '@theme-ui/components'
+import i18next from 'i18next';
 import { colors } from '../colors';
+import { showToast } from '../ui/toast';
 import './modal.scss';
-import Layouts, { LayoutType, Layout } from './islandLayouts';
+import { LayoutType, Layout, baseMapLayouts } from './islandLayouts';
 import useBlockZoom from './useBlockZoom';
 
-import { loadMapFromJSONString } from '../load';
-import {confirmDestructiveAction, isMapEmpty} from '../state';
+import { loadMapFromJSONString, loadBaseMapFromSvg } from '../load';
+import {confirmDestructiveActionAsync, isMapEmpty, autosaveTrigger, state} from '../state';
+import { autosaveMap, encodeMap } from '../save';
+import { setMapVersion, emitMapLoaded } from '../mapState';
+import { loadEdgeTilesAsGeometry, captureEdgeTileRaster } from '../ui/edgeTiles';
+import { emitter } from '../emitter';
+import { type OptionConfig } from '../ui/mapOptionSelector';
+import { showPositionSelector, hidePositionSelector, SelectionType, getPeninsulaPosition, getAirportBlocks, getSecretBeachBlock, getSecretBeachPosition, getRockPosition, getRockBlock, RiverDirection } from '../ui/mapPositionSelector';
+import { showOptionSelector, OptionDirection, spawnTileParticles } from '../ui/mapOptionSelector';
+import { initializeEdgeTiles, fillEdgeTilesWithPlaceholders, replaceBlocks, restoreBlocks, setRiverTiles, getRemainingPlaceholders } from '../ui/edgeTiles';
+import { tileAssetIndices, getAssetByIndex, categoryAssetIndices, type TileDirection } from '../ui/edgeTileAssets';
+import {
+  trackWizardCancel,
+  trackWizardComplete,
+  trackWizardDenyChanges,
+  trackScreenshotDuration,
+  trackMapLoad,
+  trackMapComplexity,
+  computeMapComplexity,
+  getWizardFlowType,
+  trackError,
+  trackConversion,
+} from '../analytics';
+import {
+  WizardState,
+  getWizardState,
+  resetWizard,
+  startWizard,
+  setRiverDirection,
+  setRiverMouth1Shape,
+  setRiverMouth2Shape,
+  setAirportPosition,
+  setPeninsulaSide,
+  setPeninsulaPosition,
+  setPeninsulaShape,
+  setDockSide,
+  setDockShape,
+  setSecretBeachPosition,
+  setSecretBeachShape,
+  setLeftRockPosition,
+  setLeftRockShape,
+  setRightRockPosition,
+  setRightRockShape,
+  advanceToNextPlaceholder,
+  finishPlaceholders,
+  goToLegacyRiverSelection,
+  setLegacyRiverDirection,
+  goBack,
+  isModalStep,
+  isMapStep,
+  goToTileEditorFlow,
+  goToScreenshotFlow,
+  goToConvertFlow,
+  goToEntrypoint,
+  skipWizard,
+} from '../ui/mapSelectionWizard';
 
 const shadowColor = "rgba(75, 59, 50, 0.3)" // offblack
+
+// Helper to create options array from asset indices
+function createOptionsFromAssets(assetIndices: number[]): OptionConfig[] {
+  return assetIndices.map((assetIndex, i) => ({
+    label: String(i + 1),
+    value: i,
+    assetIndex: assetIndex,
+    imageSrc: getAssetByIndex(assetIndex)?.imageSrc || '',
+  }));
+}
+
 
 const customStyles = {
   overlay: {
@@ -31,6 +99,20 @@ const customStyles = {
   }
 };
 
+// Tile images for each placeholder type
+
+// Option selector direction for each placeholder type
+const placeholderDirection: Record<TileDirection, OptionDirection> = {
+  top_left: 'bottom',
+  top_right: 'bottom',
+  bottom_left: 'left',
+  bottom_right: 'right',
+  left: 'left',
+  right: 'right',
+  top: 'bottom',
+  bottom: 'bottom',
+};
+
 export function OpenMapSelectModal() {
   document.getElementById('open-map-select')?.click();
 }
@@ -39,8 +121,29 @@ export function CloseMapSelectModal() {
   document.getElementById('close-map-select')?.click();
 }
 
+export function OpenConvertModal() {
+  goToConvertFlow();
+  document.getElementById('open-convert-modal')?.click();
+}
+
 export default function ModalMapSelect(){
   const [modalIsOpen,setIsOpen] = useState(false);
+  const [wizardState, setWizardState] = useState<WizardState>(getWizardState());
+  const [edgeTileRaster, setEdgeTileRaster] = useState<string | null>(null);
+  const lastStepRef = useRef<string>(wizardState.step);
+
+  // Track filled placeholder positions for going back during fillPlaceholder step
+  const filledPlaceholderPositions = useRef<{x: number, y: number}[]>([]);
+
+  // Track pending map step setup timeout so it can be cancelled on rapid step changes
+  const mapStepTimeoutRef = useRef<number | null>(null);
+
+  // only called by external triggers
+  function startModal() {
+    startWizard();
+    openModal();
+  }
+
   function openModal() {
     setIsOpen(true);
   }
@@ -50,20 +153,605 @@ export default function ModalMapSelect(){
   }
 
   function closeModal(){
-    if (!isMapEmpty())
+    if (!isMapEmpty()) {
+      trackWizardCancel(getWizardFlowType(), wizardState.step);
+      resetWizard();
       setIsOpen(false);
+    }
   }
 
+  // Listen for wizard state changes - must be at this level since modal content unmounts when closed
   useEffect(() => {
-    Modal.setAppElement('body');
+    const handleWizardChange = (state: WizardState) => {
+      setWizardState({ ...state });
+
+      // Capture edge tile raster when reaching baseMapGrid step
+      // Use a delay to ensure all SVG tile imports have completed their callbacks
+      // (replaceBlocks uses async createTileImage which may not have finished)
+      if (state.step === 'baseMapGrid') {
+        setTimeout(() => {
+          const raster = captureEdgeTileRaster(200);
+          setEdgeTileRaster(raster);
+        }, 100);
+      }
+
+      // If moving to a modal step, open modal and track step for fade-out
+      const isModal = isModalStep(state.step);
+      if (isModal) {
+        lastStepRef.current = state.step;
+      }
+      setIsOpen(isModal);
+
+      // Clear any pending map step setup timeout
+      if (mapStepTimeoutRef.current !== null) {
+        clearTimeout(mapStepTimeoutRef.current);
+        mapStepTimeoutRef.current = null;
+      }
+
+      // If moving to a map step, show appropriate selector
+      if (isMapStep(state.step)) {
+        mapStepTimeoutRef.current = window.setTimeout(() => {
+          mapStepTimeoutRef.current = null;
+
+          // Clean up any previous position selector — option selector handles its
+          // own cleanup via showOptionSelectorImmediate → hideOptionSelector
+          hidePositionSelector();
+
+          if (state.step === 'riverMouth1') {
+            // Show edge tiles at the start of the wizard flow
+            initializeEdgeTiles();
+            fillEdgeTilesWithPlaceholders();
+            // Show river placeholder tiles (will be replaced when shapes are selected)
+            setRiverTiles(state.riverDirection as RiverDirection);
+
+            // Get position for first river mouth (always bottom river)
+            const riverDir = state.riverDirection as RiverDirection;
+            let blockX: number;
+            switch (riverDir) {
+              case 'west': blockX = 4; break;
+              case 'east': blockX = 2; break;
+              case 'south': blockX = 1; break;
+            }
+            const anchorPoint = new paper.Point(blockX * 16 + 8, 5 * 16 + 8);
+
+            showOptionSelector({
+              anchorPoint,
+              options: createOptionsFromAssets(categoryAssetIndices.bottom_river),
+              direction: 'bottom',
+              eventName: 'riverMouth1ShapeSelected',
+              title: i18next.t('wizard_choose_river_mouth'),
+              spacing: 14,
+              buttonSize: 12,
+              hideEdgeTile: true,
+            });
+          } else if (state.step === 'riverMouth2') {
+            // Get position for second river mouth (depends on direction)
+            const riverDir = state.riverDirection as RiverDirection;
+            let anchorPoint: paper.Point;
+            let options: OptionConfig[];
+            let direction: OptionDirection;
+
+            switch (riverDir) {
+              case 'west':
+                // Left river at (0, 2)
+                anchorPoint = new paper.Point(8, 2 * 16 + 8);
+                options = createOptionsFromAssets(categoryAssetIndices.left_river);
+                direction = 'left';
+                break;
+              case 'east':
+                // Right river at (6, 2)
+                anchorPoint = new paper.Point(6 * 16 + 8, 2 * 16 + 8);
+                options = createOptionsFromAssets(categoryAssetIndices.right_river);
+                direction = 'right';
+                break;
+              case 'south':
+                // Second bottom river at (5, 5)
+                anchorPoint = new paper.Point(5 * 16 + 8, 5 * 16 + 8);
+                options = createOptionsFromAssets(categoryAssetIndices.bottom_river);
+                direction = 'bottom';
+                break;
+            }
+
+            showOptionSelector({
+              anchorPoint,
+              options,
+              direction,
+              eventName: 'riverMouth2ShapeSelected',
+              title: i18next.t('wizard_choose_river_mouth'),
+              spacing: 14,
+              buttonSize: 12,
+              hideEdgeTile: true,
+            });
+          } else if (state.step === 'airport') {
+            showPositionSelector('airport', state.riverDirection as RiverDirection);
+          } else if (state.step === 'peninsulaPos') {
+            const selectorType: SelectionType = state.peninsulaSide === 'left' ? 'peninsulaLeft' : 'peninsulaRight';
+            showPositionSelector(selectorType);
+          } else if (state.step === 'peninsulaShape') {
+            // Show option selector for peninsula shape
+            const side = state.peninsulaSide as 'left' | 'right';
+            const posIndex = state.peninsulaPosition as number;
+            const anchorPoint = getPeninsulaPosition(side, posIndex);
+            const direction: OptionDirection = side === 'left' ? 'left' : 'right';
+
+            // Use peninsula tile images based on side
+            const peninsulaOptions = side === 'left'
+              ? createOptionsFromAssets(categoryAssetIndices.left_peninsula)
+              : createOptionsFromAssets(categoryAssetIndices.right_peninsula);
+
+            showOptionSelector({
+              anchorPoint,
+              options: peninsulaOptions,
+              direction,
+              eventName: 'peninsulaShapeSelected',
+              title: i18next.t('wizard_choose_peninsula_shape'),
+              spacing: 14,
+              buttonSize: 12,
+              hideEdgeTile: true,
+            });
+          } else if (state.step === 'dockShape') {
+            // Show option selector for dock shape
+            const dockSide = state.dockSide as 'left' | 'right';
+            // Dock is at bottom corners: left (0, 5) or right (6, 5)
+            const blockX = dockSide === 'left' ? 0 : 6;
+            const anchorPoint = new paper.Point(blockX * 16 + 8, 5 * 16 + 8);
+            const direction: OptionDirection = dockSide === 'left' ? 'left' : 'right';
+
+            const dockOptions = dockSide === 'left'
+              ? createOptionsFromAssets(categoryAssetIndices.bottom_left_dock)
+              : createOptionsFromAssets(categoryAssetIndices.bottom_right_dock);
+
+            showOptionSelector({
+              anchorPoint,
+              options: dockOptions,
+              direction,
+              eventName: 'dockShapeSelected',
+              title: i18next.t('wizard_choose_dock_shape'),
+              spacing: 14,
+              buttonSize: 12,
+              hideEdgeTile: true,
+            });
+          } else if (state.step === 'secretBeachPos') {
+            // Show secret beach position selector
+            showPositionSelector('secretBeach', state.riverDirection as RiverDirection);
+          } else if (state.step === 'secretBeachShape') {
+            // Show option selector for secret beach shape
+            const riverDir = state.riverDirection as RiverDirection;
+            const posIndex = state.secretBeachPosition as number;
+            const anchorPoint = getSecretBeachPosition(riverDir, posIndex);
+
+            showOptionSelector({
+              anchorPoint,
+              options: createOptionsFromAssets(categoryAssetIndices.top_secret_beach),
+              direction: 'bottom',
+              eventName: 'secretBeachShapeSelected',
+              title: i18next.t('wizard_choose_secret_beach'),
+              spacing: 14,
+              buttonSize: 12,
+              hideEdgeTile: true,
+            });
+          } else if (state.step === 'leftRockPos') {
+            // Show left rock position selector
+            showPositionSelector('leftRock');
+          } else if (state.step === 'leftRockShape') {
+            // Show option selector for left rock shape
+            const posIndex = state.leftRockPosition as number;
+            const anchorPoint = getRockPosition('left', posIndex);
+
+            showOptionSelector({
+              anchorPoint,
+              options: createOptionsFromAssets(categoryAssetIndices.left_rock),
+              direction: 'left',
+              eventName: 'leftRockShapeSelected',
+              title: i18next.t('wizard_choose_rock_shape'),
+              spacing: 14,
+              buttonSize: 12,
+              hideEdgeTile: true,
+            });
+          } else if (state.step === 'rightRockPos') {
+            // Show right rock position selector
+            showPositionSelector('rightRock');
+          } else if (state.step === 'rightRockShape') {
+            // Show option selector for right rock shape
+            const posIndex = state.rightRockPosition as number;
+            const anchorPoint = getRockPosition('right', posIndex);
+
+            showOptionSelector({
+              anchorPoint,
+              options: createOptionsFromAssets(categoryAssetIndices.right_rock),
+              direction: 'right',
+              eventName: 'rightRockShapeSelected',
+              title: i18next.t('wizard_choose_rock_shape'),
+              spacing: 14,
+              buttonSize: 12,
+              hideEdgeTile: true,
+            });
+          } else if (state.step === 'fillPlaceholder') {
+            // Get remaining placeholders and show option selector for the first one
+            const placeholders = getRemainingPlaceholders();
+
+            if (placeholders.length > 0) {
+              // Always use index 0 since getRemainingPlaceholders() returns only remaining items
+              const placeholder = placeholders[0];
+              const indices = tileAssetIndices[placeholder.type];
+              const direction = placeholderDirection[placeholder.type];
+
+              // Calculate anchor point (center of the block)
+              const anchorPoint = new paper.Point(
+                placeholder.x * 16 + 8,
+                placeholder.y * 16 + 8
+              );
+
+              // Create options from asset indices
+              const options: OptionConfig[] = indices.map((assetIndex, idx) => ({
+                label: `${idx + 1}`,
+                value: idx,
+                assetIndex: assetIndex,
+                imageSrc: getAssetByIndex(assetIndex)?.imageSrc || '',
+              }));
+
+              showOptionSelector({
+                anchorPoint,
+                options,
+                direction,
+                eventName: 'placeholderShapeSelected',
+                title: i18next.t('wizard_choose_shape'),
+                spacing: 14,
+                buttonSize: 12,
+                hideEdgeTile: true,
+              });
+            } else {
+              // No more placeholders, move to grid
+              finishPlaceholders();
+            }
+          }
+        }, 250);
+      }
+    };
+
+    emitter.on('wizardStateChanged', handleWizardChange);
+    return () => {
+      emitter.off('wizardStateChanged', handleWizardChange);
+    };
+  }, []);
+
+  // Listen for tile restore events (when going back from shape steps)
+  useEffect(() => {
+    const handleRestoreTile = ({ x, y }: { x: number; y: number }) => {
+      restoreBlocks([{ x, y }]);
+    };
+
+    emitter.on('restoreTile', handleRestoreTile);
+    return () => {
+      emitter.off('restoreTile', handleRestoreTile);
+    };
+  }, []);
+
+  // Listen for map selection events - must be at this level since modal content unmounts when closed
+  useEffect(() => {
+    const handleRiverMouth1ShapeSelected = ({ value }: { value: number }) => {
+      const currentState = getWizardState();
+      const riverDir = currentState.riverDirection as RiverDirection;
+
+      // Get block position for first river mouth (always bottom river)
+      let blockX: number;
+      switch (riverDir) {
+        case 'west': blockX = 4; break;
+        case 'east': blockX = 2; break;
+        case 'south': blockX = 1; break;
+      }
+
+      replaceBlocks({ x: blockX, y: 5, assetIndex: categoryAssetIndices.bottom_river[value] });
+      spawnTileParticles(blockX, 5);
+      setRiverMouth1Shape(value);
+    };
+
+    const handleRiverMouth2ShapeSelected = ({ value }: { value: number }) => {
+      const currentState = getWizardState();
+      const riverDir = currentState.riverDirection as RiverDirection;
+
+      let block: { x: number; y: number };
+      let riverAssets: number[];
+
+      switch (riverDir) {
+        case 'west':
+          block = { x: 0, y: 2 };
+          riverAssets = categoryAssetIndices.left_river;
+          break;
+        case 'east':
+          block = { x: 6, y: 2 };
+          riverAssets = categoryAssetIndices.right_river;
+          break;
+        case 'south':
+          block = { x: 5, y: 5 };
+          riverAssets = categoryAssetIndices.bottom_river;
+          break;
+      }
+
+      replaceBlocks({ ...block, assetIndex: riverAssets[value] });
+      spawnTileParticles(block.x, block.y);
+      setRiverMouth2Shape(value);
+    };
+
+    const handleAirportSelected = ({ index }: { index: number }) => {
+      // Get current wizard state (not from React state which might be stale in closure)
+      const currentState = getWizardState();
+      const riverDir = currentState.riverDirection as RiverDirection;
+      const airportBlocks = getAirportBlocks(riverDir, index);
+
+      // Replace the placeholder blocks with airport tiles
+      for (let i = 0; i < airportBlocks.length; i++) {
+        replaceBlocks({ x: airportBlocks[i].x, y: airportBlocks[i].y, assetIndex: categoryAssetIndices.airport[i] });
+        setTimeout(() => spawnTileParticles(airportBlocks[i].x, airportBlocks[i].y), i * 100);
+      }
+
+      setAirportPosition(index);
+    };
+
+    const handlePeninsulaPosSelected = ({ index }: { index: number }) => {
+      const currentState = getWizardState();
+      const side = currentState.peninsulaSide as 'left' | 'right';
+      const blockX = side === 'left' ? 0 : 6;
+      const blockY = index + 1;
+      const placeholderAsset = side === 'left' ? 912 : 913;
+      replaceBlocks({ x: blockX, y: blockY, assetIndex: placeholderAsset });
+      setPeninsulaPosition(index);
+    };
+
+    const handlePeninsulaShapeSelected = ({ value }: { value: number }) => {
+      const currentState = getWizardState();
+      const side = currentState.peninsulaSide as 'left' | 'right';
+      const posIndex = currentState.peninsulaPosition as number;
+
+      // Map position index to block row (positions are at 20%, 40%, 60%, 80% of height)
+      // Position 0 → block row 1, Position 1 → row 2, etc.
+      const blockY = posIndex + 1;
+      const blockX = side === 'left' ? 0 : 6; // horizontalBlocks - 1
+
+      const peninsulaAssets = side === 'left'
+        ? categoryAssetIndices.left_peninsula
+        : categoryAssetIndices.right_peninsula;
+
+      replaceBlocks({ x: blockX, y: blockY, assetIndex: peninsulaAssets[value] });
+      spawnTileParticles(blockX, blockY);
+
+      setPeninsulaShape(value);
+    };
+
+    const handleDockShapeSelected = ({ value }: { value: number }) => {
+      const currentState = getWizardState();
+      const dockSide = currentState.dockSide as 'left' | 'right';
+
+      // Dock is at bottom corners: left (0, 5) or right (6, 5)
+      const blockX = dockSide === 'left' ? 0 : 6;
+      const blockY = 5;
+
+      const dockAssets = dockSide === 'left'
+        ? categoryAssetIndices.bottom_left_dock
+        : categoryAssetIndices.bottom_right_dock;
+
+      replaceBlocks({ x: blockX, y: blockY, assetIndex: dockAssets[value] });
+      spawnTileParticles(blockX, blockY);
+
+      setDockShape(value);
+    };
+
+    const handleSecretBeachPosSelected = ({ index }: { index: number }) => {
+      const currentState = getWizardState();
+      const riverDir = currentState.riverDirection as RiverDirection;
+      const block = getSecretBeachBlock(riverDir, index);
+      replaceBlocks({ ...block, assetIndex: 911 });
+      setSecretBeachPosition(index);
+    };
+
+    const handleSecretBeachShapeSelected = ({ value }: { value: number }) => {
+      const currentState = getWizardState();
+      const riverDir = currentState.riverDirection as RiverDirection;
+      const posIndex = currentState.secretBeachPosition as number;
+
+      // Get the block position for the secret beach
+      const block = getSecretBeachBlock(riverDir, posIndex);
+
+      replaceBlocks({ ...block, assetIndex: categoryAssetIndices.top_secret_beach[value] });
+      spawnTileParticles(block.x, block.y);
+
+      setSecretBeachShape(value);
+    };
+
+    const handleLeftRockPosSelected = ({ index }: { index: number }) => {
+      const block = getRockBlock('left', index);
+      replaceBlocks({ ...block, assetIndex: 914 });
+      setLeftRockPosition(index);
+    };
+
+    const handleLeftRockShapeSelected = ({ value }: { value: number }) => {
+      const currentState = getWizardState();
+      const posIndex = currentState.leftRockPosition as number;
+
+      // Get the block position for the left rock
+      const block = getRockBlock('left', posIndex);
+
+      replaceBlocks({ ...block, assetIndex: categoryAssetIndices.left_rock[value] });
+      spawnTileParticles(block.x, block.y);
+
+      setLeftRockShape(value);
+    };
+
+    const handleRightRockPosSelected = ({ index }: { index: number }) => {
+      const block = getRockBlock('right', index);
+      replaceBlocks({ ...block, assetIndex: 915 });
+      setRightRockPosition(index);
+    };
+
+    const handleRightRockShapeSelected = ({ value }: { value: number }) => {
+      const currentState = getWizardState();
+      const posIndex = currentState.rightRockPosition as number;
+
+      // Get the block position for the right rock
+      const block = getRockBlock('right', posIndex);
+
+      replaceBlocks({ ...block, assetIndex: categoryAssetIndices.right_rock[value] });
+      spawnTileParticles(block.x, block.y);
+
+      setRightRockShape(value);
+    };
+
+    const handlePlaceholderShapeSelected = ({ value }: { value: number }) => {
+      const placeholders = getRemainingPlaceholders();
+
+      if (placeholders.length > 0) {
+        // Always use index 0 since getRemainingPlaceholders() returns only remaining items
+        const placeholder = placeholders[0];
+        const indices = tileAssetIndices[placeholder.type];
+
+        // Track the position being filled (for going back)
+        filledPlaceholderPositions.current.push({ x: placeholder.x, y: placeholder.y });
+
+        // Replace the placeholder with selected tile
+        replaceBlocks({ x: placeholder.x, y: placeholder.y, assetIndex: indices[value] });
+        spawnTileParticles(placeholder.x, placeholder.y);
+
+        // Check if there are more placeholders
+        const remainingAfter = getRemainingPlaceholders();
+        if (remainingAfter.length > 0) {
+          // Advance to next placeholder
+          advanceToNextPlaceholder();
+        } else {
+          // All done, move to grid
+          finishPlaceholders();
+        }
+      }
+    };
+
+    const handleRestoreFilledPlaceholder = () => {
+      const position = filledPlaceholderPositions.current.pop();
+      if (position) {
+        restoreBlocks([position]);
+      }
+    };
+
+    // Function that returns a promise that resolves after 'ms' milliseconds
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+    const handleAutoIslandFlow = async (state: WizardState) => {
+      // Set all wizard state values (first/simplest options)
+      state.riverDirection = 'west';
+      state.dockSide = 'right'; // auto-set by west
+      state.riverMouth1Shape = 0;
+      state.riverMouth2Shape = 0;
+      state.airportPosition = 0;
+      state.dockShape = 0;
+      state.peninsulaSide = 'left';
+      state.peninsulaPosition = 0;
+      state.peninsulaShape = 0;
+      state.secretBeachPosition = 0;
+      state.secretBeachShape = 0;
+      state.leftRockPosition = 0;
+      state.leftRockShape = 0;
+      state.rightRockPosition = 0;
+      state.rightRockShape = 0;
+
+      // Load V2 blank terrain
+      await loadBaseMapFromSvg(0);
+
+      // Show edge tiles and set river tiles
+      initializeEdgeTiles();
+
+      setRiverTiles(state.riverDirection as RiverDirection);
+
+      // Replace tiles sequentially to avoid async race conditions
+      // River mouth 1 (west: block (4,5))
+      replaceBlocks({ x: 4, y: 5, assetIndex: categoryAssetIndices.bottom_river[0] });
+
+      // River mouth 2 (west: left river at (0,2))
+      replaceBlocks({ x: 0, y: 2, assetIndex: categoryAssetIndices.left_river[0] });
+
+      // Airport (west, position 0: blocks (1,5) and (2,5))
+      const airportBlocks = getAirportBlocks('west', 0);
+      replaceBlocks({ x: airportBlocks[0].x, y: airportBlocks[0].y, assetIndex: categoryAssetIndices.airport[0] });
+      replaceBlocks({ x: airportBlocks[1].x, y: airportBlocks[1].y, assetIndex: categoryAssetIndices.airport[1] });
+
+      // Dock (right side, shape 0: block (6,5))
+      replaceBlocks({ x: 6, y: 5, assetIndex: categoryAssetIndices.bottom_right_dock[0] });
+
+      // Peninsula (left side, position 0, shape 0: block (0,1))
+      replaceBlocks({ x: 0, y: 1, assetIndex: categoryAssetIndices.left_peninsula[0] });
+
+      // Secret beach (west, position 0, shape 0)
+      const secretBeachBlock = getSecretBeachBlock('west', 0);
+      replaceBlocks({ ...secretBeachBlock, assetIndex: categoryAssetIndices.top_secret_beach[0] });
+
+      // Left rock (position 0, shape 0)
+      const leftRockBlock = getRockBlock('left', 0);
+      replaceBlocks({ ...leftRockBlock, assetIndex: categoryAssetIndices.left_rock[0] });
+
+      // Right rock (position 0, shape 0)
+      const rightRockBlock = getRockBlock('right', 0);
+      replaceBlocks({ ...rightRockBlock, assetIndex: categoryAssetIndices.right_rock[0] });
+
+      // hacky, wait for edge tiles to load first
+      await delay(400);
+
+      // Fill all remaining placeholders with first option
+      let placeholders = getRemainingPlaceholders();
+      while (placeholders.length > 0) {
+        const placeholder = placeholders[0];
+        const indices = tileAssetIndices[placeholder.type];
+        replaceBlocks({ x: placeholder.x, y: placeholder.y, assetIndex: indices[0] });
+        // hacky, wait for edge tile to load first
+        await delay(200);
+        placeholders = getRemainingPlaceholders();
+      }
+
+      // Now open modal at grid step
+      setWizardState({ ...state });
+      emitter.emit('wizardStateChanged', state);
+    };
+
+    emitter.on('riverMouth1ShapeSelected', handleRiverMouth1ShapeSelected);
+    emitter.on('riverMouth2ShapeSelected', handleRiverMouth2ShapeSelected);
+    emitter.on('airportSelected', handleAirportSelected);
+    emitter.on('peninsulaPosSelected', handlePeninsulaPosSelected);
+    emitter.on('peninsulaShapeSelected', handlePeninsulaShapeSelected);
+    emitter.on('dockShapeSelected', handleDockShapeSelected);
+    emitter.on('secretBeachPosSelected', handleSecretBeachPosSelected);
+    emitter.on('secretBeachShapeSelected', handleSecretBeachShapeSelected);
+    emitter.on('leftRockPosSelected', handleLeftRockPosSelected);
+    emitter.on('leftRockShapeSelected', handleLeftRockShapeSelected);
+    emitter.on('rightRockPosSelected', handleRightRockPosSelected);
+    emitter.on('rightRockShapeSelected', handleRightRockShapeSelected);
+    emitter.on('placeholderShapeSelected', handlePlaceholderShapeSelected);
+    emitter.on('restoreFilledPlaceholder', handleRestoreFilledPlaceholder);
+    emitter.on('autoIslandFlow', handleAutoIslandFlow);
+
+    return () => {
+      emitter.off('riverMouth1ShapeSelected', handleRiverMouth1ShapeSelected);
+      emitter.off('riverMouth2ShapeSelected', handleRiverMouth2ShapeSelected);
+      emitter.off('airportSelected', handleAirportSelected);
+      emitter.off('peninsulaPosSelected', handlePeninsulaPosSelected);
+      emitter.off('peninsulaShapeSelected', handlePeninsulaShapeSelected);
+      emitter.off('dockShapeSelected', handleDockShapeSelected);
+      emitter.off('secretBeachPosSelected', handleSecretBeachPosSelected);
+      emitter.off('secretBeachShapeSelected', handleSecretBeachShapeSelected);
+      emitter.off('leftRockPosSelected', handleLeftRockPosSelected);
+      emitter.off('leftRockShapeSelected', handleLeftRockShapeSelected);
+      emitter.off('rightRockPosSelected', handleRightRockPosSelected);
+      emitter.off('rightRockShapeSelected', handleRightRockShapeSelected);
+      emitter.off('placeholderShapeSelected', handlePlaceholderShapeSelected);
+      emitter.off('restoreFilledPlaceholder', handleRestoreFilledPlaceholder);
+      emitter.off('autoIslandFlow', handleAutoIslandFlow);
+    };
   }, []);
 
   const refCallback = useBlockZoom();
+  const hasHeader = lastStepRef.current !== 'entrypoint' && lastStepRef.current !== 'screenshot' && lastStepRef.current !== 'convert';
 
   return (
     <div>
-      <button id="open-map-select" style={{display: 'none'}} onClick={openModal}>Open Modal</button>
-      <button id="close-map-select" style={{display: 'none'}} onClick={closeModal}>Open Modal</button>
+      <button id="open-map-select" style={{display: 'none'}} onClick={startModal}>Open Modal</button>
+      <button id="close-map-select" style={{display: 'none'}} onClick={closeModal}>Close Modal</button>
+      <button id="open-convert-modal" style={{display: 'none'}} onClick={openModal}>Convert Modal</button>
+      {/* @ts-ignore - react-modal types incompatible with React 16 */}
       <Modal
         isOpen={modalIsOpen}
         closeTimeoutMS={200} // keep in sync with modal.scss
@@ -72,6 +760,7 @@ export default function ModalMapSelect(){
         style={customStyles}
         sx={{}}
         contentLabel="Example Modal"
+        ariaHideApp={false}
       >
         <Flex
           ref={refCallback}
@@ -79,44 +768,43 @@ export default function ModalMapSelect(){
           sx={{
             backgroundColor : colors.paper.cssColor,
             border: 0,
-            borderRadius: 8,
+            borderRadius: hasHeader ? 8 : 60,
             flexDirection: 'column',
             overflow: 'auto',
-            //borderRadius: 60,
-            //minWidth: 260,
           }}>
-          <Box p={2} sx={{
-            backgroundColor: colors.level3.cssColor,
-            borderRadius: '30px 4px 4px 30px',
-          }}>
-            <Image variant='block' sx={{maxWidth: 150}} src='static/img/nook-inc-white.png'/>
-          </Box>
-          <IslandLayoutSelector />
-          <Box p={3} sx={{
-            backgroundColor: colors.level3.cssColor,
-            borderRadius: '4px 30px 30px 4px',
-          }} />
+          {hasHeader && (
+            <Box p={2} sx={{
+              backgroundColor: colors.level3.cssColor,
+              borderRadius: '30px 4px 4px 30px',
+            }}>
+              <Image variant='block' sx={{width: 150, maxWidth: '100%', aspectRatio: '300 / 60'}} src='static/img/nook-inc-white.png'/>
+            </Box>
+          )}
+          <IslandLayoutSelector wizardState={wizardState} edgeTileRaster={edgeTileRaster} />
+          {hasHeader && (
+            <Box p={3} sx={{
+              backgroundColor: colors.level3.cssColor,
+              borderRadius: '4px 30px 30px 4px',
+            }} />
+          )}
         </Flex>
       </Modal>
     </div>
   );
 }
 
-function IslandLayoutSelector() {
-  const [layoutType, setLayoutType] = useState<LayoutType>(LayoutType.none);
+function IslandLayoutSelector({ wizardState, edgeTileRaster }: { wizardState: WizardState; edgeTileRaster: string | null }) {
   const [layout, setLayout] = useState<number>(-1);
-  const [help, setHelp] = useState<boolean>(false);
+  const lastContentRef = useRef<React.ReactNode>(null);
+  const [Layouts, setLayouts] = useState<Record<string, Layout[]> | null>(null);
 
+  // Lazy-load legacy V1 layout data
   useEffect(() => {
-    if (layout != -1)
-    {
-      const layoutData = getLayouts(layoutType)[layout];
-      loadMapFromJSONString(layoutData.data);
-      CloseMapSelectModal();
-    }
-  }, [layoutType, layout]);
+    import(/* webpackChunkName: "islandLayoutsV1" */ './islandLayoutsV1').then(m => setLayouts(m.default));
+  }, []);
 
-  function getLayouts(type: LayoutType) {
+  function getLayouts(type: LayoutType | null): Layout[] {
+    if (!Layouts) return [];
     switch (type) {
       case LayoutType.west:
         return Layouts.west;
@@ -130,81 +818,716 @@ function IslandLayoutSelector() {
     return [];
   }
 
-  if (help) {
-    return (
-      <Flex p={[0, 3]} sx={{flexDirection: 'column', alignItems: 'center', position: 'relative'}}>
-        <Box sx={{position: 'absolute', left: 0, top: [1, 30]}}>
-          <Button variant='icon' onClick={() => setHelp(false)}>
-            <Image sx={{width: 'auto'}} src='static/img/back.png' />
-          </Button>
-        </Box>
-        <Image sx={{width: 100, margin: 'auto'}} src={'static/img/blathers.png'}/>
-        <Heading m={3} sx={{px: layoutType ? 4 : 0, textAlign: 'center'}}>{'Please help contribute!'}</Heading>
-        <Text my={2}>{'Sorry, we don\'t have all the map templates yet (there are almost 100 river layouts in the game!). Each option you see here has been hand-made by a member of the community.'}</Text>
-        <Text my={2}>{'You can use the \'Upload Screenshot\' tool to trace an image of your island. When you\'re done please consider contributing your island map in either the '}<Link href={'https://github.com/eugeneration/HappyIslandDesigner/issues/59'}>Github</Link>{' or '}<Link href={'https://discord.gg/EtaqD5H'}>Discord</Link>!</Text>
-        <Text my={2}>{'Please note that your island may have different shaped rock formations, beaches, and building positions than another island with the same river layout.'}</Text>
-      </Flex>
-    )
+  // Handle layout selection in grid
+  useEffect(() => {
+    if (layout != -1 && Layouts) {
+      const layouts = Layouts[wizardState.riverDirection as LayoutType] || [];
+      if (layouts[layout]) {
+        loadMapFromJSONString(layouts[layout].data);
+        trackWizardComplete('manual', 'template');
+        resetWizard();
+      }
+    }
+  }, [layout, wizardState.riverDirection, Layouts]);
+
+  // Render content based on wizard step
+  const renderContent = () => {
+    switch (wizardState.step) {
+      case 'entrypoint':
+        return <EntryPointStep />;
+      case 'screenshot':
+        return <ScreenshotStep onBack={goToEntrypoint} />;
+      case 'convert':
+        return <ConvertStep onClose={resetWizard} />;
+      case 'river':
+        return <RiverDirectionStep />;
+      case 'baseMapGrid':
+        return <BaseMapGridStep
+          layoutType={wizardState.riverDirection as LayoutType}
+          edgeTileRaster={edgeTileRaster}
+          onSelect={async (baseMapIndex) => {
+            await loadBaseMapFromSvg(baseMapIndex);
+            // Convert edge tiles to geometry now that wizard is complete
+            loadEdgeTilesAsGeometry();
+            setMapVersion(2);
+            autosaveMap();
+            emitMapLoaded();
+            trackWizardComplete('tile_editor', baseMapIndex === 0 ? 'blank' : 'template');
+            resetWizard();
+          }}
+          onBack={goBack}
+        />;
+      case 'peninsulaSide':
+        return <PeninsulaSideStep onBack={goBack} />;
+      case 'dockSide':
+        return <DockSideStep onBack={goBack} />;
+      case 'legacyriver':
+        return <LegacyRiverDirectionStep onBack={goToEntrypoint} />;
+      case 'legacygrid':
+      case 'grid':
+        return <IslandGridStep
+          layoutType={wizardState.riverDirection as LayoutType}
+          layouts={getLayouts(wizardState.riverDirection as LayoutType)}
+          onSelect={async (index) => {
+            const proceed = await confirmDestructiveActionAsync(
+              i18next.t('clear_warn')
+            );
+            if (!proceed) {
+              trackWizardDenyChanges('manual');
+              return;
+            }
+            setLayout(index);
+          }}
+          onBack={goBack}
+        />;
+      default:
+        return null;
+    }
+  };
+
+  // Cache last non-null content so the modal fade-out animation
+  // still shows the previous step instead of going empty
+  const content = renderContent();
+  if (content !== null) {
+    lastContentRef.current = content;
   }
 
-  let content;
-  if (layoutType != LayoutType.none) {
-    var layouts: Array<Layout> = getLayouts(layoutType);
-    content = (
+  return (
+    <Box p={[0, 3]} sx={{position: 'relative'}}>
+      {content ?? lastContentRef.current}
+    </Box>
+  );
+}
+
+// Entry Point Step - Choose between Screenshot, Tile Editor, or Manual Drawing
+function EntryPointStep() {
+  return (
+    <>
+      <Heading m={2} sx={{textAlign: 'center'}}>{i18next.t('create_new_map')}</Heading>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 3, px: 0 }}>
+        <Flex sx={{flexDirection: ['column', 'row'], flexWrap: 'wrap', justifyContent: 'center', alignItems: ['center', 'flex-start'], maxWidth: 650}}>
+          <EntryButton
+            imageSrc='static/img/newisland-editor.png'
+            bgColor='#9CDDBC'
+            onClick={() => goToTileEditorFlow()}
+          >
+            {i18next.t('tile_editor')}<NewBadge />
+          </EntryButton>
+          <EntryButton
+            imageSrc='static/img/newisland-generate.png'
+            bgColor='#D2E542'
+            onClick={() => goToScreenshotFlow()}
+          >
+            {i18next.t('generate_from_screenshot')}<BetaBadge />
+          </EntryButton>
+          <EntryButton
+            imageSrc='static/img/newisland-manual.png'
+            bgColor='#E59FA9'
+            onClick={() => goToLegacyRiverSelection()}
+          >
+            {i18next.t('draw_manually')}
+          </EntryButton>
+          {/* Dummy item to keep second row left-aligned in 2-column layout */}
+          <Box sx={{ width: '50%', maxWidth: 300, m: [1, 2], visibility: 'hidden', display: ['none', 'block'] }} />
+        </Flex>
+      </Box>
+    </>
+  );
+}
+
+// Screenshot Step - Upload screenshot to auto-generate island map
+function getFlavorTexts(): string[] {
+  return Array.from({ length: 10 }, (_, i) => i18next.t(`screenshot_flavor_${i}`));
+}
+
+function ScreenshotStep({ onBack }: { onBack: () => void }) {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const isGeneratingRef = useRef(false);
+  const [progress, setProgress] = useState({ completed: 0, total: 1 });
+  const [flavorIndex, setFlavorIndex] = useState(0);
+  const [showTips, setShowTips] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Rotate flavor text on a timer while generating
+  useEffect(() => {
+    if (!isGenerating) return;
+    const interval = setInterval(() => {
+      setFlavorIndex(prev => (prev + 1) % getFlavorTexts().length);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [isGenerating]);
+
+  const handleGenerate = async () => {
+    setErrorMessage(null);
+    let generateStartTime = 0;
+    try {
+      const { generateFromScreenshot } = await import(/* webpackChunkName: "generateFromScreenshot" */ '../ui/generateFromScreenshot');
+      await generateFromScreenshot({
+        debug: false,
+        onFileSelected: () => {
+          isGeneratingRef.current = true;
+          generateStartTime = Date.now();
+          setIsGenerating(true);
+          setProgress({ completed: 0, total: 1 });
+          setFlavorIndex(0);
+        },
+        onProgress: (completed, total) => {
+          setProgress({ completed, total });
+        },
+      });
+
+      // Only close modal if generation actually ran (file was selected)
+      if (isGeneratingRef.current) {
+        trackScreenshotDuration(Date.now() - generateStartTime);
+        trackWizardComplete('screenshot');
+        trackMapLoad('wizard_screenshot', 2);
+        trackMapComplexity(2, computeMapComplexity(state.drawing, state.objects), encodeMap().length);
+        autosaveTrigger();
+        resetWizard();
+      }
+    } catch (err) {
+      console.error('Generate from Screenshot failed:', err);
+      isGeneratingRef.current = false;
+      setIsGenerating(false);
+      if (err instanceof Error && err.message === 'NOT_A_SCREENSHOT') {
+        setErrorMessage(i18next.t('screenshot_not_detected'));
+        trackError('screenshot_not_detected');
+      }
+    }
+  };
+
+  // --- Loading view ---
+  if (isGenerating) {
+    const pct = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
+    return (
+      <Flex sx={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 4, px: 3, minHeight: 300, width: '80vw', maxWidth: 400 }}>
+        <Image
+          src='static/gif/bob-loading.gif'
+          sx={{ width: 80, mb: 3 }}
+        />
+        <Text sx={{
+          fontFamily: 'heading',
+          fontWeight: 'bold',
+          fontSize: 2,
+          textAlign: 'center',
+          mb: 3,
+          minHeight: '1.5em',
+        }}>
+          {getFlavorTexts()[flavorIndex]}
+        </Text>
+        <Box sx={{
+          width: '100%',
+          maxWidth: 300,
+          height: 16,
+          bg: 'overlay',
+          borderRadius: 8,
+          overflow: 'hidden',
+        }}>
+          <Box sx={{
+            width: `${pct}%`,
+            height: '100%',
+            bg: 'primary',
+            borderRadius: 8,
+            transition: 'width 0.3s ease-out',
+          }} />
+        </Box>
+        <Text sx={{ fontSize: 1, color: 'textSecondary', mt: 2 }}>
+          {`${pct}%`}
+        </Text>
+      </Flex>
+    );
+  }
+
+  // --- Tips sub-view ---
+  if (showTips) {
+    return (
+      <>
+        <Box sx={{position: 'absolute', left: 0, top: [1, 3]}}>
+          <Button variant='icon' onClick={() => setShowTips(false)}>
+            <Image src='static/img/back.png' />
+          </Button>
+        </Box>
+        <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('screenshot_tips_title')}</Heading>
+        <Box sx={{ px: 3, pb: 3, maxWidth: 400, mx: 'auto' }}>
+          <Text sx={{ fontWeight: 'bold', color: 'secondary', mb: 2 }}>
+            {i18next.t('screenshot_tips_transfer_heading')}
+          </Text>
+          <Box as='ul' sx={{ fontSize: 1, pl: 3, mb: 3, listStyle: 'disc' }}>
+            <Box as='li' sx={{ mb: 1 }}>{i18next.t('screenshot_tips_capture')}</Box>
+            <Box as='li' sx={{ mb: 1 }}>{i18next.t('screenshot_tips_transfer')}</Box>
+            <Box as='li'>{i18next.t('screenshot_tips_actual')}</Box>
+          </Box>
+          <Text sx={{ fontWeight: 'bold', color: 'secondary', mb: 2 }}>
+            {i18next.t('screenshot_tips_good_heading')}
+          </Text>
+          <Box as='ul' sx={{ fontSize: 1, pl: 3, listStyle: 'disc' }}>
+            <Box as='li' sx={{ mb: 1 }}>{i18next.t('screenshot_tips_nookphone')}</Box>
+            <Box as='li' sx={{ mb: 1 }}>{i18next.t('screenshot_tips_stand')}</Box>
+            <Box as='li' sx={{ mb: 1 }}>{i18next.t('screenshot_tips_icons')}</Box>
+            <Box as='li'>{i18next.t('screenshot_tips_overlay')}</Box>
+          </Box>
+        </Box>
+      </>
+    );
+  }
+
+  // --- Idle view ---
+  return (
+    <Box sx={{ maxWidth: 480 }}>
+      <Box sx={{position: 'absolute', left: 0, top: [1, 3]}}>
+        <Button variant='icon' onClick={onBack}>
+          <Image src='static/img/back.png' />
+        </Button>
+      </Box>
+      <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
+        <Image
+          src='static/img/screenshot-instructions.png'
+          sx={{ width: 375, maxWidth: '100%', display: ['none', 'block'], aspectRatio: '657 / 263' }}
+        />
+        <Image
+          src='static/img/screenshot-instructions-mobile.png'
+          sx={{ width: 136, maxWidth: '100%', display: ['block', 'none'], aspectRatio: '268 / 493' }}
+        />
+      </Box>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('screenshot_title')}<BetaBadge /></Heading>
+      <Text m={3} sx={{textAlign: 'center', lineHeight: 1.5}}>
+        {i18next.t('screenshot_description')}
+        <Box
+          as='span'
+          onClick={() => setShowTips(true)}
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 18,
+            height: 18,
+            borderRadius: '50%',
+            border: '1.5px solid',
+            borderColor: 'secondary',
+            color: 'secondary',
+            fontSize: '11px',
+            fontWeight: 'bold',
+            lineHeight: 1,
+            cursor: 'pointer',
+            verticalAlign: 'text-bottom',
+            ml: 1,
+            '&:hover': { opacity: 0.8 },
+          }}
+        >{'?'}</Box>
+      </Text>
+      {errorMessage && (
+        <Text sx={{ textAlign: 'center', color: '#D32F2F', fontFamily: 'heading', fontWeight: 'bold', fontSize: 1, mb: 2 }}>
+          {errorMessage}
+        </Text>
+      )}
+      <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
+        <Button
+          variant='primary'
+          onClick={handleGenerate}
+          sx={{
+            bg: 'rgba(66, 187, 243, 0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 2,
+            px: 3,
+            py: 2,
+            borderRadius: 30,
+            cursor: 'pointer',
+            fontFamily: 'heading',
+            fontSize: 2,
+            color: 'white',
+            '&:hover': { bg: '#42bbf3' },
+            '&:active': { bg: 'rgba(140, 151, 236, 0.5)' },
+          }}
+        >
+          <Image src='static/img/ui-upload-white.png' sx={{ width: 20, height: 20 }} />
+          {i18next.t('screenshot_upload')}
+        </Button>
+      </Box>
+    </Box>
+  );
+}
+
+// Convert V1 to V2 Step
+function getConvertFlavorTexts(): string[] {
+  return Array.from({ length: 10 }, (_, i) => i18next.t(`upgrade_flavor_${i}`));
+}
+
+function ConvertStep({ onClose }: { onClose: () => void }) {
+  const [isConverting, setIsConverting] = useState(false);
+  const [progress, setProgress] = useState({ completed: 0, total: 1 });
+  const [flavorIndex, setFlavorIndex] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isConverting) return;
+    const interval = setInterval(() => {
+      setFlavorIndex(prev => (prev + 1) % getConvertFlavorTexts().length);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [isConverting]);
+
+  const handleConvert = async () => {
+    setErrorMessage(null);
+    setIsConverting(true);
+    setProgress({ completed: 0, total: 1 });
+    setFlavorIndex(0);
+    const startTime = Date.now();
+    try {
+      const { convertV1ToV2 } = await import(/* webpackChunkName: "convertV1ToV2" */ '../ui/convertV1ToV2');
+      const diagnostic = await convertV1ToV2({
+        debug: false,
+        onProgress: (completed, total) => {
+          setProgress({ completed, total });
+        },
+      });
+      trackConversion(true, Date.now() - startTime, diagnostic);
+      autosaveTrigger();
+      onClose();
+      showToast(i18next.t('upgrade_success'));
+    } catch (err) {
+      console.error('V1 to V2 conversion failed:', err);
+      trackConversion(false, Date.now() - startTime);
+      trackError('v1_to_v2_conversion', err instanceof Error ? err.message : String(err));
+      setIsConverting(false);
+      setErrorMessage(i18next.t('upgrade_failed'));
+    }
+  };
+
+  if (isConverting) {
+    const pct = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
+    return (
+      <Flex sx={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 4, px: 3, minHeight: 300, width: '80vw', maxWidth: 400 }}>
+        <Image
+          src='static/gif/bob-loading.gif'
+          sx={{ width: 80, mb: 3 }}
+        />
+        <Text sx={{
+          fontFamily: 'heading',
+          fontWeight: 'bold',
+          fontSize: 2,
+          textAlign: 'center',
+          mb: 3,
+          minHeight: '1.5em',
+        }}>
+          {getConvertFlavorTexts()[flavorIndex]}
+        </Text>
+        <Box sx={{
+          width: '100%',
+          maxWidth: 300,
+          height: 16,
+          bg: 'overlay',
+          borderRadius: 8,
+          overflow: 'hidden',
+        }}>
+          <Box sx={{
+            width: `${pct}%`,
+            height: '100%',
+            bg: 'primary',
+            borderRadius: 8,
+            transition: 'width 0.3s ease-out',
+          }} />
+        </Box>
+        <Text sx={{ fontSize: 1, color: 'textSecondary', mt: 2 }}>
+          {`${pct}%`}
+        </Text>
+      </Flex>
+    );
+  }
+
+  return (
+    <Box sx={{ maxWidth: 420 }}>
+      <Heading m={2} sx={{ textAlign: 'center' }}>{i18next.t('upgrade_to_v2')}</Heading>
+      <Text m={3} sx={{ textAlign: 'center', lineHeight: 1.5 }}>
+        {i18next.t('upgrade_description')}
+      </Text>
+      <Text m={3} sx={{ textAlign: 'center', lineHeight: 1.5, fontWeight: 'bold', color: '#D32F2F' }}>
+        {i18next.t('upgrade_warning')}
+      </Text>
+      {errorMessage && (
+        <Text sx={{ textAlign: 'center', color: '#D32F2F', fontFamily: 'heading', fontWeight: 'bold', fontSize: 1, mb: 2 }}>
+          {errorMessage}
+        </Text>
+      )}
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, my: 3 }}>
+        <Button
+          variant='primary'
+          onClick={onClose}
+          sx={{
+            bg: 'rgba(150, 150, 150, 0.5)',
+            px: 3,
+            py: 2,
+            borderRadius: 30,
+            cursor: 'pointer',
+            fontFamily: 'heading',
+            fontSize: 2,
+            color: 'white',
+            '&:hover': { bg: 'rgba(150, 150, 150, 0.7)' },
+          }}
+        >
+          {i18next.t('cancel')}
+        </Button>
+        <Button
+          variant='primary'
+          onClick={handleConvert}
+          sx={{
+            bg: 'rgba(66, 187, 243, 0.9)',
+            px: 3,
+            py: 2,
+            borderRadius: 30,
+            cursor: 'pointer',
+            fontFamily: 'heading',
+            fontSize: 2,
+            color: 'white',
+            '&:hover': { bg: '#42bbf3' },
+            '&:active': { bg: 'rgba(140, 151, 236, 0.5)' },
+          }}
+        >
+          {i18next.t('upgrade_convert')}
+        </Button>
+      </Box>
+    </Box>
+  );
+}
+
+// Step 1: River Direction
+function RiverDirectionStep() {
+  const handleClick = async (direction: 'west' | 'south' | 'east') => {
+    const proceed = await confirmDestructiveActionAsync(
+      i18next.t('clear_warn')
+    );
+    if (!proceed) {
+      trackWizardDenyChanges('tile_editor');
+      return;
+    }
+    // load blank terrain
+    await loadBaseMapFromSvg(0);
+    // Set direction and move to next step - wizard state handler will show airport selector
+    setRiverDirection(direction);
+  };
+
+  return (
+    <>
+      <Box sx={{position: 'absolute', left: 0, top: [1, 3]}}>
+        <Button variant='icon' onClick={goToEntrypoint}>
+          <Image src='static/img/back.png' />
+        </Button>
+      </Box>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('wizard_river_direction')}</Heading>
+      <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center'}}>
+        <Card onClick={() => handleClick('west')}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
+        <Card onClick={() => handleClick('south')}><Image variant='card' src={'static/img/island-type-south.png'}/></Card>
+        <Card onClick={() => handleClick('east')}><Image variant='card' src={'static/img/island-type-east.png'}/></Card>
+      </Flex>
+      <Text
+        m={2}
+        sx={{textAlign: 'center', cursor: 'pointer', color: 'gray', textDecoration: 'underline'}}
+        onClick={() => skipWizard()}
+      >
+        {i18next.t('wizard_skip')}
+      </Text>
+    </>
+  );
+}
+
+// Base Map Grid Step - shows pre-made base maps for the selected river direction
+interface BaseMapGridStepProps {
+  layoutType: LayoutType;
+  edgeTileRaster: string | null;
+  onSelect: (baseMapIndex: number) => void;
+  onBack: () => void;
+}
+
+function BaseMapGridStep({ layoutType, edgeTileRaster, onSelect, onBack }: BaseMapGridStepProps) {
+  const baseMapIndices = baseMapLayouts[layoutType] || [];
+  const [getBaseMapSrc, setGetBaseMapSrc] = useState<((n: number) => string | null) | null>(null);
+
+  // Lazy-load generatedBaseMapCache
+  useEffect(() => {
+    import(/* webpackChunkName: "generatedBaseMapCache" */ '../generatedBaseMapCache').then(m => setGetBaseMapSrc(() => m.getBaseMapSrc));
+  }, []);
+
+  const cardOverlay = edgeTileRaster ? (
+    <Image src={edgeTileRaster} sx={{
+      position: 'absolute',
+      top: 0, left: 0,
+      width: '100%', height: '100%',
+      objectFit: 'contain',
+      pointerEvents: 'none',
+    }}/>
+  ) : null;
+
+  return (
+    <>
+      <Box sx={{position: 'absolute', left: 0, top: [1, 3]}}>
+        <Button variant='icon' onClick={onBack}>
+          <Image src='static/img/back.png' />
+        </Button>
+      </Box>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('wizard_choose_terrain')}</Heading>
+      <Text m={2} sx={{textAlign: 'center'}}>{i18next.t('wizard_choose_terrain_description')}</Text>
+      {getBaseMapSrc && <Grid
+        gap={0}
+        columns={[2, 3, 4]}
+        sx={{justifyItems: 'center' }}>
+        {/* Blank option first (index 0) */}
+        <Card key={0} onClick={() => onSelect(0)}>
+          <Box sx={{position: 'relative'}}>
+            <Image variant='card' src={getBaseMapSrc(0)}/>
+            {cardOverlay}
+          </Box>
+        </Card>
+        {/* River direction base maps */}
+        {baseMapIndices.map((baseMapIndex) => {
+          const src = getBaseMapSrc(baseMapIndex);
+          if (!src) return null;
+          return (
+            <Card
+              key={baseMapIndex}
+              onClick={() => onSelect(baseMapIndex)}>
+              <Box sx={{position: 'relative'}}>
+                <Image variant='card' src={src}/>
+                {cardOverlay}
+              </Box>
+            </Card>
+          );
+        })}
+      </Grid>}
+    </>
+  );
+}
+
+// Step 1: River Direction
+function LegacyRiverDirectionStep({ onBack }: { onBack: () => void }) {
+  const handleClick = (direction: 'west' | 'south' | 'east') => {
+    // Set direction and move to next step - wizard state handler will show airport selector
+    setLegacyRiverDirection(direction);
+  };
+
+  const handleBlankClick = async () => {
+    const proceed = await confirmDestructiveActionAsync(
+      i18next.t('clear_warn')
+    );
+    if (!proceed) {
+      trackWizardDenyChanges('manual');
+      return;
+    }
+    const { default: Layouts } = await import(/* webpackChunkName: "islandLayoutsV1" */ './islandLayoutsV1');
+    const blankLayout = Layouts.blank[0];
+    loadMapFromJSONString(blankLayout.data);
+    trackWizardComplete('manual', 'blank');
+    resetWizard();
+  };
+
+  return (
+    <>
+      <Box sx={{position: 'absolute', left: 0, top: [1, 3]}}>
+        <Button variant='icon' onClick={() => { onBack(); }}>
+          <Image src='static/img/back.png' />
+        </Button>
+      </Box>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('wizard_choose_template')}</ Heading>
+      <Text m={2} sx={{textAlign: 'center'}}>{i18next.t('wizard_manual_description')}</ Text>
+      <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center'}}>
+        <Card onClick={() => handleClick('west')}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
+        <Card onClick={() => handleClick('south')}><Image variant='card' src={'static/img/island-type-south.png'}/></Card>
+        <Card onClick={() => handleClick('east')}><Image variant='card' src={'static/img/island-type-east.png'}/></Card>
+        <Card onClick={handleBlankClick}><Image variant='card' src={'static/img/island-type-blank.png'}/></Card>
+      </Flex>
+    </>
+  );
+}
+
+// Step 3: Peninsula Side
+function PeninsulaSideStep({ onBack }: { onBack: () => void }) {
+  const handleClick = (side: 'left' | 'right') => {
+    setPeninsulaSide(side);
+
+    // Show peninsula position selector
+    setTimeout(() => {
+      const selectorType: SelectionType = side === 'left' ? 'peninsulaLeft' : 'peninsulaRight';
+      showPositionSelector(selectorType);
+    }, 250);
+  };
+
+  return (
+    <>
+      <Box sx={{position: 'absolute', left: 0, top: [1, 3]}}>
+        <Button variant='icon' onClick={() => { hidePositionSelector(); onBack(); }}>
+          <Image src='static/img/back.png' />
+        </Button>
+      </Box>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('wizard_peninsula_side')}</Heading>
+      <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center', justifyContent: 'center'}}>
+        <Card onClick={() => handleClick('left')}>
+          <Image variant='card' src={'static/img/island-peninsula-left.png'}/>
+        </Card>
+        <Card onClick={() => handleClick('right')}>
+          <Image variant='card' src={'static/img/island-peninsula-right.png'}/>
+        </Card>
+      </Flex>
+    </>
+  );
+}
+
+// Step 4: Dock Side
+function DockSideStep({ onBack }: { onBack: () => void }) {
+  const handleClick = (side: 'left' | 'right') => {
+    setDockSide(side);
+  };
+
+  return (
+    <>
+      <Box sx={{position: 'absolute', left: 0, top: [1, 3]}}>
+        <Button variant='icon' onClick={() => { hidePositionSelector(); onBack(); }}>
+          <Image src='static/img/back.png' />
+        </Button>
+      </Box>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('wizard_dock_side')}</Heading>
+      <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center', justifyContent: 'center'}}>
+        <Card onClick={() => handleClick('left')}>
+          <Image variant='card' src={'static/img/island-dock-left.png'}/>
+        </Card>
+        <Card onClick={() => handleClick('right')}>
+          <Image variant='card' src={'static/img/island-dock-right.png'}/>
+        </Card>
+      </Flex>
+    </>
+  );
+}
+
+// Step 6: Island Grid
+interface IslandGridStepProps {
+  layoutType: LayoutType;
+  layouts: Layout[];
+  onSelect: (index: number) => void;
+  onBack: () => void;
+}
+
+function IslandGridStep({ layoutType, layouts, onSelect, onBack }: IslandGridStepProps) {
+  return (
+    <>
+      <Box sx={{position: 'absolute', left: 0, top: [1, 3]}}>
+        <Button variant='icon' onClick={onBack}>
+          <Image src='static/img/back.png' />
+        </Button>
+      </Box>
+      <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('wizard_choose_island')}</Heading>
+      <Text m={2} sx={{textAlign: 'center'}}>{'You probably won\'t find an exact match, but pick one that roughly resembles your island.'}</Text>
       <Grid
         gap={0}
         columns={[2, 3, 4]}
         sx={{justifyItems: 'center' }}>
-        {
-          layouts.map((layout, index) => (
-            <Card
-              key={index}
-              onClick={() => {
-                confirmDestructiveAction(
-                  'Clear your map? You will lose all unsaved changes.',
-                  () => {
-                    setLayout(index);
-                  });
-              }}>
-              <Image variant='card' src={`static/img/layouts/${layoutType}-${layout.name}.png`}/>
-            </Card>
-          )).concat(
-            <Card key={'help'} onClick={()=>{setHelp(true)}}>
-              <Image sx={{width: 24}} src={'static/img/menu-help.png'} />
-              <Text sx={{fontFamily: 'body'}}>{'Why isn\'t my map here?'}</Text>
-            </Card>
-          )
-        }
+        {layouts.map((layout, index) => (
+          <Card
+            key={index}
+            onClick={() => onSelect(index)}>
+            <Image variant='card' src={`static/img/layouts/${layoutType}-${layout.name}.png`} sx={{ aspectRatio: '300 / 245' }}/>
+          </Card>
+        ))}
       </Grid>
-    );
-  }
-  else {
-    content = (
-      <Flex sx={{flexDirection: ['column', 'row'], alignItems: 'center'}}>
-        <Card onClick={() => setLayoutType(LayoutType.west)}><Image variant='card' src={'static/img/island-type-west.png'}/></Card>
-        <Card onClick={() => setLayoutType(LayoutType.south)}><Image variant='card' src={'static/img/island-type-south.png'}/></Card>
-        <Card onClick={() => setLayoutType(LayoutType.east)}><Image variant='card' src={'static/img/island-type-east.png'}/></Card>
-        <Card onClick={() => {
-          setLayoutType(LayoutType.blank);
-          confirmDestructiveAction(
-            'Clear your map? You will lose all unsaved changes.',
-            () => {
-              setLayout(0);
-            });
-        }}><Image variant='card' src={'static/img/island-type-blank.png'}/></Card>      </Flex>
-    );
-  }
-  return (
-    <Box p={[0, 3]} sx={{position: 'relative'}}>
-      {layoutType && <Box sx={{position: 'absolute', top: [1, 3]}}>
-        <Button variant='icon' onClick={() => setLayoutType(LayoutType.none)}>
-          <Image src='static/img/back.png' />
-        </Button>
-      </Box>}
-      <Heading m={2} sx={{px: layoutType ? 4 : 0, textAlign: 'center'}}>{layoutType ? 'Choose your Island!' : 'Choose your Layout!'}</Heading>
-      {layoutType && <Text m={2} sx={{textAlign: 'center'}}>{'You probably won\'t find an exact match, but pick one that roughly resembles your island.'}</Text>}
-      {content}
-    </Box>
+    </>
   );
 }
 
@@ -220,9 +1543,98 @@ function Card({children, onClick, maxWidth}: CardProps) {
       m={[1, 2]}
       variant='card'
       onClick={onClick}
-      sx={maxWidth ? {maxWidth: maxWidth} : {maxWidth: 185}}
+      sx={maxWidth ? {maxWidth: maxWidth, width: maxWidth} : {maxWidth: 185, width: 185}}
     >
       {children}
+    </Button>
+  );
+}
+
+
+function Badge({ label, bg }: { label: string; bg: string }) {
+  return (
+    <Box as="span" sx={{
+      bg,
+      color: 'white',
+      fontSize: '10px',
+      fontWeight: 'bold',
+      fontFamily: 'heading',
+      px: '4px',
+      py: '3px',
+      borderRadius: 4,
+      ml: 1,
+      verticalAlign: '3px',
+      display: 'inline-block',
+    }}>
+      {label}
+    </Box>
+  );
+}
+
+function NewBadge() {
+  const expiry = new Date('2026-04-20T00:00:00Z'); // April 20 2026 GMT
+  if (Date.now() > expiry.getTime()) return null;
+  return <Badge label={i18next.t('new_badge')} bg='#e75a2e' />;
+}
+
+function BetaBadge() {
+  return <Badge label={i18next.t('beta_badge')} bg='#bdb7aa' />;
+}
+
+interface EntryButtonProps {
+  children: React.ReactNode;
+  onClick?: React.MouseEventHandler;
+  imageSrc: string;
+  bgColor: string;
+}
+
+function EntryButton({ children, onClick, imageSrc, bgColor }: EntryButtonProps) {
+  return (
+    <Button
+      onClick={onClick}
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        bg: 'transparent',
+        width: ['100%', 300],
+        maxWidth: 300,
+        p: 0,
+        m: [2, 2],
+        '&:hover': {
+          bg: 'transparent',
+        },
+        '&:hover img': {
+          transform: 'scale(1.05)',
+        },
+        '&:hover > div:first-of-type': {
+          boxShadow: '2px 2px 5px 1px rgba(75, 59, 50, 0.3)',
+        },
+        '&:active': {
+          bg: 'transparent',
+        },
+        '&:active > div:first-of-type': {
+          boxShadow: '1px 1px 3px 1px rgba(75, 59, 50, 0.3)',
+        },
+      }}
+    >
+      <Box sx={{
+        bg: bgColor,
+        borderRadius: 40,
+        overflow: 'hidden',
+        width: '100%',
+        transition: 'box-shadow 0.1s',
+      }}>
+        <Image src={imageSrc} sx={{
+          width: '100%',
+          display: 'block',
+          aspectRatio: '514 / 303',
+          transition: 'transform 0.5s',
+        }} />
+      </Box>
+      <Text sx={{ fontSize: [2, 3], fontWeight: 'bold', textAlign: 'center', fontFamily: 'heading', mt: [1, 2], color: 'text' }}>
+        {children}
+      </Text>
     </Button>
   );
 }

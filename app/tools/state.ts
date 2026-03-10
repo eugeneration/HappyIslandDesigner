@@ -1,5 +1,7 @@
 import { toolCategoryDefinition } from '.';
 import { layers } from '../layers';
+import { emitter } from '../emitter';
+import { trackToolUsage, trackMiscAction } from '../analytics';
 
 class ToolState {
   activeTool: any = null;
@@ -12,6 +14,7 @@ class ToolState {
   isCanvasFocused = false;
   toolIsActive = false;
   isDown = false;
+  isDevModeActive = false;
   toolMapValue(definition, tool, modifiers) {
     return {
       type: definition.type,
@@ -40,8 +43,11 @@ class ToolState {
     } else if (toolData) {
       toolData.definition.updateTool(prevTool, toolData, isToolTypeSwitch);
     }
+    emitter.emit('toolSwitched', toolData);
+    trackToolUsage(toolData.type);
   }
   deleteSelection() {
+    trackMiscAction('delete');
     Object.keys(this.selected).forEach((objectId) => {
       const object = this.selected[objectId];
       object.onDelete();
@@ -52,10 +58,12 @@ class ToolState {
     this.deselectAll();
     this.selected[object.data.id] = object;
     object.onSelect(true);
+    emitter.emit('objectSelected', object);
   }
   deselectObject(object) {
     delete this.selected[object.data.id];
     object.onSelect(false);
+    emitter.emit('objectDeselected');
   }
   deselectAll() {
     Object.keys(this.selected).forEach((objectId) => {
@@ -63,6 +71,7 @@ class ToolState {
       object.onSelect(false);
     });
     this.selected = {};
+    emitter.emit('objectDeselected');
   }
   onDown(event) {
     // deactivate the tool when something is selected or dragging an object
@@ -83,7 +92,7 @@ class ToolState {
   onUp() {
     this.isDown = false;
 
-    const isActive = this.isCanvasFocused && !this.isSomethingSelected();
+    const isActive = this.isCanvasFocused && !this.isSomethingSelected() && !this.isDevModeActive;
     if (this.toolIsActive !== isActive) {
       this.toolIsActive = isActive;
       if (this.activeTool) {
@@ -94,7 +103,7 @@ class ToolState {
   focusOnCanvas(isFocused) {
     this.isCanvasFocused = isFocused;
     if (!this.isDown) {
-      const isActive = this.isCanvasFocused && !this.isSomethingSelected();
+      const isActive = this.isCanvasFocused && !this.isSomethingSelected() && !this.isDevModeActive;
       if (this.toolIsActive !== isActive) {
         this.toolIsActive = isActive;
         if (this.activeTool) {

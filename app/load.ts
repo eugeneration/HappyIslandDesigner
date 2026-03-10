@@ -1,9 +1,20 @@
-import { clearMap, setNewMapData, autosaveTrigger } from './state';
-import { decodeMap } from './save';
+import paper from 'paper';
+import { clearMap, setNewMapData, addToHistory } from './state';
+import { decodeMap, autosaveMapRaw, encodeMap } from './save';
 import steg from './vendors/steganography';
 import LZString from 'lz-string';
 import { showLoadingScreen } from "./ui/loadingScreen";
 import { OpenMapSelectModal } from './components/ModalMapSelect';
+import { deleteEdgeTiles } from './ui/edgeTiles';
+import { emitMapLoaded } from './mapState';
+import { addPath } from './paint';
+import { layers } from './layers';
+import { colors } from './colors';
+import { trackMapLoad, trackMapComplexity, computeMapComplexity } from './analytics';
+import { state } from './state';
+
+// todo - this file should be merged with save.ts, then optionally split into different modules
+// right now, very similar logic is split between two files which makes no sense
 
 function clickElem(elem) {
   // Thx user1601638 on Stack Overflow (6/6/2018 - https://stackoverflow.com/questions/13405129/javascript-create-and-save-file )
@@ -33,8 +44,14 @@ export function tryLoadAutosaveMap() {
   if (localStorage) {
     const autosave = localStorage.getItem('autosave');
     if (autosave !== null) {
+      deleteEdgeTiles();
       clearMap();
-      setNewMapData(decodeMap(JSON.parse(autosave)));
+      const mapData = decodeMap(JSON.parse(autosave));
+      setNewMapData(mapData);
+      emitMapLoaded();
+      const ver = mapData?.version === 2 ? 2 : 1;
+      trackMapLoad('autosave', ver);
+      trackMapComplexity(ver, computeMapComplexity(state.drawing, state.objects), encodeMap().length);
       return true;
     }
   }
@@ -46,7 +63,7 @@ export function tryLoadAutosaveMap() {
 // @ts-ignore
 window.loadMap = loadMapFromJSONString;
 
-export function loadMapFromJSONString(mapJSONString: string) {
+export function loadMapFromJSONString(mapJSONString: string, entryMethod?: string) {
   let json;
   try {
     json = JSON.parse(mapJSONString);
@@ -58,10 +75,17 @@ export function loadMapFromJSONString(mapJSONString: string) {
     }
   }
 
+  deleteEdgeTiles();
   clearMap();
   const map = decodeMap(json);
   setNewMapData(map);
-  autosaveTrigger();
+  autosaveMapRaw(JSON.stringify(json));
+  emitMapLoaded();
+  if (entryMethod) {
+    const ver = map?.version === 2 ? 2 : 1;
+    trackMapLoad(entryMethod, ver);
+    trackMapComplexity(ver, computeMapComplexity(state.drawing, state.objects), encodeMap().length);
+  }
 }
 
 export function loadMapFromFile() {
@@ -70,7 +94,7 @@ export function loadMapFromFile() {
       height: image.height,
       width: image.width,
     });
-    loadMapFromJSONString(mapJSONString);
+    loadMapFromJSONString(mapJSONString, 'file_load');
   });
 }
 
@@ -83,12 +107,13 @@ export function loadImage(onLoad) {
     if (file.type == "image/heic") { // convert to png
       // this takes a long time, so show loading screen
       showLoadingScreen(true);
-      import("heic2any").then(heic2anyModule => {
+      import(/* webpackChunkName: "heic2any" */ "heic2any").then(heic2anyModule => {
         const heic2any = heic2anyModule.default;
         heic2any({blob: file })
           .then(function(conversionResult) {
             showLoadingScreen(false);
-            var url = URL.createObjectURL(conversionResult);
+            const blob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
+            const url = URL.createObjectURL(blob);
             loadDataURLAsImage(url);
           })
           .catch(function(e) {
@@ -101,7 +126,7 @@ export function loadImage(onLoad) {
     }
 
     function loadDataURLAsImage (dataURL) {
-      var image = new Image();
+      const image = new Image();
       image.src = dataURL;
       image.addEventListener('load', function() {onLoad(image)}, false);
     }
@@ -123,7 +148,144 @@ export function loadFile(onLoad) {
 }
 
 function blobToDataURL(blob, callback) {
-  var a = new FileReader();
+  const a = new FileReader();
   a.onload = function(e) {callback(e.target?.result);}
   a.readAsDataURL(blob);
+}
+
+type BaseMapLayers = {
+  level2: paper.Path[],
+  level3: paper.Path[],
+  river: paper.Path[],
+}
+
+// Color to layer mapping
+const LAYER_COLORS: Record<string, keyof BaseMapLayers> = {
+  '#35a043': 'level2',
+  '#4ac34e': 'level3',
+  '#9CFFE8': 'river',
+};
+
+// Parse SVG path d attribute to arrays of paper.Point
+// Handles multiple subpaths (M...Z M...Z) by splitting on M command
+function parsePathData(d: string): paper.Point[][] {
+  const polygons: paper.Point[][] = [];
+  // Split by M to get individual polygons (skip empty first element)
+  const parts = d.split(/M/).filter(p => p.trim());
+
+  for (const part of parts) {
+    const points: paper.Point[] = [];
+    // Match all coordinate pairs (handles both M and L commands)
+    const coordRegex = /(-?\d+\.?\d*),(-?\d+\.?\d*)/g;
+    let match: RegExpExecArray | null;
+    while ((match = coordRegex.exec(part)) !== null) {
+      points.push(new paper.Point(parseFloat(match[1]), parseFloat(match[2])));
+    }
+    if (points.length > 0) {
+      polygons.push(points);
+    }
+  }
+  return polygons;
+}
+
+// Extract layer data from SVG content, creating Paper.js paths directly
+function extractLayers(svgContent: string): BaseMapLayers {
+  const result: BaseMapLayers = { level2: [], level3: [], river: [] };
+
+  // Match path elements - extract full path tag then parse attributes
+  const pathRegex = /<path([^>]*)\/>/g;
+  let match: RegExpExecArray | null;
+  while ((match = pathRegex.exec(svgContent)) !== null) {
+    const attrs = match[1];
+
+    // Extract fill and d attributes
+    const fillMatch = attrs.match(/fill="([^"]+)"/);
+    const dMatch = attrs.match(/d="([^"]+)"/);
+
+    if (fillMatch && dMatch) {
+      const fill = fillMatch[1];
+      const d = dMatch[1];
+      const layerKey = LAYER_COLORS[fill];
+      if (layerKey) {
+        // Parse path data into arrays of points (handles multiple subpaths)
+        const polygons = parsePathData(d);
+        for (const points of polygons) {
+          const path = new paper.Path({
+            segments: points,
+            closed: true,
+          });
+          result[layerKey].push(path);
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+// Load base map terrain from SVG file
+// Index 0 or cache miss: just clear terrain and fill level1 with green rectangle
+export async function loadBaseMapFromSvg(mapNumber: number): Promise<void> {
+  const { getBaseMapSrc } = await import(/* webpackChunkName: "generatedBaseMapCache" */ './generatedBaseMapCache');
+  const svgPath = getBaseMapSrc(mapNumber);
+
+  layers.mapLayer.activate();
+
+  // Clear existing terrain first
+  clearMap();
+
+  // Create level1 rectangle covering island extents
+  const level1Rect = new paper.Path.Rectangle({
+    from: new paper.Point(0, 0),
+    to: new paper.Point(112, 96),
+  });
+  level1Rect.fillColor = colors.level1.color;
+  addPath(true, level1Rect as paper.Path, 'level1');
+
+  // If no SVG path (index 0 or cache miss), just have the level1 rectangle
+  if (!svgPath) {
+    console.log(`Base map ${mapNumber} not found - using blank terrain`);
+    addToHistory({ type: 'draw', data: {} });
+    return;
+  }
+
+  console.log(`Loading base map ${mapNumber}: ${svgPath}`);
+
+  // Fetch SVG content
+  const response = await fetch(svgPath);
+  const svgContent = await response.text();
+
+  // Extract layers as Paper.js paths directly
+  const layerPaths = extractLayers(svgContent);
+
+  // Color key mapping from layer to terrain colors
+  const layerMapping: { key: keyof BaseMapLayers; colorKey: string }[] = [
+    { key: 'level2', colorKey: 'level2' },
+    { key: 'level3', colorKey: 'level3' },
+    { key: 'river', colorKey: 'water' },
+  ];
+
+  // Add paths to terrain
+  for (const { key, colorKey } of layerMapping) {
+    const paths = layerPaths[key];
+    if (paths.length === 0) continue;
+
+    // Create compound path if multiple polygons, otherwise use single path
+    let pathItem: paper.PathItem;
+    if (paths.length === 1) {
+      pathItem = paths[0];
+    } else {
+      pathItem = new paper.CompoundPath({
+        children: paths,
+      });
+    }
+
+    // Add to terrain
+    addPath(true, pathItem as paper.Path, colorKey);
+  }
+
+  // Add to history for undo
+  addToHistory({ type: 'draw', data: {} });
+
+  console.log(`Loaded base map ${mapNumber} as terrain`);
 }

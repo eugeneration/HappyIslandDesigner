@@ -9,6 +9,9 @@ import { layerDefinition } from './layerDefinition';
 import { pathDefinition } from './pathDefinition';
 import { getObjectData } from './helpers/getObjectData';
 import { createObjectPreviewAsync } from './ui/createObject';
+import { isV2Map } from './mapState';
+import { getInnerDrawableBounds } from './ui/edgeTiles';
+import { trackMiscAction } from './analytics';
 
 let rawBrushSize = 2;
 let brushSize = 2;
@@ -26,6 +29,35 @@ const brushTypes = {
 let brushLineForce = false;
 let brushType = brushTypes.rounded;
 let paintColor = colors.level1;
+
+let cursorInBounds = true;
+let brushPreviewActive = false;
+let objectPreviewActive = false;
+
+function updatePreviewVisibility() {
+  const brushVisible = cursorInBounds && brushPreviewActive;
+  brush.visible = brushVisible;
+  brushOutline.visible = brushVisible;
+  const objectVisible = cursorInBounds && objectPreviewActive;
+  if (objectPreview) objectPreview.visible = objectVisible;
+  if (objectPreviewOutline) objectPreviewOutline.visible = objectVisible;
+}
+
+export function setCursorInBounds(inBounds: boolean) {
+  if (cursorInBounds === inBounds) return;
+  cursorInBounds = inBounds;
+  updatePreviewVisibility();
+}
+
+export function setBrushPreviewActive(active: boolean) {
+  brushPreviewActive = active;
+  updatePreviewVisibility();
+}
+
+export function setObjectPreviewActive(active: boolean) {
+  objectPreviewActive = active;
+  updatePreviewVisibility();
+}
 
 export function initBrush() {
   brush = new paper.Path();
@@ -132,6 +164,12 @@ export function updateCoordinateLabel(event) {
   // coordinateLabel.content = '' + event.point + '\n' + coordinate.toString();
   // coordinateLabel.position = rawCoordinate;
 
+  if (isV2Map()) {
+    const inBounds = getInnerDrawableBounds().contains(coordinate);
+    setCursorInBounds(inBounds);
+    if (!inBounds) return;
+  }
+
   brushOutline.position = coordinate;
   brush.position = getBrushCenteredCoordinate(coordinate);
 
@@ -151,8 +189,8 @@ export function updateCoordinateLabel(event) {
 function getBrushPointsTriangle(direction?: paper.Point) {
   direction = direction ?? new paper.Point(0, 0);
 
-  var p1 = direction.clone();
-  var p2 = direction.clone();
+  const p1 = direction.clone();
+  const p2 = direction.clone();
 
   if (direction.x ^ direction.y) { // (1, 0) / (0, 1)
     p1.y = Math.abs(direction.y - 1);
@@ -304,6 +342,7 @@ function updateBrushPaths() {
 }
 
 export function cycleBrushHead() {
+  trackMiscAction('brush_cycle');
   const heads = Object.keys(brushTypes).sort((a, b) => {
     if (a === b) {
       return 0;
@@ -319,12 +358,14 @@ export function cycleBrushHead() {
 }
 
 export function decrementBrush() {
+  trackMiscAction('brush_size_change');
   rawBrushSize = Math.max(brushSize - 1, 0);
   brushSize = Math.max(rawBrushSize, 1);
   updateBrush();
 }
 
 export function incrementBrush() {
+  trackMiscAction('brush_size_change');
   rawBrushSize = Math.max(brushSize + 1, 0);
   brushSize = Math.max(rawBrushSize, 1);
   updateBrush();

@@ -1,6 +1,5 @@
 import paper from 'paper';
 
-const svgPath = 'static/svg/';
 let numSvgToLoad = 0;
 let numSvgLoaded = 0;
 function OnLoaded() {
@@ -12,7 +11,7 @@ function OnLoaded() {
 
 export function loadSvg(filename: string, itemCallback) {
   numSvgToLoad += 1;
-  paper.project.importSVG(`${svgPath + filename}.svg`, {
+  paper.project.importSVG(filename, {
     onLoad(item: paper.Item) {
       item.remove();
       item.position = new paper.Point(0, 0);

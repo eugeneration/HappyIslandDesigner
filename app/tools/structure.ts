@@ -2,17 +2,39 @@ import paper from 'paper';
 
 import { AsyncObjectDefinition } from '../helpers/AsyncObjectDefinition';
 import { colors } from '../colors';
-import { loadSvg } from '../helpers/svgLoad';
 
 export const asyncStructureDefinition = new AsyncObjectDefinition();
 
 asyncStructureDefinition.value = {
-  tentRound: {},
-  tentTriangle: {},
-  tentTrapezoid: {},
-  hut: {},
-  house: {},
-  building: {},
+  houseIcon: {
+    svg: 'static/svg/icon-house.svg',
+    preserveColor: true,
+    menuScaling: new paper.Point(1.2, 1.2),
+    scaling: new paper.Point(0.16, 0.16),
+    offset: new paper.Point(-2, -3.8),
+  },
+  playerHouseIcon: {
+    svg: 'static/svg/icon-player-house.svg',
+    preserveColor: true,
+    menuScaling: new paper.Point(1.2, 1.2),
+    scaling: new paper.Point(0.16, 0.16),
+    size: new paper.Size(5, 4),
+    offset: new paper.Point(-2.5, -3.8),
+  },
+  playerTentIcon: {
+    svg: 'static/svg/icon-playertent.svg',
+    preserveColor: true,
+    menuScaling: new paper.Point(1.2, 1.2),
+    scaling: new paper.Point(0.16, 0.16),
+    size: new paper.Size(5, 4),
+    offset: new paper.Point(-2.5, -3.8),
+  },
+  tentRound: { svg: 'static/svg/structure-tentRound.svg' },
+  tentTriangle: { svg: 'static/svg/structure-tentTriangle.svg' },
+  tentTrapezoid: { svg: 'static/svg/structure-tentTrapezoid.svg' },
+  hut: { svg: 'static/svg/structure-hut.svg' },
+  house: { svg: 'static/svg/structure-house.svg' },
+  building: { svg: 'static/svg/structure-building.svg' },
   tentSprite: {
     img: 'static/sprite/building-tent.png',
     menuScaling: new paper.Point(0.17, 0.17),
@@ -80,33 +102,20 @@ asyncStructureDefinition.value = {
   },
 };
 
-export function load() {
-  // set up the definitions programatically because they are all the same
+export function initDefaults() {
   Object.keys(asyncStructureDefinition.value).forEach((structureType) => {
     const def = asyncStructureDefinition.value[structureType];
     def.category = 'structures';
     def.type = structureType;
 
-    def.colorData = colors.npc;
+    if (!def.img && !def.preserveColor) {
+      def.colorData = colors.npc;
+    }
     def.scaling = def.scaling || new paper.Point(0.032, 0.032);
     def.menuScaling = def.menuScaling || new paper.Point(0.3, 0.3);
     def.size = def.size || new paper.Size(4, 4);
     def.offset = def.offset || new paper.Point(-2, -3.6);
     def.onSelect = function () {};
-    // imnmediately load the assets
-    if (def.img) {
-      const img = new paper.Raster(def.img);
-      def.icon = img;
-      def.icon.onLoad = function () {
-        asyncStructureDefinition.onLoad();
-      };
-      img.remove();
-    } else {
-      loadSvg(`structure-${structureType}`, (item) => {
-        // item.pivot += new paper.Point(-2, -3.6);
-        def.icon = item;
-        asyncStructureDefinition.onLoad();
-      });
-    }
   });
 }
+

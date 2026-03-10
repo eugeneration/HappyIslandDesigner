@@ -7,7 +7,7 @@ import {onKeyUp, onKeyDown} from './keyboard';
 import { App } from "./components/App";
 
 export function install() {
-  return new Promise((resolve) => {
+  return new Promise<void>((resolve) => {
     window.onload = function onload() {
       paper.install(window);
 

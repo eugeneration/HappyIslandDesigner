@@ -1,188 +1,38 @@
 // @ts-nocheck
 import paper from 'paper';
 import LZString from 'lz-string';
+import i18next from 'i18next';
 import steg from './vendors/steganography';
 
-import { state, objectCreateCommand, applyCommand } from './state';
+import { state } from './state';
 import { downloadDataURL, downloadDataURLForiOSSafari } from './helpers/download';
 import { layers } from './layers';
-import { colors, getColorDataFromEncodedName } from './colors';
+import { colors } from './colors';
 import { getGridRaster } from './grid';
-import { objectMap } from './helpers/objectMap';
-import { toolCategoryDefinition } from './tools';
 import { getMobileOperatingSystem } from "./helpers/getMobileOperatingSystem";
 
-function removeFloatingPointError(f) {
-  return Math.round((f + Number.EPSILON) * 100) / 100;
-}
-
-function encodePoint(p) {
-  return [removeFloatingPointError(p.x), removeFloatingPointError(p.y)];
-}
-
-function decodeObject(encodedData, encodingVersion) {
-  const position = new paper.Point(encodedData.position);
-  const objectData = {
-    category: encodedData.category,
-    type: encodedData.type,
-  };
-  // for legacy or renamed objects, rename them
-  if (
-    toolCategoryDefinition[encodedData.category].tools &&
-    toolCategoryDefinition[encodedData.category].tools.value
-  ) {
-    const objectDefinition =
-      toolCategoryDefinition[encodedData.category].tools.value[objectData.type];
-    if (objectDefinition.legacy) {
-      objectData.type = objectDefinition.legacy;
-    }
-    if (objectDefinition.legacyCategory) {
-      objectData.category = objectDefinition.legacyCategory;
-    }
-    if (objectDefinition.rename) {
-      if (encodingVersion <= objectDefinition.rename[0]) {
-        objectData.type = objectDefinition.rename[1];
-      }
-    }
-  }
-
-  applyCommand(objectCreateCommand(objectData, position), true);
-  return {
-    position,
-    category: encodedData.category,
-    type: encodedData.type,
-  };
-}
-
-function encodeObjectGroups(objects) {
-  const objectGroups = {};
-  Object.values(objects).forEach((object) => {
-    const key = `${object.data.category}_${object.data.type}`;
-    if (!objectGroups[key]) {
-      objectGroups[key] = [];
-    }
-    const encodedPoint = encodePoint(object.position);
-    objectGroups[key].push(encodedPoint[0], encodedPoint[1]);
-  });
-  return objectGroups;
-}
-
-function decodeObjectGroups(objectGroups, encodingVersion) {
-  if (objectGroups == null) return {};
-  if (encodingVersion === 0) {
-    return objectMap(objectGroups, (encodedData) => {
-      return decodeObject(encodedData, paper.version);
-    });
-  }
-
-  const objects = {};
-  Object.keys(objectGroups).forEach((key) => {
-    const keySplit = key.split('_');
-    const category = keySplit[0];
-    const type = keySplit[1];
-    const positionArray = objectGroups[key];
-    for (let i = 0; i < positionArray.length; i += 2) {
-      decodeObject(
-        {
-          category,
-          type,
-          position: [positionArray[i], positionArray[i + 1]],
-        },
-        encodingVersion,
-      );
-    }
-  });
-  return objects;
-}
-
-function encodePath(p) {
-  const positions: number[] = [];
-  p.segments.forEach((s) => {
-    const encodedPoint = encodePoint(s.point);
-    positions.push(encodedPoint[0], encodedPoint[1]);
-  });
-  return positions;
-}
-
-function decodePath(positionArray) {
-  const points: paper.Point[] = [];
-  for (let i = 0; i < positionArray.length; i += 2) {
-    points.push(new paper.Point(positionArray[i], positionArray[i + 1]));
-  }
-  return points;
-}
-
-function encodeDrawing(drawing) {
-  const encodedDrawing = {};
-  Object.keys(drawing).forEach((colorKey) => {
-    const pathItem = drawing[colorKey];
-    let p;
-    if (pathItem.children) {
-      p = pathItem.children.map((path) => {
-        return encodePath(path);
-      });
-    } else {
-      p = encodePath(pathItem);
-    }
-    const encodedColorName = colors[colorKey].name;
-    encodedDrawing[encodedColorName] = p;
-  });
-  return encodedDrawing;
-}
-
-function decodeDrawing(encodedDrawing, version) {
-  // colors translated from encoded name => keys
-  const decodedDrawing = {};
-  Object.keys(encodedDrawing).forEach((colorName) => {
-    const colorData = getColorDataFromEncodedName(colorName);
-    const pathData = encodedDrawing[colorName];
-
-    // if array of arrays, make compound path
-    let p;
-    if (pathData.length === 0) {
-      p = new paper.Path();
-    } else if (version === 0) {
-      if (typeof pathData[0][0] === 'number') {
-        // normal path
-        p = new paper.Path(
-          pathData.map((p) => {
-            return new paper.Point(p);
-          }),
-        );
-      } else {
-        p = new paper.CompoundPath({
-          children: pathData.map((pathData) => {
-            return new paper.Path(
-              pathData.map((p) => {
-                return new paper.Point(p);
-              }),
-            );
-          }),
-        });
-      }
-    } else if (typeof pathData[0] === 'number') {
-      // normal path
-      p = new paper.Path(decodePath(pathData));
-    } else {
-      p = new paper.CompoundPath({
-        children: pathData.map((pathData) => {
-          return new paper.Path(decodePath(pathData));
-        }),
-      });
-    }
-    p.locked = true;
-    p.fillColor = colorData.color;
-    decodedDrawing[colorData.key] = p;
-  });
-  return decodedDrawing;
-}
+import { encodeMapV1, decodeMapV1, encodeObjectGroups, encodeDrawing } from './save-legacy';
+import { getEdgeAssetIndices, isEdgeTilesVisible } from './ui/edgeTiles';
+import { trackMapSave, trackMapComplexity, computeMapComplexity } from './analytics';
+import { getMapVersion } from './mapState';
+import { hasSeenNux, markNuxSeen } from './ui/nuxTooltip';
 
 export function encodeMap() {
-  // colors translated from keys => encoded name
+  // V1 map if no edge tiles are present
+  if (!isEdgeTilesVisible()) {
+    return encodeMapV1();
+  }
+
+  // V2 format with edge tiles
+  const objects = encodeObjectGroups(state.objects);
+  const drawing = encodeDrawing(state.drawing);
+  const edgeTileNumbers = getEdgeAssetIndices();
+
   const o = {
-    version: 1,
-    objects: encodeObjectGroups(state.objects),
-    drawing: encodeDrawing(state.drawing),
+    version: 'v2',
+    objects,
+    drawing,
+    edgeTiles: edgeTileNumbers,  // Array of 24 numbers in CCW order
   };
   if (Object.keys(o.objects).length === 0) {
     delete o.objects;
@@ -191,41 +41,35 @@ export function encodeMap() {
 }
 
 export function decodeMap(json) {
-  layers.mapLayer.activate();
-
-  // older versions would encode drawings incorrectly
-  // if the objects field was empty
-  // level1/2/3 would be encoded as ØoveØ1
   if (json == null) return;
-  if (json.version == 1 && json.drawing && json.objects && Object.keys(json.objects).length == 0) {
 
-    var index = 0;
-    Object.keys(json.drawing).forEach(function(colorName) {
-      if (colorName.match(/ØoveØ[0-9]/)) {
-        var newKey = ('level' + colorName.slice(-1));
-        json.drawing[newKey] = json.drawing[colorName];
-
-        // retain order by reordering indices in front
-        delete json.drawing[colorName];
-
-        var keys = Object.keys(json.drawing);
-        for (var i = index; i < keys.length - 1; i++) {
-          var key = keys[i];
-          var data = json.drawing[key];
-          delete json.drawing[key];
-          json.drawing[key] = data;
-        }
-      }
-      index++;
-    })
+  // Check version to determine which decoder to use
+  if (json.version === 'v2') {
+    return decodeMapV2(json);
   }
 
-  const { version } = json;
-  return {
-    version: json.version,
-    drawing: decodeDrawing(json.drawing, version),
-    objects: decodeObjectGroups(json.objects, version),
-  };
+  // todo: v1 map should clear edge tiles and v2 specific features
+
+  // V1 or legacy format
+  return decodeMapV1(json);
+}
+
+function decodeMapV2(json) {
+  // Decode V1 data (objects, drawing) using legacy decoder
+  const result = decodeMapV1({
+    version: 1,
+    objects: json.objects,
+    drawing: json.drawing,
+  });
+
+  // todo: clean up implementation, add error checking
+  // Load edge tiles from array
+  result.version = 2;
+  if (json.edgeTiles) {
+    result.edgeTiles = json.edgeTiles;
+  }
+
+  return result;
 }
 
 export function autosaveMap() {
@@ -238,6 +82,15 @@ export function autosaveMap() {
   return false;
 }
 
+export function autosaveMapRaw(jsonString: string) {
+  if (localStorage) {
+    localStorage.setItem('autosave', jsonString);
+    state.actionsSinceSave = 0;
+    return true;
+  }
+  return false;
+}
+
 // @ts-ignore
 window.clearAutosave = clearAutosave;
 export function clearAutosave() {
@@ -246,8 +99,127 @@ export function clearAutosave() {
   }
 }
 
+const SAVE_TUTORIAL_NUX_ID = 'save_tutorial';
+let pendingSaveTutorial = false;
+
+export function showPendingSaveTutorial(): void {
+  if (pendingSaveTutorial) {
+    pendingSaveTutorial = false;
+    showSaveTutorial();
+  }
+}
+
+function showSaveTutorial(): Promise<void> {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    Object.assign(overlay.style, {
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      width: '100%',
+      height: '100%',
+      background: 'rgba(0,0,0,0.4)',
+      zIndex: '10000',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      opacity: '0',
+      transition: 'opacity 0.3s ease',
+    });
+
+    const modal = document.createElement('div');
+    Object.assign(modal.style, {
+      background: '#fffbf0',
+      borderRadius: '24px',
+      padding: '28px 32px',
+      maxWidth: '480px',
+      minWidth: '300px',
+      width: '80vw',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+      fontFamily: 'TTNorms, sans-serif',
+      textAlign: 'center',
+    });
+
+    const img = document.createElement('img');
+    img.src = 'static/img/tutorial-saving.png';
+    Object.assign(img.style, {
+      width: '100%',
+      maxWidth: '420px',
+      aspectRatio: '1082 / 439',
+      marginBottom: '16px',
+      borderRadius: '12px',
+    });
+
+    const title = document.createElement('div');
+    title.textContent = i18next.t('save_tutorial_title');
+    Object.assign(title.style, {
+      fontSize: '18px',
+      fontWeight: '700',
+      color: '#3d3d3d',
+      marginBottom: '14px',
+    });
+
+    const desc = document.createElement('div');
+    Object.assign(desc.style, {
+      fontSize: '14px',
+      lineHeight: '1.5',
+      color: '#555',
+      marginBottom: '20px',
+    });
+    const descText = document.createTextNode(i18next.t('save_tutorial_description') + ' ');
+    const warning = document.createElement('span');
+    warning.textContent = i18next.t('save_tutorial_warning');
+    Object.assign(warning.style, {
+      fontWeight: '700',
+      color: '#1976D2',
+    });
+    desc.appendChild(descText);
+    desc.appendChild(warning);
+
+    const btn = document.createElement('button');
+    btn.textContent = i18next.t('save_tutorial_ok');
+    Object.assign(btn.style, {
+      background: 'rgba(66, 187, 243, 0.9)',
+      color: '#fff',
+      border: 'none',
+      borderRadius: '20px',
+      padding: '8px 32px',
+      fontSize: '15px',
+      fontWeight: '700',
+      fontFamily: 'TTNorms, sans-serif',
+      cursor: 'pointer',
+    });
+
+    const dismiss = () => {
+      markNuxSeen(SAVE_TUTORIAL_NUX_ID);
+      overlay.style.opacity = '0';
+      setTimeout(() => {
+        overlay.remove();
+        resolve();
+      }, 300);
+    };
+
+    btn.addEventListener('click', dismiss);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) dismiss();
+    });
+
+    modal.appendChild(img);
+    modal.appendChild(title);
+    modal.appendChild(desc);
+    modal.appendChild(btn);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    requestAnimationFrame(() => {
+      overlay.style.opacity = '1';
+    });
+  });
+}
+
 export function saveMapToFile() {
   let mapJson = encodeMap();
+  const jsonSizeBytes = mapJson.length;
   mapJson = LZString.compressToUTF16(mapJson);
 
   const saveMargins = new paper.Size(10, 10);
@@ -256,6 +228,11 @@ export function saveMapToFile() {
   const mapRaster = layers.mapLayer.rasterize();
   const mapPositionDelta = layers.mapLayer.globalToLocal(
     layers.mapLayer.bounds.topLeft,
+  );
+
+  const mapEdgeRaster = layers.mapEdgeLayer.rasterize();
+  const mapEdgePositionDelta = layers.mapEdgeLayer.globalToLocal(
+    layers.mapEdgeLayer.bounds.topLeft,
   );
 
   const iconsRaster = layers.mapIconLayer.rasterize();
@@ -288,6 +265,20 @@ export function saveMapToFile() {
   text.fontSize = 2;
   text.selected = true;
 
+  let v2Text: paper.PointText | undefined;
+  if (getMapVersion() === 2) {
+    v2Text = new paper.PointText(
+      mapBounds.bottomLeft.subtract(new paper.Point(-2, 2)),
+    );
+    v2Text.justification = 'left';
+    v2Text.content = 'v2';
+    v2Text.fontFamily = 'TTNorms, sans-serif';
+    v2Text.fillColor = colors.oceanDark.color;
+    v2Text.strokeWidth = 0;
+    v2Text.fontSize = 2;
+    v2Text.selected = true;
+  }
+
   const group = new paper.Group();
   group.clipped = true;
 
@@ -295,15 +286,22 @@ export function saveMapToFile() {
     mapBoundsClippingMask,
     background,
     mapRaster,
+    mapEdgeRaster,
     iconsRaster,
     gridClone,
     text,
   ]);
+  if (v2Text) {
+    group.addChild(v2Text);
+  }
 
   // the raster doesn't scale for some reason, so manually scale it;
   mapRaster.scaling = mapRaster.scaling.divide(layers.mapLayer.scaling);
   mapRaster.bounds.topLeft = mapPositionDelta;
 
+  mapEdgeRaster.scaling = mapEdgeRaster.scaling.divide(layers.mapLayer.scaling);
+  mapEdgeRaster.bounds.topLeft = mapEdgePositionDelta;
+  
   iconsRaster.scaling = iconsRaster.scaling.divide(layers.mapLayer.scaling);
   iconsRaster.bounds.topLeft = iconsPositionDelta;
 
@@ -322,11 +320,11 @@ export function saveMapToFile() {
   image.src = mapRasterData;
 
   const os = getMobileOperatingSystem();
-  var isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1 &&
+  const isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') > -1 &&
     navigator.userAgent &&
     navigator.userAgent.indexOf('CriOS') == -1 &&
     navigator.userAgent.indexOf('FxiOS') == -1;
-  var w;
+  let w;
   if (os == "iOS" && !isSafari) {
     w = window.open('about:blank');
   }
@@ -356,6 +354,13 @@ export function saveMapToFile() {
         }
       } else {
         downloadDataURL(filename, mapRasterData);
+      }
+      const ver = getMapVersion();
+      trackMapSave(ver);
+      trackMapComplexity(ver, computeMapComplexity(state.drawing, state.objects), jsonSizeBytes);
+
+      if (!hasSeenNux(SAVE_TUTORIAL_NUX_ID)) {
+        pendingSaveTutorial = true;
       }
     },
     false,
