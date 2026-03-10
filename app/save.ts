@@ -265,6 +265,20 @@ export function saveMapToFile() {
   text.fontSize = 2;
   text.selected = true;
 
+  let v2Text: paper.PointText | undefined;
+  if (getMapVersion() === 2) {
+    v2Text = new paper.PointText(
+      mapBounds.bottomLeft.subtract(new paper.Point(-2, 2)),
+    );
+    v2Text.justification = 'left';
+    v2Text.content = 'v2';
+    v2Text.fontFamily = 'TTNorms, sans-serif';
+    v2Text.fillColor = colors.oceanDark.color;
+    v2Text.strokeWidth = 0;
+    v2Text.fontSize = 2;
+    v2Text.selected = true;
+  }
+
   const group = new paper.Group();
   group.clipped = true;
 
@@ -277,6 +291,9 @@ export function saveMapToFile() {
     gridClone,
     text,
   ]);
+  if (v2Text) {
+    group.addChild(v2Text);
+  }
 
   // the raster doesn't scale for some reason, so manually scale it;
   mapRaster.scaling = mapRaster.scaling.divide(layers.mapLayer.scaling);
