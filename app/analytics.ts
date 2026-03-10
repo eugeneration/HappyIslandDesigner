@@ -2,12 +2,111 @@ declare global {
   interface Window { gtag?: (...args: any[]) => void; }
 }
 
-function trackEvent(eventName: string, params?: Record<string, any>): void {
-  if (typeof window.gtag === 'function') {
-    window.gtag('event', eventName, params);
-  } else {
-    console.log('[analytics]', eventName, params ?? '');
+const PRODUCTION_HOST = 'eugeneration.github.io';
+const isDevSite = location.hostname !== PRODUCTION_HOST;
+
+let hitCounter = 2; // Start at 2; gtag.js uses _s=1 for the initial page_view
+
+function getClientId(): string {
+  const ga = document.cookie.split('; ').find(c => c.startsWith('_ga='));
+  if (ga) {
+    // _ga cookie format: GA1.1.XXXXX.XXXXX → extract XXXXX.XXXXX
+    const parts = ga.split('.');
+    if (parts.length >= 4) return parts.slice(2).join('.');
   }
+  // Fallback: generate a random client ID
+  return Math.floor(Math.random() * 2147483647) + '.' + Math.floor(Date.now() / 1000);
+}
+
+function getSessionData(): { sid: string; sct: string } {
+  // Session cookie format: GS1.1.<session_id>.<session_count>...
+  const cookie = document.cookie.split('; ').find(c => c.startsWith('_ga_D84QFBFDHP='));
+  if (cookie) {
+    const val = cookie.split('=')[1];
+    const parts = val.split('.');
+    if (parts.length >= 4) {
+      return { sid: parts[2], sct: parts[3] };
+    }
+  }
+  return { sid: String(Math.floor(Date.now() / 1000)), sct: '1' };
+}
+
+// --- Event queue (batched every 30s) ---
+interface QueuedEvent {
+  en: string;
+  _s: number;
+  eventParams: string; // URL-encoded per-event params (ep.*/epn.*)
+}
+
+const eventQueue: QueuedEvent[] = [];
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function buildSharedParams(): string {
+  const cid = getClientId();
+  const { sid, sct } = getSessionData();
+
+  return new URLSearchParams({
+    v: '2',
+    tid: 'G-D84QFBFDHP',
+    cid,
+    sid,
+    sct,
+    seg: '1',
+    dl: location.href,
+    dt: document.title,
+  }).toString();
+}
+
+function buildEventLine(event: QueuedEvent): string {
+  let line = 'en=' + encodeURIComponent(event.en) + '&_s=' + event._s;
+  if (event.eventParams) line += '&' + event.eventParams;
+  return line;
+}
+
+function flushEventQueue(): void {
+  if (eventQueue.length === 0) return;
+  const queued = eventQueue.splice(0);
+  const sharedUrl = 'https://www.google-analytics.com/g/collect?' + buildSharedParams();
+
+  if (queued.length === 1) {
+    // Single event: everything in query string
+    navigator.sendBeacon(sharedUrl + '&' + buildEventLine(queued[0]));
+  } else {
+    // Multiple events: shared params in URL, per-event params in body lines
+    const body = queued.map(buildEventLine).join('\n');
+    navigator.sendBeacon(sharedUrl, body);
+  }
+}
+
+function scheduleFlush(): void {
+  if (flushTimer !== null) return;
+  flushTimer = setTimeout(() => {
+    flushTimer = null;
+    flushEventQueue();
+  }, 30000);
+}
+
+function trackEvent(eventName: string, params?: Record<string, any>): void {
+  if (isDevSite) {
+    console.log('[analytics]', eventName, params ?? '');
+    return;
+  }
+
+  const eventParamParts: string[] = [];
+  if (params) {
+    for (const [key, value] of Object.entries(params)) {
+      if (value == null) continue;
+      const prefix = typeof value === 'number' ? 'epn.' : 'ep.';
+      eventParamParts.push(encodeURIComponent(prefix + key) + '=' + encodeURIComponent(String(value)));
+    }
+  }
+
+  eventQueue.push({
+    en: eventName,
+    _s: hitCounter++,
+    eventParams: eventParamParts.join('&'),
+  });
+  scheduleFlush();
 }
 
 // --- Wizard timing state ---
@@ -44,7 +143,7 @@ function flushBatchedEvents(): void {
 // --- Immediate events ---
 
 export function trackSessionStart(isRefresh: boolean, hasAutosave: boolean, language: string, loadTimeMs?: number): void {
-  trackEvent('session_start', {
+  trackEvent('app_session_start', {
     is_refresh: isRefresh,
     has_autosave: hasAutosave,
     language,
@@ -237,7 +336,10 @@ export function trackOverlayFlowCancel(): void {
 
 export function initAnalytics(): void {
   setInterval(flushBatchedEvents, 60000);
-  window.addEventListener('beforeunload', flushBatchedEvents);
+  window.addEventListener('beforeunload', () => {
+    flushBatchedEvents(); // convert counters into trackEvent calls first
+    flushEventQueue();    // then send all queued events
+  });
   window.addEventListener('error', (e) => {
     trackError('uncaught', e.message);
   });
