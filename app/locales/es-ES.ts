@@ -7,7 +7,7 @@ const esES = {
         '[ ]\n'+
         'p\n'+
         'alt+click\n'+
-        'retroceso\n'+
+        'supr\n'+
         '{{modifier}} + z\n'+
         '{{modifier}} + y\n'+
         '\n'+
@@ -35,7 +35,7 @@ const esES = {
         'herramienta de terreno\n'+
         'herramienta de caminos\n'+
         'herramienta de casas\n'+
-        'herramienta de edificios\n'+
+        'herramienta de instalaciones\n'+
         '\n'+
         'guardar\n'+
         'abrir un archivo de mapa\n'+
