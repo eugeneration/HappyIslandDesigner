@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Modal from 'react-modal';
+import AppModal from './AppModal';
 import paper from 'paper';
 import {Box, Button, Image, Flex, Grid, Heading, Text} from '@theme-ui/components'
 import i18next from 'i18next';
@@ -751,8 +751,7 @@ export default function ModalMapSelect(){
       <button id="open-map-select" style={{display: 'none'}} onClick={startModal}>Open Modal</button>
       <button id="close-map-select" style={{display: 'none'}} onClick={closeModal}>Close Modal</button>
       <button id="open-convert-modal" style={{display: 'none'}} onClick={openModal}>Convert Modal</button>
-      {/* @ts-ignore - react-modal types incompatible with React 16 */}
-      <Modal
+      <AppModal
         isOpen={modalIsOpen}
         closeTimeoutMS={200} // keep in sync with modal.scss
         onAfterOpen={afterOpenModal}
@@ -788,7 +787,7 @@ export default function ModalMapSelect(){
             }} />
           )}
         </Flex>
-      </Modal>
+      </AppModal>
     </div>
   );
 }

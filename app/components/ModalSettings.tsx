@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import Modal from 'react-modal';
+import AppModal from './AppModal';
 import { Box, Flex, Heading, Text } from '@theme-ui/components';
 import i18next from 'i18next';
 import { colors } from '../colors';
@@ -77,8 +78,7 @@ function ModalSettings() {
         style={{ display: 'none' }}
         onClick={() => setIsOpen(true)}
       />
-      {/* @ts-ignore - react-modal types incompatible with React 16 */}
-      <Modal
+      <AppModal
         isOpen={isOpen}
         onRequestClose={() => { setIsOpen(false); setShowRestart(false); }}
         style={customStyles}
@@ -141,7 +141,7 @@ function ModalSettings() {
             </Text>
           )}
         </Box>
-      </Modal>
+      </AppModal>
     </>
   );
 }
