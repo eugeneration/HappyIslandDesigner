@@ -149,6 +149,11 @@ const en = {
     wizard_choose_template: 'Choose a Drawing Template!',
     wizard_manual_description: 'Manual Drawing lets you redraw the entire island, but not everything will work in game.',
     wizard_choose_island: 'Choose your Island!',
+
+    // Settings
+    settings: 'Settings',
+    settings_language: 'Language',
+    settings_language_restart: 'Please reload the page for the language change to take effect.',
 };
 
 export default en;

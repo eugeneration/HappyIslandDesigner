@@ -9,6 +9,7 @@ import { saveMapToFile, showPendingSaveTutorial } from '../save';
 import { loadMapFromFile } from '../load';
 import { showSwitchModal } from './tracingOverlayModal';
 import { OpenMapSelectModal, OpenConvertModal } from '../components/ModalMapSelect';
+import { OpenSettingsModal } from '../components/ModalSettings';
 import { trackMainMenuAction } from '../analytics';
 import { isV2Map } from '../mapState';
 import { emitter } from '../emitter';
@@ -141,7 +142,7 @@ export function showMainMenu(isShown: boolean) {
 
     const upgradeButton = createMenuButton(
       i18next.t('upgrade_to_v2'),
-      'static/img/menu-upgrade.png', 1, 1,
+      'static/img/menu-upgrade.png', 0, 1,
       () => {
         trackMainMenuAction('upgrade_v2');
         OpenConvertModal();
@@ -150,11 +151,35 @@ export function showMainMenu(isShown: boolean) {
     );
     upgradeButton.visible = !isV2Map();
 
+    const settingsButton = createMenuButton(
+      i18next.t('settings'),
+      'static/img/menu-settings.png', 0, 1,
+      () => {
+        trackMainMenuAction('settings');
+        OpenSettingsModal();
+        showMainMenu(false);
+      },
+    );
+
+    // Row 1 buttons in display order; settings always last.
+    const row1Buttons = [switchButton, upgradeButton, settingsButton];
+    function layoutRow1() {
+      let col = 0;
+      for (const btn of row1Buttons) {
+        if (btn.visible) {
+          btn.position = new paper.Point(20 + col * 70, 1 * 70);
+          col++;
+        }
+      }
+    }
+
     const updateUpgradeVisibility = () => {
       upgradeButton.visible = !isV2Map();
+      layoutRow1();
     };
     emitter.on('mapVersionChanged', updateUpgradeVisibility);
     emitter.on('mapLoaded', updateUpgradeVisibility);
+    layoutRow1();
 
     const twitterButton = createMenuButton(
       i18next.t('twitter'),
@@ -172,6 +197,7 @@ export function showMainMenu(isShown: boolean) {
       newButton,
       switchButton,
       upgradeButton,
+      settingsButton,
       twitterButton,
     ]);
     mainMenu.opacity = 0;

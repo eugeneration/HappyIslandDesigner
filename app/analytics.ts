@@ -250,6 +250,10 @@ export function trackMainMenuAction(action: string): void {
   trackEvent('main_menu_action', { action });
 }
 
+export function trackLanguageChange(from: string, to: string): void {
+  trackEvent('language_change', { from_language: from, to_language: to });
+}
+
 export function trackConversion(success: boolean, durationMs: number, diagnostic?: { isValid: boolean; hasLowConfidence: boolean; riverDirection: string }): void {
   trackEvent('v1_to_v2_conversion', {
     success,

@@ -148,6 +148,11 @@ const zhCN = {
     wizard_choose_template: '选择绘图模板！',
     wizard_manual_description: '手动绘制可以重新绘制整个岛屿，但部分内容可能无法在游戏中实现。',
     wizard_choose_island: '选择你的岛屿！',
+
+    // Settings
+    settings: '设置',
+    settings_language: '语言',
+    settings_language_restart: '请重新加载页面以使语言更改生效。',
 };
 
 export default zhCN;

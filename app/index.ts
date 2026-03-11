@@ -21,7 +21,8 @@ function detectLanguage(): string {
   return SUPPORTED_LANGS.find(l => l.startsWith(base)) || 'en';
 }
 
-const detectedLng = detectLanguage();
+const storedLang = localStorage.getItem('preferred_language');
+const detectedLng = (storedLang && SUPPORTED_LANGS.includes(storedLang)) ? storedLang : detectLanguage();
 
 i18next.init({
   lng: detectedLng,

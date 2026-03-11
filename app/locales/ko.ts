@@ -148,6 +148,11 @@ const ko = {
     wizard_choose_template: '그리기 템플릿을 선택하세요!',
     wizard_manual_description: '수동 그리기에서는 섬 전체를 다시 그릴 수 있지만, 모든 것이 게임에서 작동하지는 않습니다.',
     wizard_choose_island: '섬을 선택하세요!',
+
+    // Settings
+    settings: '설정',
+    settings_language: '언어',
+    settings_language_restart: '언어 변경을 적용하려면 페이지를 새로고침해 주세요.',
 };
 
 export default ko;

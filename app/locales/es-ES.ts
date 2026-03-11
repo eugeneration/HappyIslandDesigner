@@ -148,6 +148,11 @@ const esES = {
     wizard_choose_template: '¡Elige una Plantilla de Dibujo!',
     wizard_manual_description: 'El dibujo manual te permite redibujar toda la isla, pero no todo funcionará en el juego.',
     wizard_choose_island: '¡Elige tu Isla!',
+
+    // Settings
+    settings: 'Ajustes',
+    settings_language: 'Idioma',
+    settings_language_restart: 'Por favor, recarga la página para que el cambio de idioma surta efecto.',
 };
 
 export default esES;

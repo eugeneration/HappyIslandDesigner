@@ -148,6 +148,11 @@ const zhTW = {
     wizard_choose_template: '選擇繪圖範本！',
     wizard_manual_description: '手動繪製可以重新繪製整座島嶼，但部分內容可能無法在遊戲中實現。',
     wizard_choose_island: '選擇你的島嶼！',
+
+    // Settings
+    settings: '設定',
+    settings_language: '語言',
+    settings_language_restart: '請重新載入頁面以使語言變更生效。',
 };
 
 export default zhTW;

@@ -2,6 +2,7 @@ import React from 'react';
 import { ThemeProvider } from 'theme-ui'
 import theme from './theme'
 import ModalMapSelect from './ModalMapSelect';
+import ModalSettings from './ModalSettings';
 
 //export interface AppProps { }
 
@@ -20,6 +21,7 @@ export function App(/*props: AppProps*/) {
           <Box mx='auto' />
         </Flex> */}
         <ModalMapSelect />
+        <ModalSettings />
       </main>
     </ThemeProvider>
   );

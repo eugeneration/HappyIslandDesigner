@@ -148,6 +148,11 @@ const fr = {
     wizard_choose_template: 'Choisissez un modèle de dessin !',
     wizard_manual_description: 'Le dessin manuel vous permet de redessiner toute l\'île, mais tout ne fonctionnera pas en jeu.',
     wizard_choose_island: 'Choisissez votre île !',
+
+    // Settings
+    settings: 'Paramètres',
+    settings_language: 'Langue',
+    settings_language_restart: 'Veuillez recharger la page pour appliquer le changement de langue.',
 };
 
 export default fr;
