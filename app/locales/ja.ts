@@ -148,11 +148,13 @@ const ja = {
     wizard_choose_template: 'テンプレートを選んでください！',
     wizard_manual_description: '手動描画では島全体を描き直せますが、ゲーム内で再現できない部分もあります。',
     wizard_choose_island: '島を選んでください！',
+    wizard_choose_island_hint: '完全に一致するものは見つからないかもしれませんが、あなたの島に近いものを選んでください。',
 
     // Settings
     settings: '設定',
     settings_language: '言語',
     settings_language_restart: '言語の変更を反映するにはページを再読み込みしてください。',
+    translation_disclaimer: '翻訳に誤りがあるかもしれません、翻訳ツールを使用しました。',
 };
 
 export default ja;

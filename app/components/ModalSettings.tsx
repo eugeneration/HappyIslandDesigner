@@ -53,6 +53,16 @@ const RESTART_MESSAGES: Record<string, string> = {
   'de': 'Bitte laden Sie die Seite neu, damit die Sprachänderung wirksam wird.',
 };
 
+const TRANSLATION_DISCLAIMER: Record<string, string> = {
+  'zh-CN': '翻译可能有误，我使用了翻译工具。',
+  'zh-TW': '翻譯可能有誤，我使用了翻譯工具。',
+  'es-ES': 'Las traducciones pueden tener errores, usé una herramienta de traducción.',
+  'ja': '翻訳に誤りがあるかもしれません、翻訳ツールを使用しました。',
+  'ko': '번역에 실수가 있을 수 있어요, 번역 도구를 사용했거든요.',
+  'fr': 'Les traductions peuvent contenir des erreurs, j\'ai utilisé un outil de traduction.',
+  'de': 'Die Übersetzungen können Fehler enthalten, ich habe ein Übersetzungstool verwendet.',
+};
+
 function ModalSettings() {
   const [isOpen, setIsOpen] = useState(false);
   const [showRestart, setShowRestart] = useState(false);
@@ -61,12 +71,14 @@ function ModalSettings() {
   const currentLang = localStorage.getItem('preferred_language') || i18next.language;
 
   const [restartMessage, setRestartMessage] = useState('');
+  const [selectedLang, setSelectedLang] = useState(currentLang);
 
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const lang = e.target.value;
     trackLanguageChange(currentLang, lang);
     localStorage.setItem('preferred_language', lang);
     setRestartMessage(RESTART_MESSAGES[lang] || RESTART_MESSAGES['en']);
+    setSelectedLang(lang);
     setShowRestart(true);
   };
 
@@ -130,15 +142,27 @@ function ModalSettings() {
           </Flex>
 
           {showRestart && (
-            <Text sx={{
-              fontFamily: 'Quicksand, sans-serif',
-              color: '#1976D2',
-              fontWeight: 'bold',
-              fontSize: '13px',
-              mt: 1,
-            }}>
-              {restartMessage}
-            </Text>
+            <>
+              <Text sx={{
+                fontFamily: 'Quicksand, sans-serif',
+                color: '#1976D2',
+                fontWeight: 'bold',
+                fontSize: '13px',
+                mt: 1,
+              }}>
+                {restartMessage}
+              </Text>
+              {TRANSLATION_DISCLAIMER[selectedLang] && (
+                <Text sx={{
+                  fontFamily: 'Quicksand, sans-serif',
+                  color: colors.secondaryText.cssColor,
+                  fontSize: '11px',
+                  mt: 1,
+                }}>
+                  {TRANSLATION_DISCLAIMER[selectedLang]}
+                </Text>
+              )}
+            </>
           )}
         </Box>
       </AppModal>

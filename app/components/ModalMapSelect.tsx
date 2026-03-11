@@ -1513,7 +1513,7 @@ function IslandGridStep({ layoutType, layouts, onSelect, onBack }: IslandGridSte
         </Button>
       </Box>
       <Heading m={2} sx={{px: 4, textAlign: 'center'}}>{i18next.t('wizard_choose_island')}</Heading>
-      <Text m={2} sx={{textAlign: 'center'}}>{'You probably won\'t find an exact match, but pick one that roughly resembles your island.'}</Text>
+      <Text m={2} sx={{textAlign: 'center'}}>{i18next.t('wizard_choose_island_hint')}</Text>
       <Grid
         gap={0}
         columns={[2, 3, 4]}

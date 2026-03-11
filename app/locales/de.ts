@@ -148,11 +148,13 @@ const de = {
     wizard_choose_template: 'Wählen Sie eine Zeichenvorlage!',
     wizard_manual_description: 'Beim manuellen Zeichnen können Sie die gesamte Insel neu zeichnen, aber nicht alles funktioniert im Spiel.',
     wizard_choose_island: 'Wählen Sie Ihre Insel!',
+    wizard_choose_island_hint: 'Sie werden wahrscheinlich keine exakte Übereinstimmung finden, aber wählen Sie eine, die Ihrer Insel ungefähr ähnelt.',
 
     // Settings
     settings: 'Einstellungen',
     settings_language: 'Sprache',
     settings_language_restart: 'Bitte laden Sie die Seite neu, damit die Sprachänderung wirksam wird.',
+    translation_disclaimer: 'Die Übersetzungen können Fehler enthalten, ich habe ein Übersetzungstool verwendet.',
 };
 
 export default de;

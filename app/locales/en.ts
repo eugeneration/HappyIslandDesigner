@@ -149,11 +149,13 @@ const en = {
     wizard_choose_template: 'Choose a Drawing Template!',
     wizard_manual_description: 'Manual Drawing lets you redraw the entire island, but not everything will work in game.',
     wizard_choose_island: 'Choose your Island!',
+    wizard_choose_island_hint: 'You probably won\'t find an exact match, but pick one that roughly resembles your island.',
 
     // Settings
     settings: 'Settings',
     settings_language: 'Language',
     settings_language_restart: 'Please reload the page for the language change to take effect.',
+    translation_disclaimer: 'Translations may have mistakes, I used a translation tool.',
 };
 
 export default en;
