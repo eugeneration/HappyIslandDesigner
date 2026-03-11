@@ -11,7 +11,7 @@ import en from './locales/en';
 
 browserUpdate({required:{i:79,f:45,o:45,s:-2,c:60},insecure:true,api:2020.03});
 
-const SUPPORTED_LANGS = ['en', 'zh-CN', 'zh-TW', 'es-ES', 'ja'];
+const SUPPORTED_LANGS = ['en', 'zh-CN', 'zh-TW', 'es-ES', 'ja', 'ko', 'fr', 'de'];
 
 function detectLanguage(): string {
   const browserLang = navigator.language;
